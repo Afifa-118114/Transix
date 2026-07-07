@@ -56,10 +56,6 @@ function TravelOptions({ trip }) {
             Recommended transport for your journey
           </p>
         </div>
-
-        <button className="rounded-xl bg-indigo-600 px-5 py-3 font-semibold text-white">
-          {trip.travelMode}
-        </button>
       </div>
 
       <TravelCard option={dashboardCard} />

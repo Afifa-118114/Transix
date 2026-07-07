@@ -1,6 +1,8 @@
 import { FiBell, FiMenu } from "react-icons/fi";
+import { useAuth } from "../../hooks/useAuth";
 
 function Navbar({ trip, setTrip }) {
+  const { user } = useAuth();
   return (
     <header className="flex h-16 items-center justify-between rounded-3xl bg-white px-6 shadow-sm">
       {/* Left */}
@@ -50,7 +52,7 @@ function Navbar({ trip, setTrip }) {
               localStorage.removeItem("currentTrip");
               setTrip(null);
             }}
-            className="rounded-xl bg-[#5B4BFF] px-5 py-2.5 text-sm font-semibold text-white"
+            className="rounded-xl bg-gradient-to-br from-indigo-400 via-white to-blue-700 text-black shadow-md px-5 py-2.5 text-sm font-semibold text-black"
           >
             Plan Another Trip
           </button>
@@ -60,11 +62,9 @@ function Navbar({ trip, setTrip }) {
           <FiBell />
         </button>
 
-        <img
-          src="https://i.pravatar.cc/100"
-          alt="Profile"
-          className="h-10 w-10 rounded-full object-cover"
-        />
+        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-indigo-700 via-white to-purple-600 text-lg font-semibold text-black">
+          {user?.name?.charAt(0).toUpperCase() || "U"}
+        </div>
       </div>
     </header>
   );

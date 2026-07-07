@@ -20,7 +20,7 @@ function ExperiencesPreview({ trip }) {
 
   return (
     <section className="overflow-x-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-2 overflow-hidden">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="translate-x-3 text-2xl font-bold">

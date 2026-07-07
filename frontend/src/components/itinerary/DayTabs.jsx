@@ -8,7 +8,7 @@ function DayTabs({ itinerary, selectedDay, setSelectedDay }) {
           className={`min-w-[80px] rounded-2xl px-5 py-3 text-sm font-semibold transition-all duration-300
             ${
               selectedDay === index
-                ? "bg-indigo-600 text-white shadow-lg"
+                ? "bg-gradient-to-br from-indigo-400 via-white to-blue-700 text-black shadow-lg"
                 : "bg-white text-gray-600 border border-gray-200 hover:bg-indigo-50 hover:text-indigo-600"
             }`}
         >

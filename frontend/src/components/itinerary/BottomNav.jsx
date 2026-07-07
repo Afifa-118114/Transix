@@ -12,7 +12,7 @@ function BottomNav({
       <button
         disabled={selectedDay === 0}
         onClick={() => setSelectedDay((d) => d - 1)}
-        className="flex items-center gap-2 rounded-xl border border-gray-300 px-5 py-3 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
+        className="flex items-center gap-2 rounded-xl border border-gray-400 px-5 py-3 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
       >
         <FiArrowLeft />
         Previous Day
@@ -21,7 +21,7 @@ function BottomNav({
       <button
         onClick={onRegenerate}
         disabled={loading}
-        className="flex items-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 font-medium text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-70"
+        className="flex items-center gap-2 rounded-xl bg-gradient-to-br from-indigo-400 via-white to-blue-700 px-6 py-3 font-medium text-black transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-70"
       >
         <FiRefreshCw className={loading ? "animate-spin" : ""} />
 
@@ -31,7 +31,7 @@ function BottomNav({
       <button
         disabled={selectedDay === totalDays - 1}
         onClick={() => setSelectedDay((d) => d + 1)}
-        className="flex items-center gap-2 rounded-xl border border-gray-300 px-5 py-3 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
+        className="flex items-center gap-2 rounded-xl border border-gray-400 px-5 py-3 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
       >
         Next Day
         <FiArrowRight />

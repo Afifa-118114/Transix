@@ -55,7 +55,7 @@ export default function PlaceCard({ place }) {
               href={place.website}
               target="_blank"
               rel="noreferrer"
-              className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-indigo-600 py-2 text-xs font-semibold text-white transition hover:bg-indigo-700"
+              className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-gradient-to-br from-indigo-400 via-white to-blue-700 py-2 text-xs font-semibold text-white"
             >
               <FaGlobe size={11} />
               Website
@@ -66,7 +66,7 @@ export default function PlaceCard({ place }) {
             href={place.mapsUrl}
             target="_blank"
             rel="noreferrer"
-            className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-green-600 py-2 text-xs font-semibold text-white transition hover:bg-green-700"
+            className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-gradient-to-br from-indigo-400 via-white to-blue-700 py-2 text-xs font-semibold text-white transition hover:bg-green-700"
           >
             <FaDirections size={11} />
             Maps

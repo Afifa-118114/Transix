@@ -26,8 +26,15 @@ Preferred Travel Mode: ${tripData.travelMode}
 Hotel Type: ${tripData.hotelType}
 Food Preference: ${tripData.foodPreference}
 Trip Type: ${tripData.tripType}
-Interests: ${tripData.interests.join(", ")}
 Purpose: ${tripData.purpose}
+Interests: ${tripData.interests.join(", ")}
+Very Important:
+Prioritize activities matching the user's interests.
+If "Food" is selected, include famous restaurants, cafes and local dishes.
+If "Nature" is selected, prioritize parks, lakes, viewpoints and gardens.
+If "History" is selected, prioritize monuments, forts and museums.
+If "Shopping" is selected, include famous markets and shopping streets.
+If multiple interests are selected, balance them across the itinerary.
 
 Instructions:
 

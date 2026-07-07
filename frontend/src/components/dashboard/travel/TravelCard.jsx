@@ -59,9 +59,7 @@ function TravelCard({ option }) {
       <div className="mt-8 flex items-center justify-between border-t pt-6">
         <span
           className={`rounded-full px-4 py-2 text-sm font-semibold ${option.tagColor}`}
-        >
-          {option.tag}
-        </span>
+        ></span>
 
         <button
           onClick={() =>
@@ -73,7 +71,7 @@ function TravelCard({ option }) {
               },
             })
           }
-          className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#2c296f] via-[#6a2478] to-[#a939ef] px-6 py-3 font-semibold text-white transition hover:scale-105"
+          className="flex items-center gap-2 rounded-xl bg-gradient-to-br from-indigo-400 via-white to-blue-700 text-black shadow-md px-6 py-3 font-semibold transition hover:scale-105"
         >
           Explore More
           <FaArrowRight />

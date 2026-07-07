@@ -17,7 +17,7 @@ function HotelActionButtons({ hotel }) {
         )}`}
         target="_blank"
         rel="noreferrer"
-        className="-translate-x-6 rounded-xl bg-indigo-600 px-8 py-4 font-semibold text-white transition hover:bg-indigo-700"
+        className="-translate-x-6 rounded-xl bg-gradient-to-br from-indigo-400 via-white to-blue-700 px-8 py-4 font-semibold text-black transition hover:bg-indigo-700"
       >
         Book on Booking.com
       </a>

@@ -67,7 +67,7 @@ export default function PlacesPage({ destination, title, categories }) {
             onClick={() => setActiveCategory(category)}
             className={`rounded-xl px-4 py-2 text-sm font-semibold transition-all ${
               activeCategory.value === category.value
-                ? "bg-indigo-600 text-white shadow-md"
+                ? "bg-gradient-to-br from-indigo-400 via-white to-blue-700 text-black shadow-md"
                 : "border border-gray-200 bg-white hover:bg-indigo-50"
             }`}
           >

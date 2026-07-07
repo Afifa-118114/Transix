@@ -1,19 +1,21 @@
 # Transix – AI Assisted Travel Planner
 
-Transix is a full-stack travel planning web application that helps users generate personalized trip itineraries using AI while discovering hotels, food places, nearby essentials, and travel information in a clean, interactive dashboard.
+Transix is a full-stack AI-powered travel planning web application that helps users generate personalized trip itineraries while discovering hotels, restaurants, nearby essentials, and travel information through a clean and interactive dashboard.
 
-The project combines AI-generated itineraries with real location data to simplify travel planning from a single platform.
+The project combines AI-generated itineraries with authentic real-world travel data to simplify end-to-end trip planning from a single platform.
 
-## ✨ Current Features
+---
 
-### Authentication
+# Current Features
+
+## Authentication
 
 - User Registration
 - Secure Login
 - JWT Authentication
 - Protected Routes
 
-### AI Trip Planner
+## AI Trip Planner
 
 Users can generate personalized trips by providing:
 
@@ -28,9 +30,9 @@ Users can generate personalized trips by providing:
 - Purpose
 - Interests
 
-Gemini AI generates a multi-day itinerary based on the provided preferences.
+Gemini AI generates a complete multi-day itinerary based on the provided preferences.
 
-### AI Itinerary Dashboard
+## AI Itinerary Dashboard
 
 Displays:
 
@@ -42,17 +44,17 @@ Displays:
 - Budget breakdown
 - Travel tips
 
-### Hotel Recommendations
+## Hotel Recommendations
 
-- Hotel recommendations using Google Places API
-- Hotel details page
+- Hotels using Google Places API
+- Hotel Details
 - Ratings
 - Reviews
 - Photos
 - Address
-- Google Maps link
+- Google Maps Link
 
-### 🍽 Food & Dining
+## Food & Dining
 
 Browse nearby:
 
@@ -63,9 +65,7 @@ Browse nearby:
 - Pizza
 - Street Food
 
-Each category displays real places using Google Places API.
-
-### Essentials Nearby
+## Nearby Essentials
 
 Browse nearby:
 
@@ -76,21 +76,79 @@ Browse nearby:
 - Police Stations
 - Mechanics
 
-Data is fetched dynamically based on the selected destination.
-
-### Travel Options
+## Travel Options
 
 Provides travel recommendations for different transport modes.
 
-_(Currently under active development. Real-time transport APIs are being integrated.)_
+> **Currently under development. Real-time Train, Bus and Flight APIs are being integrated.**
 
-### Map View
+## Map View
 
 Displays the route between source and destination on Google Maps.
 
-## Tech Stack
+---
 
-### Frontend
+# Screenshots
+
+## Home
+
+![](./Screenshots/home.png)
+
+---
+
+## AI Dashboard
+
+![](./Screenshots/dashboard.png)
+
+---
+
+## Authentication
+
+| Login                        | Register                      |
+| ---------------------------- | ----------------------------- |
+| ![](./Screenshots/login.png) | ![](./Screenshots/signup.png) |
+
+---
+
+## Trip Planner
+
+![](./Screenshots/tripForm.png)
+
+---
+
+## Travel Route
+
+![](./Screenshots/travel.png)
+
+---
+
+## AI Generated Itinerary
+
+![](./Screenshots/itinerary.png)
+
+---
+
+## Hotel Recommendations
+
+![](./Screenshots/hotels.png)
+
+---
+
+## Food Recommendations
+
+![](./Screenshots/food.png)
+
+---
+
+## Nearby Essentials
+
+![](./Screenshots/essentials.png)
+
+---
+
+# Tech Stack
+
+## Frontend
 
 - React.js
 - Vite
@@ -98,14 +156,14 @@ Displays the route between source and destination on Google Maps.
 - React Router
 - Axios
 
-### Backend
+## Backend
 
 - Node.js
 - Express.js
 - MongoDB
 - JWT Authentication
 
-### APIs & Services
+## APIs & Services
 
 - Google Gemini AI
 - Google Places API
@@ -113,17 +171,18 @@ Displays the route between source and destination on Google Maps.
 
 ---
 
-# 📁 Project Structure
+# Project Structure
 
-```
+```text
 Transix
 │
 ├── frontend
-│
 ├── backend
-│
+├── Screenshots
 └── README.md
 ```
+
+---
 
 # Getting Started
 
@@ -143,7 +202,9 @@ npm install
 npm run dev
 ```
 
-# 🔑 Environment Variables
+---
+
+# Environment Variables
 
 Create a `.env` file inside the backend directory.
 
@@ -159,21 +220,22 @@ GEMINI_API_KEY=
 GOOGLE_MAPS_API_KEY=
 ```
 
-# 🚧 Currently Working On
+---
 
-The following features are under development:
+# Currently Working On
 
-- Real-time Train API integration
-- Flight & Bus travel APIs
-- Improved Local Experiences
-- Interactive route visualization
+- Accurate Budget Breakdown
+- Trip Summary & Export
+- Real-time Travel APIs
 - Saved Trips
-- Export itinerary (PDF/Image)
-- AI itinerary regeneration improvements
+- Interactive Route Map
+- AI Itinerary Improvements
 
-# 📌 Project Goal
+---
 
-The goal of Transix is to build an intelligent travel planning platform that combines AI-generated itineraries with authentic real-world travel information to help users plan complete trips from a single application.
+# Project Goal
+
+Transix aims to become an intelligent travel planning platform that combines AI-generated itineraries with authentic real-world travel information, enabling users to plan complete trips from a single application.
 
 ---
 
@@ -183,4 +245,4 @@ The goal of Transix is to build an intelligent travel planning platform that com
 
 Computer Engineering Student
 
-Built using React, Node.js, MongoDB, Google Gemini AI and Google Maps Platform.
+Built with **React, Node.js, Express.js, MongoDB, Google Gemini AI and Google Maps Platform.**

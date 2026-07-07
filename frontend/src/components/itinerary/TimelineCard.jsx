@@ -97,7 +97,7 @@ function TimelineCard({ activity, destination }) {
                 href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activity.place)}`}
                 target="_blank"
                 rel="noreferrer"
-                className="rounded-xl border border-indigo-600 px-10 py-5 text-sm font-medium transition hover:bg-indigo-50 translate-x-4"
+                className="rounded-xl bg-gradient-to-br from-indigo-400 via-white to-blue-700 px-10 py-5 text-sm font-medium transition hover:bg-indigo-50 translate-x-4"
               >
                 Google Maps
               </a>
@@ -106,7 +106,7 @@ function TimelineCard({ activity, destination }) {
                 href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(activity.place)}`}
                 target="_blank"
                 rel="noreferrer"
-                className="flex items-center gap-2 rounded-xl bg-indigo-600 px-8 py-4 text-sm font-medium text-white transition hover:bg-indigo-700"
+                className="flex items-center gap-2 rounded-xl bg-gradient-to-br from-indigo-400 via-white to-blue-700 px-8 py-4 text-sm font-medium text-black transition hover:bg-indigo-700"
               >
                 <FiNavigation className="text-lg" />
                 Navigate
