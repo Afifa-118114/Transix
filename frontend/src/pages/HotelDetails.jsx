@@ -27,7 +27,7 @@ export default function HotelDetails() {
 
   if (hotelsList.length === 0) {
     return (
-      <div className="flex h-screen flex-col items-center justify-center gap-3 bg-[#f8faff] text-slate-600">
+      <div className="flex h-screen flex-col items-center justify-center gap-3 bg-[#f8faff] dark:bg-[#0b0f19] text-slate-600 dark:text-slate-400 transition-colors duration-200">
         <p className="text-sm font-semibold">No hotel information selected.</p>
         <button
           onClick={() => navigate(-1)}
@@ -42,7 +42,7 @@ export default function HotelDetails() {
   const hotel = hotelsList[activeHotel] || hotelsList[0];
 
   return (
-    <div className="min-h-screen bg-[#f8faff] text-slate-800 pb-12">
+    <div className="min-h-screen bg-[#f8faff] dark:bg-[#0b0f19] text-slate-800 dark:text-slate-100 pb-12 transition-colors duration-200">
       <div className="mx-auto max-w-6xl px-4 py-6">
         <button
           onClick={() => navigate(-1)}

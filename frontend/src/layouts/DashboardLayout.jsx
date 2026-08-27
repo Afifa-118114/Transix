@@ -3,7 +3,7 @@ import Navbar from "../components/common/Navbar";
 
 export default function DashboardLayout({ trip, setTrip, children }) {
   return (
-    <div className="flex min-h-screen gap-4 bg-[#f8faff] p-4">
+    <div className="flex min-h-screen gap-4 bg-[#f8faff] dark:bg-[#0b0f19] p-4 transition-colors duration-200">
       <Sidebar />
 
       <main className="flex-1 flex flex-col min-w-0">
@@ -16,3 +16,4 @@ export default function DashboardLayout({ trip, setTrip, children }) {
     </div>
   );
 }
+

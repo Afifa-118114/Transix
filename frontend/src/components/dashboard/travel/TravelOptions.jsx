@@ -86,10 +86,10 @@ export default function TravelOptions({ trip }) {
   };
 
   return (
-    <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
+    <section className="rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-[#131b2e] p-5 shadow-xs transition-colors">
       <div className="mb-4 flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-bold text-slate-900">Transit & Travel Options</h2>
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white">Transit & Travel Options</h2>
           <p className="text-xs text-slate-500">
             Recommended routes between {trip.source} and {trip.destination}
           </p>

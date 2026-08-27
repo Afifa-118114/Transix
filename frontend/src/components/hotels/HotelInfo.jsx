@@ -3,14 +3,14 @@ import { FaStar } from "react-icons/fa";
 
 function InfoCard({ icon, title, value, link }) {
   return (
-    <div className="rounded-xl border border-slate-200/80 bg-white p-3.5 shadow-xs">
+    <div className="rounded-xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-[#131b2e] p-3.5 shadow-xs transition-colors">
       <div className="flex items-center gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 text-base">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 text-base">
           {icon}
         </div>
 
         <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-bold uppercase text-slate-400">{title}</p>
+          <p className="text-[10px] font-bold uppercase text-slate-400 dark:text-slate-500">{title}</p>
           {link && value !== "Not available" ? (
             <a
               href={link}
@@ -21,7 +21,7 @@ function InfoCard({ icon, title, value, link }) {
               {value}
             </a>
           ) : (
-            <p className="text-xs font-semibold text-slate-800 truncate">{value}</p>
+            <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">{value}</p>
           )}
         </div>
       </div>
@@ -41,7 +41,7 @@ export default function HotelInfo({ hotel }) {
     <div className="flex flex-col justify-between">
       <div>
         <div className="flex items-start justify-between gap-2">
-          <h1 className="text-xl font-bold text-slate-900 leading-tight">
+          <h1 className="text-xl font-bold text-slate-900 dark:text-white leading-tight">
             {hotel.name}
           </h1>
 
@@ -54,7 +54,7 @@ export default function HotelInfo({ hotel }) {
           {hotel.rating ? (
             <div className="flex items-center gap-1">
               <FaStar className="text-amber-400 text-xs" />
-              <span className="font-bold text-slate-800">{hotel.rating}</span>
+              <span className="font-bold text-slate-800 dark:text-white">{hotel.rating}</span>
               {hotel.reviews && <span>({hotel.reviews.toLocaleString()} reviews)</span>}
             </div>
           ) : (
@@ -94,12 +94,12 @@ export default function HotelInfo({ hotel }) {
         </div>
 
         {hotel.openingHours && Array.isArray(hotel.openingHours) && (
-          <div className="mt-3 rounded-xl border border-slate-200/80 bg-white p-3 shadow-xs">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 mb-1.5">
+          <div className="mt-3 rounded-xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-[#131b2e] p-3 shadow-xs">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-white mb-1.5">
               <FiClock className="text-indigo-600" />
               <span>Operating Schedule</span>
             </div>
-            <div className="space-y-0.5 text-[11px] text-slate-600">
+            <div className="space-y-0.5 text-[11px] text-slate-600 dark:text-slate-400">
               {hotel.openingHours.slice(0, 3).map((line, idx) => (
                 <p key={idx}>{line}</p>
               ))}

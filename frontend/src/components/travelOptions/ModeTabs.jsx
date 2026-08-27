@@ -20,7 +20,7 @@ const modes = [
 
 function ModeTabs({ selectedMode, setSelectedMode }) {
   return (
-    <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white p-1 shadow-2xs">
+    <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-[#131b2e] p-1 shadow-2xs">
       {modes.map((mode) => (
         <button
           key={mode.id}
@@ -29,7 +29,7 @@ function ModeTabs({ selectedMode, setSelectedMode }) {
             ${
               selectedMode === mode.id
                 ? "bg-indigo-600 text-white shadow-xs"
-                : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
             }`}
         >
           {mode.icon}
@@ -39,5 +39,6 @@ function ModeTabs({ selectedMode, setSelectedMode }) {
     </div>
   );
 }
+
 
 export default ModeTabs;

@@ -1,5 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { generateAITrip } from "../../api/tripApi";
+import { normalizeTrip } from "../../utils/formatTrip";
+import { clearInventoryCache } from "../../services/inventoryService";
+import toast from "react-hot-toast";
 
 const interestOptions = [
   "Nature",
@@ -19,8 +22,17 @@ const interestOptions = [
   "Relaxation",
 ];
 
+const loadingPhases = [
+  "Analyzing destination & travel preferences...",
+  "Querying railway timetable & transit schedules...",
+  "Selecting top-rated stays & verified landmarks...",
+  "Optimizing day-by-day itinerary & timings...",
+  "Finalizing your intelligent travel plan...",
+];
+
 export default function TripForm({ setTrip }) {
   const [loading, setLoading] = useState(false);
+  const [loadingPhaseIndex, setLoadingPhaseIndex] = useState(0);
 
   const [form, setForm] = useState({
     source: "",
@@ -39,6 +51,19 @@ export default function TripForm({ setTrip }) {
     purpose: "Vacation",
   });
 
+  useEffect(() => {
+    let interval = null;
+    if (loading) {
+      setLoadingPhaseIndex(0);
+      interval = setInterval(() => {
+        setLoadingPhaseIndex((prev) => (prev + 1) % loadingPhases.length);
+      }, 2200);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [loading]);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({
@@ -49,6 +74,11 @@ export default function TripForm({ setTrip }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!form.source || !form.destination) {
+      toast.error("Please provide both Origin and Destination cities");
+      return;
+    }
+
     try {
       setLoading(true);
       const token = localStorage.getItem("token");
@@ -60,14 +90,17 @@ export default function TripForm({ setTrip }) {
 
       const res = await generateAITrip(payload, token);
       if (res?.trip) {
-        localStorage.setItem("currentTrip", JSON.stringify(res.trip));
+        clearInventoryCache();
+        const normalized = normalizeTrip(res.trip);
+        localStorage.setItem("currentTrip", JSON.stringify(normalized));
         localStorage.removeItem("transix_builder_trip");
-        setTrip(res.trip);
-        // Dispatch custom event so TripBuilderContext syncs in the same tab
-        window.dispatchEvent(new CustomEvent("transix_trip_updated", { detail: res.trip }));
+        if (setTrip) setTrip(normalized);
+        window.dispatchEvent(new CustomEvent("transix_trip_updated", { detail: normalized }));
+        toast.success(`Itinerary created for ${normalized.destination}!`, { icon: "✨" });
       }
     } catch (err) {
       console.error("Trip generation error:", err);
+      toast.error(err.response?.data?.message || "Failed to generate itinerary. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -86,10 +119,10 @@ export default function TripForm({ setTrip }) {
     <div className="flex justify-center px-4 py-8">
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-3xl rounded-2xl border border-slate-200/80 bg-white p-6 sm:p-8 shadow-xs"
+        className="w-full max-w-3xl rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-[#131b2e] p-6 sm:p-8 shadow-xs transition-colors"
       >
         <div className="mb-6 text-center">
-          <h2 className="text-xl font-bold text-slate-900">Plan Your AI Trip</h2>
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white">Plan Your AI Trip</h2>
           <p className="mt-1 text-xs text-slate-500">
             Tell us your preferences and let our AI build your personalized itinerary
           </p>
@@ -97,7 +130,7 @@ export default function TripForm({ setTrip }) {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
               Origin City
             </label>
             <input
@@ -105,13 +138,13 @@ export default function TripForm({ setTrip }) {
               placeholder="e.g. Mumbai, Delhi, Bangalore"
               value={form.source}
               onChange={handleChange}
-              className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-xs text-slate-800 outline-none transition focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-100"
+              className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/60 px-3.5 py-2.5 text-xs text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 outline-none transition focus:border-indigo-500 dark:focus:border-indigo-500 focus:bg-white dark:focus:bg-[#1a233a] focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-900/40"
               required
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
               Destination City
             </label>
             <input
@@ -119,7 +152,7 @@ export default function TripForm({ setTrip }) {
               placeholder="e.g. Kerala, Goa, Manali"
               value={form.destination}
               onChange={handleChange}
-              className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-xs text-slate-800 outline-none transition focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-100"
+              className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/60 px-3.5 py-2.5 text-xs text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 outline-none transition focus:border-indigo-500 dark:focus:border-indigo-500 focus:bg-white dark:focus:bg-[#1a233a] focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-900/40"
               required
             />
           </div>
@@ -251,7 +284,7 @@ export default function TripForm({ setTrip }) {
 
         {/* Interests Selector */}
         <div className="mt-5 border-t border-slate-100 pt-4">
-          <label className="block text-xs font-bold text-slate-700 mb-2">
+          <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">
             Select Your Travel Interests
           </label>
 
@@ -266,7 +299,7 @@ export default function TripForm({ setTrip }) {
                   className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
                     isSelected
                       ? "bg-indigo-600 text-white shadow-xs"
-                      : "border border-slate-200 bg-slate-50 text-slate-600 hover:border-indigo-300 hover:bg-white hover:text-indigo-600"
+                      : "border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:border-indigo-300 dark:hover:border-indigo-600/50 hover:bg-white dark:hover:bg-slate-700 hover:text-indigo-600 dark:hover:text-indigo-400"
                   }`}
                 >
                   {interest}
@@ -277,13 +310,27 @@ export default function TripForm({ setTrip }) {
         </div>
 
         <div className="mt-6">
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-xl bg-indigo-600 py-3 text-xs font-bold text-white shadow-xs transition hover:bg-indigo-700 active:scale-98 disabled:cursor-not-allowed disabled:opacity-70"
-          >
-            {loading ? "Generating Intelligent Itinerary..." : "Generate AI Trip Itinerary"}
-          </button>
+          {loading ? (
+            <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-4 text-center">
+              <div className="flex items-center justify-center gap-3">
+                <div className="h-5 w-5 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
+                <span className="text-xs font-bold text-indigo-900">
+                  {loadingPhases[loadingPhaseIndex]}
+                </span>
+              </div>
+              <p className="mt-1.5 text-[11px] text-indigo-600/80">
+                Generating personalized travel plan for {form.destination || "your destination"}...
+              </p>
+            </div>
+          ) : (
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full rounded-xl bg-indigo-600 py-3 text-xs font-bold text-white shadow-xs transition hover:bg-indigo-700 active:scale-98 disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              Generate AI Trip Itinerary
+            </button>
+          )}
         </div>
       </form>
     </div>

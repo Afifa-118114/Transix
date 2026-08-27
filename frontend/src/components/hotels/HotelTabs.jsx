@@ -29,7 +29,7 @@ export default function HotelTabs({
       {/* Left Arrow */}
       <button
         onClick={() => scroll("left")}
-        className="z-10 mr-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-xs hover:bg-slate-50 transition"
+        className="z-10 mr-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1a233a] text-slate-600 dark:text-slate-300 shadow-xs hover:bg-slate-50 dark:hover:bg-slate-700 transition"
       >
         <FiChevronLeft size={16} />
       </button>
@@ -48,11 +48,11 @@ export default function HotelTabs({
             }}
             className={`min-w-[180px] rounded-xl border p-3 text-left transition-all duration-200 ${
               activeHotel === index
-                ? "border-indigo-600 bg-indigo-50/70 text-indigo-900 shadow-xs ring-1 ring-indigo-200"
-                : "border-slate-200 bg-white text-slate-700 hover:border-indigo-300 hover:shadow-xs"
+                ? "border-indigo-600 dark:border-indigo-500 bg-indigo-50/70 dark:bg-indigo-950/40 text-indigo-900 dark:text-indigo-100 shadow-xs ring-1 ring-indigo-200 dark:ring-indigo-700"
+                : "border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1a233a] text-slate-700 dark:text-slate-300 hover:border-indigo-300 dark:hover:border-indigo-600/50 hover:shadow-xs"
             }`}
           >
-            <p className="mb-0.5 text-[10px] font-bold uppercase text-slate-400">
+            <p className="mb-0.5 text-[10px] font-bold uppercase text-slate-400 dark:text-slate-500">
               Option {index + 1}
             </p>
             <p className="line-clamp-1 text-xs font-bold">
@@ -65,7 +65,7 @@ export default function HotelTabs({
       {/* Right Arrow */}
       <button
         onClick={() => scroll("right")}
-        className="z-10 ml-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-xs hover:bg-slate-50 transition"
+        className="z-10 ml-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1a233a] text-slate-600 dark:text-slate-300 shadow-xs hover:bg-slate-50 dark:hover:bg-slate-700 transition"
       >
         <FiChevronRight size={16} />
       </button>

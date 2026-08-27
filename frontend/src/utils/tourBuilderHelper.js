@@ -1,12 +1,5 @@
 import toast from "react-hot-toast";
-
-// Parse price safely
-export const parsePrice = (priceVal) => {
-  if (typeof priceVal === "number") return priceVal;
-  if (!priceVal) return 0;
-  const cleaned = String(priceVal).replace(/[^0-9.]/g, "");
-  return parseFloat(cleaned) || 0;
-};
+import { normalizeTrip, parsePrice } from "./formatTrip";
 
 // Add an item directly to the current trip in localStorage
 export const addItemToTourBuilder = (item, dayIndex = 0, navigate = null) => {
@@ -15,7 +8,7 @@ export const addItemToTourBuilder = (item, dayIndex = 0, navigate = null) => {
     const saved = localStorage.getItem("currentTrip") || localStorage.getItem("transix_builder_trip");
     if (saved) {
       try {
-        currentTrip = JSON.parse(saved);
+        currentTrip = normalizeTrip(JSON.parse(saved));
       } catch (e) {
         console.error("Error parsing saved trip in tourBuilderHelper:", e);
       }
@@ -93,10 +86,10 @@ export const addItemToTourBuilder = (item, dayIndex = 0, navigate = null) => {
       plan: updatedPlan,
     };
 
-    const updatedTrip = {
+    const updatedTrip = normalizeTrip({
       ...currentTrip,
       itinerary: updatedItinerary,
-    };
+    });
 
     localStorage.setItem("currentTrip", JSON.stringify(updatedTrip));
     localStorage.removeItem("transix_builder_trip");

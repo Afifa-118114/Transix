@@ -19,7 +19,7 @@ export default function HotelsPreview(props) {
 
   if (loading) {
     return (
-      <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
+      <section className="rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-[#131b2e] p-5 shadow-xs transition-colors">
         <div className="mb-4 flex items-center justify-between">
           <div>
             <h2 className="text-lg font-bold text-slate-900">Stays & Accommodations</h2>
@@ -33,7 +33,7 @@ export default function HotelsPreview(props) {
           {[1, 2, 3, 4].map((i) => (
             <div
               key={i}
-              className="h-64 w-60 shrink-0 animate-pulse rounded-2xl bg-slate-100 border border-slate-200"
+              className="h-64 w-60 shrink-0 animate-pulse rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
             />
           ))}
         </div>
@@ -42,7 +42,7 @@ export default function HotelsPreview(props) {
   }
 
   return (
-    <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
+    <section className="rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-[#131b2e] p-5 shadow-xs transition-colors">
       <div className="mb-4 flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2">
@@ -64,14 +64,14 @@ export default function HotelsPreview(props) {
             <button
               onClick={() => scroll("left")}
               title="Scroll Left"
-              className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 transition"
+              className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
             >
               <FiChevronLeft className="text-base" />
             </button>
             <button
               onClick={() => scroll("right")}
               title="Scroll Right"
-              className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 transition"
+              className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
             >
               <FiChevronRight className="text-base" />
             </button>

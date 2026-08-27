@@ -6,8 +6,10 @@ const { getDestinationImage } = require("../services/imageService");
 const generateAITrip = asyncHandler(async (req, res) => {
   const tripData = req.body;
 
-  const aiData = await generateTripPlan(tripData);
-  const heroImage = await getDestinationImage(tripData.destination);
+  const [aiData, heroImage] = await Promise.all([
+    generateTripPlan(tripData),
+    getDestinationImage(tripData.destination),
+  ]);
 
   const savedTrip = await Trip.create({
     user: req.user.id,

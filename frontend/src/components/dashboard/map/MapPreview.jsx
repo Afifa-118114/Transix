@@ -42,25 +42,25 @@ export default function MapPreview({ trip }) {
 
   if (points.length < 2) {
     return (
-      <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
-        <h2 className="text-lg font-bold text-slate-900">Route Map Overview</h2>
-        <p className="mt-2 text-xs text-slate-500">Loading route map...</p>
+      <section className="rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-[#131b2e] p-5 shadow-xs transition-colors">
+        <h2 className="text-lg font-bold text-slate-900 dark:text-white">Route Map Overview</h2>
+        <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">Loading route map...</p>
       </section>
     );
   }
 
   return (
-    <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
+    <section className="rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-[#131b2e] p-5 shadow-xs transition-colors">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-lg font-bold text-slate-900">Route Map Overview</h2>
-          <p className="text-xs text-slate-500">
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white">Route Map Overview</h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
             {trip.source} → {trip.destination}
           </p>
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-slate-200">
+      <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700">
         <MapContainer
           center={points[0]}
           zoom={6}
@@ -68,7 +68,7 @@ export default function MapPreview({ trip }) {
           className="h-80 w-full"
         >
           <TileLayer
-            attribution="© OpenStreetMap contributors"
+            attribution="&copy; OpenStreetMap contributors"
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
 

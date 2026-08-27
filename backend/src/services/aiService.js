@@ -42,7 +42,7 @@ Create a realistic trip.
 
 For EVERY day generate 5-7 activities.
 
-Activities should be in chronological order.
+Activities should be in chronological order with feasible non-overlapping start times and 15-30 minutes buffer between activities for local travel.
 
 Each activity must contain:
 
@@ -56,7 +56,7 @@ Each activity must contain:
 Example:
 
 {
-"time":"09:00",
+"time":"09:00 AM",
 "place":"Naini Lake",
 "activity":"Boating",
 "notes":"Best during morning",
@@ -73,9 +73,10 @@ Rules:
 - Include travel where required.
 - Avoid repeating places.
 - Activities must be short.
-- Use realistic timings.
+- Use realistic non-overlapping timings with 15-30m transition buffers.
 - Use realistic prices.
 - Budget breakdown must approximately match the total budget.
+
 
 Return exactly this JSON:
 

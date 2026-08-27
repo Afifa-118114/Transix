@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useMemo, useCallback } 
 import toast from "react-hot-toast";
 import axios from "axios";
 import { getDestinationInventory } from "../services/inventoryService";
+import { normalizeTrip, timeToMinutes, minutesToTimeStr, parsePrice } from "../utils/formatTrip";
 
 export const TripBuilderContext = createContext();
 
@@ -13,43 +14,8 @@ export const useTripBuilder = () => {
   return context;
 };
 
-// Helper: Convert time string (e.g. "10:30 AM" or "14:00") to minutes from midnight
-export const timeToMinutes = (timeStr) => {
-  if (!timeStr) return null;
-  const cleaned = String(timeStr).trim();
-  const isPM = /pm/i.test(cleaned);
-  const isAM = /am/i.test(cleaned);
-  const match = cleaned.match(/(\d{1,2})[:.](\d{2})/);
-  if (!match) return null;
-  let hours = parseInt(match[1], 10);
-  const minutes = parseInt(match[2], 10);
-  if (isPM && hours < 12) hours += 12;
-  if (isAM && hours === 12) hours = 0;
-  return hours * 60 + minutes;
-};
-
-// Helper: Format minutes from midnight to 12h display string (e.g. 630 -> "10:30 AM")
-export const minutesToTimeStr = (minutes) => {
-  const normalized = ((minutes % 1440) + 1440) % 1440;
-  let hours = Math.floor(normalized / 60);
-  const mins = normalized % 60;
-  const ampm = hours >= 12 ? "PM" : "AM";
-  const displayHours = hours % 12 === 0 ? 12 : hours % 12;
-  const pad = (n) => (n < 10 ? `0${n}` : n);
-  return `${pad(displayHours)}:${pad(mins)} ${ampm}`;
-};
-
-// Parse numeric price safely
-export const parsePrice = (priceVal) => {
-  if (typeof priceVal === "number") return priceVal;
-  if (!priceVal) return 0;
-  const cleaned = String(priceVal).replace(/[^0-9.]/g, "");
-  const parsed = parseFloat(cleaned);
-  return isNaN(parsed) ? 0 : parsed;
-};
-
-// Generate default itinerary framework for any destination
-export function generateDefaultItinerary(source = "Mumbai", destination = "Kerala", numDays = 5) {
+// Generate default itinerary framework for any selected destination
+export function generateDefaultItinerary(source = "Mumbai", destination = "Destination", numDays = 5) {
   const days = [];
   const dayTitles = [
     `Arrival & ${destination} Orientation`,
@@ -68,58 +34,28 @@ export function generateDefaultItinerary(source = "Mumbai", destination = "Keral
     });
   }
 
-  return {
+  return normalizeTrip({
     _id: `trip-${Date.now()}`,
     source: source || "Mumbai",
     destination: destination || "Destination",
     duration: `${numDays} Days`,
     travelers: 2,
-    budget: 60000,
+    budget: 50000,
     currency: "INR",
     travelMode: "Train",
     hotelType: "Standard",
     itinerary: days,
-  };
+  });
 }
 
 export function TripBuilderProvider({ children }) {
-  const [trip, setTrip] = useState(() => {
+  const [trip, setTripInternal] = useState(() => {
     try {
-      const savedCurrentTrip = localStorage.getItem("currentTrip");
+      const savedCurrentTrip = localStorage.getItem("currentTrip") || localStorage.getItem("transix_builder_trip");
       if (savedCurrentTrip) {
         const parsed = JSON.parse(savedCurrentTrip);
         if (parsed && typeof parsed === "object" && (parsed.destination || parsed.source)) {
-          const src = parsed.source || "Origin";
-          const dst = parsed.destination || "Destination";
-
-          if (Array.isArray(parsed.itinerary) && parsed.itinerary.length > 0) {
-            return {
-              ...parsed,
-              source: src,
-              destination: dst,
-              budget: Number(parsed.budget) || 60000,
-              travelers: Number(parsed.travelers) || 2,
-              itinerary: parsed.itinerary.map((d, index) => ({
-                day: d.day || index + 1,
-                title: d.title || `Day ${index + 1} — ${dst} Exploration`,
-                date: `Day ${d.day || index + 1}`,
-                plan: (d.plan || []).map((p, pIdx) => ({
-                  id: p.id || `item-d${index + 1}-${pIdx}-${Date.now()}`,
-                  ...p,
-                  startTime: p.startTime || (p.time ? p.time.split("-")[0]?.trim() : null) || minutesToTimeStr(9 * 60 + pIdx * 150),
-                  endTime: p.endTime || (p.time ? p.time.split("-")[1]?.trim() : null) || minutesToTimeStr(9 * 60 + pIdx * 150 + (p.durationMinutes || 90)),
-                  durationMinutes: p.durationMinutes || 90,
-                  price: parsePrice(p.price || p.estimatedCost),
-                  displayPrice: p.displayPrice || (p.price ? `₹${Number(p.price).toLocaleString()}` : null),
-                  dnaMatch: p.dnaMatch || 94,
-                  rating: p.rating || 4.7,
-                  category: p.category || "activity",
-                })),
-              })),
-            };
-          } else {
-            return generateDefaultItinerary(src, dst, 5);
-          }
+          return normalizeTrip(parsed);
         }
       }
     } catch (e) {
@@ -127,6 +63,26 @@ export function TripBuilderProvider({ children }) {
     }
     return null;
   });
+
+  // Single authoritative trip updater that keeps state, storage, and cross-component listeners 100% in sync
+  const setTrip = useCallback((newTripOrUpdater) => {
+    setTripInternal((prevTrip) => {
+      const nextTrip = typeof newTripOrUpdater === "function" ? newTripOrUpdater(prevTrip) : newTripOrUpdater;
+      if (!nextTrip) {
+        localStorage.removeItem("currentTrip");
+        localStorage.removeItem("transix_builder_trip");
+        return null;
+      }
+      const normalized = normalizeTrip(nextTrip);
+      try {
+        localStorage.setItem("currentTrip", JSON.stringify(normalized));
+        localStorage.removeItem("transix_builder_trip");
+      } catch (err) {
+        console.error("LocalStorage sync error:", err);
+      }
+      return normalized;
+    });
+  }, []);
 
   const [activeDayIndex, setActiveDayIndex] = useState(0);
   const [draggedItem, setDraggedItem] = useState(null);
@@ -155,28 +111,29 @@ export function TripBuilderProvider({ children }) {
   const initializeTrip = useCallback((source, destination, numDays = 5) => {
     const newTrip = generateDefaultItinerary(source, destination, numDays);
     setTrip(newTrip);
-    localStorage.setItem("currentTrip", JSON.stringify(newTrip));
-    localStorage.removeItem("transix_builder_trip");
     return newTrip;
-  }, []);
+  }, [setTrip]);
 
   // Sync with same-tab updates and cross-tab storage changes
   useEffect(() => {
     const handleCustomUpdate = (e) => {
       if (e.detail) {
-        setTrip(e.detail);
+        const normalized = normalizeTrip(e.detail);
+        setTripInternal(normalized);
+      } else if (e.detail === null) {
+        setTripInternal(null);
       }
     };
 
     const handleStorageChange = (e) => {
-      if (e.key === "currentTrip") {
+      if (e.key === "currentTrip" || e.key === "transix_builder_trip") {
         if (!e.newValue) {
-          setTrip(null);
+          setTripInternal(null);
         } else {
           try {
             const parsed = JSON.parse(e.newValue);
             if (parsed && typeof parsed === "object") {
-              setTrip(parsed);
+              setTripInternal(normalizeTrip(parsed));
             }
           } catch (err) {
             console.error("Storage change sync error:", err);

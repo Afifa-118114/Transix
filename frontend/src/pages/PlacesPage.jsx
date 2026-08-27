@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 import { getPlaces } from "../api/placeApi";
 import PlaceGrid from "../components/Places/PlaceGrid";
 import { useAuth } from "../context/AuthContext";
+import DashboardLayout from "../layouts/DashboardLayout";
 
 export default function PlacesPage({ destination, title, categories }) {
   const { token } = useAuth();
@@ -49,39 +50,40 @@ export default function PlacesPage({ destination, title, categories }) {
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1700px] space-y-5 px-6 py-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">{title}</h1>
+    <DashboardLayout>
+      <div className="space-y-5">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">{title}</h1>
+          <p className="mt-1 text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+            Discover the best nearby places in {destination || "your destination"}.
+          </p>
+        </div>
 
-        <p className="mt-1 text-sm text-gray-500">
-          Discover the best nearby places.
-        </p>
+        <div className="flex flex-wrap gap-2">
+          {categories.map((category) => (
+            <button
+              key={category.value}
+              onClick={() => setActiveCategory(category)}
+              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
+                activeCategory.value === category.value
+                  ? "bg-indigo-600 text-white shadow-xs"
+                  : "border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-[#131b2e] text-slate-700 dark:text-slate-200 hover:border-indigo-300 dark:hover:border-indigo-600/50 hover:bg-slate-50 dark:hover:bg-slate-800"
+              }`}
+            >
+              <span>{category.icon}</span>
+              <span>{category.label}</span>
+            </button>
+          ))}
+        </div>
+
+        {loading ? (
+          <div className="py-20 text-center text-xs font-semibold text-slate-500 dark:text-slate-400">Loading places...</div>
+        ) : places.length > 0 ? (
+          <PlaceGrid places={places} />
+        ) : (
+          <div className="py-20 text-center text-xs font-semibold text-slate-500 dark:text-slate-400">No places found.</div>
+        )}
       </div>
-
-      <div className="flex flex-wrap gap-2">
-        {categories.map((category) => (
-          <button
-            key={category.value}
-            onClick={() => setActiveCategory(category)}
-            className={`rounded-xl px-4 py-2 text-sm font-semibold transition-all ${
-              activeCategory.value === category.value
-                ? "bg-gradient-to-br from-indigo-400 via-white to-blue-700 text-black shadow-md"
-                : "border border-gray-200 bg-white hover:bg-indigo-50"
-            }`}
-          >
-            <span className="mr-2">{category.icon}</span>
-            {category.label}
-          </button>
-        ))}
-      </div>
-
-      {loading ? (
-        <div className="py-20 text-center text-gray-500">Loading places...</div>
-      ) : places.length > 0 ? (
-        <PlaceGrid places={places} />
-      ) : (
-        <div className="py-20 text-center text-gray-500">No places found.</div>
-      )}
-    </div>
+    </DashboardLayout>
   );
 }

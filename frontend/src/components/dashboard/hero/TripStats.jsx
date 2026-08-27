@@ -35,14 +35,14 @@ export default function TripStats({ trip }) {
 
 function StatCard({ icon, title, value }) {
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-white p-3.5 shadow-xs transition hover:shadow-sm">
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-base">
+    <div className="flex items-center gap-3 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-[#131b2e] p-3.5 shadow-xs transition hover:shadow-sm">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-base">
         {icon}
       </div>
 
       <div className="min-w-0 flex-1">
         <p className="text-[11px] font-medium text-slate-500 truncate">{title}</p>
-        <h4 className="text-sm font-bold text-slate-900 truncate">{value}</h4>
+        <h4 className="text-sm font-bold text-slate-900 dark:text-white truncate">{value}</h4>
       </div>
     </div>
   );

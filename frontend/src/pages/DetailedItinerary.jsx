@@ -1,5 +1,6 @@
 import { useLocation, Navigate } from "react-router-dom";
 import { useState } from "react";
+import { useTripBuilder } from "../context/TripBuilderContext";
 
 import ItineraryHero from "../components/itinerary/ItineraryHero";
 import DayTabs from "../components/itinerary/DayTabs";
@@ -10,9 +11,10 @@ import { regenerateDay } from "../api/tripApi";
 
 export default function DetailedItinerary() {
   const { state } = useLocation();
+  const { trip: contextTrip } = useTripBuilder();
 
   // Prepare values before hooks
-  const trip = state?.trip;
+  const trip = state?.trip || contextTrip;
   const initialDay = state?.dayIndex ?? 0;
 
   // Hooks (must always be called)
@@ -20,8 +22,8 @@ export default function DetailedItinerary() {
   const [itinerary, setItinerary] = useState(trip?.itinerary || []);
   const [loading, setLoading] = useState(false);
 
-  // Redirect if page opened without trip data
-  if (!state || !trip) {
+  // Redirect only if absolutely no trip exists in context or storage
+  if (!trip) {
     return <Navigate to="/planner" replace />;
   }
 
@@ -48,7 +50,7 @@ export default function DetailedItinerary() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F6F8FF] ">
+    <div className="min-h-screen bg-[#f8faff] dark:bg-[#0b0f19] transition-colors duration-200">
       <div className="mx-auto flex max-w-6xl flex-col items-center space-y-8 px-6 py-8 gap-4">
         <ItineraryHero trip={trip} />
 

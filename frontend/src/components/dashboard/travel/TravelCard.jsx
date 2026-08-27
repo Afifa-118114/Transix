@@ -5,38 +5,38 @@ export default function TravelCard({ option, source, destination }) {
   const navigate = useNavigate();
 
   return (
-    <div className="group relative flex flex-col justify-between rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs transition-all duration-200 hover:border-indigo-300 hover:shadow-md">
+    <div className="group relative flex flex-col justify-between rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-[#131b2e] p-4 shadow-xs transition-all duration-200 hover:border-indigo-300 dark:hover:border-indigo-600/50 hover:shadow-md">
       {/* Top Row: Icon, Title & Recommended Badge */}
       <div>
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-xl text-indigo-600">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-50 dark:bg-indigo-950/70 text-xl text-indigo-600 dark:text-indigo-400">
               {option.icon}
             </div>
 
             <div>
-              <h3 className="text-sm font-bold text-slate-900">{option.type}</h3>
-              <p className="text-xs text-slate-500 line-clamp-1">{option.operator || option.company}</p>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white">{option.type}</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1">{option.operator || option.company}</p>
             </div>
           </div>
 
           {option.recommended && (
-            <span className="rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+            <span className="rounded-full bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800/60 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
               Best Match
             </span>
           )}
         </div>
 
         {/* Stats Grid */}
-        <div className="mt-4 grid grid-cols-3 gap-2 rounded-xl bg-slate-50 p-2.5 text-center">
+        <div className="mt-4 grid grid-cols-3 gap-2 rounded-xl bg-slate-50/80 dark:bg-slate-800/60 p-2.5 text-center border border-slate-100 dark:border-slate-700/60">
           <div>
-            <p className="text-[10px] font-semibold text-slate-400 uppercase">Duration</p>
-            <p className="mt-0.5 text-xs font-bold text-slate-800">{option.duration}</p>
+            <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase">Duration</p>
+            <p className="mt-0.5 text-xs font-bold text-slate-800 dark:text-white">{option.duration}</p>
           </div>
 
           <div>
-            <p className="text-[10px] font-semibold text-slate-400 uppercase">Est. Fare</p>
-            <p className="mt-0.5 text-xs font-extrabold text-indigo-600">
+            <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase">Est. Fare</p>
+            <p className="mt-0.5 text-xs font-extrabold text-indigo-600 dark:text-indigo-400">
               {typeof option.price === "number"
                 ? `₹${option.price.toLocaleString()}`
                 : option.price?.startsWith("₹")
@@ -46,8 +46,8 @@ export default function TravelCard({ option, source, destination }) {
           </div>
 
           <div>
-            <p className="text-[10px] font-semibold text-slate-400 uppercase">Rating</p>
-            <p className="mt-0.5 flex items-center justify-center gap-1 text-xs font-bold text-slate-800">
+            <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase">Rating</p>
+            <p className="mt-0.5 flex items-center justify-center gap-1 text-xs font-bold text-slate-800 dark:text-white">
               <FaStar className="text-amber-400 text-[10px]" />
               <span>{option.rating || "4.8"}</span>
             </p>
@@ -56,7 +56,7 @@ export default function TravelCard({ option, source, destination }) {
       </div>
 
       {/* Bottom Actions */}
-      <div className="mt-4 flex items-center gap-2 border-t border-slate-100 pt-3">
+      <div className="mt-4 flex items-center gap-2 border-t border-slate-100 dark:border-slate-800/80 pt-3">
         <button
           onClick={() => {
             import("../../../utils/tourBuilderHelper").then(({ addItemToTourBuilder }) => {
@@ -88,7 +88,7 @@ export default function TravelCard({ option, source, destination }) {
               );
             });
           }}
-          className="flex-1 rounded-xl bg-indigo-50 py-2 text-center text-xs font-bold text-indigo-700 transition hover:bg-indigo-600 hover:text-white"
+          className="flex-1 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 py-2 text-center text-xs font-bold text-indigo-700 dark:text-indigo-300 transition hover:bg-indigo-600 hover:text-white dark:hover:bg-indigo-600 dark:hover:text-white"
         >
           + Add to Tour
         </button>
@@ -103,7 +103,7 @@ export default function TravelCard({ option, source, destination }) {
               },
             })
           }
-          className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+          className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 transition hover:bg-slate-50 dark:hover:bg-slate-700"
         >
           <span>Explore</span>
           <FaArrowRight className="text-[10px]" />

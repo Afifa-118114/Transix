@@ -21,12 +21,12 @@ function RouteTimeline({ route }) {
   return (
     <div>
       <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">
-          Route & Stoppages ({route.length} Stations)
+        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+          Route &amp; Stoppages ({route.length} Stations)
         </h3>
         <button
           onClick={() => setExpanded(!expanded)}
-          className="flex items-center gap-1 rounded-lg bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-700 transition hover:bg-indigo-100"
+          className="flex items-center gap-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 px-2.5 py-1 text-xs font-bold text-indigo-700 dark:text-indigo-300 transition hover:bg-indigo-100 dark:hover:bg-indigo-900/50"
         >
           {expanded ? (
             <>
@@ -49,36 +49,36 @@ function RouteTimeline({ route }) {
             {previewStations.map((station, index) => (
               <div key={index} className="flex flex-1 items-center">
                 <div className="flex flex-col items-center text-center">
-                  <p className="text-xs font-extrabold text-indigo-600">
+                  <p className="text-xs font-extrabold text-indigo-600 dark:text-indigo-400">
                     {station.departure !== "Source"
                       ? station.departure
                       : station.arrival}
                   </p>
-                  <p className="text-[10px] font-semibold text-slate-400">
+                  <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500">
                     Day {station.day}
                   </p>
 
                   <div
-                    className={`my-1 z-10 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white shadow-2xs
+                    className={`my-1 z-10 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white dark:border-slate-700 shadow-2xs
                     ${
                       index === 0 || index === previewStations.length - 1
                         ? "bg-indigo-600 text-white"
-                        : "bg-indigo-100 text-indigo-700"
+                        : "bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300"
                     }`}
                   >
                     <MapPin size={11} />
                   </div>
 
-                  <p className="text-[11px] font-bold text-slate-800">
+                  <p className="text-[11px] font-bold text-slate-800 dark:text-slate-200">
                     {station.code}
                   </p>
-                  <p className="max-w-[80px] text-[9px] font-medium text-slate-400 truncate">
+                  <p className="max-w-[80px] text-[9px] font-medium text-slate-400 dark:text-slate-500 truncate">
                     {station.name}
                   </p>
                 </div>
 
                 {index !== previewStations.length - 1 && (
-                  <div className="mx-1.5 mb-8 h-[2px] flex-1 rounded-full bg-indigo-200" />
+                  <div className="mx-1.5 mb-8 h-[2px] flex-1 rounded-full bg-indigo-200 dark:bg-indigo-800/60" />
                 )}
               </div>
             ))}
@@ -93,14 +93,14 @@ function RouteTimeline({ route }) {
             {route.map((station, index) => (
               <div
                 key={index}
-                className="flex items-center justify-between rounded-xl border border-slate-100 bg-white px-3 py-2 text-xs transition hover:border-indigo-200 hover:bg-indigo-50/20"
+                className="flex items-center justify-between rounded-xl border border-slate-100 dark:border-slate-700/60 bg-white dark:bg-[#1a233a] px-3 py-2 text-xs transition hover:border-indigo-200 dark:hover:border-indigo-700 hover:bg-indigo-50/20 dark:hover:bg-indigo-950/20"
               >
                 <div className="flex items-center gap-2.5">
                   <span
                     className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
                       index === 0 || index === route.length - 1
                         ? "bg-indigo-600 text-white"
-                        : "bg-slate-100 text-slate-600"
+                        : "bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300"
                     }`}
                   >
                     {index + 1}
@@ -108,23 +108,23 @@ function RouteTimeline({ route }) {
 
                   <div>
                     <div className="flex items-center gap-1.5">
-                      <span className="font-extrabold text-slate-900">{station.code}</span>
-                      <span className="text-slate-600 truncate max-w-[200px] sm:max-w-xs">{station.name}</span>
+                      <span className="font-extrabold text-slate-900 dark:text-white">{station.code}</span>
+                      <span className="text-slate-600 dark:text-slate-400 truncate max-w-[200px] sm:max-w-xs">{station.name}</span>
                     </div>
-                    <span className="text-[10px] font-semibold text-slate-400">Day {station.day}</span>
+                    <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500">Day {station.day}</span>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-4 text-right">
                   <div>
-                    <span className="text-[10px] text-slate-400 block">Arr / Dep</span>
-                    <span className="font-bold text-slate-800">
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500 block">Arr / Dep</span>
+                    <span className="font-bold text-slate-800 dark:text-slate-200">
                       {station.arrival} – {station.departure}
                     </span>
                   </div>
                   <div className="w-16">
-                    <span className="text-[10px] text-slate-400 block">Distance</span>
-                    <span className="font-semibold text-slate-600">{station.distance} km</span>
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500 block">Distance</span>
+                    <span className="font-semibold text-slate-600 dark:text-slate-400">{station.distance} km</span>
                   </div>
                 </div>
               </div>

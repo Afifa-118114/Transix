@@ -5,8 +5,8 @@ import { addItemToTourBuilder } from "../../utils/tourBuilderHelper";
 export default function SelectedTrain({ train }) {
   if (!train) {
     return (
-      <div className="flex h-full min-h-[220px] items-center justify-center rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
-        <p className="text-xs font-semibold text-slate-500">Select a train to view details.</p>
+      <div className="flex h-full min-h-[220px] items-center justify-center rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-[#131b2e] p-5 shadow-xs transition-colors">
+        <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Select a train to view details.</p>
       </div>
     );
   }
@@ -45,7 +45,7 @@ export default function SelectedTrain({ train }) {
   };
 
   return (
-    <div className="rounded-2xl border border-slate-200/80 bg-white shadow-xs overflow-hidden">
+    <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-[#131b2e] shadow-xs overflow-hidden transition-colors">
       {/* Top Section */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 p-3.5 sm:p-4">
         {/* Compact Thumbnail Image */}
@@ -68,18 +68,18 @@ export default function SelectedTrain({ train }) {
           <div>
             <div className="flex items-start justify-between gap-2">
               <div>
-                <h2 className="text-sm sm:text-base font-extrabold text-slate-900">
+                <h2 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white">
                   {train.trainName}
                 </h2>
-                <div className="mt-0.5 flex items-center gap-1.5 text-xs font-bold text-slate-700">
-                  <span className="text-indigo-600">{train.from?.code || train.source}</span>
-                  <span className="text-slate-400 font-normal">({train.from?.name || ""})</span>
-                  <span className="text-indigo-600 font-extrabold">→</span>
-                  <span className="text-indigo-600">{train.to?.code || train.destination}</span>
-                  <span className="text-slate-400 font-normal">({train.to?.name || ""})</span>
+                <div className="mt-0.5 flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300">
+                  <span className="text-indigo-600 dark:text-indigo-400">{train.from?.code || train.source}</span>
+                  <span className="text-slate-400 dark:text-slate-500 font-normal">({train.from?.name || ""})</span>
+                  <span className="text-indigo-600 dark:text-indigo-400 font-extrabold">→</span>
+                  <span className="text-indigo-600 dark:text-indigo-400">{train.to?.code || train.destination}</span>
+                  <span className="text-slate-400 dark:text-slate-500 font-normal">({train.to?.name || ""})</span>
                 </div>
                 {train.isGateway && train.gatewayLabel && (
-                  <div className="mt-1 inline-flex items-center gap-1 rounded-md bg-amber-50 border border-amber-200 px-2 py-0.5 text-[10px] font-semibold text-amber-800">
+                  <div className="mt-1 inline-flex items-center gap-1 rounded-md bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700/50 px-2 py-0.5 text-[10px] font-semibold text-amber-800 dark:text-amber-300">
                     <span>📍</span>
                     <span>{train.gatewayLabel}</span>
                   </div>
@@ -88,8 +88,8 @@ export default function SelectedTrain({ train }) {
 
               {train.price && (
                 <div className="text-right shrink-0">
-                  <span className="text-[9px] font-bold uppercase text-slate-400 block">Base Fare</span>
-                  <span className="text-sm sm:text-base font-extrabold text-indigo-600">
+                  <span className="text-[9px] font-bold uppercase text-slate-400 dark:text-slate-500 block">Base Fare</span>
+                  <span className="text-sm sm:text-base font-extrabold text-indigo-600 dark:text-indigo-400">
                     ₹{train.price.toLocaleString()}
                   </span>
                 </div>
@@ -99,48 +99,48 @@ export default function SelectedTrain({ train }) {
 
           {/* Journey Stats 4-Grid */}
           <div className="grid grid-cols-4 gap-1.5 text-center">
-            <div className="rounded-lg border border-slate-100 bg-slate-50/80 p-1.5">
-              <p className="text-[9px] font-bold uppercase text-slate-400">Departure</p>
-              <h4 className="mt-0.5 text-xs font-extrabold text-slate-900">{train.departure}</h4>
-              <p className="text-[9px] text-slate-400">Day {train.from?.day || 1}</p>
+            <div className="rounded-lg border border-slate-100 dark:border-slate-700/60 bg-slate-50/80 dark:bg-slate-800/60 p-1.5">
+              <p className="text-[9px] font-bold uppercase text-slate-400 dark:text-slate-500">Departure</p>
+              <h4 className="mt-0.5 text-xs font-extrabold text-slate-900 dark:text-white">{train.departure}</h4>
+              <p className="text-[9px] text-slate-400 dark:text-slate-500">Day {train.from?.day || 1}</p>
             </div>
 
-            <div className="rounded-lg border border-slate-100 bg-slate-50/80 p-1.5">
-              <p className="text-[9px] font-bold uppercase text-slate-400">Arrival</p>
-              <h4 className="mt-0.5 text-xs font-extrabold text-slate-900">{train.arrival}</h4>
-              <p className="text-[9px] text-slate-400">Day {train.to?.day || 1}</p>
+            <div className="rounded-lg border border-slate-100 dark:border-slate-700/60 bg-slate-50/80 dark:bg-slate-800/60 p-1.5">
+              <p className="text-[9px] font-bold uppercase text-slate-400 dark:text-slate-500">Arrival</p>
+              <h4 className="mt-0.5 text-xs font-extrabold text-slate-900 dark:text-white">{train.arrival}</h4>
+              <p className="text-[9px] text-slate-400 dark:text-slate-500">Day {train.to?.day || 1}</p>
             </div>
 
-            <div className="rounded-lg border border-slate-100 bg-slate-50/80 p-1.5">
-              <p className="text-[9px] font-bold uppercase text-slate-400">Duration</p>
-              <h4 className="mt-0.5 text-xs font-extrabold text-indigo-600">{train.duration}</h4>
-              <p className="text-[9px] text-slate-400">{train.distance || "Direct"}</p>
+            <div className="rounded-lg border border-slate-100 dark:border-slate-700/60 bg-slate-50/80 dark:bg-slate-800/60 p-1.5">
+              <p className="text-[9px] font-bold uppercase text-slate-400 dark:text-slate-500">Duration</p>
+              <h4 className="mt-0.5 text-xs font-extrabold text-indigo-600 dark:text-indigo-400">{train.duration}</h4>
+              <p className="text-[9px] text-slate-400 dark:text-slate-500">{train.distance || "Direct"}</p>
             </div>
 
-            <div className="rounded-lg border border-slate-100 bg-slate-50/80 p-1.5">
-              <p className="text-[9px] font-bold uppercase text-slate-400">Stops</p>
-              <h4 className="mt-0.5 text-xs font-extrabold text-slate-900">
+            <div className="rounded-lg border border-slate-100 dark:border-slate-700/60 bg-slate-50/80 dark:bg-slate-800/60 p-1.5">
+              <p className="text-[9px] font-bold uppercase text-slate-400 dark:text-slate-500">Stops</p>
+              <h4 className="mt-0.5 text-xs font-extrabold text-slate-900 dark:text-white">
                 {train.totalStops !== undefined
                   ? train.totalStops
                   : train.stops !== undefined
                   ? train.stops
                   : 0}
               </h4>
-              <p className="text-[9px] text-slate-400">Halts</p>
+              <p className="text-[9px] text-slate-400 dark:text-slate-500">Halts</p>
             </div>
           </div>
 
           {/* Fare Tier Breakdown if available */}
           {train.fares && (
             <div className="flex flex-wrap items-center gap-1">
-              <span className="text-[9px] font-bold uppercase text-slate-400 mr-1">Classes:</span>
+              <span className="text-[9px] font-bold uppercase text-slate-400 dark:text-slate-500 mr-1">Classes:</span>
               {Object.entries(train.fares).map(([cls, fare]) => (
                 <div
                   key={cls}
-                  className="flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[9px]"
+                  className="flex items-center gap-1 rounded-md border border-slate-200 dark:border-slate-700/60 bg-slate-50 dark:bg-slate-800/60 px-1.5 py-0.5 text-[9px]"
                 >
-                  <span className="font-extrabold text-slate-700">{cls}</span>
-                  <span className="font-bold text-indigo-600">₹{fare.toLocaleString()}</span>
+                  <span className="font-extrabold text-slate-700 dark:text-slate-300">{cls}</span>
+                  <span className="font-bold text-indigo-600 dark:text-indigo-400">₹{fare.toLocaleString()}</span>
                 </div>
               ))}
             </div>
@@ -149,7 +149,7 @@ export default function SelectedTrain({ train }) {
           {/* Running Days */}
           {runningDays.length > 0 && (
             <div className="flex items-center gap-1.5">
-              <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 shrink-0">
+              <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 shrink-0">
                 Runs:
               </span>
               <div className="flex gap-1">
@@ -159,7 +159,7 @@ export default function SelectedTrain({ train }) {
                     className={`flex h-4.5 w-4.5 items-center justify-center rounded text-[8px] font-bold transition ${
                       value
                         ? "bg-indigo-600 text-white"
-                        : "bg-slate-100 text-slate-300"
+                        : "bg-slate-100 dark:bg-slate-800 text-slate-300 dark:text-slate-600"
                     }`}
                     title={`${day}: ${value ? "Runs" : "Does not run"}`}
                   >
@@ -171,10 +171,10 @@ export default function SelectedTrain({ train }) {
           )}
 
           {/* Action Buttons */}
-          <div className="flex items-center gap-2 border-t border-slate-100 pt-2.5">
+          <div className="flex items-center gap-2 border-t border-slate-100 dark:border-slate-700/60 pt-2.5">
             <button
               onClick={handleAddToTour}
-              className="flex-1 rounded-xl border border-indigo-200 bg-indigo-50 py-1.5 text-center text-xs font-bold text-indigo-700 transition hover:bg-indigo-600 hover:text-white"
+              className="flex-1 rounded-xl border border-indigo-200 dark:border-indigo-800/60 bg-indigo-50 dark:bg-indigo-950/40 py-1.5 text-center text-xs font-bold text-indigo-700 dark:text-indigo-300 transition hover:bg-indigo-600 hover:text-white dark:hover:bg-indigo-600 dark:hover:text-white"
             >
               + Add to Tour
             </button>
@@ -186,7 +186,7 @@ export default function SelectedTrain({ train }) {
       </div>
 
       {/* Timeline */}
-      <div className="border-t border-slate-100 bg-slate-50/50 p-3 sm:p-3.5">
+      <div className="border-t border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-800/30 p-3 sm:p-3.5">
         <RouteTimeline route={train.route} />
       </div>
     </div>

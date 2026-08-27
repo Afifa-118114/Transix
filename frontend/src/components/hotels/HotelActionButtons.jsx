@@ -1,8 +1,8 @@
 export default function HotelActionButtons({ hotel }) {
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-[#131b2e] p-5 shadow-xs transition-colors">
       <div>
-        <h2 className="text-base font-bold text-slate-900">
+        <h2 className="text-base font-bold text-slate-900 dark:text-white">
           Ready to reserve your room?
         </h2>
         <p className="text-xs text-slate-500">
@@ -26,7 +26,7 @@ export default function HotelActionButtons({ hotel }) {
               );
             });
           }}
-          className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-xs font-bold text-indigo-700 transition hover:bg-indigo-600 hover:text-white"
+          className="rounded-xl border border-indigo-200 dark:border-indigo-800/60 bg-indigo-50 dark:bg-indigo-950/40 px-4 py-2 text-xs font-bold text-indigo-700 dark:text-indigo-300 transition hover:bg-indigo-600 hover:text-white dark:hover:bg-indigo-600 dark:hover:text-white"
         >
           + Add to Tour Builder
         </button>
