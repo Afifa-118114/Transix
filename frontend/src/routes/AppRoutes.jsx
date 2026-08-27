@@ -11,9 +11,11 @@ import Map from "../pages/Map";
 import DetailedItinerary from "../pages/DetailedItinerary";
 import HotelDetails from "../pages/HotelDetails";
 import ProtectedRoute from "./ProtectedRoute";
-import TravelDetails from "../pages/TravelDetails";
 import FoodDining from "../pages/FoodDining";
 import Essentials from "../pages/Essentials";
+import TravelOptionsPage from "../pages/TravelOptionsPage";
+
+import TourBuilder from "../pages/TourBuilder";
 
 function AppRoutes() {
   return (
@@ -37,6 +39,30 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <Home />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/builder"
+        element={
+          <ProtectedRoute>
+            <TourBuilder />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/my-trip"
+        element={
+          <ProtectedRoute>
+            <TourBuilder />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/tour-builder"
+        element={
+          <ProtectedRoute>
+            <TourBuilder />
           </ProtectedRoute>
         }
       />
@@ -74,9 +100,9 @@ function AppRoutes() {
       />
       <Route path="/itinerary/:tripId" element={<DetailedItinerary />} />
       <Route path="/hotel-details" element={<HotelDetails />} />{" "}
-      <Route path="/travel-details" element={<TravelDetails />} />
       <Route path="/food" element={<FoodDining />} />
       <Route path="/essentials" element={<Essentials />} />
+      <Route path="/travel-options" element={<TravelOptionsPage />} />
     </Routes>
   );
 }

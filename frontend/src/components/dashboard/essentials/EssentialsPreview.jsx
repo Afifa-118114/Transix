@@ -15,18 +15,15 @@ export default function EssentialsPreview({ trip }) {
   ];
 
   return (
-    <section className="rounded-3xl bg-white p-6 shadow-lg">
-      {/* Header */}
-      <div className="mb-6">
-        <h2 className="translate-x-3 text-xl font-bold">Essentials Nearby</h2>
-
-        <p className="translate-x-3 text-gray-500">
-          Find important places around {trip.destination}
+    <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
+      <div className="mb-4">
+        <h2 className="text-lg font-bold text-slate-900">Essentials & Emergency Services</h2>
+        <p className="text-xs text-slate-500">
+          Emergency contacts, medical, ATMs & fuel stations in {trip.destination}
         </p>
       </div>
 
-      {/* Cards */}
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
         {items.map((item) => (
           <button
             key={item.name}
@@ -38,11 +35,10 @@ export default function EssentialsPreview({ trip }) {
                 },
               })
             }
-            className="rounded-2xl border bg-gray-50 p-5 text-center transition hover:-translate-y-1 hover:border-indigo-300 hover:bg-indigo-50 hover:shadow-md"
+            className="flex flex-col items-center justify-center rounded-xl border border-slate-200/80 bg-slate-50/50 p-4 text-center transition hover:border-indigo-300 hover:bg-indigo-50/50 hover:shadow-xs"
           >
-            <div className="text-4xl">{item.icon}</div>
-
-            <p className="mt-3 font-semibold">{item.name}</p>
+            <span className="text-2xl">{item.icon}</span>
+            <span className="mt-2 text-xs font-bold text-slate-800">{item.name}</span>
           </button>
         ))}
       </div>

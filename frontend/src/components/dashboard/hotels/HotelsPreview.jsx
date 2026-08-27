@@ -1,32 +1,39 @@
+import { useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import HotelCard from "./HotelCard";
 
-function HotelsPreview(props) {
-  console.log("HotelsPreview props:", props);
-
+export default function HotelsPreview(props) {
   const { hotels = [], loading } = props;
   const navigate = useNavigate();
-  const handleHotelClick = (hotel) => {
-    navigate("/hotel-details", {
-      state: { hotel },
+  const scrollContainerRef = useRef(null);
+
+  const scroll = (direction) => {
+    if (!scrollContainerRef.current) return;
+    const scrollAmount = direction === "left" ? -400 : 400;
+    scrollContainerRef.current.scrollBy({
+      left: scrollAmount,
+      behavior: "smooth",
     });
   };
 
   if (loading) {
     return (
-      <section className="rounded-3xl border border-gray-200 bg-white p-8 shadow-sm overflow-x-hidden">
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold">🏨 Stays & Hotels</h2>
-          <p className="mt-2 text-gray-500">
-            Recommended accommodations near your destination
-          </p>
+      <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-slate-900">Stays & Accommodations</h2>
+            <p className="text-xs text-slate-500">
+              Loading verified hotels near your destination...
+            </p>
+          </div>
         </div>
 
-        <div className="flex gap-6 overflow-hidden">
-          {[1, 2, 3].map((i) => (
+        <div className="flex gap-4 overflow-hidden pb-2">
+          {[1, 2, 3, 4].map((i) => (
             <div
               key={i}
-              className="h-[360px] w-[300px] animate-pulse rounded-3xl bg-gray-200"
+              className="h-64 w-60 shrink-0 animate-pulse rounded-2xl bg-slate-100 border border-slate-200"
             />
           ))}
         </div>
@@ -35,41 +42,71 @@ function HotelsPreview(props) {
   }
 
   return (
-    <section className="rounded-3xl border border-gray-200 bg-white p-8 shadow-sm ">
-      <div className="mb-8 flex items-center justify-between">
+    <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
+      <div className="mb-4 flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold translate-x-3">Stays & Hotels</h2>
-
-          <p className="mt-2 text-gray-500 translate-x-3">
-            Recommended accommodations near your destination
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-bold text-slate-900">Stays & Accommodations</h2>
+            {hotels.length > 0 && (
+              <span className="rounded-full bg-indigo-50 border border-indigo-100 px-2 py-0.5 text-[10px] font-bold text-indigo-700">
+                {hotels.length} verified stays
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-slate-500">
+            Swipe or scroll to explore curated accommodations near your destination
           </p>
         </div>
+
+        {/* Horizontal Navigation Controls */}
+        {hotels.length > 4 && (
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => scroll("left")}
+              title="Scroll Left"
+              className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 transition"
+            >
+              <FiChevronLeft className="text-base" />
+            </button>
+            <button
+              onClick={() => scroll("right")}
+              title="Scroll Right"
+              className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 transition"
+            >
+              <FiChevronRight className="text-base" />
+            </button>
+          </div>
+        )}
       </div>
 
       {hotels.length === 0 ? (
-        <div className="py-12 text-center text-gray-500">
-          No hotel recommendations available.
+        <div className="py-8 text-center text-xs text-slate-500 font-medium">
+          No hotel recommendations available for this destination.
         </div>
       ) : (
-        <div className="flex gap-6 overflow-x-hidden pb-2">
-          {hotels.map((hotel) => (
-            <HotelCard
-              key={hotel.id}
-              hotel={hotel}
-              onClick={() =>
-                navigate("/hotel-details", {
-                  state: {
-                    hotels,
-                    activeIndex: hotels.findIndex((h) => h.id === hotel.id),
-                  },
-                })
-              }
-            />
+        /* Horizontal Carousel with 4-5 visible items */
+        <div
+          ref={scrollContainerRef}
+          className="flex gap-4 overflow-x-auto pb-2 scroll-smooth scrollbar-none"
+        >
+          {hotels.map((hotel, idx) => (
+            <div key={hotel.id || idx} className="w-64 sm:w-72 shrink-0">
+              <HotelCard
+                hotel={hotel}
+                onClick={() =>
+                  navigate("/hotel-details", {
+                    state: {
+                      hotels,
+                      activeIndex: idx,
+                      hotelId: hotel.id,
+                    },
+                  })
+                }
+              />
+            </div>
           ))}
         </div>
       )}
     </section>
   );
 }
-
-export default HotelsPreview;

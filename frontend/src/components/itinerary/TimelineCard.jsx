@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
-import { FiClock, FiMapPin, FiNavigation, FiStar } from "react-icons/fi";
+import { FiClock, FiMapPin, FiNavigation } from "react-icons/fi";
 import { getPlaceImage } from "../../services/imageService";
 
-function TimelineCard({ activity, destination }) {
-  console.log("TimelineCard Render:", activity.place);
+export default function TimelineCard({ activity, destination, index }) {
   const [image, setImage] = useState("");
 
   useEffect(() => {
@@ -17,99 +16,78 @@ function TimelineCard({ activity, destination }) {
   }, [activity.place, destination]);
 
   return (
-    <div className="translate-x-10 relative flex items-start gap-6 pl-12">
-      {/* Timeline */}
-      <div className="flex w-14 shrink-0 flex-col items-center">
-        <span className="rounded-full bg-indigo-100 px-3 py-1 text-sm font-semibold text-indigo-700">
-          {activity.time}
+    <div className="relative flex items-start gap-4">
+      {/* Time & Dot Marker */}
+      <div className="flex w-20 shrink-0 flex-col items-center pt-3">
+        <span className="rounded-lg bg-indigo-50 border border-indigo-100 px-2 py-0.5 text-[10px] font-bold text-indigo-700">
+          {activity.time || "Morning"}
         </span>
-
-        <div className="mt-3 h-5 w-5 rounded-full border-4 border-indigo-600 bg-white" />
-
-        <div className="mt-2 flex-1 w-[3px] bg-indigo-200" />
+        <div className="mt-2 h-3.5 w-3.5 rounded-full border-2 border-indigo-600 bg-white shadow-xs" />
       </div>
 
-      {/* Card */}
-      <div className="mb-12 w-full max-w-5xl mx-auto overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-md transition-all duration-300 hover:shadow-xl">
-        {" "}
-        <div className="flex flex-col md:flex-row gap-1">
-          {/* LEFT IMAGE */}
-
-          <div className="w-full md:w-[200px] shrink-0">
+      {/* Card Body */}
+      <div className="flex-1 overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs transition-all duration-200 hover:border-indigo-300 hover:shadow-md">
+        <div className="flex flex-col sm:flex-row gap-4">
+          {/* Thumbnail */}
+          <div className="h-32 sm:h-28 w-full sm:w-36 shrink-0 overflow-hidden rounded-xl bg-slate-100">
             {image ? (
               <img
                 src={image}
                 alt={activity.place}
-                className="h-[170px] w-full  object-cover"
+                className="h-full w-full object-cover"
+                loading="lazy"
               />
             ) : (
-              <div className="h-[200px] animate-pulse bg-gray-200" />
+              <div className="h-full w-full animate-pulse bg-slate-200" />
             )}
           </div>
 
-          {/* RIGHT INFO */}
-
-          <div className="flex flex-1 flex-col justify-between p-4">
+          {/* Details */}
+          <div className="flex flex-1 flex-col justify-between">
             <div>
-              <h2 className="text-lg font-bold text-gray-800">
+              <h3 className="text-sm font-bold text-slate-900">
                 {activity.activity}
-              </h2>
+              </h3>
 
-              <div className="mt-3 flex items-center gap-2 text-gray-500 text-sm">
-                <FiMapPin className="text-indigo-600" />
-
+              <div className="mt-1 flex items-center gap-1 text-xs text-slate-500">
+                <FiMapPin className="text-indigo-500 text-xs shrink-0" />
                 <span>{activity.place}</span>
               </div>
 
-              <p className="mt-5 leading-8 text-gray-800 text-sm">
-                {activity.notes}
-              </p>
-            </div>
-
-            {/* Chips */}
-
-            <div className="mt-4 flex flex-wrap gap-8">
-              {activity.duration && (
-                <div className="rounded-full bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 flex  gap-1">
-                  <FiClock />
-                  {activity.duration}
-                </div>
-              )}
-
-              {activity.estimatedCost && (
-                <div className=" rounded-full bg-green-50  text-sm font-medium text-green-700 flex items-center gap-2">
-                  {activity.estimatedCost}
-                </div>
-              )}
-
-              {activity.rating && (
-                <div className="rounded-full bg-yellow-50 px-4 py-2 text-sm font-medium text-yellow-700 flex items-center gap-2">
-                  <FiStar />
-                  {activity.rating}
-                </div>
+              {activity.notes && (
+                <p className="mt-2 text-xs text-slate-600 leading-relaxed rounded-lg bg-slate-50 p-2.5 border border-slate-100">
+                  {activity.notes}
+                </p>
               )}
             </div>
 
-            {/* Buttons */}
+            {/* Chips & Navigation CTA */}
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-2.5">
+              <div className="flex items-center gap-2">
+                {activity.duration && (
+                  <span className="flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600">
+                    <FiClock className="text-[10px]" />
+                    {activity.duration}
+                  </span>
+                )}
 
-            <div className="mt-7 flex gap-10">
+                {activity.estimatedCost && (
+                  <span className="rounded-md bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                    {activity.estimatedCost}
+                  </span>
+                )}
+              </div>
+
               <a
-                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activity.place)}`}
+                href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
+                  activity.place
+                )}`}
                 target="_blank"
                 rel="noreferrer"
-                className="rounded-xl bg-gradient-to-br from-indigo-400 via-white to-blue-700 px-10 py-5 text-sm font-medium transition hover:bg-indigo-50 translate-x-4"
+                className="flex items-center gap-1 rounded-lg bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-700 transition hover:bg-indigo-600 hover:text-white"
               >
-                Google Maps
-              </a>
-
-              <a
-                href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(activity.place)}`}
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center gap-2 rounded-xl bg-gradient-to-br from-indigo-400 via-white to-blue-700 px-8 py-4 text-sm font-medium text-black transition hover:bg-indigo-700"
-              >
-                <FiNavigation className="text-lg" />
-                Navigate
+                <FiNavigation className="text-xs" />
+                <span>Directions</span>
               </a>
             </div>
           </div>
@@ -118,5 +96,3 @@ function TimelineCard({ activity, destination }) {
     </div>
   );
 }
-
-export default TimelineCard;

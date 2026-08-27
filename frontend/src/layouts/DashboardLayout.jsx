@@ -1,18 +1,18 @@
 import Sidebar from "../components/common/Sidebar";
 import Navbar from "../components/common/Navbar";
 
-function DashboardLayout({ trip, setTrip, children }) {
+export default function DashboardLayout({ trip, setTrip, children }) {
   return (
-    <div className="flex min-h-screen gap-3 bg-[#F5F7FF] p-4">
+    <div className="flex min-h-screen gap-4 bg-[#f8faff] p-4">
       <Sidebar />
 
-      <main className="flex-1">
+      <main className="flex-1 flex flex-col min-w-0">
         <Navbar trip={trip} setTrip={setTrip} />
 
-        <div className="mx-auto mt-6 max-w-7xl">{children}</div>
+        <div className="mt-4 flex-1 w-full max-w-[1600px] mx-auto">
+          {children}
+        </div>
       </main>
     </div>
   );
 }
-
-export default DashboardLayout;

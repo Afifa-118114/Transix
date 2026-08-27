@@ -2,8 +2,9 @@ import { useState } from "react";
 import { loginUser } from "../../api/authApi";
 import { useAuth } from "../../hooks/useAuth";
 import { useNavigate, Link } from "react-router-dom";
+import toast from "react-hot-toast";
 
-function LoginForm() {
+export default function LoginForm() {
   const navigate = useNavigate();
   const { login } = useAuth();
 
@@ -11,8 +12,11 @@ function LoginForm() {
     email: "",
     password: "",
   });
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
 
   const handleChange = (e) => {
+    setErrorMsg("");
     setForm({
       ...form,
       [e.target.name]: e.target.value,
@@ -21,68 +25,117 @@ function LoginForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!form.email || !form.password) {
+      setErrorMsg("Please enter both email and password.");
+      return;
+    }
 
     try {
+      setLoading(true);
+      setErrorMsg("");
+
       const data = await loginUser(form);
 
-      login(data.user, data.token);
-
-      navigate("/home");
+      if (data.token && data.user) {
+        login(data.user, data.token);
+        toast.success(`Welcome back, ${data.user.name}!`, { icon: "👋" });
+        navigate("/home");
+      } else {
+        setErrorMsg("Invalid response from server.");
+      }
     } catch (err) {
-      alert(err.response?.data?.message || "Login Failed");
+      const msg =
+        err.response?.data?.message ||
+        (err.code === "ERR_NETWORK"
+          ? "Cannot connect to server. Please ensure backend is running."
+          : "Login Failed. Please check your credentials.");
+      setErrorMsg(msg);
+      toast.error(msg);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-6 py-10">
-      {" "}
+    <div className="flex min-h-screen items-center justify-center px-4 py-8 bg-[#f8faff]">
       <form
         onSubmit={handleSubmit}
-        className="w-[400px] h-[250px] rounded-3xl border border-white/30 bg-gradient-to-br from-indigo-50 via-white to-blue-200 px-10 py-12 shadow-2xl backdrop-blur-lg flex flex-col gap-2"
+        className="w-full max-w-md rounded-2xl border border-slate-200/80 bg-white p-6 sm:p-8 shadow-xs flex flex-col"
       >
-        <h1 className="mt-4 text-center text-2xl font-bold text-gray-800">
-          Welcome Back to Transix
+        <h1 className="text-center text-xl font-bold text-slate-900">
+          Welcome back to Transix
         </h1>
 
-        <p className="mb-10 text-center text-blue-700">
-          {" "}
-          Sign in to continue your journey
+        <p className="mt-1 text-center text-xs text-slate-500">
+          Sign in to access your planned itineraries and trips
         </p>
 
-        <div className="flex flex-col items-center gap-3">
-          <input
-            name="email"
-            type="email"
-            placeholder="Email Address"
-            onChange={handleChange}
-            className="w-[300px] rounded-xl border border-gray-300 bg-white px-4 py-3 transition-all outline-none focus:border-[#5B4BFF] focus:ring-4 focus:ring-indigo-100"
-          />
+        {errorMsg && (
+          <div className="mt-4 rounded-xl bg-rose-50 border border-rose-200 p-2.5 text-xs font-bold text-rose-700 text-center">
+            {errorMsg}
+          </div>
+        )}
 
-          <input
-            name="password"
-            type="password"
-            placeholder="Password"
-            onChange={handleChange}
-            className="w-[300px] rounded-xl border border-gray-300 bg-white px-4 py-3 transition-all outline-none focus:border-[#5B4BFF] focus:ring-4 focus:ring-indigo-100"
-          />
+        <div className="mt-5 flex flex-col gap-3.5">
+          <div>
+            <label
+              htmlFor="login-email"
+              className="block text-xs font-bold text-slate-700 mb-1"
+            >
+              Email Address
+            </label>
+            <input
+              id="login-email"
+              name="email"
+              type="email"
+              value={form.email}
+              placeholder="e.g. dextro@gmail.com"
+              onChange={handleChange}
+              autoComplete="email"
+              required
+              className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-xs text-slate-800 outline-none transition focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-100"
+            />
+          </div>
 
-          <button className="mt-8 w-[300px] rounded-xl bg-[#5B4BFF] py-3 font-semibold text-white transition duration-300 hover:scale-[1.02] hover:bg-[#4A3EE6]">
-            Login
+          <div>
+            <label
+              htmlFor="login-password"
+              className="block text-xs font-bold text-slate-700 mb-1"
+            >
+              Password
+            </label>
+            <input
+              id="login-password"
+              name="password"
+              type="password"
+              value={form.password}
+              placeholder="Enter your password"
+              onChange={handleChange}
+              autoComplete="current-password"
+              required
+              className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-xs text-slate-800 outline-none transition focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-100"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="mt-2 w-full rounded-xl bg-indigo-600 py-2.5 text-xs font-bold text-white shadow-xs transition hover:bg-indigo-700 active:scale-98 disabled:opacity-60"
+          >
+            {loading ? "Signing In..." : "Sign In"}
           </button>
         </div>
 
-        <p className="mt-7 text-center text-gray-600">
+        <p className="mt-5 text-center text-xs text-slate-500">
           Don't have an account?{" "}
           <Link
             to="/register"
-            className="font-semibold text-[#5B4BFF] hover:underline"
+            className="font-bold text-indigo-600 hover:underline"
           >
-            Register
+            Create account
           </Link>
         </p>
       </form>
     </div>
   );
 }
-
-export default LoginForm;

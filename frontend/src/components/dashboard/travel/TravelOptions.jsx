@@ -1,66 +1,115 @@
+import { useEffect, useState } from "react";
 import { FaTrain, FaPlane, FaBus, FaCar } from "react-icons/fa";
-
 import TravelCard from "./TravelCard";
 import generateTransportData from "../../../utils/transportGenerator";
+import { searchTrains } from "../../../services/trainService";
 
-function TravelOptions({ trip }) {
+export default function TravelOptions({ trip }) {
+  const [transports, setTransports] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!trip) return;
+
+    let isMounted = true;
+    const fetchTransports = async () => {
+      setLoading(true);
+      try {
+        const baseTransports = generateTransportData(trip);
+        const otherTransports = baseTransports.filter((t) => t.type !== "Train");
+
+        let trainOption = null;
+        if (trip.source && trip.destination) {
+          // Fetch real trains from Kaggle dataset API
+          const trainData = await searchTrains(trip.source, trip.destination);
+          const realTrains = trainData?.trains || (Array.isArray(trainData) ? trainData : []);
+
+          if (realTrains.length > 0) {
+            const bestTrain = realTrains[0];
+            trainOption = {
+              id: `train-${bestTrain.trainNumber}`,
+              type: "Train",
+              operator: `${bestTrain.trainName} (#${bestTrain.trainNumber})`,
+              trainName: bestTrain.trainName,
+              trainNumber: bestTrain.trainNumber,
+              duration: bestTrain.duration,
+              departure: bestTrain.departure,
+              arrival: bestTrain.arrival,
+              price: bestTrain.price || bestTrain.fare || null,
+              rating: 4.8,
+              reviews: 1250,
+              from: bestTrain.from,
+              to: bestTrain.to,
+              stops: bestTrain.stops,
+              route: bestTrain.route,
+              fares: bestTrain.fares,
+              runningDays: bestTrain.runningDays,
+              recommended: true,
+            };
+          }
+        }
+
+        const combined = trainOption ? [trainOption, ...otherTransports] : otherTransports;
+
+        if (isMounted) {
+          setTransports(combined);
+        }
+      } catch (err) {
+        console.warn("Could not load real trains for dashboard:", err.message);
+        if (isMounted) {
+          setTransports(generateTransportData(trip).filter((t) => t.type !== "Train"));
+        }
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    fetchTransports();
+    return () => {
+      isMounted = false;
+    };
+  }, [trip?.source, trip?.destination, trip]);
+
   if (!trip) return null;
 
-  const transports = generateTransportData(trip);
-
-  const firstTransport = transports[0];
-
-  const getIcon = () => {
-    switch (trip.travelMode) {
-      case "Train":
+  const getIcon = (type) => {
+    switch (type?.toLowerCase()) {
+      case "train":
         return <FaTrain className="text-indigo-600" />;
-
-      case "Flight":
+      case "flight":
         return <FaPlane className="text-sky-600" />;
-
-      case "Bus":
-        return <FaBus className="text-orange-500" />;
-
+      case "bus":
+        return <FaBus className="text-amber-600" />;
       default:
-        return <FaCar className="text-green-600" />;
+        return <FaCar className="text-emerald-600" />;
     }
   };
 
-  const dashboardCard = {
-    ...firstTransport,
-
-    type: trip.travelMode,
-
-    icon: getIcon(),
-
-    company: firstTransport.operator,
-
-    tag: "Recommended",
-
-    tagColor: "bg-indigo-100 text-indigo-700",
-
-    recommended: true,
-
-    trip,
-
-    transports,
-  };
-
   return (
-    <section className="rounded-3xl border border-gray-200 bg-white p-8 shadow-sm">
-      <div className="mb-8 flex items-center justify-between">
+    <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
+      <div className="mb-4 flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold translate-x-3">Travel Options</h2>
-
-          <p className="mt-2 text-gray-500">
-            Recommended transport for your journey
+          <h2 className="text-lg font-bold text-slate-900">Transit & Travel Options</h2>
+          <p className="text-xs text-slate-500">
+            Recommended routes between {trip.source} and {trip.destination}
           </p>
         </div>
       </div>
 
-      <TravelCard option={dashboardCard} />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {transports.slice(0, 3).map((item, idx) => (
+          <TravelCard
+            key={item.id || idx}
+            option={{
+              ...item,
+              icon: getIcon(item.type),
+              recommended: idx === 0,
+            }}
+            source={trip.source}
+            destination={trip.destination}
+          />
+        ))}
+      </div>
     </section>
   );
 }
-
-export default TravelOptions;

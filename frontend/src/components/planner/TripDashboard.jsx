@@ -1,63 +1,51 @@
+import { useEffect, useState } from "react";
 import HeroBanner from "../dashboard/hero/HeroBanner";
 import TravelOptions from "../dashboard/travel/TravelOptions";
 import MapPreview from "../dashboard/map/MapPreview";
 import ItineraryPreview from "../dashboard/itinerary/ItineraryPreview";
 import ExperiencesPreview from "../dashboard/experiences/ExperiencesPreview";
 import HotelsPreview from "../dashboard/hotels/HotelsPreview";
-import { useEffect, useState } from "react";
-import { getHotels } from "../../api/placeApi";
 import FoodPreview from "../dashboard/food/FoodPreview";
 import EssentialsPreview from "../dashboard/essentials/EssentialsPreview";
+import { getDestinationInventory } from "../../services/inventoryService";
 
 const TripDashboard = ({ trip, setTrip }) => {
   const [hotels, setHotels] = useState([]);
   const [loadingHotels, setLoadingHotels] = useState(true);
+
   useEffect(() => {
     if (!trip) return;
 
-    const loadHotels = async () => {
+    let isMounted = true;
+    const loadInventory = async () => {
       try {
         setLoadingHotels(true);
-
-        const token = localStorage.getItem("token");
-
-        const data = await getHotels(trip.destination, token);
-
-        console.log("Hotels API returned:", data);
-
-        setHotels(data);
+        const inventory = await getDestinationInventory(trip.destination, trip);
+        if (isMounted) {
+          setHotels(inventory.hotels || []);
+        }
       } catch (err) {
-        console.error(err);
-        setHotels([]);
+        console.error("Failed to load inventory in TripDashboard:", err);
+        if (isMounted) setHotels([]);
       } finally {
-        setLoadingHotels(false);
+        if (isMounted) setLoadingHotels(false);
       }
     };
 
-    loadHotels();
-  }, [trip]);
-  if (!trip) return null;
-  console.log(trip.itinerary[0]);
+    loadInventory();
+    return () => {
+      isMounted = false;
+    };
+  }, [trip?.destination, trip]);
 
-  <div className="flex justify-end mb-6">
-    <button
-      onClick={() => setTrip(null)}
-      className="rounded-xl bg-indigo-600 px-5 py-2 text-white"
-    >
-      Plan Another Trip
-    </button>
-  </div>;
-  console.log("Hotels:", hotels);
-  console.log("Loading:", loadingHotels);
-  console.log("Hotels state:", hotels);
+  if (!trip) return null;
 
   return (
-    <div className=" overflow-x-hidden  flex flex-col gap-6">
+    <div className="flex flex-col gap-6 pb-12">
       <HeroBanner trip={trip} />
       <TravelOptions trip={trip} />
       <ItineraryPreview trip={trip} />
       <HotelsPreview hotels={hotels} loading={loadingHotels} />
-
       <ExperiencesPreview trip={trip} />
       <FoodPreview trip={trip} />
       <EssentialsPreview trip={trip} />

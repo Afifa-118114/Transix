@@ -4,7 +4,7 @@ const tripSchema = z.object({
   source: z.string().min(1),
   destination: z.string().min(1),
 
-  startDate: z.string().min(1), // ISO string from frontend
+  startDate: z.string().min(1),
   endDate: z.string().min(1),
 
   travelers: z.number().min(1),

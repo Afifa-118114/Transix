@@ -1,99 +1,73 @@
 import { useState } from "react";
 import { generateAITrip } from "../../api/tripApi";
 
-const TripForm = ({ setTrip }) => {
+const interestOptions = [
+  "Nature",
+  "Adventure",
+  "History",
+  "Culture",
+  "Food",
+  "Shopping",
+  "Photography",
+  "Beaches",
+  "Mountains",
+  "Wildlife",
+  "Museums",
+  "Cafes",
+  "Nightlife",
+  "Hidden Gems",
+  "Relaxation",
+];
+
+export default function TripForm({ setTrip }) {
   const [loading, setLoading] = useState(false);
-  const interestOptions = [
-    "Nature",
-    "Adventure",
-    "History",
-    "Culture",
-    "Food",
-    "Shopping",
-    "Photography",
-    "Beaches",
-    "Mountains",
-    "Wildlife",
-    "Museums",
-    "Cafes",
-    "Nightlife",
-    "Hidden Gems",
-    "Relaxation",
-  ];
 
   const [form, setForm] = useState({
     source: "",
     destination: "",
     startDate: "",
     endDate: "",
-    travelers: 1,
-    budget: "",
+    travelers: 2,
+    budget: 50000,
     currency: "INR",
     travelMode: "Train",
     hotelType: "Standard",
     foodPreference: "Veg",
     tripType: "Family",
-    interests: [],
+    interests: ["Nature", "Food", "Sightseeing"],
     priority: "Comfort",
     purpose: "Vacation",
   });
 
   const handleChange = (e) => {
-    const { name, value, options } = e.target;
-
-    if (name === "interests") {
-      const selected = Array.from(options)
-        .filter((option) => option.selected)
-        .map((option) => option.value);
-
-      setForm({
-        ...form,
-        interests: selected,
-      });
-    } else {
-      setForm({
-        ...form,
-        [name]: value,
-      });
-    }
+    const { name, value } = e.target;
+    setForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
   };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    console.log("Submit clicked");
-
     try {
       setLoading(true);
-
       const token = localStorage.getItem("token");
-
       const payload = {
         ...form,
-        interests: form.interests,
-        travelers: Number(form.travelers),
-        budget: Number(form.budget),
+        travelers: Number(form.travelers) || 2,
+        budget: Number(form.budget) || 50000,
       };
 
-      console.log(payload);
-
-      console.log("TOKEN =", token);
-
       const res = await generateAITrip(payload, token);
-
-      localStorage.setItem("currentTrip", JSON.stringify(res.trip));
-
-      setTrip(res.trip);
-    } catch (err) {
-      console.log("Full Error:", err);
-
-      if (err.response) {
-        console.log("Status:", err.response.status);
-        console.log("Response:", err.response.data);
-      } else if (err.request) {
-        console.log("Request:", err.request);
-      } else {
-        console.log("Message:", err.message);
+      if (res?.trip) {
+        localStorage.setItem("currentTrip", JSON.stringify(res.trip));
+        localStorage.removeItem("transix_builder_trip");
+        setTrip(res.trip);
+        // Dispatch custom event so TripBuilderContext syncs in the same tab
+        window.dispatchEvent(new CustomEvent("transix_trip_updated", { detail: res.trip }));
       }
+    } catch (err) {
+      console.error("Trip generation error:", err);
     } finally {
       setLoading(false);
     }
@@ -109,149 +83,209 @@ const TripForm = ({ setTrip }) => {
   };
 
   return (
-    <div className="flex justify-center px-6 py-10 translate-y-3 ">
+    <div className="flex justify-center px-4 py-8">
       <form
         onSubmit={handleSubmit}
-        className="w-[900px] max-w-5xl h-[450px] rounded-3xl border border-white/30 bg-gradient-to-br from-indigo-50 via-white to-blue-200 p-10 shadow-2xl backdrop-blur-lg"
+        className="w-full max-w-3xl rounded-2xl border border-slate-200/80 bg-white p-6 sm:p-8 shadow-xs"
       >
-        <div className="mb-10 text-center">
-          <h2 className="text-3xl font-bold text-gray-800">Plan Your Trip</h2>
-
-          <p className="mt-2 text-blue-700">
-            Tell us your preferences and let AI build your perfect itinerary.
+        <div className="mb-6 text-center">
+          <h2 className="text-xl font-bold text-slate-900">Plan Your AI Trip</h2>
+          <p className="mt-1 text-xs text-slate-500">
+            Tell us your preferences and let our AI build your personalized itinerary
           </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 place-items-center">
-          <input
-            name="source"
-            placeholder="Source"
-            onChange={handleChange}
-            className="w-[350px] rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none transition-all focus:border-[#5B4BFF] focus:ring-4 focus:ring-indigo-100"
-            required
-          />
-
-          <input
-            name="destination"
-            placeholder="Destination"
-            onChange={handleChange}
-            className="w-[350px] rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none transition-all focus:border-[#5B4BFF] focus:ring-4 focus:ring-indigo-100"
-            required
-          />
-
-          <input
-            type="date"
-            name="startDate"
-            onChange={handleChange}
-            className="w-[350px] rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none transition-all focus:border-[#5B4BFF] focus:ring-4 focus:ring-indigo-100"
-            required
-          />
-
-          <input
-            type="date"
-            name="endDate"
-            onChange={handleChange}
-            className="w-[350px] rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none transition-all focus:border-[#5B4BFF] focus:ring-4 focus:ring-indigo-100"
-            required
-          />
-
-          <input
-            type="number"
-            name="travelers"
-            placeholder="Travelers"
-            onChange={handleChange}
-            className="w-[350px] rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none transition-all focus:border-[#5B4BFF] focus:ring-4 focus:ring-indigo-100"
-          />
-
-          <input
-            type="number"
-            name="budget"
-            placeholder="Budget"
-            onChange={handleChange}
-            className="w-[350px] rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none transition-all focus:border-[#5B4BFF] focus:ring-4 focus:ring-indigo-100"
-          />
-
-          <select
-            name="travelMode"
-            onChange={handleChange}
-            className="w-[350px] rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none transition-all focus:border-[#5B4BFF] focus:ring-4 focus:ring-indigo-100"
-          >
-            <option>Train</option>
-            <option>Flight</option>
-            <option>Bus</option>
-            <option>Car</option>
-          </select>
-
-          <select
-            name="hotelType"
-            onChange={handleChange}
-            className="w-[350px] rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none transition-all focus:border-[#5B4BFF] focus:ring-4 focus:ring-indigo-100"
-          >
-            <option>Budget</option>
-            <option>Standard</option>
-            <option>Luxury</option>
-          </select>
-
-          <select
-            name="foodPreference"
-            onChange={handleChange}
-            className="w-[350px] rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none transition-all focus:border-[#5B4BFF] focus:ring-4 focus:ring-indigo-100"
-          >
-            <option>Veg</option>
-            <option>Non-Veg</option>
-            <option>Vegan</option>
-            <option>Any</option>
-          </select>
-
-          <select
-            name="tripType"
-            onChange={handleChange}
-            className="w-[350px] rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none transition-all focus:border-[#5B4BFF] focus:ring-4 focus:ring-indigo-100"
-          >
-            <option>Solo</option>
-            <option>Family</option>
-            <option>Friends</option>
-            <option>Couple</option>
-            <option>Business</option>
-          </select>
-
-          <div className="md:col-span-2 mt-3">
-            <label className="mb-4 block text-base font-semibold text-gray-700 translate-x-2">
-              Select Interests
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">
+              Origin City
             </label>
+            <input
+              name="source"
+              placeholder="e.g. Mumbai, Delhi, Bangalore"
+              value={form.source}
+              onChange={handleChange}
+              className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-xs text-slate-800 outline-none transition focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-100"
+              required
+            />
+          </div>
 
-            <div className="mt-3 grid grid-cols-8 gap-2 translate-x-2">
-              {interestOptions.map((interest) => (
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">
+              Destination City
+            </label>
+            <input
+              name="destination"
+              placeholder="e.g. Kerala, Goa, Manali"
+              value={form.destination}
+              onChange={handleChange}
+              className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-xs text-slate-800 outline-none transition focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-100"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">
+              Start Date
+            </label>
+            <input
+              type="date"
+              name="startDate"
+              value={form.startDate}
+              onChange={handleChange}
+              className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-xs text-slate-800 outline-none transition focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-100"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">
+              End Date
+            </label>
+            <input
+              type="date"
+              name="endDate"
+              value={form.endDate}
+              onChange={handleChange}
+              className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-xs text-slate-800 outline-none transition focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-100"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">
+              Number of Travelers
+            </label>
+            <input
+              type="number"
+              min="1"
+              max="20"
+              name="travelers"
+              value={form.travelers}
+              onChange={handleChange}
+              className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-xs text-slate-800 outline-none transition focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-100"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">
+              Total Budget (₹)
+            </label>
+            <input
+              type="number"
+              name="budget"
+              value={form.budget}
+              onChange={handleChange}
+              className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-xs text-slate-800 outline-none transition focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-100"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">
+              Preferred Travel Mode
+            </label>
+            <select
+              name="travelMode"
+              value={form.travelMode}
+              onChange={handleChange}
+              className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-xs text-slate-800 outline-none transition focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-100"
+            >
+              <option value="Train">Train</option>
+              <option value="Flight">Flight</option>
+              <option value="Bus">Bus</option>
+              <option value="Car">Car</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">
+              Stay Preference
+            </label>
+            <select
+              name="hotelType"
+              value={form.hotelType}
+              onChange={handleChange}
+              className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-xs text-slate-800 outline-none transition focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-100"
+            >
+              <option value="Budget">Budget</option>
+              <option value="Standard">Standard (3-4 Star)</option>
+              <option value="Luxury">Luxury (5 Star)</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">
+              Dining Preference
+            </label>
+            <select
+              name="foodPreference"
+              value={form.foodPreference}
+              onChange={handleChange}
+              className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-xs text-slate-800 outline-none transition focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-100"
+            >
+              <option value="Veg">Vegetarian</option>
+              <option value="Non-Veg">Non-Vegetarian</option>
+              <option value="Vegan">Vegan</option>
+              <option value="Any">Any / Multi-Cuisine</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">
+              Travel Style
+            </label>
+            <select
+              name="tripType"
+              value={form.tripType}
+              onChange={handleChange}
+              className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-xs text-slate-800 outline-none transition focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-100"
+            >
+              <option value="Solo">Solo Traveler</option>
+              <option value="Family">Family Vacation</option>
+              <option value="Couple">Romantic / Couple</option>
+              <option value="Friends">Group of Friends</option>
+              <option value="Business">Business & Leisure</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Interests Selector */}
+        <div className="mt-5 border-t border-slate-100 pt-4">
+          <label className="block text-xs font-bold text-slate-700 mb-2">
+            Select Your Travel Interests
+          </label>
+
+          <div className="flex flex-wrap gap-1.5">
+            {interestOptions.map((interest) => {
+              const isSelected = form.interests.includes(interest);
+              return (
                 <button
                   key={interest}
                   type="button"
                   onClick={() => toggleInterest(interest)}
-                  className={`h-7 rounded-full text-sm font-medium transition-all duration-200
-      ${
-        form.interests.includes(interest)
-          ? "bg-gradient-to-br from-indigo-400 via-white to-blue-700 text-black shadow-md"
-          : "border border-gray-300 bg-white text-gray-700 hover:border-[#3d2cfc] hover:text-[#5B4BFF]"
-      }`}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                    isSelected
+                      ? "bg-indigo-600 text-white shadow-xs"
+                      : "border border-slate-200 bg-slate-50 text-slate-600 hover:border-indigo-300 hover:bg-white hover:text-indigo-600"
+                  }`}
                 >
                   {interest}
                 </button>
-              ))}
-            </div>
+              );
+            })}
           </div>
         </div>
 
-        <div className="mt-8 flex justify-center">
+        <div className="mt-6">
           <button
             type="submit"
             disabled={loading}
-            className="w-[600px] rounded-xl bg-gradient-to-br from-indigo-400 via-white to-blue-700 text-black shadow-md py-3 font-semibold text-black transition duration-300 hover:scale-[1.02] hover:bg-[#4A3EE6] disabled:cursor-not-allowed disabled:opacity-70 translate-y-5"
+            className="w-full rounded-xl bg-indigo-600 py-3 text-xs font-bold text-white shadow-xs transition hover:bg-indigo-700 active:scale-98 disabled:cursor-not-allowed disabled:opacity-70"
           >
-            {loading ? "Generating..." : "Generate AI Trip"}
+            {loading ? "Generating Intelligent Itinerary..." : "Generate AI Trip Itinerary"}
           </button>
         </div>
       </form>
     </div>
   );
-};
-
-export default TripForm;
+}

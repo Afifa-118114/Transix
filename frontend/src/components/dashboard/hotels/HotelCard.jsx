@@ -1,65 +1,98 @@
 import { FaStar } from "react-icons/fa";
 import { FiMapPin } from "react-icons/fi";
 
-function HotelCard({ hotel, onClick }) {
+export default function HotelCard({ hotel, onClick }) {
+  // Format real price or show availability status
+  const renderPrice = () => {
+    if (typeof hotel.price === "number" && hotel.price > 0) {
+      return (
+        <div>
+          <span className="text-sm font-extrabold text-indigo-600">
+            ₹{hotel.price.toLocaleString()}
+          </span>
+          <span className="text-[10px] text-slate-400 font-medium"> / night</span>
+        </div>
+      );
+    }
+
+    if (hotel.displayPrice && hotel.displayPrice !== "Price unavailable") {
+      return (
+        <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-700">
+          {hotel.displayPrice}
+        </span>
+      );
+    }
+
+    return (
+      <span className="text-xs font-semibold text-slate-500">
+        Check availability
+      </span>
+    );
+  };
+
   return (
     <div
       onClick={() => onClick(hotel)}
-      className="group min-w-[190px] max-w-[300px] cursor-pointer overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-2 hover:shadow-xl hover:scale-[1.02]"
+      className="group flex h-full flex-col justify-between cursor-pointer overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-md"
     >
-      <img
-        src={hotel.image || "https://picsum.photos/600/400"}
-        alt={hotel.name}
-        className="h-30 w-full object-cover"
-      />
+      <div>
+        <div className="relative h-36 w-full overflow-hidden bg-slate-100">
+          <img
+            src={hotel.image || "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600"}
+            alt={hotel.name}
+            className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+            loading="lazy"
+          />
 
-      <div className="p-5">
-        {/* Rating & Price */}
-        <h3 className="mt-5 min-h-[56px] line-clamp-2 text-[15px] font-semibold leading-6">
-          {hotel.name}
-        </h3>
-
-        {/* Address */}
-        <div className="mt-2 flex items-center gap-2 text-gray-500 text-sm">
-          <FiMapPin className="shrink-0 text-indigo-600" />
-
-          <span className="line-clamp-1">
-            {hotel.address
-              ? hotel.address.split(",")[1]?.trim()
-              : "Address unavailable"}
-          </span>
+          {/* Rating */}
+          {hotel.rating && (
+            <div className="absolute right-2.5 top-2.5 flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-bold text-amber-300 backdrop-blur-xs">
+              <FaStar className="fill-amber-400 text-amber-400 text-[10px]" />
+              <span>{hotel.rating}</span>
+            </div>
+          )}
         </div>
 
-        <div className="fle-col items-start justify-between">
-          <div>
-            <div className="flex items-center gap-2">
-              <FaStar className="text-yellow-500" />
+        <div className="p-3.5">
+          <h4 className="text-sm font-bold text-slate-900 line-clamp-1 group-hover:text-indigo-600 transition">
+            {hotel.name}
+          </h4>
 
-              <span className="font-semibold">{hotel.rating}</span>
-
-              <span className="text-sm text-gray-500">({hotel.reviews})</span>
-
-              <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-semibold text-green-700 ">
-                Verified
-              </span>
-            </div>
+          <div className="mt-1 flex items-center gap-1 text-xs text-slate-500">
+            <FiMapPin className="shrink-0 text-indigo-500 text-xs" />
+            <span className="line-clamp-1">
+              {hotel.address
+                ? hotel.address.split(",")[1]?.trim() || hotel.address
+                : hotel.location || "Central Destination"}
+            </span>
           </div>
         </div>
+      </div>
 
-        <div className="text-center flex">
-          <p className=" translate-x-2 text-xl font-bold text-indigo-600">
-            {hotel.price}
-          </p>
+      <div className="p-3.5 pt-0">
+        <div className="flex items-center justify-between border-t border-slate-100 pt-3">
+          {renderPrice()}
 
-          <p className=" translate-x-3 translate-y-1 text-xs text-gray-600 text-right">
-            / night
-          </p>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              import("../../../utils/tourBuilderHelper").then(({ addItemToTourBuilder }) => {
+                addItemToTourBuilder({
+                  ...hotel,
+                  category: "hotel",
+                  categoryLabel: "Hotels",
+                  icon: "🏨",
+                  price: hotel.price || 0,
+                  displayPrice: hotel.displayPrice,
+                });
+              });
+            }}
+            className="flex items-center gap-1 rounded-xl bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-700 transition hover:bg-indigo-600 hover:text-white"
+          >
+            <span>+ Add</span>
+          </button>
         </div>
-
-        {/* Hotel Name */}
       </div>
     </div>
   );
 }
-
-export default HotelCard;

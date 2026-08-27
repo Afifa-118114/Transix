@@ -1,77 +1,82 @@
-import { FiHome, FiBookmark, FiUser, FiMap, FiCompass } from "react-icons/fi";
+import { FiHome, FiBookmark, FiUser, FiMap, FiCompass, FiLayers } from "react-icons/fi";
 import { NavLink } from "react-router-dom";
 import logo from "../../assets/logo/logo.png";
 
 const menuItems = [
   {
     title: "Home",
-    path: "/",
-    icon: <FiHome />,
+    path: "/home",
+    icon: <FiHome className="text-xl" />,
+  },
+  {
+    title: "Builder",
+    path: "/builder",
+    icon: <FiLayers className="text-xl" />,
   },
   {
     title: "Journey",
     path: "/planner",
-    icon: <FiCompass />,
+    icon: <FiCompass className="text-xl" />,
   },
   {
     title: "Map",
     path: "/map",
-    icon: <FiMap />,
+    icon: <FiMap className="text-xl" />,
   },
   {
     title: "Saved",
     path: "/saved",
-    icon: <FiBookmark />,
+    icon: <FiBookmark className="text-xl" />,
   },
   {
     title: "Profile",
     path: "/profile",
-    icon: <FiUser />,
+    icon: <FiUser className="text-xl" />,
   },
 ];
 
-function Sidebar() {
+export default function Sidebar() {
   return (
-    <aside className="m-4 flex h-[calc(100vh-32px)] w-28 flex-col items-center rounded-3xl border border-gray-200 bg-white px-3 py-6 shadow-sm">
+    <aside className="sticky top-4 flex h-[calc(100vh-32px)] w-20 shrink-0 flex-col items-center justify-between rounded-2xl border border-slate-200/80 bg-white py-5 shadow-xs">
+      {/* Brand Logo */}
       <div className="flex flex-col items-center">
-        {/* Logo */}
-        <div className="flex flex-col items-center">
-          <img src={logo} alt="Logo" className="w-16 h-auto" />
-          <h2 className="mt-1 font-bold text-gray-800">Transix</h2>
-        </div>
+        <NavLink to="/home" className="flex flex-col items-center transition hover:opacity-80">
+          <img src={logo} alt="Transix Logo" className="h-9 w-auto object-contain" />
+          <span className="mt-1 text-[11px] font-extrabold tracking-tight text-slate-800">Transix</span>
+        </NavLink>
 
-        {/* Menu */}
-        <div className="h-5"></div>
-        <nav className="mt-8 flex flex-col items-center gap-4">
+        {/* Navigation Menu */}
+        <nav className="mt-7 flex flex-col items-center gap-2">
           {menuItems.map((item) => (
             <NavLink
               key={item.title}
               to={item.path}
               className={({ isActive }) =>
-                `flex flex-col items-center justify-center w-16 h-16 rounded-2xl transition-all duration-300
-
-               ${
-                 isActive
-                   ? "relative text-[#5B4BFF] bg-[#edebfb]"
-                   : "text-gray-500 hover:bg-[#f1eeff] hover:text-[#272751] hover:scale-103"
-               }`
+                `group relative flex h-13 w-14 flex-col items-center justify-center rounded-xl transition-all duration-200 ${
+                  isActive
+                    ? "bg-indigo-50 font-bold text-indigo-600 shadow-xs"
+                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"
+                }`
               }
             >
-              <span className="text-2xl">{item.icon}</span>
-
-              <span className="text-[11px] mt-1">{item.title}</span>
+              {({ isActive }) => (
+                <>
+                  {isActive && (
+                    <span className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-indigo-600" />
+                  )}
+                  <span>{item.icon}</span>
+                  <span className="mt-1 text-[10px] tracking-tight">{item.title}</span>
+                </>
+              )}
             </NavLink>
           ))}
         </nav>
-        {/* Bottom */}
-        <div className="mt-auto">
-          <div className=" w-16 h-16 rounded-full bg-indigo-100 flex items-center justify-center text-3xl">
-            ✈️
-          </div>
-        </div>
+      </div>
+
+      {/* Bottom Footer Item */}
+      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-50 text-slate-400 border border-slate-100 text-xs font-semibold">
+        v1.0
       </div>
     </aside>
   );
 }
-
-export default Sidebar;

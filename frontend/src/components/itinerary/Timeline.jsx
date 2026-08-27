@@ -1,21 +1,21 @@
 import TimelineCard from "./TimelineCard";
 
-function Timeline({ plan, destination }) {
+export default function Timeline({ plan, destination }) {
   return (
-    <div className="relative mx-auto mt-10 w-full max-w-2xl">
-      <div className="absolute left-[50px] top-0 h-full w-[3px] rounded-full bg-gradient-to-b from-indigo-600 via-indigo-300 to-transparent" />
+    <div className="relative mx-auto mt-6 w-full max-w-3xl">
+      {/* Central Guide Line */}
+      <div className="absolute left-[39px] top-6 bottom-6 w-[2px] rounded-full bg-slate-200" />
 
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-4">
         {plan.map((activity, index) => (
           <TimelineCard
             key={`${activity.time}-${activity.place}-${index}`}
             activity={activity}
             destination={destination}
+            index={index}
           />
         ))}
       </div>
     </div>
   );
 }
-
-export default Timeline;

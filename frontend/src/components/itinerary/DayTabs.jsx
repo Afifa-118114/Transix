@@ -1,22 +1,28 @@
-function DayTabs({ itinerary, selectedDay, setSelectedDay }) {
+export default function DayTabs({ itinerary, selectedDay, setSelectedDay }) {
   return (
-    <div className="flex gap-4 overflow-x-auto pb-2 translate-x-12">
+    <div className="mx-auto flex max-w-3xl gap-2 overflow-x-auto pb-1 scrollbar-none">
       {itinerary.map((day, index) => (
         <button
           key={day.day}
           onClick={() => setSelectedDay(index)}
-          className={`min-w-[80px] rounded-2xl px-5 py-3 text-sm font-semibold transition-all duration-300
-            ${
-              selectedDay === index
-                ? "bg-gradient-to-br from-indigo-400 via-white to-blue-700 text-black shadow-lg"
-                : "bg-white text-gray-600 border border-gray-200 hover:bg-indigo-50 hover:text-indigo-600"
-            }`}
+          className={`flex shrink-0 items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
+            selectedDay === index
+              ? "bg-indigo-600 text-white shadow-xs"
+              : "border border-slate-200 bg-white text-slate-600 hover:border-indigo-300 hover:text-indigo-600"
+          }`}
         >
-          Day {day.day}
+          <span>Day {day.day}</span>
+          <span
+            className={`rounded-md px-1.5 py-0.2 text-[10px] ${
+              selectedDay === index
+                ? "bg-indigo-500 text-white"
+                : "bg-slate-100 text-slate-500"
+            }`}
+          >
+            {day.plan?.length || 0}
+          </span>
         </button>
       ))}
     </div>
   );
 }
-
-export default DayTabs;

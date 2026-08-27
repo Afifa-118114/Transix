@@ -88,64 +88,6 @@ Displays the route between source and destination on Google Maps.
 
 ---
 
-# Screenshots
-
-## Home
-
-![](./Screenshots/home.png)
-
----
-
-## AI Dashboard
-
-![](./Screenshots/dashboard.png)
-
----
-
-## Authentication
-
-| Login                        | Register                      |
-| ---------------------------- | ----------------------------- |
-| ![](./Screenshots/login.png) | ![](./Screenshots/signup.png) |
-
----
-
-## Trip Planner
-
-![](./Screenshots/tripForm.png)
-
----
-
-## Travel Route
-
-![](./Screenshots/travel.png)
-
----
-
-## AI Generated Itinerary
-
-![](./Screenshots/itinerary.png)
-
----
-
-## Hotel Recommendations
-
-![](./Screenshots/hotels.png)
-
----
-
-## Food Recommendations
-
-![](./Screenshots/food.png)
-
----
-
-## Nearby Essentials
-
-![](./Screenshots/essentials.png)
-
----
-
 # Tech Stack
 
 ## Frontend
@@ -211,7 +153,6 @@ Create a `.env` file inside the backend directory.
 ```env
 PORT=
 
-MONGO_URI=
 
 JWT_SECRET=
 

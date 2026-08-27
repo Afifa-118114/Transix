@@ -7,64 +7,8 @@ export default function generateTransportData(trip) {
   const mode = trip.travelMode;
 
   if (mode === "Train") {
-    return [
-      {
-        id: 1,
-        name: "Vande Bharat Express",
-        operator: "Indian Railways",
-        duration: "6h 25m",
-        departure: "06:00 AM",
-        arrival: "12:25 PM",
-        price: "₹1,450",
-        rating: 4.8,
-        reviews: 12540,
-        bookingUrl: "https://www.irctc.co.in/",
-        image: trainImg,
-        route: ["Source Station", "Intermediate Stop", "Destination Station"],
-      },
-      {
-        id: 2,
-        name: "Rajdhani Express",
-        operator: "Indian Railways",
-        duration: "7h 05m",
-        departure: "07:20 AM",
-        arrival: "02:25 PM",
-        price: "₹1,180",
-        rating: 4.7,
-        reviews: 9320,
-        bookingUrl: "https://www.irctc.co.in/",
-        image: trainImg,
-        route: ["Source Station", "Major Junction", "Destination Station"],
-      },
-      {
-        id: 3,
-        name: "Garib Rath Express",
-        operator: "Indian Railways",
-        duration: "8h 10m",
-        departure: "09:30 AM",
-        arrival: "05:40 PM",
-        price: "₹890",
-        rating: 4.4,
-        reviews: 8450,
-        bookingUrl: "https://www.irctc.co.in/",
-        image: trainImg,
-        route: ["Source Station", "City Junction", "Destination Station"],
-      },
-      {
-        id: 4,
-        name: "Duronto Express",
-        operator: "Indian Railways",
-        duration: "6h 55m",
-        departure: "10:15 AM",
-        arrival: "05:10 PM",
-        price: "₹1,320",
-        rating: 4.6,
-        reviews: 7810,
-        bookingUrl: "https://www.irctc.co.in/",
-        image: trainImg,
-        route: ["Source Station", "Express Halt", "Destination Station"],
-      },
-    ];
+    // Real trains must strictly come from the Kaggle dataset via searchTrains API
+    return [];
   }
 
   if (mode === "Flight") {

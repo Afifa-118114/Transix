@@ -3,51 +3,79 @@ import { FiMapPin } from "react-icons/fi";
 import { useEffect, useState } from "react";
 import { getPlaceImage } from "../../../services/imageService";
 
-function ExperienceCard({ experience }) {
+export default function ExperienceCard({ experience }) {
   const [image, setImage] = useState("");
 
   useEffect(() => {
-    if (!experience?.place) return;
+    if (!experience?.place && !experience?.title) return;
 
     async function load() {
-      const img = await getPlaceImage(experience.place);
+      const img = await getPlaceImage(experience.title || experience.place);
       setImage(img);
     }
 
     load();
-  }, [experience.place]);
+  }, [experience.place, experience.title]);
 
   return (
-    <div className="min-w-[185px] flex-shrink-0 cursor-pointer overflow-hidden rounded-2xl border border-gray-300 bg-white p-3 shadow-lg transition duration-300 hover:-translate-y-1 hover:shadow-lg">
-      {image ? (
-        <img
-          src={image}
-          alt={experience.title}
-          className="h-28 w-full rounded-lg object-cover"
-        />
-      ) : (
-        <div className="h-28 w-full rounded-lg animate-pulse bg-indigo-100" />
-      )}
+    <div className="group w-48 shrink-0 flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-md">
+      <div>
+        <div className="relative h-28 w-full overflow-hidden bg-slate-100">
+          {image ? (
+            <img
+              src={image}
+              alt={experience.title}
+              className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+              loading="lazy"
+            />
+          ) : (
+            <div className="h-full w-full animate-pulse bg-slate-200" />
+          )}
 
-      <div className="p-3">
-        <h3 className="mt-1 text-center text-sm font-semibold text-indigo-600">
-          {experience.title}
-        </h3>
+          <div className="absolute right-2 top-2 flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-bold text-amber-300 backdrop-blur-xs">
+            <FaStar className="fill-amber-400 text-amber-400 text-[9px]" />
+            <span>{experience.rating}</span>
+          </div>
+        </div>
 
         <div className="p-3">
-          <span className="mt-2 flex items-center justify-center text-xs text-gray-600 font-semibold gap-1 ">
-            <FiMapPin className="text-indigo-500" />
-            {experience.place}
-          </span>
+          <h4 className="text-xs font-bold text-slate-900 line-clamp-1 group-hover:text-indigo-600 transition">
+            {experience.title}
+          </h4>
 
-          <span className="flex items-center justify-center gap-1 text-black-500 text-sm ">
-            <FaStar className="text-[12px] text-yellow-500" />
-            {experience.rating}
-          </span>
+          <div className="mt-1 flex items-center gap-1 text-[11px] text-slate-500">
+            <FiMapPin className="shrink-0 text-indigo-500 text-[10px]" />
+            <span className="truncate">{experience.place}</span>
+          </div>
         </div>
+      </div>
+
+      <div className="p-3 pt-0">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            import("../../../utils/tourBuilderHelper").then(({ addItemToTourBuilder }) => {
+              addItemToTourBuilder(
+                {
+                  name: experience.title,
+                  activity: experience.place || experience.title,
+                  place: experience.place,
+                  category: "experience",
+                  categoryLabel: "Experiences",
+                  icon: "🌿",
+                  price: experience.price || 800,
+                  rating: experience.rating,
+                  image: image,
+                },
+                0
+              );
+            });
+          }}
+          className="w-full rounded-xl bg-indigo-50 py-1.5 text-center text-xs font-bold text-indigo-700 transition hover:bg-indigo-600 hover:text-white"
+        >
+          + Add to Tour
+        </button>
       </div>
     </div>
   );
 }
-
-export default ExperienceCard;

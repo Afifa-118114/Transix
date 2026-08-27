@@ -1,16 +1,17 @@
 import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
 
-function HotelGallery({ hotel, activePhoto, setActivePhoto }) {
+export default function HotelGallery({ hotel, activePhoto, setActivePhoto }) {
   const photos =
     hotel.photos?.length > 0 ? hotel.photos : [{ url: hotel.image }];
 
   return (
-    <div>
-      <div className="relative overflow-hidden rounded-3xl translate-x-4 translate-y-8">
+    <div className="flex flex-col gap-3">
+      {/* Main Image View */}
+      <div className="relative h-72 w-full overflow-hidden rounded-2xl bg-slate-900 shadow-xs border border-slate-200">
         <img
-          src={photos[activePhoto].url}
-          alt=""
-          className="h-[320px] w-full object-cover"
+          src={photos[activePhoto]?.url || hotel.image}
+          alt={hotel.name}
+          className="h-full w-full object-cover"
         />
 
         <button
@@ -19,9 +20,9 @@ function HotelGallery({ hotel, activePhoto, setActivePhoto }) {
               activePhoto === 0 ? photos.length - 1 : activePhoto - 1,
             )
           }
-          className="absolute left-4 top-1/2 rounded-full bg-white p-3 shadow-lg"
+          className="absolute left-3 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-slate-700 shadow-md backdrop-blur-xs hover:bg-white transition"
         >
-          <FiChevronLeft />
+          <FiChevronLeft className="text-sm" />
         </button>
 
         <button
@@ -30,26 +31,28 @@ function HotelGallery({ hotel, activePhoto, setActivePhoto }) {
               activePhoto === photos.length - 1 ? 0 : activePhoto + 1,
             )
           }
-          className="absolute right-4 top-1/2 rounded-full bg-white p-3 shadow-lg"
+          className="absolute right-3 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-slate-700 shadow-md backdrop-blur-xs hover:bg-white transition"
         >
-          <FiChevronRight />
+          <FiChevronRight className="text-sm" />
         </button>
       </div>
 
-      <div className="translate-x-4 translate-y-10 mt-4 grid grid-cols-6 gap-3">
-        {photos.map((photo, index) => (
+      {/* Thumbnails Row */}
+      <div className="grid grid-cols-6 gap-2">
+        {photos.slice(0, 6).map((photo, index) => (
           <img
             key={index}
             src={photo.url}
+            alt=""
             onClick={() => setActivePhoto(index)}
-            className={`h-24 w-full cursor-pointer rounded-xl object-cover transition
-
-            ${activePhoto === index ? "ring-4 ring-indigo-500" : ""}`}
+            className={`h-16 w-full cursor-pointer rounded-xl object-cover transition border ${
+              activePhoto === index
+                ? "border-indigo-600 ring-2 ring-indigo-500"
+                : "border-slate-200 opacity-70 hover:opacity-100"
+            }`}
           />
         ))}
       </div>
     </div>
   );
 }
-
-export default HotelGallery;

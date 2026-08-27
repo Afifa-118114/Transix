@@ -7,33 +7,42 @@ import {
 import { getDuration, formatBudget } from "../../../utils/formatTrip";
 
 export default function TripStats({ trip }) {
-  console.log("Trip object:", trip);
-  console.log("Budget value:", trip.budget);
-  console.log("Formatted:", formatBudget(trip.budget));
   return (
-    <div className="absolute left-1/2 -bottom-1 z-20 flex w-max -translate-x-1/2 rounded-3xl bg-white px-8 py-4 shadow-2xl">
-      <Stat icon={<FiCalendar />} title="Duration" value={getDuration(trip)} />
-      <Stat icon={<FiNavigation />} title="Travel" value={trip.travelMode} />
-      <Stat
-        icon={<FiDollarSign />}
-        title="Budget"
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <StatCard
+        icon={<FiCalendar className="text-indigo-600" />}
+        title="Duration"
+        value={getDuration(trip)}
+      />
+      <StatCard
+        icon={<FiNavigation className="text-indigo-600" />}
+        title="Transit Mode"
+        value={trip.travelMode}
+      />
+      <StatCard
+        icon={<FiDollarSign className="text-indigo-600" />}
+        title="Estimated Budget"
         value={formatBudget(trip.budget)}
       />
-      <Stat icon={<FiCompass />} title="Trip Type" value={trip.tripType} />{" "}
+      <StatCard
+        icon={<FiCompass className="text-indigo-600" />}
+        title="Travel Style"
+        value={trip.tripType}
+      />
     </div>
   );
 }
 
-function Stat({ icon, title, value }) {
+function StatCard({ icon, title, value }) {
   return (
-    <div className="flex items-center gap-12 px-5">
-      <div className=" rounded-2xl bg-indigo-100 p-2 text-lg text-indigo-600 translate-x-6">
+    <div className="flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-white p-3.5 shadow-xs transition hover:shadow-sm">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-base">
         {icon}
       </div>
 
-      <div>
-        <h3 className="font-semibold -translate-x-1/6">{value}</h3>
-        <p className="text-sm text-gray-500 -translate-x-1/8">{title}</p>
+      <div className="min-w-0 flex-1">
+        <p className="text-[11px] font-medium text-slate-500 truncate">{title}</p>
+        <h4 className="text-sm font-bold text-slate-900 truncate">{value}</h4>
       </div>
     </div>
   );

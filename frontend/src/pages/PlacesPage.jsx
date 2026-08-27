@@ -50,7 +50,6 @@ export default function PlacesPage({ destination, title, categories }) {
 
   return (
     <div className="mx-auto w-full max-w-[1700px] space-y-5 px-6 py-6">
-      {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-gray-900">{title}</h1>
 
@@ -59,7 +58,6 @@ export default function PlacesPage({ destination, title, categories }) {
         </p>
       </div>
 
-      {/* Categories */}
       <div className="flex flex-wrap gap-2">
         {categories.map((category) => (
           <button
@@ -77,7 +75,6 @@ export default function PlacesPage({ destination, title, categories }) {
         ))}
       </div>
 
-      {/* Places */}
       {loading ? (
         <div className="py-20 text-center text-gray-500">Loading places...</div>
       ) : places.length > 0 ? (

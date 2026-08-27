@@ -3,7 +3,7 @@ const {
   searchHotels,
   searchPlaces,
   getPhotoUrl,
-  getEstimatedPrice,
+  formatPriceOrLevel,
 } = require("../services/placesService");
 
 const getHotels = asyncHandler(async (req, res) => {
@@ -20,21 +20,24 @@ const getHotels = asyncHandler(async (req, res) => {
 
   const hotels = places.map((place) => ({
     id: place.id,
-    name: place.displayName.text,
-    address: place.formattedAddress,
-    rating: place.rating,
-    reviews: place.userRatingCount,
-    mapsUrl: place.googleMapsUri,
-    website: place.websiteUri,
-    phone: place.nationalPhoneNumber,
-    image: place.photos?.length ? getPhotoUrl(place.photos[0].name) : null,
-
+    name: place.displayName?.text || "Hotel",
+    address: place.formattedAddress || `${destination}, India`,
+    rating: place.rating || null,
+    reviews: place.userRatingCount || null,
+    mapsUrl: place.googleMapsUri || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.displayName?.text + " " + destination)}`,
+    website: place.websiteUri || null,
+    phone: place.nationalPhoneNumber || null,
+    coordinates: place.location ? { lat: place.location.latitude, lng: place.location.longitude } : null,
+    image: place.photos?.length ? getPhotoUrl(place.photos[0].name, 600) : null,
     photos:
-      place.photos?.slice(0, 5).map((photo) => ({
-        url: getPhotoUrl(photo.name),
+      place.photos?.slice(0, 6).map((photo) => ({
+        url: getPhotoUrl(photo.name, 800),
       })) || [],
-
-    price: getEstimatedPrice(place.priceLevel),
+    price: formatPriceOrLevel(place), // null if unavailable from Google Places
+    priceLevel: place.priceLevel || null,
+    openingHours: place.regularOpeningHours?.weekdayDescriptions || null,
+    openNow: place.currentOpeningHours?.openNow ?? null,
+    businessStatus: place.businessStatus || "OPERATIONAL",
   }));
 
   res.json({
@@ -58,14 +61,24 @@ const getPlaces = asyncHandler(async (req, res) => {
 
   const data = places.map((place) => ({
     id: place.id,
-    name: place.displayName?.text,
-    address: place.formattedAddress,
-    rating: place.rating,
-    reviews: place.userRatingCount,
-    mapsUrl: place.googleMapsUri,
-    website: place.websiteUri,
-    phone: place.nationalPhoneNumber,
-    image: place.photos?.length ? getPhotoUrl(place.photos[0].name) : null,
+    name: place.displayName?.text || "Attraction",
+    address: place.formattedAddress || `${destination}, India`,
+    rating: place.rating || null,
+    reviews: place.userRatingCount || null,
+    mapsUrl: place.googleMapsUri || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.displayName?.text + " " + destination)}`,
+    website: place.websiteUri || null,
+    phone: place.nationalPhoneNumber || null,
+    coordinates: place.location ? { lat: place.location.latitude, lng: place.location.longitude } : null,
+    image: place.photos?.length ? getPhotoUrl(place.photos[0].name, 600) : null,
+    photos:
+      place.photos?.slice(0, 6).map((photo) => ({
+        url: getPhotoUrl(photo.name, 800),
+      })) || [],
+    price: formatPriceOrLevel(place),
+    priceLevel: place.priceLevel || null,
+    openingHours: place.regularOpeningHours?.weekdayDescriptions || null,
+    openNow: place.currentOpeningHours?.openNow ?? null,
+    businessStatus: place.businessStatus || "OPERATIONAL",
   }));
 
   res.json({

@@ -7,24 +7,25 @@ import {
   Polyline,
 } from "react-leaflet";
 
-function MapPreview({ trip }) {
+export default function MapPreview({ trip }) {
   const [points, setPoints] = useState([]);
 
   useEffect(() => {
     if (!trip) return;
 
     async function getCoordinates(place) {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-          place,
-        )}`,
-      );
-
-      const data = await res.json();
-
-      if (!data.length) return null;
-
-      return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+            place,
+          )}`,
+        );
+        const data = await res.json();
+        if (!data.length) return null;
+        return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+      } catch {
+        return null;
+      }
     }
 
     async function load() {
@@ -41,48 +42,47 @@ function MapPreview({ trip }) {
 
   if (points.length < 2) {
     return (
-      <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="text-xl font-bold">Route Overview</h2>
-
-        <p className="mt-4 text-gray-500">Loading map...</p>
+      <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
+        <h2 className="text-lg font-bold text-slate-900">Route Map Overview</h2>
+        <p className="mt-2 text-xs text-slate-500">Loading route map...</p>
       </section>
     );
   }
 
   return (
-    <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
+    <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-2xl font-bold translate-x-3">Route Overview</h2>
-          <p className="text-sm text-gray-500 translate-x-3">
+          <h2 className="text-lg font-bold text-slate-900">Route Map Overview</h2>
+          <p className="text-xs text-slate-500">
             {trip.source} → {trip.destination}
           </p>
         </div>
       </div>
 
-      <MapContainer
-        center={points[0]}
-        zoom={6}
-        scrollWheelZoom={true}
-        className="h-[420px] rounded-2xl"
-      >
-        <TileLayer
-          attribution="© OpenStreetMap contributors"
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
+      <div className="overflow-hidden rounded-xl border border-slate-200">
+        <MapContainer
+          center={points[0]}
+          zoom={6}
+          scrollWheelZoom={false}
+          className="h-80 w-full"
+        >
+          <TileLayer
+            attribution="© OpenStreetMap contributors"
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
 
-        <Marker position={points[0]}>
-          <Popup>{trip.source}</Popup>
-        </Marker>
+          <Marker position={points[0]}>
+            <Popup>{trip.source}</Popup>
+          </Marker>
 
-        <Marker position={points[1]}>
-          <Popup>{trip.destination}</Popup>
-        </Marker>
+          <Marker position={points[1]}>
+            <Popup>{trip.destination}</Popup>
+          </Marker>
 
-        <Polyline positions={points} />
-      </MapContainer>
+          <Polyline positions={points} color="#4f46e5" weight={4} />
+        </MapContainer>
+      </div>
     </section>
   );
 }
-
-export default MapPreview;
