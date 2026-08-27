@@ -120,7 +120,6 @@ Transix
 │
 ├── frontend
 ├── backend
-├── Screenshots
 └── README.md
 ```
 
