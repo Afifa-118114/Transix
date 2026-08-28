@@ -1,25 +1,40 @@
-# Transix – AI Assisted Travel Planner
+# ✈️ Transix – AI-Assisted Travel Planner
 
-Transix is a full-stack AI-powered travel planning web application that helps users generate personalized trip itineraries while discovering hotels, restaurants, nearby essentials, and travel information through a clean and interactive dashboard.
+Transix is a full-stack AI-powered travel planning web application designed to simplify trip planning from a single platform.
 
-The project combines AI-generated itineraries with authentic real-world travel data to simplify end-to-end trip planning from a single platform.
+It combines AI-generated personalized itineraries with real-world travel information to help users plan trips based on their destination, budget, travel dates, preferences, interests, and travel mode.
 
 ---
 
-# Current Features
+# 🚀 Live Demo
 
-## Authentication
+**Live Application:**  
+https://transix-henna.vercel.app/
+
+**GitHub Repository:**  
+https://github.com/Afifa-118114/Transix
+
+---
+
+# ✨ Features
+
+## 🔐 Authentication
 
 - User Registration
 - Secure Login
-- JWT Authentication
+- JWT-based Authentication
 - Protected Routes
+- User-specific trip access
 
-## AI Trip Planner
+---
 
-Users can generate personalized trips by providing:
+## 🤖 AI Trip Planner
 
-- Source & Destination
+Transix allows users to generate personalized multi-day travel plans using AI.
+
+Users can provide:
+
+- Source and Destination
 - Travel Dates
 - Budget
 - Number of Travelers
@@ -27,14 +42,17 @@ Users can generate personalized trips by providing:
 - Hotel Preference
 - Food Preference
 - Trip Type
-- Purpose
+- Trip Purpose
 - Interests
+- Priority
 
-Gemini AI generates a complete multi-day itinerary based on the provided preferences.
+Google Gemini AI generates a personalized itinerary based on the user's requirements and preferences.
 
-## AI Itinerary Dashboard
+---
 
-Displays:
+## 🗓️ AI Itinerary
+
+The generated itinerary provides:
 
 - Trip Summary
 - Day-wise itinerary
@@ -43,20 +61,66 @@ Displays:
 - Estimated costs
 - Budget breakdown
 - Travel tips
+- Personalized recommendations
 
-## Hotel Recommendations
+Users can review the complete plan before customizing it through the Trip Builder.
 
-- Hotels using Google Places API
-- Hotel Details
+---
+
+## 🧳 Trip Builder
+
+The Trip Builder allows users to review and customize their AI-generated travel plan.
+
+Users can:
+
+- View the complete generated itinerary
+- View day-wise activities
+- Modify trip information
+- Customize itinerary details
+- Update budget and traveler information
+- Manage itinerary activities
+- Regenerate individual itinerary days using AI
+- Save updated trip information
+
+The Builder provides flexibility to refine the AI-generated itinerary according to the user's actual preferences.
+
+---
+
+## 💾 Trip Management
+
+Users can manage their generated trips from the application.
+
+Features include:
+
+- Create trips
+- View saved trips
+- View individual trip details
+- Update trip information
+- Customize itineraries
+- Regenerate individual itinerary days
+- Maintain user-specific trip data
+
+---
+
+## 🏨 Hotel Recommendations
+
+Discover hotels based on the selected destination using location-based travel data.
+
+Information can include:
+
+- Hotel name
 - Ratings
 - Reviews
 - Photos
 - Address
-- Google Maps Link
+- Location information
+- Google Maps link
 
-## Food & Dining
+---
 
-Browse nearby:
+## 🍴 Food & Dining
+
+Discover nearby food and dining options, including:
 
 - Restaurants
 - Cafes
@@ -65,9 +129,11 @@ Browse nearby:
 - Pizza
 - Street Food
 
-## Nearby Essentials
+---
 
-Browse nearby:
+## 📍 Nearby Essentials
+
+Find useful services around the destination, including:
 
 - Hospitals
 - Pharmacies
@@ -76,113 +142,57 @@ Browse nearby:
 - Police Stations
 - Mechanics
 
-## Travel Options
+---
 
-Provides travel recommendations for different transport modes.
+## 🚆 Travel Options
 
-> **Currently under development. Real-time Train, Bus and Flight APIs are being integrated.**
+Transix provides travel recommendations based on the selected travel mode and destination.
 
-## Map View
+The application includes travel-related services and train planning functionality supported by the backend.
 
-Displays the route between source and destination on Google Maps.
+> Real-time availability, schedules, and pricing may depend on the external travel services and APIs being used.
 
 ---
 
-# Tech Stack
+## 🖼️ Secure Image Retrieval
 
-## Frontend
+Travel and place images are retrieved through the backend.
 
-- React.js
-- Vite
-- Tailwind CSS
-- React Router
-- Axios
+Instead of exposing the Pexels API key directly in the browser, the frontend communicates with a backend image endpoint.
 
-## Backend
-
-- Node.js
-- Express.js
-- MongoDB
-- JWT Authentication
-
-## APIs & Services
-
-- Google Gemini AI
-- Google Places API
-- Google Maps API
+This keeps third-party API credentials on the server side.
 
 ---
 
-# Project Structure
+# 🏗️ Application Architecture
 
 ```text
-Transix
-│
-├── frontend
-├── backend
-└── README.md
-```
-
----
-
-# Getting Started
-
-## Backend
-
-```bash
-cd backend
-npm install
-npm start
-```
-
-## Frontend
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
----
-
-# Environment Variables
-
-Create a `.env` file inside the backend directory.
-
-```env
-PORT=
-
-
-JWT_SECRET=
-
-GEMINI_API_KEY=
-
-GOOGLE_MAPS_API_KEY=
-```
-
----
-
-# Currently Working On
-
-- Accurate Budget Breakdown
-- Trip Summary & Export
-- Real-time Travel APIs
-- Saved Trips
-- Interactive Route Map
-- AI Itinerary Improvements
-
----
-
-# Project Goal
-
-Transix aims to become an intelligent travel planning platform that combines AI-generated itineraries with authentic real-world travel information, enabling users to plan complete trips from a single application.
-
----
-
-# Developer
-
-**Afifa Khan**
-
-Computer Engineering Student
-
-Built with **React, Node.js, Express.js, MongoDB, Google Gemini AI and Google Maps Platform.**
+                         USER
+                           │
+                           ▼
+                 ┌───────────────────┐
+                 │  React Frontend   │
+                 │  Vite + Tailwind  │
+                 │      Vercel       │
+                 └─────────┬─────────┘
+                           │
+                      REST API / Axios
+                           │
+                           ▼
+                 ┌───────────────────┐
+                 │  Express Backend  │
+                 │      Node.js      │
+                 │      Render       │
+                 └─────────┬─────────┘
+                           │
+              ┌────────────┴────────────┐
+              │                         │
+              ▼                         ▼
+       ┌───────────────┐       ┌─────────────────┐
+       │ MongoDB Atlas │       │ External APIs   │
+       │               │       │                 │
+       │ Users & Trips │       │ Gemini AI       │
+       │               │       │ Google Places   │
+       └───────────────┘       │ Pexels          │
+                               │ Travel Services │
+                               └─────────────────┘
