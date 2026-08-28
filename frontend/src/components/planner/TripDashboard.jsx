@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 import HeroBanner from "../dashboard/hero/HeroBanner";
 import TravelOptions from "../dashboard/travel/TravelOptions";
-import MapPreview from "../dashboard/map/MapPreview";
 import ItineraryPreview from "../dashboard/itinerary/ItineraryPreview";
 import ExperiencesPreview from "../dashboard/experiences/ExperiencesPreview";
 import HotelsPreview from "../dashboard/hotels/HotelsPreview";
 import FoodPreview from "../dashboard/food/FoodPreview";
 import EssentialsPreview from "../dashboard/essentials/EssentialsPreview";
 import { getDestinationInventory } from "../../services/inventoryService";
+
+// MapPreview is intentionally removed — Map is now accessed via the Sidebar Map modal overlay.
 
 const TripDashboard = ({ trip, setTrip }) => {
   const [hotels, setHotels] = useState([]);
@@ -49,7 +50,6 @@ const TripDashboard = ({ trip, setTrip }) => {
       <ExperiencesPreview trip={trip} />
       <FoodPreview trip={trip} />
       <EssentialsPreview trip={trip} />
-      <MapPreview trip={trip} />
     </div>
   );
 };

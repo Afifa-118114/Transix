@@ -692,6 +692,11 @@ export function TripBuilderProvider({ children }) {
     toast.success(`Reset Itinerary for ${trip?.destination || "Trip"}`, { icon: "🔄" });
   };
 
+  // Map Modal State
+  const [isMapModalOpen, setIsMapModalOpen] = useState(false);
+  const openMapModal = useCallback(() => setIsMapModalOpen(true), []);
+  const closeMapModal = useCallback(() => setIsMapModalOpen(false), []);
+
   return (
     <TripBuilderContext.Provider
       value={{
@@ -709,6 +714,10 @@ export function TripBuilderProvider({ children }) {
         setSelectedCategory,
         isFinalizeModalOpen,
         setIsFinalizeModalOpen,
+        isMapModalOpen,
+        setIsMapModalOpen,
+        openMapModal,
+        closeMapModal,
         isSaved,
         budgetStats,
         validationStats,

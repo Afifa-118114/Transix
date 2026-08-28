@@ -1,11 +1,17 @@
-import DashboardLayout from "../layouts/DashboardLayout";
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useTripBuilder } from "../context/TripBuilderContext";
 
-function Map() {
-  return (
-    <DashboardLayout>
-      <h1>Map</h1>
-    </DashboardLayout>
-  );
+// /map route — redirects to /home while opening the map modal overlay.
+// The premium map is accessed via the left sidebar button, not direct navigation.
+export default function Map() {
+  const navigate = useNavigate();
+  const { openMapModal } = useTripBuilder();
+
+  useEffect(() => {
+    navigate("/home", { replace: true });
+    openMapModal();
+  }, [navigate, openMapModal]);
+
+  return null;
 }
-
-export default Map;

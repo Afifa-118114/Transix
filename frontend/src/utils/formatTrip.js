@@ -16,17 +16,20 @@ export function formatBudget(amount) {
 
 export function getDuration(trip) {
   if (!trip) return "0 Days";
+  // Authoritative: itinerary length
   if (trip.itinerary?.length) {
     return `${trip.itinerary.length} Days`;
   }
+  // Stored duration string
   if (trip.duration) {
-    return trip.duration;
+    return typeof trip.duration === "number" ? `${trip.duration} Days` : String(trip.duration);
   }
+  // Derive from date range (inclusive)
   if (trip.startDate && trip.endDate) {
     const start = new Date(trip.startDate);
     const end = new Date(trip.endDate);
     if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
-      const days = Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1);
+      const days = Math.max(1, Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1);
       return `${days} Days`;
     }
   }
@@ -219,6 +222,34 @@ export function normalizeTrip(rawTrip) {
     };
   });
 
+  // ---- Date / Duration / Itinerary synchronization ----
+  const numDays = normalizedItinerary.length || 5;
+  let finalStartDate = rawTrip.startDate || null;
+  let finalEndDate = rawTrip.endDate || null;
+
+  if (finalStartDate) {
+    const s = new Date(finalStartDate);
+    if (!isNaN(s.getTime())) {
+      if (!finalEndDate) {
+        // Compute endDate from itinerary count
+        const e = new Date(s);
+        e.setDate(s.getDate() + numDays - 1);
+        finalEndDate = e.toISOString().split("T")[0];
+      } else {
+        // Ensure endDate is aligned with itinerary count (adjust if mismatch)
+        const e = new Date(finalEndDate);
+        if (!isNaN(e.getTime())) {
+          const calDays = Math.max(1, Math.round((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+          if (calDays !== numDays) {
+            const adjustedE = new Date(s);
+            adjustedE.setDate(s.getDate() + numDays - 1);
+            finalEndDate = adjustedE.toISOString().split("T")[0];
+          }
+        }
+      }
+    }
+  }
+
   return {
     ...rawTrip,
     _id: rawTrip._id || `trip-${Date.now()}`,
@@ -227,7 +258,9 @@ export function normalizeTrip(rawTrip) {
     budget,
     travelers,
     currency,
-    duration: rawTrip.duration || `${normalizedItinerary.length || 5} Days`,
+    startDate: finalStartDate,
+    endDate: finalEndDate,
+    duration: `${numDays} Days`,
     heroImage: rawTrip.heroImage || null,
     itinerary: normalizedItinerary,
   };

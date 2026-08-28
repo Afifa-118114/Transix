@@ -7,6 +7,16 @@ const model = genAI.getGenerativeModel({
 });
 
 const generateTripPlan = async (tripData) => {
+  // Calculate exact inclusive number of days from the user's date range
+  let numDays = 5;
+  if (tripData.startDate && tripData.endDate) {
+    const start = new Date(tripData.startDate);
+    const end = new Date(tripData.endDate);
+    if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+      numDays = Math.max(1, Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+    }
+  }
+
   const prompt = `
 You are an expert travel planner.
 
@@ -28,6 +38,7 @@ Food Preference: ${tripData.foodPreference}
 Trip Type: ${tripData.tripType}
 Purpose: ${tripData.purpose}
 Interests: ${tripData.interests.join(", ")}
+Number of Days: ${numDays} (EXACT — You MUST generate EXACTLY ${numDays} days in the "days" array, Day 1 through Day ${numDays}. Not more, not fewer.)
 Very Important:
 Prioritize activities matching the user's interests.
 If "Food" is selected, include famous restaurants, cafes and local dishes.

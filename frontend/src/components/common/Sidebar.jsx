@@ -1,41 +1,19 @@
 import { FiHome, FiBookmark, FiUser, FiMap, FiCompass, FiLayers } from "react-icons/fi";
 import { NavLink } from "react-router-dom";
 import logo from "../../assets/logo/logo.png";
+import { useTripBuilder } from "../../context/TripBuilderContext";
 
-const menuItems = [
-  {
-    title: "Home",
-    path: "/home",
-    icon: <FiHome className="text-xl" />,
-  },
-  {
-    title: "Builder",
-    path: "/builder",
-    icon: <FiLayers className="text-xl" />,
-  },
-  {
-    title: "Journey",
-    path: "/planner",
-    icon: <FiCompass className="text-xl" />,
-  },
-  {
-    title: "Map",
-    path: "/map",
-    icon: <FiMap className="text-xl" />,
-  },
-  {
-    title: "Saved",
-    path: "/saved",
-    icon: <FiBookmark className="text-xl" />,
-  },
-  {
-    title: "Profile",
-    path: "/profile",
-    icon: <FiUser className="text-xl" />,
-  },
+const NAV_ITEMS = [
+  { title: "Home", path: "/home", icon: <FiHome className="text-xl" /> },
+  { title: "Builder", path: "/builder", icon: <FiLayers className="text-xl" /> },
+  { title: "Journey", path: "/planner", icon: <FiCompass className="text-xl" /> },
+  { title: "Saved", path: "/saved", icon: <FiBookmark className="text-xl" /> },
+  { title: "Profile", path: "/profile", icon: <FiUser className="text-xl" /> },
 ];
 
 export default function Sidebar() {
+  const { openMapModal } = useTripBuilder();
+
   return (
     <aside className="sticky top-4 flex h-[calc(100vh-32px)] w-20 shrink-0 flex-col items-center justify-between rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-[#131b2e] py-5 shadow-xs transition-colors">
       {/* Brand Logo */}
@@ -47,7 +25,7 @@ export default function Sidebar() {
 
         {/* Navigation Menu */}
         <nav className="mt-7 flex flex-col items-center gap-2">
-          {menuItems.map((item) => (
+          {NAV_ITEMS.map((item) => (
             <NavLink
               key={item.title}
               to={item.path}
@@ -70,6 +48,17 @@ export default function Sidebar() {
               )}
             </NavLink>
           ))}
+
+          {/* Map — opens modal overlay, does NOT navigate */}
+          <button
+            onClick={openMapModal}
+            className="group relative flex h-13 w-14 flex-col items-center justify-center rounded-xl transition-all duration-200 text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800/80 dark:hover:text-white"
+          >
+            <span className="transition-transform group-hover:scale-110">
+              <FiMap className="text-xl" />
+            </span>
+            <span className="mt-1 text-[10px] font-semibold tracking-tight">Map</span>
+          </button>
         </nav>
       </div>
 

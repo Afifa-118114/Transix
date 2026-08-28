@@ -11,14 +11,30 @@ const generateAITrip = asyncHandler(async (req, res) => {
     getDestinationImage(tripData.destination),
   ]);
 
+  const numDays = Array.isArray(aiData?.days) && aiData.days.length > 0 ? aiData.days.length : 5;
+  let finalStartDate = tripData.startDate;
+  let finalEndDate = tripData.endDate;
+
+  if (finalStartDate) {
+    const s = new Date(finalStartDate);
+    if (!isNaN(s.getTime())) {
+      if (!finalEndDate) {
+        const e = new Date(s);
+        e.setDate(s.getDate() + numDays - 1);
+        finalEndDate = e.toISOString().split("T")[0];
+      }
+    }
+  }
+
   const savedTrip = await Trip.create({
     user: req.user.id,
 
     source: tripData.source,
     destination: tripData.destination,
     heroImage,
-    startDate: tripData.startDate,
-    endDate: tripData.endDate,
+    startDate: finalStartDate,
+    endDate: finalEndDate,
+    duration: `${numDays} Days`,
     travelers: tripData.travelers,
     budget: tripData.budget,
     currency: tripData.currency || "INR",
