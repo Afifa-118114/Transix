@@ -79,12 +79,30 @@ const getTripById = asyncHandler(async (req, res, next) => {
 const updateTrip = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
 
+  // Whitelist only genuine user-editable trip fields
+  const allowedUpdates = [
+    "itinerary",
+    "budget",
+    "travelers",
+    "status",
+    "summary",
+    "budgetBreakdown",
+    "tips",
+  ];
+
+  const updateData = {};
+  for (const key of allowedUpdates) {
+    if (req.body[key] !== undefined) {
+      updateData[key] = req.body[key];
+    }
+  }
+
   const updatedTrip = await Trip.findOneAndUpdate(
     {
       _id: id,
       user: req.user.id,
     },
-    req.body,
+    updateData,
     {
       new: true,
       runValidators: true,
@@ -124,17 +142,37 @@ const deleteTrip = asyncHandler(async (req, res, next) => {
 const regenerateDay = asyncHandler(async (req, res) => {
   const { day } = req.body;
 
-  const trip = await Trip.findById(req.params.id);
+  const dayNum = Number(day);
+  if (!Number.isInteger(dayNum) || dayNum < 1) {
+    return res.status(400).json({
+      success: false,
+      message: "Day must be a positive integer",
+    });
+  }
 
-  if (!trip)
+  const trip = await Trip.findOne({
+    _id: req.params.id,
+    user: req.user.id,
+  });
+
+  if (!trip) {
     return res.status(404).json({
       success: false,
       message: "Trip not found",
     });
+  }
 
-  const newDay = await regenerateTripDay(trip, day);
+  if (!Array.isArray(trip.itinerary) || dayNum > trip.itinerary.length) {
+    return res.status(400).json({
+      success: false,
+      message: `Day exceeds itinerary length (${trip.itinerary?.length || 0})`,
+    });
+  }
 
-  trip.itinerary[day - 1] = newDay;
+  const newDay = await regenerateTripDay(trip, dayNum);
+
+  trip.itinerary[dayNum - 1] = newDay;
+  trip.markModified("itinerary");
 
   await trip.save();
 

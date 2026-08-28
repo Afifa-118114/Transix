@@ -2,12 +2,12 @@ const axios = require("axios");
 
 const BASE_URL = "https://places.googleapis.com/v1/places:searchText";
 
-const headers = {
+const getHeaders = () => ({
   "Content-Type": "application/json",
   "X-Goog-Api-Key": process.env.GOOGLE_PLACES_API_KEY,
   "X-Goog-FieldMask":
     "places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.priceLevel,places.priceRange,places.websiteUri,places.nationalPhoneNumber,places.googleMapsUri,places.photos,places.regularOpeningHours,places.currentOpeningHours,places.businessStatus",
-};
+});
 
 const searchHotels = async (destination) => {
   try {
@@ -17,7 +17,7 @@ const searchHotels = async (destination) => {
         textQuery: `Best hotels and resorts in ${destination}`,
       },
       {
-        headers,
+        headers: getHeaders(),
       },
     );
 
@@ -36,7 +36,7 @@ const searchPlaces = async (destination, category) => {
         textQuery: `${category} in ${destination}`,
       },
       {
-        headers,
+        headers: getHeaders(),
       },
     );
 
@@ -55,7 +55,7 @@ const searchNearestRailwayStation = async (destination) => {
         textQuery: `Nearest railway station to ${destination}`,
       },
       {
-        headers,
+        headers: getHeaders(),
       },
     );
 

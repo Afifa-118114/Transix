@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { getPlaces } from "../api/placeApi";
-import PlaceGrid from "../components/Places/PlaceGrid";
+import PlaceGrid from "../components/places/PlaceGrid";
 import { useAuth } from "../context/AuthContext";
 import DashboardLayout from "../layouts/DashboardLayout";
 

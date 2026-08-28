@@ -27,3 +27,11 @@ export const getPlaces = async (destination, category, token) => {
 
   return res.data.places;
 };
+
+export const getPlaceImage = async (query) => {
+  const res = await axios.get(`${API}/places/image`, {
+    params: { query },
+  });
+
+  return res.data?.url;
+};

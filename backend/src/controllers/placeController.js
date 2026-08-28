@@ -88,7 +88,26 @@ const getPlaces = asyncHandler(async (req, res) => {
   });
 });
 
+const { getPlaceImage: fetchImage } = require("../services/imageService");
+
+const getPlaceImage = asyncHandler(async (req, res) => {
+  const { query } = req.query;
+  if (!query) {
+    return res.status(400).json({
+      success: false,
+      message: "Query is required",
+    });
+  }
+
+  const url = await fetchImage(query);
+  res.json({
+    success: true,
+    url: url || "https://picsum.photos/800/500",
+  });
+});
+
 module.exports = {
   getHotels,
   getPlaces,
+  getPlaceImage,
 };

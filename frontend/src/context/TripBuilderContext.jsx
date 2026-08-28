@@ -1,8 +1,8 @@
 import { createContext, useContext, useState, useEffect, useMemo, useCallback } from "react";
 import toast from "react-hot-toast";
-import axios from "axios";
 import { getDestinationInventory } from "../services/inventoryService";
 import { normalizeTrip, timeToMinutes, minutesToTimeStr, parsePrice } from "../utils/formatTrip";
+import { updateTrip } from "../api/tripApi";
 
 export const TripBuilderContext = createContext();
 
@@ -659,16 +659,14 @@ export function TripBuilderProvider({ children }) {
       const token = localStorage.getItem("token");
       if (token && trip._id && !trip._id.startsWith("trip-sample")) {
         try {
-          await axios.put(
-            `http://localhost:5000/api/trips/${trip._id}`,
+          await updateTrip(
+            trip._id,
             {
               itinerary: trip.itinerary,
               budget: trip.budget,
               travelers: trip.travelers,
             },
-            {
-              headers: { Authorization: `Bearer ${token}` },
-            }
+            token
           );
         } catch (apiErr) {
           console.warn("Backend sync fallback to local storage:", apiErr.message);

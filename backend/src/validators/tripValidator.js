@@ -1,31 +1,54 @@
 const { z } = require("zod");
 
-const tripSchema = z.object({
-  source: z.string().min(1),
-  destination: z.string().min(1),
+const isValidDate = (val) => {
+  if (typeof val !== "string" || !val.trim()) return false;
+  const d = new Date(val);
+  return !isNaN(d.getTime());
+};
 
-  startDate: z.string().min(1),
-  endDate: z.string().min(1),
+const tripSchema = z
+  .object({
+    source: z.string().trim().min(1, "Source is required"),
+    destination: z.string().trim().min(1, "Destination is required"),
 
-  travelers: z.number().min(1),
+    startDate: z
+      .string()
+      .refine(isValidDate, { message: "Valid start date is required" }),
+    endDate: z
+      .string()
+      .refine(isValidDate, { message: "Valid end date is required" }),
 
-  budget: z.number().min(0),
+    travelers: z.number().int().min(1, "Travelers must be at least 1"),
 
-  currency: z.string().optional(),
+    budget: z.number().min(0, "Budget must be a non-negative number"),
 
-  travelMode: z.enum(["Flight", "Train", "Bus", "Car"]),
+    currency: z.string().optional(),
 
-  hotelType: z.enum(["Budget", "Standard", "Luxury"]),
+    travelMode: z.enum(["Flight", "Train", "Bus", "Car"]),
 
-  foodPreference: z.enum(["Veg", "Non-Veg", "Vegan", "Any"]).optional(),
+    hotelType: z.enum(["Budget", "Standard", "Luxury"]),
 
-  tripType: z.enum(["Solo", "Family", "Friends", "Couple", "Business"]),
+    foodPreference: z.enum(["Veg", "Non-Veg", "Vegan", "Any"]).optional(),
 
-  interests: z.array(z.string()).min(1),
+    tripType: z.enum(["Solo", "Family", "Friends", "Couple", "Business"]),
 
-  priority: z.string().min(1),
+    interests: z.array(z.string()).min(1, "At least one interest is required"),
 
-  purpose: z.string().min(1),
-});
+    priority: z.string().min(1, "Priority is required"),
+
+    purpose: z.string().min(1, "Purpose is required"),
+  })
+  .refine(
+    (data) => {
+      const start = new Date(data.startDate);
+      const end = new Date(data.endDate);
+      return end.getTime() >= start.getTime();
+    },
+    {
+      message: "End date cannot be before start date",
+      path: ["endDate"],
+    },
+  );
 
 module.exports = tripSchema;
+
