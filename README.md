@@ -196,3 +196,201 @@ This keeps third-party API credentials on the server side.
        └───────────────┘       │ Pexels          │
                                │ Travel Services │
                                └─────────────────┘
+
+
+🛠️ Tech Stack
+
+Frontend
+React.js
+Vite
+Tailwind CSS
+React Router
+Axios
+Framer Motion
+Lucide React
+React Icons
+React Hot Toast
+
+Backend
+Node.js
+Express.js
+MongoDB
+Mongoose
+JWT
+bcryptjs
+Zod
+Axios
+AI & APIs
+Google Gemini AI
+Google Places API
+Pexels API
+Travel/Transport Data Services
+
+
+📁 Project Structure
+Transix/
+│
+├── frontend/
+│   ├── src/
+│   │   ├── api/
+│   │   ├── components/
+│   │   ├── context/
+│   │   ├── pages/
+│   │   ├── services/
+│   │   └── ...
+│   │
+│   ├── public/
+│   ├── vercel.json
+│   ├── package.json
+│   └── vite.config.js
+│
+├── backend/
+│   ├── src/
+│   │   ├── config/
+│   │   ├── controllers/
+│   │   ├── middleware/
+│   │   ├── models/
+│   │   ├── routes/
+│   │   ├── services/
+│   │   ├── utils/
+│   │   └── validators/
+│   │
+│   ├── server.js
+│   └── package.json
+│
+└── README.md
+
+
+⚙️ Getting Started
+1. Clone the Repository
+git clone https://github.com/Afifa-118114/Transix.git
+cd Transix
+
+2. Backend Setup
+cd backend
+npm install
+npm start
+
+For development:
+npm run dev
+
+The backend uses server.js as its application entry point.
+
+3. Frontend Setup
+
+Open another terminal:
+
+cd frontend
+npm install
+npm run dev
+
+The frontend is powered by Vite.
+
+🔑 Environment Variables
+Backend
+
+Create a .env file inside the backend directory.
+
+PORT=5000
+
+MONGO_URI=your_mongodb_connection_string
+
+JWT_SECRET=your_jwt_secret
+
+GEMINI_API_KEY=your_gemini_api_key
+
+GOOGLE_MAPS_API_KEY=your_google_maps_api_key
+
+GOOGLE_PLACES_API_KEY=your_google_places_api_key
+
+PEXELS_API_KEY=your_pexels_api_key
+
+FRONTEND_URL=http://localhost:5173
+Frontend
+
+Create a .env file inside the frontend directory.
+
+VITE_API_URL=http://localhost:5000/api
+
+For the deployed frontend:
+
+VITE_API_URL=https://transix-backend.onrender.com/api
+
+Never commit actual API keys, passwords, JWT secrets, or MongoDB credentials to GitHub.
+
+🌐 Deployment
+
+Transix uses a separate frontend and backend deployment architecture.
+
+Frontend – Vercel
+
+The React/Vite frontend is deployed on Vercel.
+
+
+Live Application:
+
+https://transix-henna.vercel.app/
+
+The frontend includes SPA routing configuration to ensure client-side routes work correctly when directly accessed or refreshed.
+
+Backend – Render
+
+The Node.js/Express backend is deployed on Render.
+
+Backend:
+
+https://transix-backend.onrender.com
+
+Health Check:
+
+https://transix-backend.onrender.com/health
+
+The health endpoint is used to verify that the production backend is running correctly.
+
+🔒 Security & Deployment Improvements
+
+Transix includes several security and deployment-focused improvements:
+
+JWT authentication
+Protected API routes
+User ownership checks
+Whitelisted editable trip fields
+Zod input validation
+Date validation
+Itinerary day validation
+Mongoose modification tracking
+Production-safe error handling
+Configured CORS
+Environment-based API configuration
+Backend-side API key protection
+Pexels API proxy through the backend
+Production health endpoint
+SPA routing support for Vercel
+
+🚀 Deployment Architecture
+                         INTERNET
+                            │
+                            ▼
+                  ┌──────────────────┐
+                  │      VERCEL      │
+                  │ React Frontend   │
+                  └────────┬─────────┘
+                           │
+                           │ HTTPS API Requests
+                           ▼
+                  ┌──────────────────┐
+                  │      RENDER      │
+                  │ Express Backend  │
+                  └────────┬─────────┘
+                           │
+                  ┌────────┴─────────┐
+                  │                  │
+                  ▼                  ▼
+           ┌──────────────┐   ┌────────────────┐
+           │ MongoDB Atlas│   │ External APIs  │
+           │              │   │                │
+           │ Users        │   │ Gemini AI      │
+           │ Trips        │   │ Google Places  │
+           └──────────────┘   │ Pexels         │
+                              │ Travel Services│
+                              └────────────────┘
