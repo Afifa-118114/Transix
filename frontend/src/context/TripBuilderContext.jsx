@@ -638,7 +638,17 @@ export function TripBuilderProvider({ children }) {
     const travelHours = Math.floor(totalTravelMinutes / 60);
     const travelMins = totalTravelMinutes % 60;
     const formattedTravelTime = `${travelHours}h ${travelMins}m`;
-    const isFeasible = conflictsCount === 0;
+
+    if (budgetStats.isOverBudget) {
+      conflictsCount++;
+      conflicts.push({
+        day: "Budget",
+        type: "overbudget",
+        message: `Trip exceeds your budget of ₹${budgetStats.totalBudget.toLocaleString("en-IN")} by ₹${budgetStats.overAmount.toLocaleString("en-IN")}.`,
+      });
+    }
+
+    const isFeasible = conflictsCount === 0 && !budgetStats.isOverBudget;
 
     return {
       totalActivities,
@@ -648,7 +658,7 @@ export function TripBuilderProvider({ children }) {
       formattedTravelTime,
       isFeasible,
     };
-  }, [trip]);
+  }, [trip, budgetStats]);
 
   // Save Itinerary
   const saveItinerary = async () => {

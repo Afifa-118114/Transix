@@ -195,7 +195,7 @@ export function normalizeTrip(rawTrip) {
         time: `${startTimeStr} - ${endTimeStr}`,
         startTime: startTimeStr,
         endTime: endTimeStr,
-        duration: p.duration || `${Math.floor(durationMins / 60)}h ${durationMins % 60}m`,
+        duration: `${Math.floor(durationMins / 60)}h ${durationMins % 60}m`,
         durationMinutes: durationMins,
         price: priceNum,
         displayPrice,
