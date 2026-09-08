@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useTripBuilder } from "../context/TripBuilderContext";
 
 import ItineraryHero from "../components/itinerary/ItineraryHero";
+import StayPlan from "../components/itinerary/StayPlan";
 import DayTabs from "../components/itinerary/DayTabs";
 import Timeline from "../components/itinerary/Timeline";
 import BottomNav from "../components/itinerary/BottomNav";
@@ -53,6 +54,8 @@ export default function DetailedItinerary() {
     <div className="min-h-screen bg-[#f8faff] dark:bg-[#0b0f19] transition-colors duration-200">
       <div className="mx-auto flex max-w-6xl flex-col items-center space-y-8 px-6 py-8 gap-4">
         <ItineraryHero trip={trip} />
+
+        <StayPlan staySegments={trip.staySegments} />
 
         <DayTabs
           itinerary={itinerary}

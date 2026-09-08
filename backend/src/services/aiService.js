@@ -6,8 +6,9 @@ const model = genAI.getGenerativeModel({
   model: "gemini-2.5-flash",
 });
 
+const { validateItinerary } = require("./itineraryValidator");
+
 const generateTripPlan = async (tripData) => {
-  // Calculate exact inclusive number of days from the user's date range
   let numDays = 5;
   if (tripData.startDate && tripData.endDate) {
     const start = new Date(tripData.startDate);
@@ -17,13 +18,8 @@ const generateTripPlan = async (tripData) => {
     }
   }
 
-  const prompt = `
-You are an expert travel planner acting as a strict financial planner.
-
-Return ONLY valid JSON.
-Do NOT use markdown.
-Do NOT use backticks.
-Do NOT include explanations.
+  const basePrompt = `
+You are an expert travel planner acting as a strict financial and geographic planner.
 
 Trip Details:
 Source: ${tripData.source}
@@ -37,51 +33,61 @@ Hotel Type: ${tripData.hotelType}
 Food Preference: ${tripData.foodPreference}
 Trip Type: ${tripData.tripType}
 Interests: ${tripData.interests.join(", ")}
-Number of Days: ${numDays} (EXACT — You MUST generate EXACTLY ${numDays} days in the "days" array, Day 1 through Day ${numDays}.)
+Number of Days: ${numDays}
 
-Very Important:
-1. BUDGET CONSTRAINT: You MUST build an itinerary where the sum of ALL activities' "estimatedCost" is strictly less than or equal to the Total Budget (${tripData.budget} ${tripData.currency}).
-2. ESTIMATED COST: Provide the total estimated cost for ALL travelers combined for each item as a pure number without currency symbols. (e.g. if a hotel is 2000 per night and there are 2 travelers sharing 1 room for 1 night, cost is 2000. If an activity is 500 per person and 2 travelers, cost is 1000). Do NOT use strings like "₹350". Use pure numbers like "1000".
-3. REALISTIC SCHEDULE: Do NOT overpack the itinerary. Generate a STRICT MAXIMUM of 3-4 meaningful items per day TOTAL (including meals and transport). Ensure time for rest. A travel day should have even fewer activities.
-4. TIMINGS: Activities should be in chronological order with feasible non-overlapping start times and 20-30 minutes buffer between activities for local travel. Use standard AM/PM formats (e.g., "09:30 AM", "01:30 PM").
+Your task is to plan a robust multi-location itinerary using the following order of thinking:
+STEP 1: Identify suitable geographic stay points (locations) based on the destination.
+STEP 2: Allocate contiguous check-in/check-out dates and nights to each stay point covering the exact trip dates.
+STEP 3: Plan logical travel legs between these stay points.
+STEP 4: Assign feasible, chronological daily activities that respect the current stay point's geography.
+STEP 5: Validate the total estimated cost strictly against the budget.
 
-Example Activity JSON:
-{
-  "time": "09:30 AM - 11:30 AM",
-  "place": "Naini Lake",
-  "activity": "Boating",
-  "notes": "Best during morning",
-  "duration": "2 hours",
-  "estimatedCost": "1000",
-  "category": "activity"
-}
+RULES:
+1. Stay Segments MUST perfectly cover the trip dates. Total nights must equal (End Date - Start Date). No overlaps.
+2. Activities MUST NOT overlap in time. Include reasonable buffers for travel.
+3. Total estimated cost MUST NOT exceed ${tripData.budget} ${tripData.currency}. To ensure this, aim for a target of ~10% under budget.
+4. Limit to 2-4 meaningful activities/events per day.
+5. Provide ONLY pure numbers for "estimatedCost" (no currency symbols).
 
-Categories allowed: "transport", "hotel", "activity", "food", "local transport", "shopping".
-
-Rules:
-- Include major transport (e.g., flight/train from source to destination).
-- Include hotel check-in on arrival and check-out on departure.
-- Allocate roughly: Transport (30%), Hotel (30%), Food (20%), Activities/Misc (20%) - adapt based on the budget constraint.
-- If the budget is very low, use economy options and fewer paid activities.
-- The total sum of all "estimatedCost" MUST NOT exceed ${tripData.budget}.
-
-Return exactly this JSON:
+Return ONLY this EXACT JSON structure, do NOT use markdown or backticks:
 
 {
   "summary": "Brief summary of the trip",
+  "staySegments": [
+    {
+      "id": "stay-1",
+      "location": "City Name",
+      "checkIn": "YYYY-MM-DD",
+      "checkOut": "YYYY-MM-DD",
+      "nights": 3,
+      "reason": "Why this location"
+    }
+  ],
+  "travelLegs": [
+    {
+      "from": "Origin",
+      "to": "City Name",
+      "date": "YYYY-MM-DD",
+      "startTime": "09:00 AM",
+      "endTime": "13:00 PM",
+      "durationMinutes": 240,
+      "mode": "Car",
+      "estimated": true
+    }
+  ],
   "days": [
     {
       "day": 1,
       "title": "Day title",
       "plan": [
         {
-          "time": "",
-          "place": "",
-          "activity": "",
-          "notes": "",
-          "duration": "",
-          "estimatedCost": "",
-          "category": ""
+          "time": "09:00 AM - 11:00 AM",
+          "place": "Location",
+          "activity": "Activity Name",
+          "notes": "Notes",
+          "duration": "2 hours",
+          "estimatedCost": "1000",
+          "category": "activity"
         }
       ]
     }
@@ -96,89 +102,68 @@ Return exactly this JSON:
 }
 `;
 
-  let result;
+  let currentPrompt = basePrompt;
+  let parsedData = null;
+  let validationResult = null;
 
-  for (let i = 0; i < 3; i++) {
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    let result;
     try {
-      result = await model.generateContent(prompt);
-      break;
+      result = await model.generateContent(currentPrompt);
     } catch (err) {
-      if (err.message.includes("503") && i < 2) {
-        console.log(`Retry ${i + 1}...`);
+      if (err.message.includes("503") && attempt < 3) {
+        console.log(`Retry ${attempt} due to 503...`);
         await new Promise((resolve) => setTimeout(resolve, 2000));
         continue;
       }
       throw err;
     }
-  }
-  const response = await result.response;
 
-  let text = response.text();
+    let text = result.response.text().replace(/\`\`\`json/g, "").replace(/\`\`\`/g, "").trim();
 
-  // ✅ Remove markdown formatting
-  text = text
-    .replace(/```json/g, "")
-    .replace(/```/g, "")
-    .trim();
+    try {
+      parsedData = JSON.parse(text);
+      validationResult = validateItinerary(parsedData, tripData);
 
-  try {
-    const parsedData = JSON.parse(text);
-    
-    // Post-generation validation and correction: Maximum 4 items per day
-    if (parsedData && parsedData.days && Array.isArray(parsedData.days)) {
-      parsedData.days = parsedData.days.map(day => {
-        if (day.plan && Array.isArray(day.plan) && day.plan.length > 4) {
-          // Identify essential items (transport, hotel, check-in)
-          const essential = [];
-          const nonEssential = [];
-          
-          day.plan.forEach(item => {
-            const cat = String(item.category || "").toLowerCase();
-            const act = String(item.activity || item.name || "").toLowerCase();
-            if (
-              cat.includes("transport") || 
-              cat.includes("hotel") || 
-              cat.includes("stay") || 
-              act.includes("check-in") || 
-              act.includes("check out") || 
-              act.includes("checkout") || 
-              act.includes("flight") || 
-              act.includes("train") ||
-              act.includes("arrival") ||
-              act.includes("departure")
-            ) {
-              essential.push(item);
-            } else {
-              nonEssential.push(item);
-            }
-          });
-          
-          let newPlan = [];
-          
-          if (essential.length >= 4) {
-            newPlan = essential.slice(0, 4);
-          } else {
-            newPlan = [...essential];
-            const remainingSlots = 4 - newPlan.length;
-            newPlan.push(...nonEssential.slice(0, remainingSlots));
-          }
-          
-          // Restore chronological order based on original index
-          const originalIndices = new Map();
-          day.plan.forEach((item, idx) => originalIndices.set(item, idx));
-          newPlan.sort((a, b) => originalIndices.get(a) - originalIndices.get(b));
-          
-          day.plan = newPlan;
-        }
-        return day;
-      });
+      if (validationResult.valid) {
+        parsedData.validation = validationResult;
+        return parsedData;
+      }
+
+      // If invalid, construct correction prompt
+      console.log(`[Attempt ${attempt}] Validation failed. Correcting...`);
+      const errorMessages = validationResult.errors.map(e => `- ${e.message}`).join("\n");
+      
+      currentPrompt = basePrompt + `
+\n\nYOUR PREVIOUS ATTEMPT FAILED VALIDATION WITH THESE ERRORS:
+${errorMessages}
+
+Please carefully correct these specific errors while preserving the user's dates, interests, and traveler count. Return the full corrected JSON.`;
+
+    } catch (err) {
+      console.log(`[Attempt ${attempt}] AI returned invalid JSON:`, text);
+      currentPrompt = basePrompt + "\\n\\nYOUR PREVIOUS ATTEMPT RETURNED INVALID/MALFORMED JSON. Please ensure your response is strictly valid JSON.";
     }
-    
-    return parsedData;
-  } catch (err) {
-    console.log("❌ AI RAW OUTPUT:\n", text);
-    throw new Error("AI returned invalid JSON");
   }
+
+  // Fallback: return the last generated data with validation errors attached
+  if (parsedData) {
+    parsedData.validation = validationResult;
+    return parsedData;
+  }
+  
+  return {
+    summary: "Could not generate a valid itinerary. Please try adjusting your constraints or increasing your budget.",
+    staySegments: [],
+    travelLegs: [],
+    days: [],
+    budgetBreakdown: {},
+    validation: {
+      valid: false,
+      errors: [{ type: "GENERATION_FAILED", day: null, message: "AI repeatedly failed to generate a valid itinerary format after 3 attempts." }],
+      warnings: []
+    }
+  };
 };
 
 const regenerateTripDay = async (trip, day) => {

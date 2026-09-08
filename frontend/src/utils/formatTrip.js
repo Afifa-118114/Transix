@@ -263,5 +263,8 @@ export function normalizeTrip(rawTrip) {
     duration: `${numDays} Days`,
     heroImage: rawTrip.heroImage || null,
     itinerary: normalizedItinerary,
+    staySegments: Array.isArray(rawTrip.staySegments) ? rawTrip.staySegments : [],
+    travelLegs: Array.isArray(rawTrip.travelLegs) ? rawTrip.travelLegs : [],
+    validation: rawTrip.validation || null,
   };
 }

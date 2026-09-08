@@ -5,11 +5,21 @@ const { getDestinationImage } = require("../services/imageService");
 
 const generateAITrip = asyncHandler(async (req, res) => {
   const tripData = req.body;
+  const tStart = Date.now();
 
-  const [aiData, heroImage] = await Promise.all([
-    generateTripPlan(tripData),
-    getDestinationImage(tripData.destination),
-  ]);
+  let heroImage = tripData.heroImage;
+  let aiData;
+  
+  if (heroImage) {
+    aiData = await generateTripPlan(tripData);
+  } else {
+    [aiData, heroImage] = await Promise.all([
+      generateTripPlan(tripData),
+      getDestinationImage(tripData.destination),
+    ]);
+  }
+  const tAi = Date.now();
+  console.log(`[Backend Trace] AI Generation & Image Fetch: ${tAi - tStart}ms`);
 
   const numDays = Array.isArray(aiData?.days) && aiData.days.length > 0 ? aiData.days.length : 5;
   let finalStartDate = tripData.startDate;
@@ -50,11 +60,16 @@ const generateAITrip = asyncHandler(async (req, res) => {
 
     aiGenerated: true,
     itinerary: aiData.days,
+    staySegments: aiData.staySegments || [],
+    travelLegs: aiData.travelLegs || [],
+    validation: aiData.validation || null,
     budgetBreakdown: aiData.budgetBreakdown,
     tips: aiData.tips,
     summary: aiData.summary,
   });
-  console.log(savedTrip.itinerary[0]);
+  const tDb = Date.now();
+  console.log(`[Backend Trace] DB Save: ${tDb - tAi}ms`);
+  console.log(`[Backend Trace] Total Backend Execution: ${tDb - tStart}ms`);
 
   res.status(201).json({
     success: true,

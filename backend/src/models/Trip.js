@@ -101,6 +101,21 @@ const tripSchema = new mongoose.Schema(
       type: Object,
     },
 
+    staySegments: {
+      type: Array,
+      default: [],
+    },
+
+    travelLegs: {
+      type: Array,
+      default: [],
+    },
+
+    validation: {
+      type: Object,
+      default: null,
+    },
+
     budgetBreakdown: {
       type: Object,
     },
