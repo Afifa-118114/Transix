@@ -7,9 +7,10 @@ import AvailableOptionsPanel from "../components/builder/AvailableOptionsPanel";
 import ItineraryBoard from "../components/builder/ItineraryBoard";
 import TripSummaryPanel from "../components/builder/TripSummaryPanel";
 import FinalizeModal from "../components/builder/FinalizeModal";
+import ConflictResolutionModal from "../components/builder/ConflictResolutionModal";
 
 export default function TourBuilder() {
-  const { trip, setTrip, initializeTrip } = useTripBuilder();
+  const { trip, setTrip, initializeTrip, pendingAlternatives, setPendingAlternatives, applyAlternative } = useTripBuilder();
   const [searchParams] = useSearchParams();
 
   // If URL has source/destination params but no trip is currently in context
@@ -75,6 +76,13 @@ export default function TourBuilder() {
 
         {/* Finalize Confirmation Modal */}
         <FinalizeModal />
+        
+        {/* Conflict Resolution Modal */}
+        <ConflictResolutionModal 
+          pendingAlternatives={pendingAlternatives}
+          onApply={applyAlternative}
+          onCancel={() => setPendingAlternatives(null)}
+        />
       </div>
     </DashboardLayout>
   );

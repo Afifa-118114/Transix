@@ -88,8 +88,19 @@ const tripSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["Draft", "Generated", "Booked"],
+      enum: ["Draft", "Generated", "Booked", "Finalized"],
       default: "Draft",
+    },
+
+    operatorAccess: {
+      enabled: {
+        type: Boolean,
+        default: false,
+      },
+      grantedAt: {
+        type: Date,
+        default: null,
+      },
     },
 
     aiGenerated: {

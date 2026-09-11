@@ -10,10 +10,14 @@ import Profile from "../pages/Profile";
 import Map from "../pages/Map";
 import DetailedItinerary from "../pages/DetailedItinerary";
 import HotelDetails from "../pages/HotelDetails";
+import StayPlanPage from "../pages/StayPlanPage";
 import ProtectedRoute from "./ProtectedRoute";
 import FoodDining from "../pages/FoodDining";
 import Essentials from "../pages/Essentials";
 import TravelOptionsPage from "../pages/TravelOptionsPage";
+import OperatorDashboard from "../pages/operator/OperatorDashboard";
+import OperatorTripList from "../pages/operator/OperatorTripList";
+import OperatorTripDetails from "../pages/operator/OperatorTripDetails";
 
 import TourBuilder from "../pages/TourBuilder";
 
@@ -29,7 +33,7 @@ function AppRoutes() {
       <Route
         path="/planner"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={["traveler", "admin"]}>
             <TripPlanner />
           </ProtectedRoute>
         }
@@ -37,7 +41,7 @@ function AppRoutes() {
       <Route
         path="/home"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={["traveler", "admin"]}>
             <Home />
           </ProtectedRoute>
         }
@@ -45,7 +49,7 @@ function AppRoutes() {
       <Route
         path="/builder"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={["traveler", "admin"]}>
             <TourBuilder />
           </ProtectedRoute>
         }
@@ -53,7 +57,7 @@ function AppRoutes() {
       <Route
         path="/my-trip"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={["traveler", "admin"]}>
             <TourBuilder />
           </ProtectedRoute>
         }
@@ -61,7 +65,7 @@ function AppRoutes() {
       <Route
         path="/tour-builder"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={["traveler", "admin"]}>
             <TourBuilder />
           </ProtectedRoute>
         }
@@ -69,7 +73,7 @@ function AppRoutes() {
       <Route
         path="/trip/:id"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={["traveler", "admin"]}>
             <TripDetails />
           </ProtectedRoute>
         }
@@ -77,7 +81,7 @@ function AppRoutes() {
       <Route
         path="/saved"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={["traveler", "admin"]}>
             <SavedTrips />
           </ProtectedRoute>
         }
@@ -93,16 +97,22 @@ function AppRoutes() {
       <Route
         path="/map"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={["traveler", "admin"]}>
             <Map />
           </ProtectedRoute>
         }
       />
       <Route path="/itinerary/:tripId" element={<DetailedItinerary />} />
+      <Route path="/itinerary/:tripId/stays" element={<StayPlanPage />} />
       <Route path="/hotel-details" element={<HotelDetails />} />{" "}
       <Route path="/food" element={<FoodDining />} />
       <Route path="/essentials" element={<Essentials />} />
       <Route path="/travel-options" element={<TravelOptionsPage />} />
+      
+      {/* Operator Routes */}
+      <Route path="/operator/dashboard" element={<ProtectedRoute allowedRoles={["operator", "admin"]}><OperatorDashboard /></ProtectedRoute>} />
+      <Route path="/operator/trips" element={<ProtectedRoute allowedRoles={["operator", "admin"]}><OperatorTripList /></ProtectedRoute>} />
+      <Route path="/operator/trips/:tripId" element={<ProtectedRoute allowedRoles={["operator", "admin"]}><OperatorTripDetails /></ProtectedRoute>} />
     </Routes>
   );
 }

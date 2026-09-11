@@ -1,7 +1,56 @@
 const Trip = require("../models/Trip");
+const BookingRequirement = require("../models/BookingRequirement");
 const AppError = require("../utils/AppError");
 const asyncHandler = require("../middleware/asyncHandler");
 const { regenerateTripDay } = require("../services/aiService");
+const { generateAlternatives, applyAlternative } = require("../services/smartshiftService");
+const crypto = require("crypto");
+
+// Helper to repair missing IDs
+const repairTripIds = async (trip) => {
+  let modified = false;
+  if (Array.isArray(trip.itinerary)) {
+    trip.itinerary.forEach(day => {
+      if (Array.isArray(day.plan)) {
+        day.plan.forEach(p => {
+          if (!p.id && !p._id) {
+            p.id = `itin_${crypto.randomUUID()}`;
+            modified = true;
+          }
+        });
+      }
+    });
+  }
+  if (modified) {
+    trip.markModified("itinerary");
+    await trip.save();
+  }
+  return trip;
+};
+
+// Helper to automatically sync booking requirements based on trip changes
+const syncBookingRequirements = async (trip) => {
+  if (trip.status === "Draft") return; // Do not generate requirements while still drafting
+  
+  if (Array.isArray(trip.staySegments)) {
+    for (const stay of trip.staySegments) {
+      if (stay.selectedHotel) {
+        // Idempotent upsert
+        await BookingRequirement.findOneAndUpdate(
+          { tripId: trip._id, staySegmentId: stay.id, type: "ACCOMMODATION" },
+          {
+            travelerId: trip.user,
+            title: stay.selectedHotel.name || stay.selectedHotel.hotelName || "Accommodation",
+            location: stay.location,
+            vendorName: stay.selectedHotel.brand || "Independent",
+            externalUrl: stay.selectedHotel.url || stay.selectedHotel.bookingUrl || "",
+          },
+          { upsert: true, setDefaultsOnInsert: true }
+        );
+      }
+    }
+  }
+};
 
 const generateTrip = asyncHandler(async (req, res) => {
   const {
@@ -51,6 +100,11 @@ const getAllTrips = asyncHandler(async (req, res) => {
     user: req.user.id,
   });
 
+  // Repair loaded trips (in background, no await map needed for response speed but we await to ensure integrity)
+  for (const t of trips) {
+    await repairTripIds(t);
+  }
+
   res.status(200).json({
     success: true,
     count: trips.length,
@@ -70,9 +124,31 @@ const getTripById = asyncHandler(async (req, res, next) => {
     throw new AppError("Trip not found", 404);
   }
 
+  await repairTripIds(trip);
+
   res.status(200).json({
     success: true,
     trip,
+  });
+});
+
+const getTripBookings = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+
+  const trip = await Trip.findOne({
+    _id: id,
+    user: req.user.id,
+  });
+
+  if (!trip) {
+    throw new AppError("Trip not found", 404);
+  }
+
+  const bookings = await BookingRequirement.find({ tripId: id });
+
+  res.status(200).json({
+    success: true,
+    bookings,
   });
 });
 
@@ -88,6 +164,7 @@ const updateTrip = asyncHandler(async (req, res, next) => {
     "summary",
     "budgetBreakdown",
     "tips",
+    "operatorAccess",
   ];
 
   const updateData = {};
@@ -112,6 +189,9 @@ const updateTrip = asyncHandler(async (req, res, next) => {
   if (!updatedTrip) {
     throw new AppError("Trip not found", 404);
   }
+
+  // Trigger booking sync if appropriate
+  await syncBookingRequirements(updatedTrip);
 
   res.status(200).json({
     success: true,
@@ -171,6 +251,14 @@ const regenerateDay = asyncHandler(async (req, res) => {
 
   const newDay = await regenerateTripDay(trip, dayNum);
 
+  if (Array.isArray(newDay.plan)) {
+    newDay.plan.forEach(p => {
+      if (!p.id && !p._id) {
+        p.id = `itin_${crypto.randomUUID()}`;
+      }
+    });
+  }
+
   trip.itinerary[dayNum - 1] = newDay;
   trip.markModified("itinerary");
 
@@ -182,6 +270,105 @@ const regenerateDay = asyncHandler(async (req, res) => {
   });
 });
 
+const smartshiftSuggest = asyncHandler(async (req, res) => {
+  const { itemId } = req.body;
+  if (!itemId) {
+    return res.status(400).json({ success: false, message: "itemId is required" });
+  }
+
+  const trip = await Trip.findOne({
+    _id: req.params.id,
+    user: req.user.id,
+  });
+
+  if (!trip) {
+    return res.status(404).json({ success: false, message: "Trip not found" });
+  }
+
+  try {
+    const result = generateAlternatives(trip, itemId);
+    res.status(200).json({
+      success: true,
+      tripId: trip._id,
+      affectedItem: result.affectedItem,
+      alternatives: result.alternatives
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+const smartshiftApply = asyncHandler(async (req, res) => {
+  const { alternative, itemId } = req.body;
+  
+  if (!alternative || !itemId) {
+    return res.status(400).json({ success: false, message: "alternative and itemId are required" });
+  }
+
+  const trip = await Trip.findOne({
+    _id: req.params.id,
+    user: req.user.id,
+  });
+
+  if (!trip) {
+    return res.status(404).json({ success: false, message: "Trip not found" });
+  }
+
+  try {
+    const updatedTripData = applyAlternative(trip, itemId, alternative);
+    
+    trip.itinerary = updatedTripData.itinerary;
+    trip.markModified("itinerary");
+    
+    await trip.save();
+
+    res.status(200).json({
+      success: true,
+      message: "SmartShift applied successfully",
+      trip
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+const updateOperatorAccess = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { enabled } = req.body;
+
+  if (typeof enabled !== "boolean") {
+    throw new AppError("Invalid operator access flag", 400);
+  }
+
+  const trip = await Trip.findOne({
+    _id: id,
+    user: req.user.id,
+  });
+
+  if (!trip) {
+    throw new AppError("Trip not found", 404);
+  }
+
+  trip.operatorAccess = {
+    enabled,
+    grantedAt: enabled ? new Date() : null,
+  };
+
+  await trip.save();
+
+  res.status(200).json({
+    success: true,
+    message: enabled ? "Trip shared with operator" : "Operator access revoked",
+    trip,
+  });
+});
+
 module.exports = {
   generateTrip,
   getAllTrips,
@@ -189,4 +376,8 @@ module.exports = {
   updateTrip,
   deleteTrip,
   regenerateDay,
+  smartshiftSuggest,
+  smartshiftApply,
+  getTripBookings,
+  updateOperatorAccess,
 };

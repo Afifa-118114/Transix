@@ -8,6 +8,7 @@ const aiRoutes = require("./routes/aiRoutes");
 const placeRoutes = require("./routes/placeRoutes");
 const travelRoutes = require("./routes/travelRoutes");
 const trainRoutes = require("./routes/trainRoutes");
+const operatorRoutes = require("./routes/operatorRoutes");
 const app = express();
 
 const corsOptions = {
@@ -37,6 +38,7 @@ app.use("/api/ai", aiRoutes);
 app.use("/api/places", placeRoutes);
 app.use("/api/travel", travelRoutes);
 app.use("/api/trains", trainRoutes);
+app.use("/api/operator", operatorRoutes);
 app.use(errorHandler);
 
 module.exports = app;

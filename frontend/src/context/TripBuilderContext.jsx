@@ -1,7 +1,10 @@
 import { createContext, useContext, useState, useEffect, useMemo, useCallback } from "react";
 import toast from "react-hot-toast";
 import { getDestinationInventory } from "../services/inventoryService";
-import { normalizeTrip, timeToMinutes, minutesToTimeStr, parsePrice } from "../utils/formatTrip";
+import { detectConflicts, findEarliestValidSlot } from "../utils/schedulingEngine";
+import { generateSmartAlternatives } from "../utils/alternativeEngine";
+import { normalizeTrip, getDuration, timeToMinutes, minutesToTimeStr, parsePrice } from "../utils/formatTrip";
+import { normalizeInventoryItem } from "../utils/normalizeInventoryItem";
 import { updateTrip } from "../api/tripApi";
 
 export const TripBuilderContext = createContext();
@@ -184,6 +187,8 @@ export function TripBuilderProvider({ children }) {
     }
   }, [trip]);
 
+  const [pendingAlternatives, setPendingAlternatives] = useState(null);
+
   // Auto-calculate smart start time when adding a new item to a day
   const calculateSuggestedStartTime = useCallback((existingPlan, durationMinutes = 90) => {
     if (!existingPlan || existingPlan.length === 0) {
@@ -211,56 +216,95 @@ export function TripBuilderProvider({ children }) {
     };
   }, []);
 
+  // Validate before commit
+  const proposeTripUpdate = (proposedTrip, options = {}) => {
+    const conflicts = detectConflicts(proposedTrip);
+    if (conflicts.length > 0) {
+      return false; // Trip update rejected
+    }
+    setTrip(proposedTrip);
+    return true; // Accepted
+  };
+
+  const applyAlternative = (alternative) => {
+    if (alternative && alternative.candidateTrip) {
+       setTrip(alternative.candidateTrip);
+       setPendingAlternatives(null);
+       toast.success("Schedule adjusted successfully!");
+    }
+  };
+
   // Add Item to a Day
   const addItemToDay = (dayIndex, item, targetIndex = null) => {
+    let normalizedItem;
+    try {
+      normalizedItem = normalizeInventoryItem(item);
+    } catch (err) {
+      toast.error("Invalid item. Cannot schedule.");
+      return;
+    }
+
     setTrip((prevTrip) => {
       const newItinerary = [...prevTrip.itinerary];
-      const targetDay = newItinerary[dayIndex] || newItinerary[0] || {
-        day: 1,
-        title: "Day 1",
-        date: "Day 1",
-        plan: [],
-      };
+      const targetDay = newItinerary[dayIndex] || newItinerary[0];
+      if (!targetDay) return prevTrip;
+      
       const currentPlan = [...(targetDay.plan || [])];
 
-      const durationMinutes = item.durationMinutes || 90;
-      const { startTime, endTime } = calculateSuggestedStartTime(currentPlan, durationMinutes);
+      // Smart Slot Finding
+      const slot = findEarliestValidSlot(prevTrip, dayIndex + 1, normalizedItem);
+      
+      if (!slot) {
+        // Generate alternatives instead of failing
+        const alternatives = generateSmartAlternatives(prevTrip, normalizedItem, dayIndex + 1);
+        if (alternatives && alternatives.length > 0) {
+           setPendingAlternatives({ item: normalizedItem, targetDay: dayIndex + 1, alternatives });
+           return prevTrip;
+        } else {
+           toast.error(`No safe free slot or alternative found.`);
+           return prevTrip;
+        }
+      }
 
       const newItem = {
-        ...item,
-        id: item.id || `item-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-        startTime,
-        endTime,
-        time: `${startTime} - ${endTime}`,
-        duration: item.duration || `${Math.round(durationMinutes / 60)} hours`,
-        durationMinutes,
-        price: parsePrice(item.price || item.estimatedCost || item.fare),
-        displayPrice: item.displayPrice || (item.price || item.fare ? `₹${parsePrice(item.price || item.fare).toLocaleString()}` : null),
-        dnaMatch: item.dnaMatch || 94,
-        rating: item.rating || 4.8,
+        ...normalizedItem,
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+        time: `${slot.startTime} - ${slot.endTime}`,
       };
 
+      // Determine correct insertion index based on time
+      let insertIdx = currentPlan.length;
       if (targetIndex !== null && targetIndex >= 0 && targetIndex <= currentPlan.length) {
-        currentPlan.splice(targetIndex, 0, newItem);
+        insertIdx = targetIndex;
       } else {
-        currentPlan.push(newItem);
+        const newItemStartMin = timeToMinutes(newItem.startTime);
+        const nextItemIdx = currentPlan.findIndex(p => timeToMinutes(p.startTime) > newItemStartMin);
+        if (nextItemIdx !== -1) insertIdx = nextItemIdx;
       }
+
+      currentPlan.splice(insertIdx, 0, newItem);
 
       newItinerary[dayIndex] = {
         ...targetDay,
         plan: currentPlan,
       };
 
-      return {
+      const proposedTrip = {
         ...prevTrip,
         itinerary: newItinerary,
       };
-    });
 
-    setIsSaved(false);
-    toast.success(`Added "${item.name || item.activity || "Item"}" to Day ${dayIndex + 1}!`, {
-      icon: item.icon || "✨",
+      if (proposeTripUpdate(proposedTrip, { itemId: newItem.id })) {
+         toast.success(`Added "${newItem.name}" to Day ${dayIndex + 1}!`, {
+           icon: newItem.icon || "✨",
+         });
+         return proposedTrip;
+      }
+      return prevTrip;
     });
+    
+    setIsSaved(false);
   };
 
   // Remove Item from a Day
@@ -727,6 +771,9 @@ export function TripBuilderProvider({ children }) {
         openMapModal,
         closeMapModal,
         isSaved,
+        pendingAlternatives,
+        setPendingAlternatives,
+        applyAlternative,
         budgetStats,
         validationStats,
         destinationInventory,

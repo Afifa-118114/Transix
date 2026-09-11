@@ -1,33 +1,10 @@
+import { timeToMinutes, minutesToTimeStr } from "./formatTrip.js";
+
 const BUFFERS = {
   PRE_DEPARTURE: 60,
   POST_ARRIVAL: 60,
   HOTEL_CHECK_IN: 30,
   INTER_ACTIVITY: 15,
-};
-
-const timeToMinutes = (timeStr) => {
-  if (!timeStr) return null;
-  const cleaned = String(timeStr).trim();
-  const isPM = /pm/i.test(cleaned);
-  const isAM = /am/i.test(cleaned);
-  const match = cleaned.match(/(\d{1,2})[:.](\d{2})/);
-  if (!match) return null;
-  let hours = parseInt(match[1], 10);
-  const minutes = parseInt(match[2], 10);
-  if (isPM && hours < 12) hours += 12;
-  if (isAM && hours === 12) hours = 0;
-  return hours * 60 + minutes;
-};
-
-const minutesToTimeStr = (minutes) => {
-  if (typeof minutes !== "number" || isNaN(minutes)) return "00:00";
-  const normalized = ((minutes % 1440) + 1440) % 1440;
-  let hours = Math.floor(normalized / 60);
-  const mins = normalized % 60;
-  const ampm = hours >= 12 ? "PM" : "AM";
-  const displayHours = hours % 12 === 0 ? 12 : hours % 12;
-  const pad = (n) => (n < 10 ? `0${n}` : n);
-  return `${pad(displayHours)}:${pad(mins)} ${ampm}`;
 };
 
 const parseDate = (dStr) => {
@@ -55,7 +32,7 @@ const getStaySegmentsForDate = (trip, date) => {
   });
 };
 
-const isImmutableTransport = (item) => {
+export const isImmutableTransport = (item) => {
   if (!item) return false;
   const cat = String(item.category || "").toLowerCase();
   const title = String(item.name || item.activity || "").toLowerCase();
@@ -98,20 +75,20 @@ const isDuplicateTransport = (item, trip, currentDate) => {
   return false;
 };
 
-const getActivityLogicalWindow = (item) => {
+export const getActivityLogicalWindow = (item) => {
   const cat = String(item.category || "").toLowerCase();
   const title = String(item.name || item.activity || "").toLowerCase();
 
-  if (isImmutableTransport(item)) return { start: 0, end: 1440 };
-  if (title.includes("dinner")) return { start: 17 * 60, end: 23 * 60 + 30 };
-  if (title.includes("lunch")) return { start: 11 * 60, end: 16 * 60 };
-  if (title.includes("breakfast")) return { start: 6 * 60, end: 11 * 60 };
+  if (isImmutableTransport(item)) return { start: 0, end: 1440 }; // Transport can be anytime
+  if (title.includes("dinner")) return { start: 17 * 60, end: 23 * 60 + 30 }; // 5 PM to 11:30 PM
+  if (title.includes("lunch")) return { start: 11 * 60, end: 16 * 60 }; // 11 AM to 4 PM
+  if (title.includes("breakfast")) return { start: 6 * 60, end: 11 * 60 }; // 6 AM to 11 AM
 
-  if (cat.includes("museum") || cat.includes("fort") || cat.includes("attraction")) return { start: 8 * 60, end: 20 * 60 };
-  if (cat.includes("shopping") || cat.includes("market")) return { start: 9 * 60, end: 22 * 60 };
-  if (cat.includes("sightseeing")) return { start: 6 * 60, end: 22 * 60 };
+  if (cat.includes("museum") || cat.includes("fort") || cat.includes("attraction")) return { start: 8 * 60, end: 20 * 60 }; // 8 AM to 8 PM
+  if (cat.includes("shopping") || cat.includes("market")) return { start: 9 * 60, end: 22 * 60 }; // 9 AM to 10 PM
+  if (cat.includes("sightseeing")) return { start: 6 * 60, end: 22 * 60 }; // 6 AM to 10 PM
   
-  return { start: 6 * 60, end: 23 * 60 + 59 };
+  return { start: 6 * 60, end: 23 * 60 + 59 }; // Default 6 AM to Midnight
 };
 
 const getDayConstraints = (trip, dayNum) => {
@@ -193,10 +170,92 @@ const mergeConstraints = (constraints) => {
   return merged;
 };
 
-const detectConflicts = (trip) => {
+export const findEarliestValidSlot = (trip, dayNum, item) => {
+  const constraints = mergeConstraints(getDayConstraints(trip, dayNum));
+  const currentDate = getDateForDay(trip, dayNum);
+  const dayIndex = dayNum - 1;
+  const days = trip.days || trip.itinerary || [];
+  const day = days[dayIndex];
+  
+  if (!day) return null;
+
+  const currentPlan = [...(day.plan || [])].sort((a, b) => {
+    const aStart = timeToMinutes(a.startTime);
+    const bStart = timeToMinutes(b.startTime);
+    return aStart - bStart;
+  });
+
+  const baseOffset = dayIndex * 1440;
+  
+  // Create occupied blocks (combining constraints and existing items)
+  const occupiedBlocks = [...constraints];
+  
+  let prevAbsoluteEnd = baseOffset;
+  currentPlan.forEach(p => {
+    if (!isImmutableTransport(p) && !isDuplicateTransport(p, trip, currentDate)) {
+      const tStart = timeToMinutes(p.startTime);
+      const tEnd = timeToMinutes(p.endTime);
+      if (tStart !== null && tEnd !== null) {
+        let absStart = baseOffset + tStart;
+        if (absStart < prevAbsoluteEnd && (prevAbsoluteEnd - absStart) < 720) {
+            absStart += 1440;
+        }
+        let absEnd = baseOffset + tEnd;
+        if (absEnd < absStart) absEnd += 1440;
+        
+        occupiedBlocks.push({
+          startMin: Math.max(baseOffset, absStart),
+          endMin: absEnd,
+          type: "existing_activity",
+          reason: p.activity
+        });
+        prevAbsoluteEnd = Math.max(prevAbsoluteEnd, absEnd);
+      }
+    }
+  });
+
+  const mergedOccupied = mergeConstraints(occupiedBlocks);
+
+  const durationMinutes = item.durationMinutes || 120;
+  const window = getActivityLogicalWindow(item);
+  
+  let searchStart = baseOffset + window.start;
+  // Allow searchEnd to push past midnight if needed for late activities
+  let searchEnd = baseOffset + Math.max(1440, window.end);
+  
+  let defaultStart = baseOffset + (9 * 60 + 30);
+  let candidateStart = Math.max(searchStart, defaultStart);
+
+  for (let i = 0; i <= mergedOccupied.length; i++) {
+    const prevBlock = i === 0 ? null : mergedOccupied[i - 1];
+    const nextBlock = i === mergedOccupied.length ? null : mergedOccupied[i];
+    
+    let gapStart = prevBlock ? prevBlock.endMin + BUFFERS.INTER_ACTIVITY : (i === 0 ? candidateStart : searchStart);
+    gapStart = Math.max(gapStart, searchStart);
+    
+    // Do not rigidly clamp gapEnd to 1440 if there is legitimate free time until the next block or next day's 6AM.
+    let maxAllowedEnd = nextBlock ? nextBlock.startMin - BUFFERS.INTER_ACTIVITY : (baseOffset + 1440 + 360); 
+    let gapEnd = Math.min(maxAllowedEnd, searchEnd);
+
+    if (gapEnd - gapStart >= durationMinutes) {
+      const finalStartMin = gapStart % 1440;
+      const finalEndMin = (gapStart + durationMinutes) % 1440;
+      
+      return {
+        startTime: minutesToTimeStr(finalStartMin),
+        endTime: minutesToTimeStr(finalEndMin),
+      };
+    }
+  }
+
+  return null; 
+};
+
+export const detectConflicts = (trip) => {
   const conflicts = [];
   const days = trip.days || trip.itinerary || [];
   
+  // Assign temporary IDs
   days.forEach((day, dIdx) => {
     (day.plan || []).forEach((item, idx) => {
       if (!item.id) item.id = `temp_id_${day.day || dIdx + 1}_${idx}`;
@@ -209,6 +268,7 @@ const detectConflicts = (trip) => {
     const dayNum = day.day || dIdx + 1;
     const currentDate = getDateForDay(trip, dayNum);
     
+    // Add immutable transport to constraints
     const constraints = getDayConstraints(trip, dayNum);
     (day.plan || []).forEach((item) => {
       if (isImmutableTransport(item) && !isDuplicateTransport(item, trip, currentDate)) {
@@ -232,7 +292,7 @@ const detectConflicts = (trip) => {
     const mergedConstraints = mergeConstraints(constraints);
     
     let currentDayBaseOffset = (dayNum - 1) * 1440;
-    
+
     let sortedPlan = [...(day.plan || [])].sort((a, b) => {
       const aStart = timeToMinutes(a.startTime || (a.time ? String(a.time).split("-")[0] : null)) || 0;
       const bStart = timeToMinutes(b.startTime || (b.time ? String(b.time).split("-")[0] : null)) || 0;
@@ -274,15 +334,32 @@ const detectConflicts = (trip) => {
         for (const block of mergedConstraints) {
           if (block.itemIds && block.itemIds.includes(item.id)) continue;
           if (absStart < block.endMin && absEnd > block.startMin) {
-            conflicts.push({
-              type: "HARD_CONSTRAINT_VIOLATION",
-              severity: "high",
-              itemId: item.id,
-              itemTitle: item.name || item.activity,
-              conflictingItemId: block.itemIds && block.itemIds.length > 0 ? block.itemIds[0] : null,
-              reason: `Conflicts with ${block.reason}`,
-              affectedDay: dayNum
-            });
+            
+            // Deduplicate internal buffers into a single meaningful message
+            let reason = `Conflicts with ${block.reason}`;
+            let type = "HARD_CONSTRAINT_VIOLATION";
+            if (block.type === "buffer" || block.type === "travel") {
+                reason = block.reason.includes("travel to") 
+                  ? `Activity conflicts with your travel leg to ${block.reason.split("travel to ")[1]}` 
+                  : `Activity conflicts with fixed transport.`;
+                type = "TRANSPORT_CONSTRAINT";
+            } else if (block.type === "hotel_checkin" || block.type === "hotel_checkout") {
+                type = "STAY_BOUNDARY";
+            }
+
+            // Check if we already have a TRANSPORT_CONSTRAINT for this item on this day to avoid spam
+            const existing = conflicts.find(c => c.itemId === item.id && c.type === type);
+            if (!existing) {
+              conflicts.push({
+                type,
+                severity: "high",
+                itemId: item.id,
+                itemTitle: item.name || item.activity,
+                conflictingItemId: block.itemIds && block.itemIds.length > 0 ? block.itemIds[0] : null,
+                reason,
+                affectedDay: dayNum
+              });
+            }
           }
         }
 
@@ -319,202 +396,88 @@ const detectConflicts = (trip) => {
   return deduplicatedConflicts;
 };
 
-const validateItinerary = (itinerary, tripInput) => {
-  const result = {
-    valid: true,
-    errors: [],
-    warnings: [],
-  };
+export const generateConflictSuggestions = (trip, specificItemId = null) => {
+  const initialConflicts = detectConflicts(trip);
+  if (initialConflicts.length === 0) return { trip, enrichedConflicts: [] };
 
-  const addError = (type, day, message) => {
-    result.valid = false;
-    result.errors.push({ type, day, message });
-  };
+  const enrichedConflicts = [];
+  const conflictsToProcess = specificItemId 
+    ? initialConflicts.filter(c => c.itemId === specificItemId)
+    : initialConflicts;
 
-  const addWarning = (type, day, message) => {
-    result.warnings.push({ type, day, message });
-  };
+  for (const conflict of conflictsToProcess) {
+    const dayIndex = conflict.affectedDay - 1;
+    const dayPlan = trip.itinerary[dayIndex].plan;
+    const targetItem = dayPlan.find(i => i.id === conflict.itemId);
+    
+    const conflictSuggestions = [];
 
-  if (!itinerary || typeof itinerary !== "object") {
-    addError("INVALID_FORMAT", null, "Itinerary is not a valid object.");
-    return result;
-  }
-
-  // 1. Budget Validation
-  let totalCost = 0;
-  let hasOverallHotelCost = false;
-  
-  if (Array.isArray(itinerary.days)) {
-    itinerary.days.forEach(day => {
-      if (Array.isArray(day.plan)) {
-        day.plan.forEach(item => {
-          const cost = parseFloat(item.estimatedCost);
-          if (!isNaN(cost) && cost > 0) {
-            const cat = String(item.category || "").toLowerCase();
-            const act = String(item.activity || "").toLowerCase();
-            
-            const userBudget = parseFloat(tripInput.budget) || 0;
-            if (day.day === 1 && (cat.includes("hotel") || cat.includes("stay") || act.includes("hotel")) && cost > (userBudget * 0.25)) {
-              hasOverallHotelCost = true;
-            }
-            
-            if (hasOverallHotelCost && day.day > 1 && (cat.includes("hotel") || cat.includes("stay") || act.includes("hotel"))) {
-              // skip
-            } else {
-              totalCost += cost;
-            }
+    if (targetItem && !isImmutableTransport(targetItem)) {
+      const durationMins = (timeToMinutes(targetItem.endTime) - timeToMinutes(targetItem.startTime)) || 90;
+      
+      const tripDays = trip.itinerary.length;
+      
+      let foundSuggestions = 0;
+      // Sweep through all days and all times in 30 min increments
+      for (let sweepDay = 1; sweepDay <= tripDays; sweepDay++) {
+        if (foundSuggestions >= 3) break;
+        
+        for (let minOffset = 8 * 60; minOffset <= 20 * 60; minOffset += 30) {
+          if (foundSuggestions >= 3) break;
+          
+          let candidateTrip = JSON.parse(JSON.stringify(trip));
+          let candItem = candidateTrip.itinerary[sweepDay - 1].plan.find(i => i.id === targetItem.id);
+          
+          if (!candItem) {
+            // It was moved to another day
+            candidateTrip.itinerary[dayIndex].plan = candidateTrip.itinerary[dayIndex].plan.filter(i => i.id !== targetItem.id);
+            candItem = { ...targetItem };
+            candidateTrip.itinerary[sweepDay - 1].plan.push(candItem);
+            // Re-sort plan by start time
+            candidateTrip.itinerary[sweepDay - 1].plan.sort((a,b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
           }
-        });
-      }
-    });
-  }
-  
-  const userBudget = parseFloat(tripInput.budget) || 0;
-  if (userBudget > 0 && totalCost > userBudget) {
-    addError("BUDGET_EXCEEDED", null, `Total estimated cost (${totalCost}) strictly exceeds the maximum user budget (${userBudget}). Planners must stay within the budget.`);
-  }
-
-  // 2. Stay Segments Validation
-  let tripStart = parseDate(tripInput.startDate);
-  let tripEnd = parseDate(tripInput.endDate);
-  
-  if (Array.isArray(itinerary.staySegments) && itinerary.staySegments.length > 0) {
-    let previousCheckOut = null;
-    let totalNights = 0;
-    
-    itinerary.staySegments.forEach((stay, index) => {
-      const checkIn = parseDate(stay.checkIn);
-      const checkOut = parseDate(stay.checkOut);
-      
-      if (!checkIn || !checkOut) {
-        addError("STAY_DATES_INVALID", null, `Stay segment ${index + 1} has invalid or missing dates.`);
-        return;
-      }
-
-      if (checkIn >= checkOut) {
-        addError("STAY_DATES_NEGATIVE", null, `Stay segment ${index + 1} check-out must be after check-in.`);
-      }
-
-      const diffTime = checkOut.getTime() - checkIn.getTime();
-      const calculatedNights = Math.round(diffTime / (1000 * 60 * 60 * 24));
-      
-      if (calculatedNights !== stay.nights) {
-        addError("STAY_NIGHTS_MISMATCH", null, `Stay segment ${index + 1} has ${stay.nights} nights, but dates suggest ${calculatedNights} nights.`);
-      }
-      
-      totalNights += calculatedNights;
-
-      if (previousCheckOut && previousCheckOut.getTime() !== checkIn.getTime()) {
-        addError("STAY_DISCONTIGUOUS", null, `Stay segment ${index + 1} check-in (${checkIn.toISOString().split('T')[0]}) does not align with previous check-out (${previousCheckOut.toISOString().split('T')[0]}).`);
-      }
-
-      if (index === 0 && tripStart && checkIn.getTime() !== tripStart.getTime()) {
-        addError("STAY_START_MISMATCH", null, `First stay check-in does not equal trip start date.`);
-      }
-      if (index === itinerary.staySegments.length - 1 && tripEnd && checkOut.getTime() !== tripEnd.getTime()) {
-        addError("STAY_END_MISMATCH", null, `Last stay check-out does not equal trip end date.`);
-      }
-
-      previousCheckOut = checkOut;
-    });
-    
-    if (tripStart && tripEnd) {
-      const expectedTotalNights = Math.round((tripEnd.getTime() - tripStart.getTime()) / (1000 * 60 * 60 * 24));
-      if (totalNights !== expectedTotalNights) {
-        addError("STAY_TOTAL_NIGHTS_MISMATCH", null, `Total stay nights (${totalNights}) do not equal expected trip nights (${expectedTotalNights}).`);
+          
+          const proposedStartMin = minOffset;
+          const proposedEndMin = minOffset + durationMins;
+          
+          candItem.startTime = minutesToTimeStr(proposedStartMin);
+          candItem.endTime = minutesToTimeStr(proposedEndMin);
+          
+          // Re-sort
+          candidateTrip.itinerary[sweepDay - 1].plan.sort((a,b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
+          
+          const testConflicts = detectConflicts(candidateTrip);
+          const stillConflicts = testConflicts.some(c => c.itemId === candItem.id);
+          
+          if (!stillConflicts) {
+             const actionType = sweepDay === conflict.affectedDay ? "MOVE_TIME" : "MOVE_DAY";
+             const text = actionType === "MOVE_TIME" 
+               ? `Move "${targetItem.name || targetItem.activity}" to ${minutesToTimeStr(proposedStartMin)}`
+               : `Move "${targetItem.name || targetItem.activity}" to Day ${sweepDay} at ${minutesToTimeStr(proposedStartMin)}`;
+               
+             conflictSuggestions.push({
+               suggestionText: text,
+               action: {
+                 type: actionType,
+                 itemId: targetItem.id,
+                 day: sweepDay,
+                 fromDay: conflict.affectedDay,
+                 toDay: sweepDay,
+                 startTime: minutesToTimeStr(proposedStartMin),
+                 endTime: minutesToTimeStr(proposedEndMin)
+               }
+             });
+             foundSuggestions++;
+          }
+        }
       }
     }
-  } else {
-    addError("STAY_MISSING", null, `No stay segments found in itinerary.`);
-  }
-
-  // 3. Interest Alignment Validation
-  let matchedInterests = 0;
-  let meaningfulActivitiesCount = 0;
-  const userInterests = Array.isArray(tripInput.interests) ? tripInput.interests.map(i => i.toLowerCase()) : [];
-  
-  if (userInterests.length > 0 && Array.isArray(itinerary.days)) {
-    itinerary.days.forEach(day => {
-      if (Array.isArray(day.plan)) {
-        day.plan.forEach(item => {
-          const actStr = String(item.activity || "").toLowerCase() + " " + String(item.category || "").toLowerCase() + " " + String(item.notes || "").toLowerCase();
-          const cat = String(item.category || "").toLowerCase();
-          
-          const isNeutral = cat.includes("transport") || cat.includes("hotel") || cat.includes("food") || cat.includes("meal") || actStr.includes("check-in") || actStr.includes("check out") || actStr.includes("arrival") || actStr.includes("departure") || actStr.includes("travel");
-          
-          if (!isNeutral) {
-            meaningfulActivitiesCount++;
-            const matches = userInterests.some(interest => actStr.includes(interest));
-            if (matches) matchedInterests++;
-          }
-        });
-      }
-    });
     
-    if (meaningfulActivitiesCount > 0 && matchedInterests === 0) {
-      addError("INTEREST_MISMATCH", null, `The itinerary generated ${meaningfulActivitiesCount} main activities, but NONE match the requested interests (${userInterests.join(", ")}). You MUST align activities with user interests.`);
-    }
-  }
-
-  const normalizeLocation = (loc) => {
-    if (!loc) return "";
-    return String(loc).toLowerCase().replace(/[.,]/g, "").replace(/\b(india|state|district|city)\b/g, "").trim();
-  };
-
-  if (Array.isArray(itinerary.days)) {
-    itinerary.days.forEach(day => {
-      const dayNum = day.day;
-      if (Array.isArray(day.plan)) {
-        day.plan.forEach(item => {
-          if (tripStart) {
-            const currentDayDate = new Date(tripStart.getTime());
-            currentDayDate.setDate(currentDayDate.getDate() + (dayNum - 1));
-            const activeStays = getStaySegmentsForDate(itinerary, currentDayDate);
-            const activeStay = activeStays.length > 0 ? activeStays[0] : null;
-            
-            if (activeStay && item.place) {
-              const actPlace = normalizeLocation(item.place);
-              const actName = String(item.activity).toLowerCase();
-              const stayLoc = normalizeLocation(activeStay.location);
-              const isTravelLeg = actName.includes("travel") || actName.includes("flight") || actName.includes("train");
-              
-              if (!isTravelLeg && !actPlace.includes(stayLoc) && !stayLoc.includes(actPlace)) {
-                 let isFeasibleByTravelLeg = false;
-                 if (Array.isArray(itinerary.travelLegs)) {
-                   const currDateStr = currentDayDate.toISOString().split("T")[0];
-                   for (const leg of itinerary.travelLegs) {
-                     const isCorrectDate = (leg.date === currDateStr || !leg.date);
-                     const legTo = normalizeLocation(leg.to);
-                     const legFrom = normalizeLocation(leg.from);
-                     
-                     if (isCorrectDate && (legTo.includes(actPlace) || legFrom.includes(actPlace) || legTo.includes(stayLoc) || legFrom.includes(stayLoc))) {
-                       isFeasibleByTravelLeg = true;
-                     }
-                   }
-                 }
-                 if (!isFeasibleByTravelLeg) {
-                   addError("LOCATION_CONSISTENCY", dayNum, `Activity location "${item.place}" is geographically impossible without a valid prior travel leg from current stay location "${activeStay.location}".`);
-                 }
-              }
-            }
-          }
-        });
-      }
+    enrichedConflicts.push({
+      conflict,
+      suggestions: conflictSuggestions
     });
   }
 
-  // Run shared schedule conflict detection
-  const tripForValidation = { ...itinerary, startDate: itinerary.startDate || tripInput.startDate };
-  const conflicts = detectConflicts(tripForValidation);
-  
-  conflicts.forEach(c => {
-    addError("SCHEDULE_CONFLICT", c.affectedDay, `Activity "${c.itemTitle}" ${c.reason}`);
-  });
-
-  return result;
-};
-
-module.exports = {
-  validateItinerary,
-  isImmutableTransport
+  return { trip, enrichedConflicts };
 };

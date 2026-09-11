@@ -4,13 +4,18 @@ const User = require("../models/User");
 
 const registerUser = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, role } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({
         success: false,
         message: "All fields are required",
       });
+    }
+
+    let finalRole = "traveler";
+    if (role === "operator") {
+      finalRole = "operator";
     }
 
     const existingUser = await User.findOne({ email });
@@ -28,6 +33,7 @@ const registerUser = async (req, res) => {
       name,
       email,
       password: hashedPassword,
+      role: finalRole,
     });
 
     res.status(201).json({
@@ -37,6 +43,7 @@ const registerUser = async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
+        role: user.role,
       },
     });
   } catch (error) {
@@ -80,10 +87,8 @@ const loginUser = async (req, res) => {
     }
 
     const token = jwt.sign(
-      { id: user._id },
-
+      { id: user._id, role: user.role },
       process.env.JWT_SECRET,
-
       { expiresIn: "7d" },
     );
 
@@ -99,6 +104,7 @@ const loginUser = async (req, res) => {
 
         name: user.name,
         email: user.email,
+        role: user.role,
       },
     });
   } catch (error) {

@@ -30,12 +30,18 @@ function InfoCard({ icon, title, value, link }) {
 }
 
 export default function HotelInfo({ hotel }) {
-  const priceDisplay =
-    typeof hotel.price === "number" && hotel.price > 0
-      ? `₹${hotel.price.toLocaleString()} / night`
-      : hotel.displayPrice && hotel.displayPrice !== "Price unavailable"
-      ? hotel.displayPrice
-      : "Check availability";
+  let priceDisplay;
+  let priceSubtext = null;
+
+  if (hotel.nuitee && hotel.nuitee.livePriceAvailable) {
+    priceDisplay = `₹${hotel.nuitee.totalPrice.toLocaleString()} total`;
+    if (hotel.nuitee.nightlyPrice) {
+      priceSubtext = `₹${hotel.nuitee.nightlyPrice.toLocaleString()} / night`;
+    }
+  } else {
+    priceDisplay = "Live price unavailable";
+    priceSubtext = "Check provider";
+  }
 
   return (
     <div className="flex flex-col justify-between">
@@ -63,8 +69,15 @@ export default function HotelInfo({ hotel }) {
 
           <span>•</span>
 
-          <div className="text-indigo-600 font-extrabold text-sm">
-            {priceDisplay}
+          <div className="flex flex-col items-end">
+            <div className={`font-extrabold text-sm ${hotel.nuitee?.livePriceAvailable ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500'}`}>
+              {priceDisplay}
+            </div>
+            {priceSubtext && (
+              <div className="text-[10px] font-semibold text-slate-400">
+                {priceSubtext}
+              </div>
+            )}
           </div>
         </div>
 

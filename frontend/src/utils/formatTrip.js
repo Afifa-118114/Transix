@@ -185,8 +185,11 @@ export function normalizeTrip(rawTrip) {
       const startTimeStr = minutesToTimeStr(startMin);
       const endTimeStr = minutesToTimeStr(endMin);
 
+      const canonicalId = p._id ? String(p._id) : p.id;
+      
       return {
-        id: p.id || `item-d${dayNum}-${pIdx}-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+        id: canonicalId,
+        _id: canonicalId,
         name: p.name || p.activity || p.place || `Activity ${pIdx + 1}`,
         activity: p.activity || p.name || p.place || `Activity ${pIdx + 1}`,
         place: p.place || p.location || destination,
@@ -211,6 +214,8 @@ export function normalizeTrip(rawTrip) {
         route: p.route,
         fares: p.fares,
         runningDays: p.runningDays,
+        isStaySegmentHotel: p.isStaySegmentHotel || false,
+        staySegmentId: p.staySegmentId || null,
       };
     });
 
@@ -250,7 +255,7 @@ export function normalizeTrip(rawTrip) {
     }
   }
 
-  return {
+  const finalTrip = {
     ...rawTrip,
     _id: rawTrip._id || `trip-${Date.now()}`,
     source,
@@ -267,4 +272,16 @@ export function normalizeTrip(rawTrip) {
     travelLegs: Array.isArray(rawTrip.travelLegs) ? rawTrip.travelLegs : [],
     validation: rawTrip.validation || null,
   };
+
+  // We return the trip directly. If there are old injected hotels, we filter them out.
+  if (finalTrip.itinerary) {
+    finalTrip.itinerary = finalTrip.itinerary.map(day => ({
+      ...day,
+      plan: (day.plan || []).filter(item => !item.isStaySegmentHotel)
+    }));
+  }
+
+  return finalTrip;
 }
+
+

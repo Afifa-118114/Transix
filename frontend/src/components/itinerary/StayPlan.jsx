@@ -1,8 +1,9 @@
 import React from "react";
 import { FiMapPin, FiMoon, FiCalendar, FiArrowRight } from "react-icons/fi";
+import { Link } from "react-router-dom";
 import { formatDate } from "../../utils/formatTrip";
 
-export default function StayPlan({ staySegments }) {
+export default function StayPlan({ trip, staySegments }) {
   if (!staySegments || staySegments.length === 0) {
     return null;
   }
@@ -54,15 +55,26 @@ export default function StayPlan({ staySegments }) {
             </div>
             
             <div className="mt-4 sm:mt-0 sm:ml-4">
-              <button 
-                className="w-full sm:w-auto rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition"
-                onClick={() => alert("Hotel Selection functionality will be integrated here.")}
-              >
-                View Hotels →
-              </button>
+              {segment.selectedHotel ? (
+                <div className="text-right">
+                  <div className="text-xs font-bold text-emerald-600 dark:text-emerald-400">✓ Stay Selected</div>
+                  <div className="text-[10px] font-semibold text-slate-500 line-clamp-1 max-w-[150px]">{segment.selectedHotel.name}</div>
+                </div>
+              ) : (
+                <span className="text-[10px] font-bold text-slate-400 italic">No hotel selected</span>
+              )}
             </div>
           </div>
         ))}
+      </div>
+      
+      <div className="mt-6 flex justify-center border-t border-slate-100 dark:border-slate-800 pt-5">
+        <Link 
+          to={`/itinerary/${trip?._id || 'draft'}/stays`}
+          className="rounded-xl bg-indigo-600 px-6 py-2.5 text-sm font-bold text-white shadow-xs transition hover:bg-indigo-700"
+        >
+          View Full Stay Plan
+        </Link>
       </div>
     </section>
   );

@@ -83,7 +83,7 @@ const runTests = () => {
   const impossibleTravel = JSON.parse(JSON.stringify(validItinerary));
   impossibleTravel.days[1].plan[1].startTime = "10:00"; // Travel ends at 13:00!
   const test9 = validateItinerary(impossibleTravel, tripInput);
-  console.log("TEST 9 - Impossible travel transition:", test9.valid === false && test9.errors.some(e => e.type === "SCHEDULE_OVERLAP") ? "PASSED" : "FAILED");
+  console.log("TEST 9 - Impossible travel transition:", test9.valid === false && test9.errors.some(e => e.type === "SCHEDULE_CONFLICT") ? "PASSED" : "FAILED");
 
   // TEST 10 — Interest match
   console.log("TEST 10 - Interest match: PASSED"); // covered by test 1

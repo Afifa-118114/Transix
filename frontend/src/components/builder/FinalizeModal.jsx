@@ -12,6 +12,7 @@ import {
   FiAlertTriangle,
 } from "react-icons/fi";
 import { useTripBuilder } from "../../context/TripBuilderContext";
+import { updateOperatorAccess } from "../../api/tripApi";
 import toast from "react-hot-toast";
 
 export default function FinalizeModal() {
@@ -25,7 +26,7 @@ export default function FinalizeModal() {
     saveItinerary,
   } = useTripBuilder();
 
-  const [step, setStep] = useState("checklist"); // 'checklist' | 'confirmed'
+  const [step, setStep] = useState("checklist"); // 'checklist' | 'consent' | 'confirmed'
   const [isProcessing, setIsProcessing] = useState(false);
 
   if (!isFinalizeModalOpen) return null;
@@ -105,11 +106,31 @@ export default function FinalizeModal() {
     }
 
     setIsProcessing(true);
-    await saveItinerary();
-    setTimeout(() => {
+    try {
+      await saveItinerary("Finalized");
+      setTimeout(() => {
+        setIsProcessing(false);
+        setStep("consent");
+      }, 400);
+    } catch (err) {
       setIsProcessing(false);
-      setStep("confirmed");
-    }, 400);
+      toast.error("Unable to save your trip. Please try again.");
+    }
+  };
+
+  const handleOperatorConsent = async (consent) => {
+    if (consent) {
+      setIsProcessing(true);
+      try {
+        const token = localStorage.getItem("token");
+        await updateOperatorAccess(trip._id, true, token);
+        toast.success("Trip shared with your operator.");
+      } catch (err) {
+        toast.error("Failed to share trip.");
+      }
+      setIsProcessing(false);
+    }
+    setStep("confirmed");
   };
 
   const handleClose = () => {
@@ -232,8 +253,52 @@ export default function FinalizeModal() {
               </button>
             </div>
           </div>
+        ) : step === "consent" ? (
+          /* ================= STEP 2: OPERATOR CONSENT ================= */
+          <div className="p-6 text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-2xl text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-700/50">
+              🤝
+            </div>
+
+            <h2 className="mt-4 text-xl font-black text-slate-900 dark:text-white uppercase">
+              Trip Finalized Successfully
+            </h2>
+            <p className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">
+              Your itinerary is saved.
+            </p>
+
+            <div className="my-6 rounded-xl bg-slate-50 dark:bg-slate-800/60 p-5 border border-slate-200 dark:border-slate-700 text-left">
+              <p className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-3">
+                Would you like to share this trip with your tour operator?
+              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">This allows the operator to:</p>
+              <ul className="text-xs text-slate-600 dark:text-slate-300 space-y-1.5 list-disc pl-4">
+                <li>monitor your journey</li>
+                <li>coordinate trip requirements</li>
+                <li>track booking status</li>
+                <li>respond to operational issues</li>
+              </ul>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => handleOperatorConsent(false)}
+                disabled={isProcessing}
+                className="flex-1 rounded-xl border border-slate-200 dark:border-slate-700 py-3 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+              >
+                Not Now
+              </button>
+              <button
+                onClick={() => handleOperatorConsent(true)}
+                disabled={isProcessing}
+                className="flex-[2] rounded-xl bg-indigo-600 py-3 text-xs font-bold text-white shadow-sm hover:bg-indigo-700 active:scale-98 transition flex items-center justify-center"
+              >
+                {isProcessing ? "Sharing..." : "Share with Operator"}
+              </button>
+            </div>
+          </div>
         ) : (
-          /* ================= STEP 2: CONFIRMATION SCREEN ================= */
+          /* ================= STEP 3: CONFIRMATION SCREEN ================= */
           <div className="p-6 text-center">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-2xl text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-700/50">
               🎉

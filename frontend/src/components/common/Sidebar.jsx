@@ -2,6 +2,7 @@ import { FiHome, FiBookmark, FiUser, FiMap, FiCompass, FiLayers } from "react-ic
 import { NavLink } from "react-router-dom";
 import logo from "../../assets/logo/logo.png";
 import { useTripBuilder } from "../../context/TripBuilderContext";
+import ProfileMenu from "./ProfileMenu";
 
 const NAV_ITEMS = [
   { title: "Home", path: "/home", icon: <FiHome className="text-xl" /> },
@@ -62,9 +63,9 @@ export default function Sidebar() {
         </nav>
       </div>
 
-      {/* Bottom Footer Item */}
-      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-50 dark:bg-slate-800/80 text-slate-400 dark:text-slate-500 border border-slate-100 dark:border-slate-700 text-xs font-semibold">
-        v1.0
+      {/* Bottom Profile Menu */}
+      <div className="mb-2 w-full">
+        <ProfileMenu />
       </div>
     </aside>
   );

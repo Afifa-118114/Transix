@@ -1,112 +1,79 @@
-import { useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
-import HotelCard from "./HotelCard";
+import { FiMapPin, FiMoon, FiArrowRight } from "react-icons/fi";
 
-export default function HotelsPreview(props) {
-  const { hotels = [], loading } = props;
+export default function HotelsPreview({ trip }) {
   const navigate = useNavigate();
-  const scrollContainerRef = useRef(null);
-
-  const scroll = (direction) => {
-    if (!scrollContainerRef.current) return;
-    const scrollAmount = direction === "left" ? -400 : 400;
-    scrollContainerRef.current.scrollBy({
-      left: scrollAmount,
-      behavior: "smooth",
-    });
-  };
-
-  if (loading) {
-    return (
-      <section className="rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-[#131b2e] p-5 shadow-xs transition-colors">
-        <div className="mb-4 flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-bold text-slate-900">Stays & Accommodations</h2>
-            <p className="text-xs text-slate-500">
-              Loading verified hotels near your destination...
-            </p>
-          </div>
-        </div>
-
-        <div className="flex gap-4 overflow-hidden pb-2">
-          {[1, 2, 3, 4].map((i) => (
-            <div
-              key={i}
-              className="h-64 w-60 shrink-0 animate-pulse rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
-            />
-          ))}
-        </div>
-      </section>
-    );
+  
+  if (!trip || !trip.staySegments || trip.staySegments.length === 0) {
+    return null;
   }
+
+  const staySegments = trip.staySegments;
+  const totalNights = staySegments.reduce((acc, seg) => acc + (seg.nights || 0), 0);
+  
+  // Count how many segments have a selected hotel
+  const selectedCount = staySegments.filter(s => s.selectedHotel).length;
 
   return (
     <section className="rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-[#131b2e] p-5 shadow-xs transition-colors">
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-lg font-bold text-slate-900">Stays & Accommodations</h2>
-            {hotels.length > 0 && (
-              <span className="rounded-full bg-indigo-50 border border-indigo-100 px-2 py-0.5 text-[10px] font-bold text-indigo-700">
-                {hotels.length} verified stays
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">Stay Plan</h2>
+            <span className="rounded-full bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-100 dark:border-indigo-800/60 px-2 py-0.5 text-[10px] font-bold text-indigo-700 dark:text-indigo-400">
+              {staySegments.length} Segments
+            </span>
+            {selectedCount > 0 && (
+              <span className="rounded-full bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-100 dark:border-emerald-800/60 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-400">
+                {selectedCount} Selected
               </span>
             )}
           </div>
-          <p className="text-xs text-slate-500">
-            Swipe or scroll to explore curated accommodations near your destination
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            {totalNights} nights total across {staySegments.length} location{staySegments.length > 1 ? 's' : ''}.
           </p>
         </div>
 
-        {/* Horizontal Navigation Controls */}
-        {hotels.length > 4 && (
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={() => scroll("left")}
-              title="Scroll Left"
-              className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
-            >
-              <FiChevronLeft className="text-base" />
-            </button>
-            <button
-              onClick={() => scroll("right")}
-              title="Scroll Right"
-              className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
-            >
-              <FiChevronRight className="text-base" />
-            </button>
-          </div>
-        )}
+        <button
+          onClick={() => navigate(`/itinerary/${trip._id || 'draft'}/stays`)}
+          className="group flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-bold text-white shadow-xs transition hover:bg-indigo-700"
+        >
+          <span>Plan Your Stays</span>
+          <FiArrowRight className="transition-transform group-hover:translate-x-1" />
+        </button>
       </div>
 
-      {hotels.length === 0 ? (
-        <div className="py-8 text-center text-xs text-slate-500 font-medium">
-          No hotel recommendations available for this destination.
-        </div>
-      ) : (
-        /* Horizontal Carousel with 4-5 visible items */
-        <div
-          ref={scrollContainerRef}
-          className="flex gap-4 overflow-x-auto pb-2 scroll-smooth scrollbar-none"
-        >
-          {hotels.map((hotel, idx) => (
-            <div key={hotel.id || idx} className="w-64 sm:w-72 shrink-0">
-              <HotelCard
-                hotel={hotel}
-                onClick={() =>
-                  navigate("/hotel-details", {
-                    state: {
-                      hotels,
-                      activeIndex: idx,
-                      hotelId: hotel.id,
-                    },
-                  })
-                }
-              />
+      <div className="flex gap-4 overflow-x-auto pb-2 scroll-smooth scrollbar-none">
+        {staySegments.map((segment, idx) => (
+          <div 
+            key={segment.id || idx} 
+            className="w-56 shrink-0 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50 dark:bg-[#1a233a] p-4 flex flex-col"
+          >
+            <div className="flex items-center gap-2 mb-2 text-indigo-600 dark:text-indigo-400">
+              <FiMapPin className="text-sm" />
+              <span className="font-black tracking-wide uppercase text-sm">{segment.location}</span>
             </div>
-          ))}
-        </div>
-      )}
+            
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400 mb-4">
+              <FiMoon className="text-[10px]" />
+              <span>{segment.nights} Night{segment.nights !== 1 ? 's' : ''}</span>
+            </div>
+
+            <div className="mt-auto">
+              {segment.selectedHotel ? (
+                <div className="rounded-lg bg-emerald-100/50 dark:bg-emerald-900/20 px-3 py-2 border border-emerald-200 dark:border-emerald-800/30">
+                  <span className="block text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase mb-0.5">✓ Selected</span>
+                  <span className="block text-xs font-semibold text-slate-700 dark:text-slate-300 line-clamp-1">{segment.selectedHotel.name}</span>
+                </div>
+              ) : (
+                <div className="rounded-lg bg-white dark:bg-slate-800 px-3 py-2 border border-slate-200 dark:border-slate-700">
+                  <span className="block text-xs font-bold text-slate-500 dark:text-slate-400 text-center">No hotel selected</span>
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
     </section>
   );
 }

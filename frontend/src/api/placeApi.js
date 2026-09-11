@@ -2,9 +2,9 @@ import axios from "axios";
 
 const API = import.meta.env.VITE_API_URL;
 
-export const getHotels = async (destination, token) => {
+export const getHotels = async (destination, token, checkin, checkout, travelers) => {
   const res = await axios.get(`${API}/places/hotels`, {
-    params: { destination },
+    params: { destination, checkin, checkout, travelers },
     headers: {
       Authorization: `Bearer ${token}`,
     },

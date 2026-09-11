@@ -1,10 +1,8 @@
 import { FiBell, FiSun, FiMoon } from "react-icons/fi";
 import { Link } from "react-router-dom";
-import { useAuth } from "../../hooks/useAuth";
 import { useTheme } from "../../context/ThemeContext";
 
 export default function Navbar({ trip, setTrip }) {
-  const { user } = useAuth();
   const { isDark, toggleTheme } = useTheme();
 
   return (
@@ -77,11 +75,6 @@ export default function Navbar({ trip, setTrip }) {
           <FiBell className="text-base" />
           <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-indigo-600" />
         </button>
-
-        {/* User Avatar */}
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-100 dark:border-indigo-800 text-xs font-bold text-indigo-700 dark:text-indigo-300">
-          {user?.name?.charAt(0).toUpperCase() || "U"}
-        </div>
       </div>
     </header>
   );

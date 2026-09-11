@@ -15,6 +15,7 @@ const searchHotels = async (destination) => {
       BASE_URL,
       {
         textQuery: `Best hotels and resorts in ${destination}`,
+        pageSize: 15,
       },
       {
         headers: getHeaders(),

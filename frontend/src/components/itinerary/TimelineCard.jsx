@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
-import { FiClock, FiMapPin, FiNavigation } from "react-icons/fi";
+import { FiClock, FiMapPin, FiNavigation, FiZap } from "react-icons/fi";
 import { getPlaceImage } from "../../services/imageService";
+import { useTripBuilder } from "../../context/TripBuilderContext";
+import SmartShiftModal from "./SmartShiftModal";
 
 export default function TimelineCard({ activity, destination, index }) {
   const [image, setImage] = useState("");
@@ -14,6 +16,13 @@ export default function TimelineCard({ activity, destination, index }) {
 
     load();
   }, [activity.place, destination]);
+
+  const { trip } = useTripBuilder();
+  const [isSmartShiftOpen, setIsSmartShiftOpen] = useState(false);
+
+  const cat = (activity.category || "").toLowerCase();
+  const actName = (activity.activity || "").toLowerCase();
+  const isMandatory = cat.includes("hotel") || cat.includes("flight") || cat.includes("train") || cat.includes("bus") || actName.includes("check") || actName.includes("arrival") || actName.includes("departure") || activity.isStaySegmentHotel;
 
   return (
     <div className="relative flex items-start gap-4">
@@ -78,21 +87,40 @@ export default function TimelineCard({ activity, destination, index }) {
                 )}
               </div>
 
-              <a
-                href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
-                  activity.place
-                )}`}
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center gap-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 px-3 py-1.5 text-xs font-bold text-indigo-700 dark:text-indigo-300 transition hover:bg-indigo-600 hover:text-white dark:hover:bg-indigo-600 dark:hover:text-white"
-              >
-                <FiNavigation className="text-xs" />
-                <span>Directions</span>
-              </a>
+              <div className="flex gap-2">
+                {!isMandatory && (
+                  <button
+                    onClick={() => setIsSmartShiftOpen(true)}
+                    className="flex items-center gap-1 rounded-lg bg-amber-50 dark:bg-amber-950/40 px-3 py-1.5 text-[10px] font-bold text-amber-600 dark:text-amber-400 transition hover:bg-amber-100 dark:hover:bg-amber-900/50"
+                  >
+                    <FiZap className="text-[10px]" />
+                    <span>Simulate Disruption</span>
+                  </button>
+                )}
+
+                <a
+                  href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
+                    activity.place
+                  )}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 px-3 py-1.5 text-xs font-bold text-indigo-700 dark:text-indigo-300 transition hover:bg-indigo-600 hover:text-white dark:hover:bg-indigo-600 dark:hover:text-white"
+                >
+                  <FiNavigation className="text-xs" />
+                  <span>Directions</span>
+                </a>
+              </div>
             </div>
           </div>
         </div>
       </div>
+
+      <SmartShiftModal
+        isOpen={isSmartShiftOpen}
+        onClose={() => setIsSmartShiftOpen(false)}
+        item={activity}
+        trip={trip}
+      />
     </div>
   );
 }

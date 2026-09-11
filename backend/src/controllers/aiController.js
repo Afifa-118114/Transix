@@ -2,6 +2,7 @@ const asyncHandler = require("../middleware/asyncHandler");
 const Trip = require("../models/Trip");
 const { generateTripPlan } = require("../services/aiService");
 const { getDestinationImage } = require("../services/imageService");
+const crypto = require("crypto");
 
 const generateAITrip = asyncHandler(async (req, res) => {
   const tripData = req.body;
@@ -59,7 +60,13 @@ const generateAITrip = asyncHandler(async (req, res) => {
     status: "Generated",
 
     aiGenerated: true,
-    itinerary: aiData.days,
+    itinerary: aiData.days.map((day, dIdx) => ({
+      ...day,
+      plan: (day.plan || []).map(p => ({
+        ...p,
+        id: p.id || `itin_${crypto.randomUUID()}`
+      }))
+    })),
     staySegments: aiData.staySegments || [],
     travelLegs: aiData.travelLegs || [],
     validation: aiData.validation || null,
