@@ -72,42 +72,43 @@ export function parsePrice(priceVal) {
   return isNaN(parsed) ? 0 : parsed;
 }
 
-// Parse duration safely into minutes (capped between 45 and 180 mins for realistic day scheduling)
-export function parseDurationMinutes(durationVal, fallback = 90) {
+// Parse duration safely into minutes
+export function parseDurationMinutes(durationVal, fallback = 90, isTransport = false) {
+  const cap = isTransport ? 10000 : 240; 
   if (typeof durationVal === "number" && durationVal > 0) {
-    return Math.min(240, Math.max(30, durationVal));
+    return Math.min(cap, Math.max(30, durationVal));
   }
   if (!durationVal || typeof durationVal !== "string") return fallback;
   const cleaned = durationVal.toLowerCase().trim();
 
-  // Match decimal hours e.g. "1.5 hours", "2.5 hrs"
-  const decHourMatch = cleaned.match(/(\d+(?:\.\d+)?)\s*(?:hours?|hrs?)/i);
-  if (decHourMatch && !cleaned.includes("min")) {
+  // Match decimal hours e.g. "1.5 hours", "2.5 hrs", "1.5h"
+  const decHourMatch = cleaned.match(/(\d+(?:\.\d+)?)\s*(?:hours?|hrs?|h)\b/i);
+  if (decHourMatch && !cleaned.includes("min") && !cleaned.includes("m")) {
     const hours = parseFloat(decHourMatch[1]);
-    if (!isNaN(hours) && hours > 0) return Math.min(240, Math.max(30, Math.round(hours * 60)));
+    if (!isNaN(hours) && hours > 0) return Math.min(cap, Math.max(30, Math.round(hours * 60)));
   }
 
-  // Match hours and minutes e.g. "1 hour 30 mins", "2 hrs 15 min"
-  const hourMinMatch = cleaned.match(/(\d+)\s*(?:hours?|hrs?)\s*(\d+)?\s*(?:mins?|minutes?)?/i);
+  // Match hours and minutes e.g. "1 hour 30 mins", "2 hrs 15 min", "17h 15m", "17h15m"
+  const hourMinMatch = cleaned.match(/(\d+)\s*(?:hours?|hrs?|h)\s*(?:(\d+)\s*(?:mins?|minutes?|m)?)?/i);
   if (hourMinMatch) {
     const hours = parseInt(hourMinMatch[1], 10) || 0;
     const mins = parseInt(hourMinMatch[2], 10) || 0;
     const total = hours * 60 + mins;
-    if (total > 0) return Math.min(240, Math.max(30, total));
+    if (total > 0) return Math.min(cap, Math.max(30, total));
   }
 
-  // Match standalone minutes e.g. "45 mins", "30 minutes"
-  const minMatch = cleaned.match(/(\d+)\s*(?:mins?|minutes?)/i);
+  // Match standalone minutes e.g. "45 mins", "30 minutes", "45m"
+  const minMatch = cleaned.match(/(\d+)\s*(?:mins?|minutes?|m)\b/i);
   if (minMatch) {
     const mins = parseInt(minMatch[1], 10) || 0;
-    if (mins > 0) return Math.min(240, Math.max(30, mins));
+    if (mins > 0) return Math.min(cap, Math.max(30, mins));
   }
 
   const numMatch = cleaned.match(/(\d+(?:\.\d+)?)/);
   if (numMatch) {
     const num = parseFloat(numMatch[1]);
-    const val = /hour|hr/i.test(cleaned) ? Math.round(num * 60) : Math.round(num);
-    return Math.min(240, Math.max(30, val));
+    const val = /hour|hr|h/i.test(cleaned) ? Math.round(num * 60) : Math.round(num);
+    return Math.min(cap, Math.max(30, val));
   }
   return fallback;
 }
@@ -146,7 +147,8 @@ export function normalizeTrip(rawTrip) {
       const priceNum = parsePrice(p.price || p.estimatedCost || p.fare);
       const displayPrice = p.displayPrice || (priceNum > 0 ? `₹${priceNum.toLocaleString("en-IN")}` : null);
 
-      let durationMins = parseDurationMinutes(p.durationMinutes || p.duration, 90);
+      const isTransport = Boolean(p.trainNumber || p.flightNumber || String(p.category || "").toLowerCase().includes("transport") || String(p.category || "").toLowerCase().includes("train") || String(p.category || "").toLowerCase().includes("flight") || String(p.category || "").toLowerCase().includes("bus"));
+      let durationMins = parseDurationMinutes(p.durationMinutes || p.duration, 90, isTransport);
 
       // Extract existing explicit user-configured times if present
       let explicitStart = null;

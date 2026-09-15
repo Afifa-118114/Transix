@@ -10,9 +10,11 @@ export function normalizeInventoryItem(rawItem) {
 
   const name = rawItem.name || rawItem.title || rawItem.activity || "Activity";
   
+  const isTransport = Boolean(rawItem.trainNumber || rawItem.flightNumber || String(rawItem.category || "").toLowerCase().includes("transport"));
+
   // Parse duration gracefully. If it fails, parseDurationMinutes defaults to fallback.
   // We use 120 (2 hours) as a sensible default for general activities if totally missing.
-  const durationMinutes = parseDurationMinutes(rawItem.duration || rawItem.durationMinutes, 120); 
+  const durationMinutes = parseDurationMinutes(rawItem.duration || rawItem.durationMinutes, 120, isTransport);
   
   const estimatedCost = rawItem.estimatedCost !== undefined 
     ? rawItem.estimatedCost 
