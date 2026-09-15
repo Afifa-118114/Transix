@@ -161,23 +161,18 @@ Return ONLY this EXACT JSON structure, do NOT use markdown or backticks:
 
     try {
       parsedData = JSON.parse(text);
-      validationResult = validateItinerary(parsedData, tripData);
-
+      const validationResult = validateItinerary(parsedData, tripData);
+      
       if (validationResult.valid) {
         parsedData.validation = validationResult;
         return parsedData;
       }
-
+      
       // If invalid, construct correction prompt
       console.log(`[Attempt ${attempt}] Validation failed. Correcting...`);
       const errorMessages = validationResult.errors.map(e => `- ${e.message}`).join("\n");
       
-      currentPrompt = basePrompt + `
-\n\nYOUR PREVIOUS ATTEMPT FAILED VALIDATION WITH THESE ERRORS:
-${errorMessages}
-
-Please carefully correct these specific errors while preserving the user's dates, interests, and traveler count. Return the full corrected JSON.`;
-
+      currentPrompt = basePrompt + `\n\nYOUR PREVIOUS ATTEMPT FAILED VALIDATION WITH THESE ERRORS:\n${errorMessages}\n\nPlease carefully correct these specific errors while preserving the user's dates, interests, and traveler count. Return the full corrected JSON.`;
     } catch (err) {
       console.log(`[Attempt ${attempt}] AI returned invalid JSON:`, text);
       currentPrompt = basePrompt + "\\n\\nYOUR PREVIOUS ATTEMPT RETURNED INVALID/MALFORMED JSON. Please ensure your response is strictly valid JSON.";

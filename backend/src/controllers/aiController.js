@@ -27,11 +27,11 @@ const generateAITrip = asyncHandler(async (req, res) => {
   let finalEndDate = tripData.endDate;
 
   if (finalStartDate) {
-    const s = new Date(finalStartDate);
+    const s = new Date(finalStartDate + (finalStartDate.includes('T') ? '' : 'T00:00:00Z'));
     if (!isNaN(s.getTime())) {
       if (!finalEndDate) {
-        const e = new Date(s);
-        e.setDate(s.getDate() + numDays - 1);
+        const e = new Date(s.getTime());
+        e.setUTCDate(s.getUTCDate() + numDays - 1);
         finalEndDate = e.toISOString().split("T")[0];
       }
     }

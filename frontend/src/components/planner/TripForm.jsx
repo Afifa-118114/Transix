@@ -213,8 +213,26 @@ export default function TripForm({ setTrip }) {
         const dateMatch = inputValue.match(/\d{1,2}\s+[a-zA-Z]+/g) || inputValue.match(/\d{4}-\d{2}-\d{2}/g);
         if (dateMatch && dateMatch.length >= 2) {
            nextAnswers.durationStr = inputValue.trim();
-           nextAnswers.startDate = new Date(new Date().setDate(new Date().getDate() + 10)).toISOString().split('T')[0];
-           nextAnswers.endDate = new Date(new Date().setDate(new Date().getDate() + 17)).toISOString().split('T')[0];
+           try {
+             let s = new Date(dateMatch[0] + (dateMatch[0].match(/\d{4}/) ? "" : " 2026"));
+             let e = new Date(dateMatch[1] + (dateMatch[1].match(/\d{4}/) ? "" : " 2026"));
+             if (isNaN(s.getTime()) || isNaN(e.getTime())) {
+                nextAnswers.startDate = new Date(new Date().setDate(new Date().getDate() + 10)).toISOString().split('T')[0];
+                nextAnswers.endDate = new Date(new Date().setDate(new Date().getDate() + 17)).toISOString().split('T')[0];
+             } else {
+                const formatYMD = (d) => {
+                  const y = d.getFullYear();
+                  const m = String(d.getMonth() + 1).padStart(2, '0');
+                  const day = String(d.getDate()).padStart(2, '0');
+                  return `${y}-${m}-${day}`;
+                };
+                nextAnswers.startDate = formatYMD(s);
+                nextAnswers.endDate = formatYMD(e);
+             }
+           } catch(e) {
+             nextAnswers.startDate = new Date(new Date().setDate(new Date().getDate() + 10)).toISOString().split('T')[0];
+             nextAnswers.endDate = new Date(new Date().setDate(new Date().getDate() + 17)).toISOString().split('T')[0];
+           }
         } else if (val.includes("next weekend")) {
            nextAnswers.durationStr = inputValue.trim();
            nextAnswers.startDate = new Date(new Date().setDate(new Date().getDate() + 5)).toISOString().split('T')[0];

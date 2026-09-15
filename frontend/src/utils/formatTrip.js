@@ -16,6 +16,15 @@ export function formatBudget(amount) {
 
 export function getDuration(trip) {
   if (!trip) return "0 Days";
+  // Derive from date range (inclusive) first to prevent 0 days on empty itinerary
+  if (trip.startDate && trip.endDate) {
+    const start = new Date(trip.startDate + (trip.startDate.includes('T') ? '' : 'T00:00:00Z'));
+    const end = new Date(trip.endDate + (trip.endDate.includes('T') ? '' : 'T00:00:00Z'));
+    if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+      const days = Math.max(1, Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+      return `${days} Days`;
+    }
+  }
   // Authoritative: itinerary length
   if (trip.itinerary?.length) {
     return `${trip.itinerary.length} Days`;
@@ -23,15 +32,6 @@ export function getDuration(trip) {
   // Stored duration string
   if (trip.duration) {
     return typeof trip.duration === "number" ? `${trip.duration} Days` : String(trip.duration);
-  }
-  // Derive from date range (inclusive)
-  if (trip.startDate && trip.endDate) {
-    const start = new Date(trip.startDate);
-    const end = new Date(trip.endDate);
-    if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
-      const days = Math.max(1, Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1);
-      return `${days} Days`;
-    }
   }
   return "5 Days";
 }
@@ -228,28 +228,24 @@ export function normalizeTrip(rawTrip) {
   });
 
   // ---- Date / Duration / Itinerary synchronization ----
-  const numDays = normalizedItinerary.length || 5;
   let finalStartDate = rawTrip.startDate || null;
   let finalEndDate = rawTrip.endDate || null;
+  let numDays = normalizedItinerary.length || 5;
 
   if (finalStartDate) {
-    const s = new Date(finalStartDate);
+    const s = new Date(finalStartDate + (finalStartDate.includes('T') ? '' : 'T00:00:00Z'));
     if (!isNaN(s.getTime())) {
       if (!finalEndDate) {
         // Compute endDate from itinerary count
-        const e = new Date(s);
-        e.setDate(s.getDate() + numDays - 1);
+        const e = new Date(s.getTime());
+        e.setUTCDate(s.getUTCDate() + numDays - 1);
         finalEndDate = e.toISOString().split("T")[0];
       } else {
-        // Ensure endDate is aligned with itinerary count (adjust if mismatch)
-        const e = new Date(finalEndDate);
+        // Just sync numDays with the explicit dates, do not shift finalEndDate
+        const e = new Date(finalEndDate + (finalEndDate.includes('T') ? '' : 'T00:00:00Z'));
         if (!isNaN(e.getTime())) {
           const calDays = Math.max(1, Math.round((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24)) + 1);
-          if (calDays !== numDays) {
-            const adjustedE = new Date(s);
-            adjustedE.setDate(s.getDate() + numDays - 1);
-            finalEndDate = adjustedE.toISOString().split("T")[0];
-          }
+          numDays = calDays;
         }
       }
     }

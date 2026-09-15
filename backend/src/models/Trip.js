@@ -30,6 +30,10 @@ const tripSchema = new mongoose.Schema(
       required: true,
     },
 
+    duration: {
+      type: String,
+    },
+
     travelers: {
       type: Number,
       required: true,
@@ -109,7 +113,8 @@ const tripSchema = new mongoose.Schema(
     },
 
     itinerary: {
-      type: Object,
+      type: Array,
+      default: [],
     },
 
     staySegments: {

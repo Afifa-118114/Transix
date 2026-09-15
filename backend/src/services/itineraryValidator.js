@@ -70,8 +70,8 @@ const isDuplicateTransport = (item, trip, currentDate) => {
   if (!isImmutableTransport(item)) return false;
   if (!currentDate) return false;
   
-  const itemStart = timeToMinutes(item.startTime);
-  const itemEnd = timeToMinutes(item.endTime);
+  const itemStart = timeToMinutes(item.startTime || (item.time ? String(item.time).split("-")[0] : null));
+  const itemEnd = timeToMinutes(item.endTime || (item.time ? String(item.time).split("-")[1] : null));
   const dateStr = currentDate.toISOString().split("T")[0];
   
   const legs = trip.travelLegs || [];
@@ -79,17 +79,11 @@ const isDuplicateTransport = (item, trip, currentDate) => {
     if (leg.date === dateStr || !leg.date) {
       const legStart = timeToMinutes(leg.startTime);
       const legEnd = timeToMinutes(leg.endTime);
-      const title = String(item.name || item.activity || "").toLowerCase();
-      const legTo = String(leg.to || "").toLowerCase();
-      const legFrom = String(leg.from || "").toLowerCase();
       
       if (itemStart !== null && legStart !== null && itemEnd !== null && legEnd !== null) {
-        if (Math.abs(itemStart - legStart) <= 60 && Math.abs(itemEnd - legEnd) <= 60) {
-           if (title.includes(legTo) || title.includes(legFrom) || title.includes("travel") || title.includes("journey") || title.includes("transfer") || title.includes("bus") || title.includes("train") || title.includes("flight")) {
-             return true;
-           }
-        }
-        if ((title.includes(legTo) || title.includes(legFrom)) && itemStart < legEnd && itemEnd > legStart) {
+        // If it's a transport activity (which we know it is) and it overlaps with the leg's window (including buffers)
+        // Buffer is up to 120 minutes before departure and after arrival.
+        if (itemStart < legEnd + 120 && itemEnd > legStart - 120) {
           return true;
         }
       }
@@ -478,7 +472,11 @@ const validateItinerary = (itinerary, tripInput) => {
               const stayLoc = normalizeLocation(activeStay.location);
               const isTravelLeg = actName.includes("travel") || actName.includes("flight") || actName.includes("train");
               
-              if (!isTravelLeg && !actPlace.includes(stayLoc) && !stayLoc.includes(actPlace)) {
+              const actPlaceWords = actPlace.split(/\s+/).filter(w => w.length > 3);
+              const stayLocWords = stayLoc.split(/\s+/).filter(w => w.length > 3);
+              const hasCommonWord = actPlaceWords.some(w => stayLoc.includes(w)) || stayLocWords.some(w => actPlace.includes(w));
+              
+              if (!isTravelLeg && !actPlace.includes(stayLoc) && !stayLoc.includes(actPlace) && !hasCommonWord) {
                  let isFeasibleByTravelLeg = false;
                  if (Array.isArray(itinerary.travelLegs)) {
                    const currDateStr = currentDayDate.toISOString().split("T")[0];
@@ -493,7 +491,7 @@ const validateItinerary = (itinerary, tripInput) => {
                    }
                  }
                  if (!isFeasibleByTravelLeg) {
-                   addError("LOCATION_CONSISTENCY", dayNum, `Activity location "${item.place}" is geographically impossible without a valid prior travel leg from current stay location "${activeStay.location}".`);
+                   addWarning("LOCATION_CONSISTENCY", dayNum, `Activity location "${item.place}" is geographically impossible without a valid prior travel leg from current stay location "${activeStay.location}".`);
                  }
               }
             }
@@ -508,7 +506,7 @@ const validateItinerary = (itinerary, tripInput) => {
   const conflicts = detectConflicts(tripForValidation);
   
   conflicts.forEach(c => {
-    addError("SCHEDULE_CONFLICT", c.affectedDay, `Activity "${c.itemTitle}" ${c.reason}`);
+    addWarning("SCHEDULE_CONFLICT", c.affectedDay, `Activity "${c.itemTitle}" ${c.reason}`);
   });
 
   return result;
