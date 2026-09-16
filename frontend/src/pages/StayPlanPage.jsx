@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate, Navigate } from "react-router-dom";
 import { useTripBuilder } from "../context/TripBuilderContext";
 import DashboardLayout from "../layouts/DashboardLayout";
-import { FiArrowLeft, FiMapPin, FiCalendar, FiMoon, FiStar, FiInfo, FiCheck } from "react-icons/fi";
+import { FiArrowLeft, FiMapPin, FiCalendar, FiMoon, FiStar, FiInfo, FiCheck, FiAlertCircle } from "react-icons/fi";
 import { getHotelsForStaySegment } from "../services/inventoryService";
 import { calculatePriceIntelligence } from "../utils/priceIntelligence";
 import { formatDate } from "../utils/formatTrip";
@@ -12,12 +12,17 @@ export default function StayPlanPage() {
   const navigate = useNavigate();
   const { trip, setTrip, budgetStats } = useTripBuilder();
 
-  // If no trip is found, redirect to planner
-  if (!trip) {
-    return <Navigate to="/planner" replace />;
-  }
+  // Use local state for Stay Plan editing to prevent instant syncing
+  const [staySegments, setStaySegments] = useState(trip.staySegments || []);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
-  const staySegments = trip.staySegments || [];
+  // Sync local state when trip changes (from other pages) if no unsaved changes
+  useEffect(() => {
+    if (!hasUnsavedChanges) {
+      setStaySegments(trip.staySegments || []);
+    }
+  }, [trip.staySegments, hasUnsavedChanges]);
 
   // Local state for fetching status and results
   const [segmentData, setSegmentData] = useState({});
@@ -92,6 +97,10 @@ export default function StayPlanPage() {
 
   // Handle viewing a specific hotel
   const handleViewHotel = (segment, hotels, hotelIndex) => {
+    if (hasUnsavedChanges) {
+      alert("Please save your Stay Plan edits before selecting hotels.");
+      return;
+    }
     navigate("/hotel-details", {
       state: {
         hotels: hotels,
@@ -141,50 +150,270 @@ export default function StayPlanPage() {
 
   const [editingSegmentIdx, setEditingSegmentIdx] = useState(null);
   const [editForm, setEditForm] = useState({ location: '', nights: 1 });
+  const [validationError, setValidationError] = useState(null);
+  const [syncError, setSyncError] = useState(null);
+  const [missingHotelsModal, setMissingHotelsModal] = useState(null);
+  const [removeConfirmation, setRemoveConfirmation] = useState(null);
+  const [syncSuccess, setSyncSuccess] = useState(false);
+
+  const getTransitDays = useCallback(() => {
+    const transitDays = new Set();
+    if (!trip || !trip.itinerary || !Array.isArray(trip.itinerary)) return transitDays;
+    
+    trip.itinerary.forEach((day, index) => {
+      if (Array.isArray(day.plan)) {
+        day.plan.forEach(item => {
+           const cat = String(item.category || "").toLowerCase();
+           if (cat.includes("transport") || item.trainNumber || item.flightNumber) {
+              const timeStr = item.startTime || (item.time ? String(item.time).split("-")[0] : null);
+              const endStr = item.endTime || (item.time ? String(item.time).split("-")[1] : null);
+              
+              const timeToMins = (t) => {
+                if (!t) return null;
+                const parts = t.trim().split(/\s+/);
+                if (parts.length < 2) return null;
+                const [time, period] = parts;
+                const tParts = time.split(":");
+                if (tParts.length < 2) return null;
+                let h = parseInt(tParts[0], 10);
+                const m = parseInt(tParts[1], 10);
+                if (period.toLowerCase() === "pm" && h !== 12) h += 12;
+                if (period.toLowerCase() === "am" && h === 12) h = 0;
+                return h * 60 + m;
+              };
+
+              const tStart = timeToMins(timeStr);
+              const tEnd = timeToMins(endStr);
+              if (tStart !== null && tEnd !== null && tEnd < tStart) {
+                 transitDays.add(index);
+              }
+           }
+        });
+      }
+    });
+    return transitDays;
+  }, [trip]);
 
   const recalculateDates = (segments) => {
      let currentDate = new Date(trip.startDate + (trip.startDate.includes('T') ? '' : 'T00:00:00Z'));
+     const transitDays = getTransitDays();
+     let currentDayIndex = 0; // days offset from start
+
      segments.forEach(s => {
+       // Skip transit nights before assigning checkIn
+       while (transitDays.has(currentDayIndex)) {
+          currentDate.setUTCDate(currentDate.getUTCDate() + 1);
+          currentDayIndex++;
+       }
+       
        s.checkIn = currentDate.toISOString().split("T")[0];
-       currentDate.setUTCDate(currentDate.getUTCDate() + parseInt(s.nights, 10));
+       
+       let nightsToAssign = parseInt(s.nights, 10) || 0;
+       while (nightsToAssign > 0) {
+           currentDate.setUTCDate(currentDate.getUTCDate() + 1);
+           currentDayIndex++;
+           
+           if (!transitDays.has(currentDayIndex - 1)) {
+               nightsToAssign--;
+           }
+       }
        s.checkOut = currentDate.toISOString().split("T")[0];
      });
      return segments;
   };
 
-  const saveSegmentsToTrip = (newSegments) => {
-     const updated = { ...trip, staySegments: recalculateDates(newSegments) };
-     setTrip(updated);
-     localStorage.setItem("currentTrip", JSON.stringify(updated));
-     localStorage.setItem("transix_builder_trip", JSON.stringify(updated));
+  // Calculate required overnight nights dynamically
+  const expectedTripNights = useMemo(() => {
+    if (!trip || !trip.startDate || !trip.endDate) return 0;
+    
+    const transitDays = getTransitDays();
+    const transitNights = transitDays.size;
+
+    const start = new Date(trip.startDate);
+    const end = new Date(trip.endDate);
+    return Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) - transitNights;
+  }, [trip, getTransitDays]);
+
+  // Derived state for the sticky action bar
+  const totalStayNights = staySegments.reduce((sum, seg) => sum + (parseInt(seg.nights, 10) || 0), 0);
+  const selectedHotelsCount = staySegments.filter(s => s.selectedHotel).length;
+  const isStayPlanValid = staySegments.length > 0 && totalStayNights === expectedTripNights && selectedHotelsCount === staySegments.length;
+
+  // If no trip is found, redirect to planner
+  if (!trip) {
+    return <Navigate to="/planner" replace />;
+  }
+
+  const updateLocalSegments = (newSegments) => {
+     setStaySegments(recalculateDates(newSegments));
+     setHasUnsavedChanges(true);
   };
+
+  const handleSaveStayPlan = async () => {
+    // 1. Validation: Nights must be positive
+    for (let i = 0; i < staySegments.length; i++) {
+        const n = parseInt(staySegments[i].nights, 10);
+        if (isNaN(n) || n <= 0) {
+            alert(`Cannot save Stay Plan: Segment ${i + 1} must have at least 1 night.`);
+            return;
+        }
+    }
+
+    // 2. Validation: valid geographic location
+    const hasInvalid = staySegments.some(s => {
+       const loc = s.location.toLowerCase().trim();
+       return loc === "new destination" || loc.includes("hotel") || loc.includes("resort") || loc.includes("boutique");
+    });
+    if (hasInvalid) {
+       alert("Cannot save Stay Plan: One or more segments have an invalid geographic location.");
+       return;
+    }
+
+    // 3. Compare actual required overnight nights vs covered nights
+    if (totalStayNights !== expectedTripNights) {
+       const diff = expectedTripNights - totalStayNights;
+       const start = new Date(trip.startDate);
+       const end = new Date(trip.endDate);
+       const tripDuration = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+       if (diff > 0) {
+           setValidationError({
+               type: 'incomplete',
+               tripDuration,
+               expectedTripNights,
+               totalStayNights,
+               missingNights: diff
+           });
+           return;
+       } else {
+           setValidationError({
+               type: 'overassigned',
+               tripDuration,
+               expectedTripNights,
+               totalStayNights,
+               extraNights: Math.abs(diff)
+           });
+           return;
+       }
+    }
+
+    // Check if any segment is missing a hotel
+    const missingHotels = staySegments.filter(s => !s.selectedHotel);
+    
+    if (missingHotels.length > 0) {
+       setMissingHotelsModal({
+          totalSegments: staySegments.length,
+          selectedCount: staySegments.length - missingHotels.length,
+          missingCount: missingHotels.length,
+          missingSegments: missingHotels
+       });
+       return;
+    }
+    
+    // Unified sync for both geographic and hotel-only changes
+    setIsSyncing(true);
+    try {
+      const token = localStorage.getItem("token");
+      const { syncItinerary } = await import("../api/tripApi");
+      const res = await syncItinerary(trip._id, staySegments, token);
+      if (res.success && res.trip) {
+        setTrip(res.trip);
+        setHasUnsavedChanges(false);
+        setSyncSuccess(true);
+      }
+    } catch (err) {
+      console.error("Failed to sync itinerary:", err);
+      setSyncError(err.response?.data?.message || err.message);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+
 
   const handleEditClick = (idx, segment) => {
      setEditingSegmentIdx(idx);
      setEditForm({ location: segment.location, nights: segment.nights });
   };
 
-  const handleSaveEdit = (idx) => {
+  const handleSaveEdit = async (idx) => {
+     let locationChanged = staySegments[idx].location !== editForm.location || editForm.location === "New Destination";
+     let validatedLocation = editForm.location.trim();
+
+     if (locationChanged) {
+        setIsSyncing(true);
+        try {
+          const token = localStorage.getItem("token");
+          const { getPlaces } = await import("../api/placeApi");
+          const places = await getPlaces(validatedLocation, "city", token);
+
+          if (!places || places.length === 0) {
+            alert("Could not resolve this location. Please enter a valid geographic destination.");
+            setIsSyncing(false);
+            return;
+          }
+
+          const canonicalLocation = places[0].name || places[0].displayName?.text || places[0].formattedAddress.split(",")[0];
+          const canonicalLower = canonicalLocation.toLowerCase();
+          const inputLower = validatedLocation.toLowerCase();
+
+          // Reject if the canonical name is a hotel/business
+          const isBusiness = canonicalLower.includes("hotel") || 
+                             canonicalLower.includes("resort") || 
+                             canonicalLower.includes("boutique") || 
+                             canonicalLower.includes("guest house") ||
+                             canonicalLower.includes("homestay") ||
+                             canonicalLower.includes("restaurant");
+
+          // Reject free-form descriptive text (e.g. "new dest in manali")
+          const isDescriptive = inputLower !== canonicalLower && 
+                                !canonicalLower.includes(inputLower) &&
+                                !(inputLower.includes(canonicalLower) && inputLower.length <= canonicalLower.length + 7);
+
+          if (isBusiness || isDescriptive) {
+            alert("Please enter a valid geographic destination/city name. Avoid descriptive phrases or specific hotel names.");
+            setIsSyncing(false);
+            return;
+          }
+          
+          validatedLocation = canonicalLocation; // Normalize to canonical geographic location
+        } catch (err) {
+          console.error("Location validation failed:", err);
+          alert("Error validating location. Please try again.");
+          setIsSyncing(false);
+          return;
+        }
+        setIsSyncing(false);
+     }
+
      const newSegments = [...staySegments];
-     const locationChanged = newSegments[idx].location !== editForm.location;
+     // Re-check just in case normalization changed it back to original
+     locationChanged = newSegments[idx].location !== validatedLocation;
+
      newSegments[idx] = {
          ...newSegments[idx],
-         location: editForm.location,
+         location: validatedLocation,
          nights: parseInt(editForm.nights, 10) || 1,
          manuallyEdited: true
      };
+     
      if (locationChanged) {
          newSegments[idx].selectedHotel = null; // Clear hotel selection when location changes
      }
-     saveSegmentsToTrip(newSegments);
+     
+     updateLocalSegments(newSegments);
      setEditingSegmentIdx(null);
   };
 
   const handleRemoveSegment = (idx) => {
-     if (window.confirm("Are you sure you want to remove this stay segment?")) {
+     setRemoveConfirmation(idx);
+  };
+  
+  const confirmRemoveSegment = () => {
+     if (removeConfirmation !== null) {
          const newSegments = [...staySegments];
-         newSegments.splice(idx, 1);
-         saveSegmentsToTrip(newSegments);
+         newSegments.splice(removeConfirmation, 1);
+         updateLocalSegments(newSegments);
+         setRemoveConfirmation(null);
      }
   };
 
@@ -194,13 +423,13 @@ export default function StayPlanPage() {
          const temp = newSegments[idx];
          newSegments[idx] = newSegments[idx - 1];
          newSegments[idx - 1] = temp;
-         saveSegmentsToTrip(newSegments);
+         updateLocalSegments(newSegments);
      } else if (direction === "down" && idx < staySegments.length - 1) {
          const newSegments = [...staySegments];
          const temp = newSegments[idx];
          newSegments[idx] = newSegments[idx + 1];
          newSegments[idx + 1] = temp;
-         saveSegmentsToTrip(newSegments);
+         updateLocalSegments(newSegments);
      }
   };
 
@@ -212,7 +441,7 @@ export default function StayPlanPage() {
          nights: 1,
          manuallyEdited: true
      });
-     saveSegmentsToTrip(newSegments);
+     updateLocalSegments(newSegments);
      setEditingSegmentIdx(newSegments.length - 1);
      setEditForm({ location: "New Destination", nights: 1 });
   };
@@ -282,10 +511,11 @@ export default function StayPlanPage() {
             </div>
           ) : (
             staySegments.map((segment, index) => {
-              const segmentKey = segment.id || segment.location;
-              const isLoading = loadingMap[segmentKey];
-              const isError = errorMap[segmentKey];
-              const hotels = segmentData[segmentKey] || [];
+              const segmentKey = segment._id || segment.id || `${index}-${segment.location}`;
+              const dataKey = segment.id || segment.location; // Used for data mapping
+              const isLoading = loadingMap[dataKey];
+              const isError = errorMap[dataKey];
+              const hotels = segmentData[dataKey] || [];
               const hasPricedHotels = hotels.some(h => h.nuitee?.livePriceAvailable);
               const pricedCount = hotels.filter(h => h.nuitee?.livePriceAvailable).length;
 
@@ -378,7 +608,12 @@ export default function StayPlanPage() {
                           <div className="mt-3 flex flex-wrap items-end justify-between gap-4">
                             <div>
                               {segment.selectedHotel.price > 0 ? (
-                                <div className="text-lg font-black text-slate-900 dark:text-white">₹{segment.selectedHotel.price.toLocaleString()} <span className="text-xs font-semibold text-slate-500">total</span></div>
+                                <div>
+                                  <div className="text-lg font-black text-slate-900 dark:text-white">₹{segment.selectedHotel.price.toLocaleString()} <span className="text-xs font-semibold text-slate-500">total</span></div>
+                                  {segment.selectedHotel.isEstimatedPrice && (
+                                    <div className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider mt-0.5">Estimated Fallback</div>
+                                  )}
+                                </div>
                               ) : (
                                 <span className="text-sm font-bold text-slate-500">Price unavailable</span>
                               )}
@@ -411,7 +646,7 @@ export default function StayPlanPage() {
                                   // Clear selection to change hotel
                                   const newSegments = [...staySegments];
                                   newSegments[index].selectedHotel = null;
-                                  setTrip({ ...trip, staySegments: newSegments });
+                                  updateLocalSegments(newSegments);
                                 }}
                                 className="px-3 py-1.5 rounded-lg border border-indigo-200 dark:border-indigo-800/60 bg-indigo-50 dark:bg-indigo-900/30 text-xs font-bold text-indigo-700 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition whitespace-nowrap"
                               >
@@ -622,6 +857,187 @@ export default function StayPlanPage() {
           </section>
         )}
       </div>
+
+      {/* Sticky Action Bar */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-[#0f1525]/90 border-t border-slate-200 dark:border-slate-800 shadow-[0_-4px_20px_-5px_rgba(0,0,0,0.1)] z-40 backdrop-blur-md pb-safe">
+        <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-4 flex flex-col md:flex-row items-center justify-between gap-4 transition-all">
+          <div className="flex flex-col sm:flex-row items-center gap-4 text-xs font-bold text-slate-600 dark:text-slate-400">
+            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border ${totalStayNights === expectedTripNights ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400' : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400'}`}>
+              <FiMoon />
+              <span>{totalStayNights}/{expectedTripNights} nights covered</span>
+            </div>
+            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border ${selectedHotelsCount === staySegments.length ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400' : 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400'}`}>
+              <FiCheck />
+              <span>{selectedHotelsCount}/{staySegments.length} hotels selected</span>
+            </div>
+          </div>
+          <button 
+            onClick={handleSaveStayPlan} 
+            disabled={isSyncing || !isStayPlanValid} 
+            className="w-full md:w-auto px-8 py-3 bg-indigo-600 text-white font-black rounded-xl hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-indigo-600/20 transition-all flex items-center justify-center gap-2 uppercase tracking-wide text-sm"
+          >
+            {isSyncing ? "Updating Itinerary..." : "Save & Update Itinerary"}
+          </button>
+        </div>
+      </div>
+
+      {/* Sync Success Modal */}
+      {syncSuccess && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl bg-white dark:bg-[#131b2e] p-6 shadow-xl border border-emerald-200 dark:border-emerald-900/40 text-center">
+            <div className="mx-auto w-12 h-12 flex items-center justify-center bg-emerald-100 dark:bg-emerald-900/30 rounded-full mb-4">
+              <FiCheck className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+            </div>
+            <h3 className="text-xl font-black text-slate-900 dark:text-white mb-2">Stay Plan updated</h3>
+            <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">
+              Your Stay Plan and itinerary have been updated successfully.
+            </p>
+            <button 
+              onClick={() => {
+                setSyncSuccess(false);
+                navigate(`/itinerary/${trip._id}`);
+              }} 
+              className="w-full py-3 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition shadow-md shadow-emerald-600/20"
+            >
+              View Updated Itinerary
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Remove Confirmation Modal */}
+      {removeConfirmation !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl bg-white dark:bg-[#131b2e] p-6 shadow-xl border border-slate-200 dark:border-slate-800">
+            <h3 className="text-xl font-black text-slate-900 dark:text-white mb-2">Remove stay segment?</h3>
+            <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">
+              Are you sure you want to remove this stay segment? This may change the number of nights covered by your Stay Plan.
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => setRemoveConfirmation(null)} className="flex-1 py-3 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700">
+                Cancel
+              </button>
+              <button onClick={confirmRemoveSegment} className="flex-1 py-3 bg-rose-600 text-white font-bold rounded-xl hover:bg-rose-700">
+                Remove Segment
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Missing Hotels Modal */}
+      {missingHotelsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl bg-white dark:bg-[#131b2e] p-6 shadow-xl border border-slate-200 dark:border-slate-800">
+            <h3 className="text-xl font-black text-slate-900 dark:text-white mb-2">Select hotels for all stays</h3>
+            <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+              Your Stay Plan has {missingHotelsModal.totalSegments} stay segments, but {missingHotelsModal.missingCount} {missingHotelsModal.missingCount === 1 ? 'segment does' : 'segments do'} not have a selected hotel. Please select a hotel for every stay segment before updating your itinerary.
+            </p>
+            <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 mb-6 border border-slate-100 dark:border-slate-800">
+              <div className="flex justify-between text-sm mb-1">
+                <span className="text-slate-500">Stay segments</span>
+                <span className="font-semibold text-slate-700 dark:text-slate-300">{missingHotelsModal.totalSegments}</span>
+              </div>
+              <div className="flex justify-between text-sm mb-1">
+                <span className="text-slate-500">Hotels selected</span>
+                <span className="font-semibold text-slate-700 dark:text-slate-300">{missingHotelsModal.selectedCount}</span>
+              </div>
+              <div className="flex justify-between text-sm font-bold border-t border-slate-200 dark:border-slate-700 mt-2 pt-2">
+                <span className="text-red-600 dark:text-red-400">Hotels missing</span>
+                <span className="text-red-600 dark:text-red-400">{missingHotelsModal.missingCount}</span>
+              </div>
+              <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
+                {missingHotelsModal.missingSegments.map((seg, i) => (
+                  <div key={i} className="text-xs text-slate-600 dark:text-slate-400 mb-1">
+                    • {seg.location} — {seg.nights} {seg.nights === 1 ? 'night' : 'nights'} — hotel not selected
+                  </div>
+                ))}
+              </div>
+            </div>
+            <button onClick={() => setMissingHotelsModal(null)} className="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700">
+              Go Back & Select Hotels
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Validation Error Modal */}
+      {validationError && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl bg-white dark:bg-[#131b2e] p-6 shadow-xl border border-red-200 dark:border-red-900/40">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-full">
+                <FiAlertCircle className="w-6 h-6 text-red-600 dark:text-red-400" />
+              </div>
+              <h3 className="text-xl font-black text-slate-900 dark:text-white">
+                {validationError.type === 'incomplete' ? 'Stay Plan is incomplete' : 'Stay Plan has too many nights'}
+              </h3>
+            </div>
+            <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+              Your trip {validationError.type === 'incomplete' ? `is ${validationError.tripDuration} days long (${validationError.expectedTripNights} nights), but your Stay Plan currently covers only ${validationError.totalStayNights} nights.` : `requires ${validationError.expectedTripNights} nights, but your Stay Plan currently assigns ${validationError.totalStayNights} nights.`}
+            </p>
+            {validationError.type === 'incomplete' && (
+              <>
+                <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 mb-4">
+                  {validationError.missingNights} {validationError.missingNights === 1 ? 'night is' : 'nights are'} still missing a stay location.
+                </p>
+                <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+                  Please either:
+                  <br />• Add {validationError.missingNights} more stay {validationError.missingNights === 1 ? 'segment' : 'segments'}, OR
+                  <br />• Increase the number of nights in an existing stay segment.
+                </p>
+              </>
+            )}
+            
+            <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 mb-6 border border-slate-100 dark:border-slate-800">
+              <div className="flex justify-between text-sm mb-1">
+                <span className="text-slate-500">Trip duration</span>
+                <span className="font-semibold text-slate-700 dark:text-slate-300">{validationError.tripDuration} days</span>
+              </div>
+              <div className="flex justify-between text-sm mb-1">
+                <span className="text-slate-500">Required nights</span>
+                <span className="font-semibold text-slate-700 dark:text-slate-300">{validationError.expectedTripNights}</span>
+              </div>
+              <div className="flex justify-between text-sm mb-1">
+                <span className="text-slate-500">{validationError.type === 'incomplete' ? 'Covered nights' : 'Assigned nights'}</span>
+                <span className="font-semibold text-slate-700 dark:text-slate-300">{validationError.totalStayNights}</span>
+              </div>
+              <div className="flex justify-between text-sm font-bold border-t border-slate-200 dark:border-slate-700 mt-2 pt-2">
+                <span className="text-red-600 dark:text-red-400">{validationError.type === 'incomplete' ? 'Missing nights' : 'Extra nights'}</span>
+                <span className="text-red-600 dark:text-red-400">{validationError.type === 'incomplete' ? validationError.missingNights : validationError.extraNights}</span>
+              </div>
+            </div>
+
+            <button onClick={() => setValidationError(null)} className="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition">
+              Go Back & Edit
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Sync Error Modal */}
+      {syncError && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl bg-white dark:bg-[#131b2e] p-6 shadow-xl border border-red-200 dark:border-red-900/40">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-full">
+                <FiAlertCircle className="w-6 h-6 text-red-600 dark:text-red-400" />
+              </div>
+              <h3 className="text-xl font-black text-slate-900 dark:text-white">Unable to sync itinerary</h3>
+            </div>
+            <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">
+              We couldn't update your itinerary from the current Stay Plan. 
+              <br /><br />
+              <span className="font-semibold text-slate-800 dark:text-slate-200">Reason:</span><br />
+              {typeof syncError === 'string' ? syncError : "An unexpected error occurred."}
+            </p>
+            <button onClick={() => setSyncError(null)} className="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition">
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
     </DashboardLayout>
   );
 }
