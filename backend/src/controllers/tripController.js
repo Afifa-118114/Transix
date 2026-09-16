@@ -251,6 +251,11 @@ const regenerateDay = asyncHandler(async (req, res) => {
 
   const newDay = await regenerateTripDay(trip, dayNum);
 
+  if (!newDay || !newDay.plan || !Array.isArray(newDay.plan) || newDay.plan.length === 0) {
+    res.status(400);
+    throw new Error("Could not regenerate a valid, non-empty day. Please try again.");
+  }
+
   if (Array.isArray(newDay.plan)) {
     newDay.plan.forEach(p => {
       if (!p.id && !p._id) {

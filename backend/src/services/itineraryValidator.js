@@ -93,10 +93,13 @@ const isDuplicateTransport = (item, trip, currentDate) => {
 };
 
 const getActivityLogicalWindow = (item) => {
-  const cat = String(item.category || "").toLowerCase();
-  const title = String(item.name || item.activity || "").toLowerCase();
+  const title = (item.name || item.activity || "").toLowerCase();
+  const cat = (item.category || "").toLowerCase();
 
-  if (isImmutableTransport(item)) return { start: 0, end: 1440 };
+  if (cat.includes("transport") || title.includes("train") || title.includes("flight") || title.includes("bus")) {
+      return { start: 0, end: 1440 * 10 }; // Transport can happen anytime, and span across days seamlessly
+  }
+
   if (title.includes("dinner")) return { start: 17 * 60, end: 23 * 60 + 30 };
   if (title.includes("lunch")) return { start: 11 * 60, end: 16 * 60 };
   if (title.includes("breakfast")) return { start: 6 * 60, end: 11 * 60 };
@@ -239,18 +242,26 @@ const detectConflicts = (trip) => {
       const tStart = timeToMinutes(item.startTime || (item.time ? String(item.time).split("-")[0] : null));
       const tEnd = timeToMinutes(item.endTime || (item.time ? String(item.time).split("-")[1] : null));
 
-      if (tStart !== null && tEnd !== null) {
-        let absStart = currentDayBaseOffset + tStart;
-        if (absStart < prevAbsoluteEnd && (prevAbsoluteEnd - absStart) < 720) {
-            absStart += 1440;
-            currentDayBaseOffset += 1440;
-        }
-        let absEnd = currentDayBaseOffset + tEnd;
-        if (absEnd < absStart) {
-            absEnd += 1440;
-            currentDayBaseOffset += 1440;
-        }
+      let absStart = item._absStart !== undefined ? item._absStart : null;
+      let absEnd = item._absEnd !== undefined ? item._absEnd : null;
 
+      if (absStart === null && tStart !== null) {
+          absStart = currentDayBaseOffset + tStart;
+          if (absStart < prevAbsoluteEnd && (prevAbsoluteEnd - absStart) < 720) {
+              absStart += 1440;
+              currentDayBaseOffset += 1440;
+          }
+      }
+      
+      if (absEnd === null && tEnd !== null) {
+          absEnd = currentDayBaseOffset + tEnd;
+          if (absEnd < absStart) {
+              absEnd += 1440;
+              currentDayBaseOffset += 1440;
+          }
+      }
+
+      if (absStart !== null && absEnd !== null) {
         const localTimeStart = absStart % 1440;
         const logicalWindow = getActivityLogicalWindow(item);
         
@@ -514,5 +525,7 @@ const validateItinerary = (itinerary, tripInput) => {
 
 module.exports = {
   validateItinerary,
-  isImmutableTransport
+  isImmutableTransport,
+  timeToMinutes,
+  minutesToTimeStr
 };

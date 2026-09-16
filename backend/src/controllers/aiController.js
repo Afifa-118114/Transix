@@ -22,7 +22,12 @@ const generateAITrip = asyncHandler(async (req, res) => {
   const tAi = Date.now();
   console.log(`[Backend Trace] AI Generation & Image Fetch: ${tAi - tStart}ms`);
 
-  const numDays = Array.isArray(aiData?.days) && aiData.days.length > 0 ? aiData.days.length : 5;
+  if (!aiData || !aiData.days || aiData.days.length === 0 || (aiData.validation && aiData.validation.valid === false)) {
+    res.status(400);
+    throw new Error("Could not generate a valid, conflict-free itinerary. Please try adjusting your constraints.");
+  }
+
+  const numDays = aiData.days.length;
   let finalStartDate = tripData.startDate;
   let finalEndDate = tripData.endDate;
 

@@ -228,10 +228,51 @@ export function TripBuilderProvider({ children }) {
 
   const applyAlternative = (alternative) => {
     if (alternative && alternative.candidateTrip) {
+       const finalConflicts = detectConflicts(alternative.candidateTrip);
+       if (finalConflicts.length > 0) {
+           toast.error("Cannot apply this change safely. It conflicts with other constraints.");
+           return;
+       }
        setTrip(alternative.candidateTrip);
        setPendingAlternatives(null);
        toast.success("Schedule adjusted successfully!");
     }
+  };
+
+  // Calculate requested time based on drop position
+  const calculateDropTime = (prevTrip, dayIndex, item, targetIndex) => {
+    const day = prevTrip.itinerary[dayIndex] || prevTrip.itinerary[0];
+    const plan = day.plan || [];
+    const durationMins = item.durationMinutes || 120;
+    
+    if (plan.length === 0) {
+      return { startTime: "09:30 AM", endTime: minutesToTimeStr(9 * 60 + 30 + durationMins) };
+    }
+    
+    if (targetIndex === 0) {
+      const firstItemStart = timeToMinutes(plan[0].startTime);
+      if (firstItemStart !== null && firstItemStart > durationMins + 30) {
+        return { startTime: minutesToTimeStr(firstItemStart - durationMins - 30), endTime: minutesToTimeStr(firstItemStart - 30) };
+      }
+      return { startTime: "08:00 AM", endTime: minutesToTimeStr(8 * 60 + durationMins) };
+    }
+    
+    const prevItemIndex = (targetIndex === null || targetIndex > plan.length) ? plan.length - 1 : targetIndex - 1;
+    const prevItem = plan[prevItemIndex];
+    
+    let lastEndMin = timeToMinutes(prevItem.endTime);
+    if (lastEndMin === null) {
+      const lastStartMin = timeToMinutes(prevItem.startTime) || 9 * 60;
+      lastEndMin = lastStartMin + (prevItem.durationMinutes || 90);
+    }
+    
+    const suggestedStartMin = lastEndMin + 15; // 15 min travel buffer
+    const suggestedEndMin = suggestedStartMin + durationMins;
+    
+    return {
+      startTime: minutesToTimeStr(suggestedStartMin),
+      endTime: minutesToTimeStr(suggestedEndMin)
+    };
   };
 
   // Add Item to a Day
@@ -251,57 +292,66 @@ export function TripBuilderProvider({ children }) {
       
       const currentPlan = [...(targetDay.plan || [])];
 
-      // Smart Slot Finding
-      const slot = findEarliestValidSlot(prevTrip, dayIndex + 1, normalizedItem);
-      
-      if (!slot) {
-        // Generate alternatives instead of failing
-        const alternatives = generateSmartAlternatives(prevTrip, normalizedItem, dayIndex + 1);
-        if (alternatives && alternatives.length > 0) {
-           setPendingAlternatives({ item: normalizedItem, targetDay: dayIndex + 1, alternatives });
-           return prevTrip;
-        } else {
-           toast.error(`No safe free slot or alternative found.`);
-           return prevTrip;
-        }
-      }
+      const dropTime = calculateDropTime(prevTrip, dayIndex, normalizedItem, targetIndex);
 
       const newItem = {
         ...normalizedItem,
-        startTime: slot.startTime,
-        endTime: slot.endTime,
-        time: `${slot.startTime} - ${slot.endTime}`,
+        startTime: dropTime.startTime,
+        endTime: dropTime.endTime,
+        time: `${dropTime.startTime} - ${dropTime.endTime}`,
       };
 
-      // Determine correct insertion index based on time
-      let insertIdx = currentPlan.length;
-      if (targetIndex !== null && targetIndex >= 0 && targetIndex <= currentPlan.length) {
-        insertIdx = targetIndex;
-      } else {
-        const newItemStartMin = timeToMinutes(newItem.startTime);
-        const nextItemIdx = currentPlan.findIndex(p => timeToMinutes(p.startTime) > newItemStartMin);
-        if (nextItemIdx !== -1) insertIdx = nextItemIdx;
-      }
+      let insertIdx = targetIndex !== null && targetIndex >= 0 && targetIndex <= currentPlan.length 
+          ? targetIndex 
+          : currentPlan.length;
 
       currentPlan.splice(insertIdx, 0, newItem);
+      newItinerary[dayIndex] = { ...targetDay, plan: currentPlan };
+      const proposedTrip = { ...prevTrip, itinerary: newItinerary };
 
-      newItinerary[dayIndex] = {
-        ...targetDay,
-        plan: currentPlan,
-      };
+      const conflicts = detectConflicts(proposedTrip);
+      const itemConflicts = conflicts.filter(c => c.itemId === newItem.id);
 
-      const proposedTrip = {
-        ...prevTrip,
-        itinerary: newItinerary,
-      };
+      if (itemConflicts.length > 0) {
+         const firstConflict = itemConflicts[0];
+         let conflictingItemDetails = null;
+         let overlapMinutes = 0;
+         
+         if (firstConflict.conflictingItemId) {
+            const cItem = currentPlan.find(p => p.id === firstConflict.conflictingItemId);
+            if (cItem) {
+               conflictingItemDetails = cItem;
+               const aStart = timeToMinutes(newItem.startTime);
+               const aEnd = timeToMinutes(newItem.endTime);
+               const bStart = timeToMinutes(cItem.startTime);
+               const bEnd = timeToMinutes(cItem.endTime);
+               if (aStart !== null && bStart !== null) {
+                  const overlapStart = Math.max(aStart, bStart);
+                  const overlapEnd = Math.min(aEnd, bEnd);
+                  overlapMinutes = Math.max(0, overlapEnd - overlapStart);
+               }
+            }
+         }
 
-      if (proposeTripUpdate(proposedTrip, { itemId: newItem.id })) {
-         toast.success(`Added "${newItem.name}" to Day ${dayIndex + 1}!`, {
-           icon: newItem.icon || "✨",
+         const alternatives = generateSmartAlternatives(prevTrip, newItem, dayIndex + 1);
+         setPendingAlternatives({ 
+            item: newItem, 
+            targetDay: dayIndex + 1, 
+            requestedTime: newItem.time,
+            conflictInfo: {
+                reason: firstConflict.reason,
+                conflictingItem: conflictingItemDetails,
+                overlapMinutes
+            },
+            alternatives 
          });
-         return proposedTrip;
+         return prevTrip;
       }
-      return prevTrip;
+
+      toast.success(`Added "${newItem.name}" to Day ${dayIndex + 1}!`, {
+         icon: newItem.icon || "✨",
+      });
+      return proposedTrip;
     });
     
     setIsSaved(false);
@@ -385,64 +435,92 @@ export function TripBuilderProvider({ children }) {
     return true;
   };
 
-  // Reorder Items within the same Day
-  const reorderInDay = (dayIndex, sourceIndex, targetIndex) => {
-    if (sourceIndex === targetIndex) return;
-
-    setTrip((prevTrip) => {
-      const newItinerary = [...prevTrip.itinerary];
-      const targetDay = newItinerary[dayIndex];
-      if (!targetDay) return prevTrip;
-
-      const plan = [...targetDay.plan];
-      const [movedItem] = plan.splice(sourceIndex, 1);
-      plan.splice(targetIndex, 0, movedItem);
-
-      newItinerary[dayIndex] = {
-        ...targetDay,
-        plan,
-      };
-
-      return {
-        ...prevTrip,
-        itinerary: newItinerary,
-      };
-    });
-
-    setIsSaved(false);
-    toast.success("Sequence updated", { icon: "🔄" });
-  };
-
-  // Move Item from one Day to another Day
-  const moveBetweenDays = (sourceDayIndex, targetDayIndex, sourceIndex, targetIndex = null) => {
-    setTrip((prevTrip) => {
+  const handleItemMoveWithValidation = (prevTrip, sourceDayIndex, targetDayIndex, sourceIndex, targetIndex) => {
       const newItinerary = [...prevTrip.itinerary];
       const sourceDay = newItinerary[sourceDayIndex];
       const targetDay = newItinerary[targetDayIndex];
       if (!sourceDay || !targetDay) return prevTrip;
 
       const sourcePlan = [...sourceDay.plan];
-      const targetPlan = [...targetDay.plan];
-
       const [movedItem] = sourcePlan.splice(sourceIndex, 1);
+      
+      newItinerary[sourceDayIndex] = { ...sourceDay, plan: sourcePlan };
+      
+      const intermediateTrip = { ...prevTrip, itinerary: newItinerary };
+      const dropTime = calculateDropTime(intermediateTrip, targetDayIndex, movedItem, targetIndex);
+      
+      const newItem = {
+          ...movedItem,
+          startTime: dropTime.startTime,
+          endTime: dropTime.endTime,
+          time: `${dropTime.startTime} - ${dropTime.endTime}`
+      };
+      
+      const targetPlan = sourceDayIndex === targetDayIndex ? sourcePlan : [...targetDay.plan];
+      
+      let insertIdx = targetIndex !== null && targetIndex >= 0 && targetIndex <= targetPlan.length 
+          ? targetIndex 
+          : targetPlan.length;
 
-      if (targetIndex !== null && targetIndex >= 0 && targetIndex <= targetPlan.length) {
-        targetPlan.splice(targetIndex, 0, movedItem);
-      } else {
-        targetPlan.push(movedItem);
+      targetPlan.splice(insertIdx, 0, newItem);
+      newItinerary[targetDayIndex] = { ...targetDay, plan: targetPlan };
+      
+      const proposedTrip = { ...prevTrip, itinerary: newItinerary };
+      
+      const conflicts = detectConflicts(proposedTrip);
+      const itemConflicts = conflicts.filter(c => c.itemId === newItem.id);
+
+      if (itemConflicts.length > 0) {
+         const firstConflict = itemConflicts[0];
+         let conflictingItemDetails = null;
+         let overlapMinutes = 0;
+         
+         if (firstConflict.conflictingItemId) {
+            const cItem = targetPlan.find(p => p.id === firstConflict.conflictingItemId);
+            if (cItem) {
+               conflictingItemDetails = cItem;
+               const aStart = timeToMinutes(newItem.startTime);
+               const aEnd = timeToMinutes(newItem.endTime);
+               const bStart = timeToMinutes(cItem.startTime);
+               const bEnd = timeToMinutes(cItem.endTime);
+               if (aStart !== null && bStart !== null) {
+                  const overlapStart = Math.max(aStart, bStart);
+                  const overlapEnd = Math.min(aEnd, bEnd);
+                  overlapMinutes = Math.max(0, overlapEnd - overlapStart);
+               }
+            }
+         }
+
+         const alternatives = generateSmartAlternatives(intermediateTrip, newItem, targetDayIndex + 1);
+         setPendingAlternatives({ 
+            item: newItem, 
+            targetDay: targetDayIndex + 1, 
+            requestedTime: newItem.time,
+            conflictInfo: {
+                reason: firstConflict.reason,
+                conflictingItem: conflictingItemDetails,
+                overlapMinutes
+            },
+            alternatives 
+         });
+         return prevTrip;
       }
 
-      newItinerary[sourceDayIndex] = { ...sourceDay, plan: sourcePlan };
-      newItinerary[targetDayIndex] = { ...targetDay, plan: targetPlan };
+      toast.success(`Schedule updated`, { icon: "🔄" });
+      return proposedTrip;
+  };
 
-      return {
-        ...prevTrip,
-        itinerary: newItinerary,
-      };
-    });
-
+  // Reorder Items within the same Day
+  const reorderInDay = (dayIndex, sourceIndex, targetIndex) => {
+    if (sourceIndex === targetIndex) return;
+    setTrip((prevTrip) => handleItemMoveWithValidation(prevTrip, dayIndex, dayIndex, sourceIndex, targetIndex));
     setIsSaved(false);
-    toast.success(`Moved to Day ${targetDayIndex + 1}`, { icon: "✨" });
+  };
+
+  // Move Item from one Day to another Day
+  const moveBetweenDays = (sourceDayIndex, targetDayIndex, sourceIndex, targetIndex = null) => {
+    setTrip((prevTrip) => handleItemMoveWithValidation(prevTrip, sourceDayIndex, targetDayIndex, sourceIndex, targetIndex));
+    setIsSaved(false);
   };
 
   // Duplicate Item

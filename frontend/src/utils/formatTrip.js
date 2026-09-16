@@ -164,22 +164,17 @@ export function normalizeTrip(rawTrip) {
       let startMin;
       let endMin;
 
-      // If user has explicitly configured this item's custom time (or on initial load with explicit times)
-      if (explicitStart !== null && explicitEnd !== null && explicitEnd > explicitStart && p.startTime && p.endTime) {
+      // If the item has explicit times (from AI or user), trust them unconditionally.
+      if (explicitStart !== null && explicitEnd !== null && explicitEnd > explicitStart) {
         startMin = explicitStart;
         endMin = explicitEnd;
-        durationMins = endMin - startMin;
-        currentTimelineMin = endMin + 25; // 25m travel buffer
+        durationMins = endMin - startMin; // Preserve explicit duration
+        currentTimelineMin = endMin + 25;
       } else {
-        // Build a guaranteed feasible sequence with 20-30m buffers
-        if (explicitStart !== null && explicitStart >= currentTimelineMin) {
-          startMin = explicitStart;
-        } else {
-          startMin = currentTimelineMin;
-        }
-
+        // Only if absolutely no valid time was provided, fall back to sequential placement
+        startMin = currentTimelineMin;
         endMin = startMin + durationMins;
-        currentTimelineMin = endMin + 25; // 25m travel buffer
+        currentTimelineMin = endMin + 25;
       }
 
       const startTimeStr = minutesToTimeStr(startMin);
