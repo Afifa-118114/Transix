@@ -27,14 +27,14 @@ const generateTripPlan = async (tripData) => {
   try {
     const sourceCandidates = await resolveStationCandidates(tripData.source);
     const destinationCandidates = await resolveStationCandidates(tripData.destination);
-    
+
     let trains = [];
     if (sourceCandidates && destinationCandidates) {
       trains = await searchDirectTrains(sourceCandidates, destinationCandidates, tripData.startDate);
     }
 
     if (trains && trains.length > 0) {
-      const topTrains = trains.slice(0, 5).map(t => 
+      const topTrains = trains.slice(0, 5).map(t =>
         `Train ${t.trainNumber} (${t.trainName}): Departs ${t.from.name} at ${t.from.departure}, Arrives ${t.to.name} at ${t.to.arrival}. Duration: ${t.duration}, Est. Fare: ${t.estimatedFare}`
       );
       feasibleTransportString = `REAL TRAIN OPTIONS AVAILABLE:\n${topTrains.join("\n")}`;
@@ -44,7 +44,7 @@ const generateTripPlan = async (tripData) => {
       if (otherOptions.flight && otherOptions.flight.length > 0) fallbacks.push(`Flight: ~${otherOptions.flight[0].duration}, Fare: ${otherOptions.flight[0].estimatedFare}`);
       if (otherOptions.bus && otherOptions.bus.length > 0) fallbacks.push(`Bus: ~${otherOptions.bus[0].duration}, Fare: ${otherOptions.bus[0].estimatedFare}`);
       if (otherOptions.cab && otherOptions.cab.length > 0) fallbacks.push(`Cab: ~${otherOptions.cab[0].duration}, Fare: ${otherOptions.cab[0].estimatedFare}`);
-      
+
       if (fallbacks.length > 0) {
         feasibleTransportString = `REAL TRANSPORT OPTIONS AVAILABLE:\n${fallbacks.join("\n")}`;
       }
@@ -83,7 +83,7 @@ RULES:
 1. Stay Segments MUST perfectly cover the trip dates. Total nights must equal (End Date - Start Date). No overlaps.
 2. Transport constraints: Leave at least a 60-minute pre-departure buffer and a 30-minute post-arrival buffer for any transport legs.
 3. Hotel constraints: Leave at least a 30-minute buffer for hotel checkout (standard 11:00 AM).
-4. TIMING PREFERENCES: 
+4. TIMING PREFERENCES:
    - Breakfast should be approximately 07:00 AM - 10:00 AM.
    - Lunch should be approximately 12:00 PM - 03:00 PM.
    - Dinner should be approximately 08:00 PM - 11:00 PM.
@@ -169,13 +169,13 @@ Return ONLY this EXACT JSON structure, do NOT use markdown or backticks:
       // Deterministic Post-Generation Scheduling Pass (Extracted for Two-Pass Architecture)
       const buildDeterministicTimeline = (data) => {
         if (!Array.isArray(data.days)) return;
-        
+
         let absoluteTimelineMin = 8 * 60; // Start at 08:00 AM on Day 1
-        
+
         data.days.forEach((day, dayIndex) => {
           let dayBaseMin = dayIndex * 1440;
           let minStartForDay = dayBaseMin + (8 * 60); // 08:00 AM of current day
-          
+
           if (absoluteTimelineMin < minStartForDay) {
               absoluteTimelineMin = minStartForDay;
           }
@@ -190,13 +190,13 @@ Return ONLY this EXACT JSON structure, do NOT use markdown or backticks:
 
             day.plan.forEach(p => {
                const isFixed = p.category === "transport" || p.trainNumber || p.flightNumber;
-               
+
                const explicitStartStr = p.startTime || (p.time ? String(p.time).split("-")[0] : null);
                const explicitEndStr = p.endTime || (p.time ? String(p.time).split("-")[1] : null);
-               
+
                let explicitStartMin = timeToMinutes(explicitStartStr);
                let explicitEndMin = timeToMinutes(explicitEndStr);
-               
+
                let durationMins = 120; // Default 2h
                if (p.duration) {
                    const durStr = String(p.duration).toLowerCase();
@@ -222,9 +222,9 @@ Return ONLY this EXACT JSON structure, do NOT use markdown or backticks:
                let startMin;
                if (explicitStartMin !== null) {
                    let absStart = dayBaseMin + explicitStartMin;
-                   
+
                    if (absStart < dayBaseMin) absStart += 1440;
-                   
+
                    if (!isFixed && absStart < absoluteTimelineMin) {
                        absStart = absoluteTimelineMin;
                    }
@@ -235,7 +235,7 @@ Return ONLY this EXACT JSON structure, do NOT use markdown or backticks:
 
                if (!isFixed) {
                    let localTime = startMin % 1440;
-                   
+
                    if (isBreakfast) {
                        if (localTime < 7 * 60) startMin += (7 * 60 - localTime);
                    } else if (isLunch) {
@@ -243,7 +243,7 @@ Return ONLY this EXACT JSON structure, do NOT use markdown or backticks:
                    } else if (isDinner) {
                        if (localTime < 19 * 60) startMin += (19 * 60 - localTime);
                    }
-                   
+
                    // Cap normal activities to 23:00 local time to prevent spilling into midnight.
                    // If the schedule is overpacked, capping it here forces a TRUE OVERLAP,
                    // which correctly fails validation instead of hiding the problem at 3 AM.
@@ -253,25 +253,25 @@ Return ONLY this EXACT JSON structure, do NOT use markdown or backticks:
                }
 
                let endMin = startMin + durationMins;
-               
+
                p.startTime = minutesToTimeStr(startMin % 1440);
                p.endTime = minutesToTimeStr(endMin % 1440);
                p.time = `${p.startTime} - ${p.endTime}`;
                p.duration = `${Math.floor(durationMins / 60)}h ${durationMins % 60}m`;
-               
+
                p._absStart = startMin;
                p._absEnd = endMin;
-               
+
                let buffer = 10; // Default 10m minimum transition buffer
                if (isFixed) buffer = 30; // 30m post-arrival transport buffer
                if (p.category === "operational") buffer = 0; // Check-in/out itself needs no buffer padding
-               
-               absoluteTimelineMin = endMin + buffer; 
+
+               absoluteTimelineMin = endMin + buffer;
             });
           }
         });
       };
-      
+
       // Pass 1: Build baseline timeline to accurately detect overnight transport boundaries
       buildDeterministicTimeline(parsedData);
 
@@ -281,41 +281,57 @@ Return ONLY this EXACT JSON structure, do NOT use markdown or backticks:
            const derivedStays = [];
            let lastKnownLocation = null;
            let currentStay = null;
-           
+
+           const isCleanGeographicLocation = (locStr) => {
+               if (!locStr) return false;
+               const lower = locStr.toLowerCase().trim();
+               const forbidden = ["hotel", "restaurant", "resort", "lodging", "stay", "check-in", "check out", "check in", "train", "flight", "bus", "cafe", "mall road", "freshen up", "breakfast", "lunch", "dinner", "accommodation", "local eatery", "shopping", "attraction", "airport", "railway", "station", "temple", "valley", "pass", "relax"];
+
+               if (forbidden.some(fw => lower === fw)) return false;
+               if (forbidden.some(fw => lower.startsWith(fw + " ") || lower.endsWith(" " + fw) || lower.includes("hotel / ") || lower.includes(" / hotel"))) return false;
+
+               if (tripData.source) {
+                   const srcLower = tripData.source.toLowerCase().trim();
+                   if (lower === srcLower) return false;
+                   if (srcLower.includes("mumbai") && (lower === "bandra" || lower === "andheri" || lower === "csmt" || lower === "mumbai")) return false;
+               }
+               return true;
+           };
+
            for (let dayIndex = 0; dayIndex < parsedData.days.length - 1; dayIndex++) {
                const day = parsedData.days[dayIndex];
                const nextDayMidnightMin = (dayIndex + 1) * 1440;
-               
+
                let locationForNight = lastKnownLocation;
                let isInTransit = false;
-               
+
                let dayLocations = [];
-               
+
                if (Array.isArray(day.plan)) {
                     for (const p of day.plan) {
                         const actLowerTrans = String(p.activity || p.name || "").toLowerCase();
-                        const isTrans = p.category === "transport" || p.trainNumber || p.flightNumber || 
-                                        actLowerTrans.includes("travel to") || actLowerTrans.includes("drive to") || 
-                                        actLowerTrans.includes("transfer to") || actLowerTrans.includes("flight to") || 
+                        const isTrans = p.category === "transport" || p.trainNumber || p.flightNumber ||
+                                        actLowerTrans.includes("travel to") || actLowerTrans.includes("drive to") ||
+                                        actLowerTrans.includes("transfer to") || actLowerTrans.includes("flight to") ||
                                         actLowerTrans.includes("train to") || actLowerTrans.includes("taxi to") ||
                                         actLowerTrans.includes("cab to");
                        if (isTrans) {
-                           if (p.to) dayLocations.push({ loc: p.to, weight: 10 });
+                           if (p.to && isCleanGeographicLocation(p.to)) dayLocations.push({ loc: p.to, weight: 10 });
                            const nameLower = (p.name || p.activity || "").toLowerCase();
                            const toMatch = nameLower.match(/to\s+([a-zA-Z]+)/);
-                           if (toMatch) dayLocations.push({ loc: toMatch[1].trim(), weight: 8 });
+                           if (toMatch && isCleanGeographicLocation(toMatch[1].trim())) dayLocations.push({ loc: toMatch[1].trim(), weight: 8 });
                            const arrMatch = nameLower.match(/arriv[a-z]*\s+(?:in|at)\s+([a-zA-Z]+)/);
-                           if (arrMatch) dayLocations.push({ loc: arrMatch[1].trim(), weight: 8 });
+                           if (arrMatch && isCleanGeographicLocation(arrMatch[1].trim())) dayLocations.push({ loc: arrMatch[1].trim(), weight: 8 });
                        }
-                       
+
                        const actLower = String(p.activity || p.name || "").toLowerCase();
                        const isAccom = actLower.includes("hotel") || actLower.includes("check-in") || actLower.includes("check in") || actLower.includes("resort");
-                       
+
                        let loc = p.place || p.location;
                        if (loc && (isTrans || isAccom || !lastKnownLocation)) {
                            loc = loc.split(",")[0].trim();
                            const locLower = loc.toLowerCase();
-                           if (!locLower.includes("train") && !locLower.includes("flight") && !locLower.includes("bus")) {
+                           if (!locLower.includes("train") && !locLower.includes("flight") && !locLower.includes("bus") && isCleanGeographicLocation(loc)) {
                                if (isTrans || isAccom) {
                                    dayLocations.push({ loc, weight: isTrans ? 8 : 5 });
                                } else if (tripData.destination && locLower === tripData.destination.toLowerCase()) {
@@ -323,7 +339,7 @@ Return ONLY this EXACT JSON structure, do NOT use markdown or backticks:
                                }
                            }
                        }
-                       
+
                        if (p._absStart !== undefined && p._absEnd !== undefined) {
                            if (p._absStart < nextDayMidnightMin && p._absEnd > nextDayMidnightMin && isTrans) {
                                isInTransit = true;
@@ -331,7 +347,7 @@ Return ONLY this EXACT JSON structure, do NOT use markdown or backticks:
                        }
                    }
                }
-               
+
                locationForNight = lastKnownLocation;
                if (dayLocations.length > 0) {
                    const scores = {};
@@ -341,7 +357,7 @@ Return ONLY this EXACT JSON structure, do NOT use markdown or backticks:
                        scores[norm].score += d.weight;
                    });
                    const best = Object.values(scores).sort((a, b) => b.score - a.score)[0];
-                   
+
                    // Only adopt a new location if it has strong evidence (>1) or we have no valid prior location.
                    // A single weight=1 hallucination won't override a valid lastKnownLocation unless we've completely moved on.
                    if (best.score > 1 || !lastKnownLocation) {
@@ -352,7 +368,7 @@ Return ONLY this EXACT JSON structure, do NOT use markdown or backticks:
                    }
                    lastKnownLocation = locationForNight;
                }
-               
+
                const nextDay = parsedData.days[dayIndex + 1];
                if (nextDay && Array.isArray(nextDay.plan)) {
                    for (const p of nextDay.plan) {
@@ -365,7 +381,7 @@ Return ONLY this EXACT JSON structure, do NOT use markdown or backticks:
                }
 
                if (isInTransit || !locationForNight) {
-                   currentStay = null; 
+                   currentStay = null;
                } else {
                    if (currentStay && currentStay.location.toLowerCase() === locationForNight.toLowerCase()) {
                        currentStay.nights += 1;
@@ -377,7 +393,7 @@ Return ONLY this EXACT JSON structure, do NOT use markdown or backticks:
                        dIn.setUTCDate(dIn.getUTCDate() + dayIndex);
                        const dOut = new Date(tripData.startDate + (tripData.startDate.includes('T') ? '' : 'T00:00:00Z'));
                        dOut.setUTCDate(dOut.getUTCDate() + dayIndex + 1);
-                       
+
                        currentStay = {
                            id: `stay-${derivedStays.length + 1}`,
                            location: locationForNight,
@@ -390,13 +406,13 @@ Return ONLY this EXACT JSON structure, do NOT use markdown or backticks:
                    }
                }
            }
-           
+
            if (derivedStays.length > 0) {
                parsedData.staySegments = derivedStays;
-               
+
                // --- STAY PLAN & ITINERARY SYNCHRONIZATION PASS ---
                const tripStart = new Date(tripData.startDate + (tripData.startDate.includes('T') ? '' : 'T00:00:00Z'));
-               
+
                // 1. Clean up hallucinated AI hotel activities
                parsedData.days.forEach(day => {
                    if (Array.isArray(day.plan)) {
@@ -416,12 +432,12 @@ Return ONLY this EXACT JSON structure, do NOT use markdown or backticks:
                derivedStays.forEach(stay => {
                    const checkInDate = new Date(stay.checkIn + "T00:00:00Z");
                    const checkOutDate = new Date(stay.checkOut + "T00:00:00Z");
-                   
+
                    if (dayInOffset >= 0 && dayInOffset < parsedData.days.length) {
                        const dayPlan = parsedData.days[dayInOffset].plan || [];
                         let checkInMin = 14 * 60; // Default 14:00
                         const lastTransport = dayPlan.filter(p => p.category === "transport" || p.trainNumber || p.flightNumber).pop();
-                        
+
                         let transportArrivalMin = null;
                         if (lastTransport && lastTransport._absEnd) {
                             transportArrivalMin = lastTransport._absEnd % 1440;
@@ -433,11 +449,11 @@ Return ONLY this EXACT JSON structure, do NOT use markdown or backticks:
                                 if (tMin !== null) transportArrivalMin = tMin;
                             }
                         }
-                        
+
                         if (transportArrivalMin !== null) {
                             checkInMin = Math.max(checkInMin, transportArrivalMin + 60);
                         }
-                       
+
                        dayPlan.push({
                            id: `sync-checkin-${stay.id}`,
                            time: `${minutesToTimeStr(checkInMin)} - ${minutesToTimeStr(checkInMin + 30)}`,
@@ -449,7 +465,7 @@ Return ONLY this EXACT JSON structure, do NOT use markdown or backticks:
                            duration: "30m",
                            stayId: stay.id
                        });
-                       
+
                        dayPlan.sort((a, b) => {
                            const aStart = timeToMinutes(a.startTime || (a.time ? String(a.time).split("-")[0] : null)) || 0;
                            const bStart = timeToMinutes(b.startTime || (b.time ? String(b.time).split("-")[0] : null)) || 0;
@@ -457,7 +473,7 @@ Return ONLY this EXACT JSON structure, do NOT use markdown or backticks:
                        });
                        parsedData.days[dayInOffset].plan = dayPlan;
                    }
-                   
+
                    if (dayOutOffset >= 0 && dayOutOffset < parsedData.days.length) {
                        const dayPlan = parsedData.days[dayOutOffset].plan || [];
                        let checkOutMin = 11 * 60; // Default 11:00
@@ -468,7 +484,7 @@ Return ONLY this EXACT JSON structure, do NOT use markdown or backticks:
                                checkOutMin = Math.min(checkOutMin, localDep - 90);
                            }
                        }
-                       
+
                        dayPlan.push({
                            id: `sync-checkout-${stay.id}`,
                            time: `${minutesToTimeStr(checkOutMin)} - ${minutesToTimeStr(checkOutMin + 30)}`,
@@ -480,7 +496,7 @@ Return ONLY this EXACT JSON structure, do NOT use markdown or backticks:
                            duration: "30m",
                            stayId: stay.id
                        });
-                       
+
                        dayPlan.sort((a, b) => {
                            const aStart = timeToMinutes(a.startTime || (a.time ? String(a.time).split("-")[0] : null)) || 0;
                            const bStart = timeToMinutes(b.startTime || (b.time ? String(b.time).split("-")[0] : null)) || 0;
@@ -490,8 +506,8 @@ Return ONLY this EXACT JSON structure, do NOT use markdown or backticks:
                    }
                });
 
-               // Pass 2: Re-run the deterministic scheduler. 
-               // This seamlessly weaves the injected hotel events into the chronological timeline 
+               // Pass 2: Re-run the deterministic scheduler.
+               // This seamlessly weaves the injected hotel events into the chronological timeline
                // and perfectly pushes all subsequent activities forward by 30 minutes, preventing any overlaps.
                buildDeterministicTimeline(parsedData);
            }
@@ -501,16 +517,16 @@ Return ONLY this EXACT JSON structure, do NOT use markdown or backticks:
       }
 
       const validationResult = validateItinerary(parsedData, tripData);
-      
+
       if (validationResult.valid) {
         parsedData.validation = validationResult;
         return parsedData;
       }
-      
+
       // If invalid, construct correction prompt
       console.log(`[Attempt ${attempt}] Validation failed. Correcting...`);
       const errorMessages = validationResult.errors.map(e => `- ${e.message}`).join("\n");
-      
+
       currentPrompt = basePrompt + `\n\nYOUR PREVIOUS ATTEMPT FAILED VALIDATION WITH THESE ERRORS:\n${errorMessages}\n\nPlease carefully correct these specific errors while preserving the user's dates, interests, and traveler count. Return the full corrected JSON.`;
     } catch (err) {
       console.log(`[Attempt ${attempt}] AI returned invalid JSON:`, text);

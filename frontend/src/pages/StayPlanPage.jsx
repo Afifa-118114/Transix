@@ -46,7 +46,7 @@ export default function StayPlanPage() {
     // Fetch hotels for each segment independently
     staySegments.forEach((segment) => {
       const segmentKey = segment.id || segment.location;
-      
+
       // Skip if already fetched or loading
       if (segmentData[segmentKey] || loadingMap[segmentKey] || segment.selectedHotel) {
         return;
@@ -139,10 +139,88 @@ export default function StayPlanPage() {
     return staySegments.reduce((acc, seg) => acc + (seg.nights || 0), 0);
   }, [staySegments]);
 
+  const [editingSegmentIdx, setEditingSegmentIdx] = useState(null);
+  const [editForm, setEditForm] = useState({ location: '', nights: 1 });
+
+  const recalculateDates = (segments) => {
+     let currentDate = new Date(trip.startDate + (trip.startDate.includes('T') ? '' : 'T00:00:00Z'));
+     segments.forEach(s => {
+       s.checkIn = currentDate.toISOString().split("T")[0];
+       currentDate.setUTCDate(currentDate.getUTCDate() + parseInt(s.nights, 10));
+       s.checkOut = currentDate.toISOString().split("T")[0];
+     });
+     return segments;
+  };
+
+  const saveSegmentsToTrip = (newSegments) => {
+     const updated = { ...trip, staySegments: recalculateDates(newSegments) };
+     setTrip(updated);
+     localStorage.setItem("currentTrip", JSON.stringify(updated));
+     localStorage.setItem("transix_builder_trip", JSON.stringify(updated));
+  };
+
+  const handleEditClick = (idx, segment) => {
+     setEditingSegmentIdx(idx);
+     setEditForm({ location: segment.location, nights: segment.nights });
+  };
+
+  const handleSaveEdit = (idx) => {
+     const newSegments = [...staySegments];
+     const locationChanged = newSegments[idx].location !== editForm.location;
+     newSegments[idx] = {
+         ...newSegments[idx],
+         location: editForm.location,
+         nights: parseInt(editForm.nights, 10) || 1,
+         manuallyEdited: true
+     };
+     if (locationChanged) {
+         newSegments[idx].selectedHotel = null; // Clear hotel selection when location changes
+     }
+     saveSegmentsToTrip(newSegments);
+     setEditingSegmentIdx(null);
+  };
+
+  const handleRemoveSegment = (idx) => {
+     if (window.confirm("Are you sure you want to remove this stay segment?")) {
+         const newSegments = [...staySegments];
+         newSegments.splice(idx, 1);
+         saveSegmentsToTrip(newSegments);
+     }
+  };
+
+  const handleMoveSegment = (idx, direction) => {
+     if (direction === "up" && idx > 0) {
+         const newSegments = [...staySegments];
+         const temp = newSegments[idx];
+         newSegments[idx] = newSegments[idx - 1];
+         newSegments[idx - 1] = temp;
+         saveSegmentsToTrip(newSegments);
+     } else if (direction === "down" && idx < staySegments.length - 1) {
+         const newSegments = [...staySegments];
+         const temp = newSegments[idx];
+         newSegments[idx] = newSegments[idx + 1];
+         newSegments[idx + 1] = temp;
+         saveSegmentsToTrip(newSegments);
+     }
+  };
+
+  const handleAddSegment = () => {
+     const newSegments = [...staySegments];
+     newSegments.push({
+         id: `stay-manual-${Date.now()}`,
+         location: "New Destination",
+         nights: 1,
+         manuallyEdited: true
+     });
+     saveSegmentsToTrip(newSegments);
+     setEditingSegmentIdx(newSegments.length - 1);
+     setEditForm({ location: "New Destination", nights: 1 });
+  };
+
   return (
     <DashboardLayout trip={trip} setTrip={setTrip}>
       <div className="flex flex-col gap-6 pb-12 max-w-5xl mx-auto mt-4">
-        
+
         {/* Page Header */}
         <div>
           <button
@@ -157,7 +235,7 @@ export default function StayPlanPage() {
           <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">
             Find the right stay for every stop in your journey.
           </p>
-          
+
           <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-bold text-indigo-700 dark:text-indigo-300">
             {staySegments.length > 0 && (
               <span className="rounded-md bg-indigo-50 dark:bg-indigo-900/30 px-2 py-1">
@@ -210,32 +288,64 @@ export default function StayPlanPage() {
               const hotels = segmentData[segmentKey] || [];
               const hasPricedHotels = hotels.some(h => h.nuitee?.livePriceAvailable);
               const pricedCount = hotels.filter(h => h.nuitee?.livePriceAvailable).length;
-              
+
               const { recommendations, metadata } = calculatePriceIntelligence(hotels, trip);
-              
+
               return (
                 <section key={segmentKey} id={`segment-${index}`} className="flex flex-col gap-4">
                   {/* Segment Header */}
                   <div className="flex flex-col sm:flex-row sm:items-end justify-between border-b-2 border-slate-200 dark:border-slate-800 pb-4">
-                    <div>
-                      <div className="text-[10px] font-black text-indigo-500 tracking-widest uppercase mb-1">0{index + 1}</div>
-                      <h2 className="text-2xl font-black text-slate-900 dark:text-white uppercase">{segment.location}</h2>
-                      
-                      <div className="mt-3 flex flex-wrap items-center gap-4 text-xs font-semibold text-slate-600 dark:text-slate-400">
-                        <div className="flex items-center gap-1.5">
-                          <FiCalendar className="text-indigo-500" />
-                          <span>Check-in: {formatDate(segment.checkIn)}</span>
+                    {editingSegmentIdx === index ? (
+                      <div className="w-full bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-indigo-200 dark:border-indigo-800/50">
+                        <div className="flex gap-4 mb-3">
+                           <div className="flex-1">
+                             <label className="text-xs font-bold text-slate-500 uppercase">Location</label>
+                             <input type="text" value={editForm.location} onChange={(e) => setEditForm({...editForm, location: e.target.value})} className="w-full mt-1 px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-bold" />
+                           </div>
+                           <div className="w-24">
+                             <label className="text-xs font-bold text-slate-500 uppercase">Nights</label>
+                             <input type="number" min="1" value={editForm.nights} onChange={(e) => setEditForm({...editForm, nights: e.target.value})} className="w-full mt-1 px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-bold" />
+                           </div>
                         </div>
-                        <div className="flex items-center gap-1.5">
-                          <FiCalendar className="text-indigo-500" />
-                          <span>Check-out: {formatDate(segment.checkOut)}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <FiMoon className="text-indigo-500" />
-                          <span>{segment.nights} night{segment.nights !== 1 ? 's' : ''}</span>
+                        <div className="flex gap-2">
+                           <button onClick={() => handleSaveEdit(index)} className="px-4 py-1.5 bg-indigo-600 text-white text-xs font-bold rounded-lg hover:bg-indigo-700">Save</button>
+                           <button onClick={() => setEditingSegmentIdx(null)} className="px-4 py-1.5 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold rounded-lg hover:bg-slate-300 dark:hover:bg-slate-600">Cancel</button>
                         </div>
                       </div>
-                    </div>
+                    ) : (
+                      <div className="flex-1 flex justify-between w-full">
+                        <div>
+                          <div className="text-[10px] font-black text-indigo-500 tracking-widest uppercase mb-1 flex gap-2 items-center">
+                            <span>0{index + 1}</span>
+                            {segment.manuallyEdited && <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-600 rounded text-[8px]">Edited</span>}
+                          </div>
+                          <h2 className="text-2xl font-black text-slate-900 dark:text-white uppercase">{segment.location}</h2>
+
+                          <div className="mt-3 flex flex-wrap items-center gap-4 text-xs font-semibold text-slate-600 dark:text-slate-400">
+                            <div className="flex items-center gap-1.5">
+                              <FiCalendar className="text-indigo-500" />
+                              <span>Check-in: {formatDate(segment.checkIn)}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <FiCalendar className="text-indigo-500" />
+                              <span>Check-out: {formatDate(segment.checkOut)}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <FiMoon className="text-indigo-500" />
+                              <span>{segment.nights} night{segment.nights !== 1 ? 's' : ''}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex flex-col gap-2 items-end justify-start">
+                          <div className="flex gap-1 mb-1">
+                            <button onClick={() => handleMoveSegment(index, 'up')} disabled={index === 0} className="px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded disabled:opacity-30 text-xs font-bold">↑</button>
+                            <button onClick={() => handleMoveSegment(index, 'down')} disabled={index === staySegments.length - 1} className="px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded disabled:opacity-30 text-xs font-bold">↓</button>
+                          </div>
+                          <button onClick={() => handleEditClick(index, segment)} className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline">Edit</button>
+                          <button onClick={() => handleRemoveSegment(index)} className="text-xs font-bold text-rose-600 dark:text-rose-400 hover:underline">Remove</button>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Selected Hotel for this Segment */}
@@ -290,13 +400,13 @@ export default function StayPlanPage() {
                                 }
                                 return null;
                               })()}
-                              <button 
+                              <button
                                 onClick={() => handleViewHotel(segment, [segment.selectedHotel], 0)}
                                 className="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition whitespace-nowrap"
                               >
                                 View Details
                               </button>
-                              <button 
+                              <button
                                 onClick={() => {
                                   // Clear selection to change hotel
                                   const newSegments = [...staySegments];
@@ -338,8 +448,8 @@ export default function StayPlanPage() {
                                 <span className="text-indigo-600 dark:text-indigo-400">✦</span> Price Intelligence
                               </h3>
                               <p className="mt-1 text-xs font-medium text-slate-500">
-                                {pricedCount > 0 
-                                  ? `Based on ${pricedCount} hotels with verified live prices.` 
+                                {pricedCount > 0
+                                  ? `Based on ${pricedCount} hotels with verified live prices.`
                                   : "Hotels found, but live rates are currently unavailable."}
                               </p>
                             </div>
@@ -373,7 +483,7 @@ export default function StayPlanPage() {
                                     )}
                                   </div>
                                 </div>
-                                
+
                                 <div className="mb-3">
                                   {rec.nuitee?.livePriceAvailable ? (
                                     <>
@@ -384,7 +494,7 @@ export default function StayPlanPage() {
                                     <div className="text-xs font-bold text-slate-500">Live price unavailable</div>
                                   )}
                                 </div>
-                                
+
                                 {rec.reasons && rec.reasons.length > 0 && (
                                   <div className="mb-3">
                                     {rec.reasons.map((r, idx) => (
@@ -423,7 +533,7 @@ export default function StayPlanPage() {
                           </div>
 
                           <div className="text-center border-t border-slate-100 dark:border-slate-800 pt-5 mt-2">
-                            <button 
+                            <button
                               onClick={() => handleExploreHotels(segment, hotels)}
                               className="px-6 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition"
                             >
@@ -440,13 +550,23 @@ export default function StayPlanPage() {
           )}
         </div>
 
+        {/* Add Segment Button */}
+        <div className="flex justify-center mt-2">
+          <button
+            onClick={handleAddSegment}
+            className="flex items-center gap-2 px-6 py-3 rounded-xl border-2 border-dashed border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-900/20 text-sm font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition"
+          >
+            <span>+ Add Stay Segment</span>
+          </button>
+        </div>
+
         {/* Overall Accommodation Summary */}
         {staySegments.length > 0 && (
           <section className="mt-6 rounded-2xl border border-indigo-100 dark:border-indigo-900/50 bg-white dark:bg-[#131b2e] shadow-md p-6">
             <h2 className="text-lg font-black tracking-tight text-slate-900 dark:text-white uppercase mb-4">
               Accommodation Summary
             </h2>
-            
+
             <div className="flex flex-col md:flex-row gap-8">
               <div className="flex-1 space-y-3">
                 {accommodationSummary.items.map((item, i) => (
@@ -461,7 +581,7 @@ export default function StayPlanPage() {
                     </div>
                   </div>
                 ))}
-                
+
                 <div className="border-t border-slate-200 dark:border-slate-800 pt-3 mt-4 flex justify-between items-end">
                   <div className="text-base font-black text-slate-900 dark:text-white">Total</div>
                   <div className="text-xl font-black text-indigo-600 dark:text-indigo-400">
@@ -476,7 +596,7 @@ export default function StayPlanPage() {
                   </div>
                 </div>
               </div>
-              
+
               <div className="w-full md:w-64 shrink-0 rounded-xl bg-slate-50 dark:bg-slate-800/50 p-4 border border-slate-100 dark:border-slate-800 flex flex-col justify-center">
                 <div className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-500">Trip Budget Impact</div>
                 <div className="flex justify-between items-baseline mb-1">
@@ -487,7 +607,7 @@ export default function StayPlanPage() {
                   <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Selected Stays</span>
                   <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">₹{accommodationSummary.totalSelectedPrice.toLocaleString()}</span>
                 </div>
-                
+
                 {(budgetStats?.totalBudget && accommodationSummary.totalSelectedPrice > budgetStats.totalBudget) ? (
                   <div className="mt-2 p-2 rounded bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/40 text-[10px] font-bold text-red-700 dark:text-red-400 flex items-center gap-1.5">
                     <FiInfo className="shrink-0" />
