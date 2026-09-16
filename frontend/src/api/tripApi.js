@@ -78,6 +78,20 @@ export const regenerateDay = async (tripId, day, token) => {
   return res.data;
 };
 
+export const syncItinerary = async (tripId, newStaySegments, token) => {
+  const res = await axios.post(
+    `${API}/trips/${tripId}/sync-itinerary`,
+    { newStaySegments },
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    },
+  );
+
+  return res.data;
+};
+
 export const suggestSmartShift = async (tripId, itemId, token) => {
   const res = await axios.post(
     `${API}/trips/${tripId}/smartshift/suggest`,

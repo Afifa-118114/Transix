@@ -800,6 +800,40 @@ export function TripBuilderProvider({ children }) {
     toast.success(`Reset Itinerary for ${trip?.destination || "Trip"}`, { icon: "🔄" });
   };
 
+  // Select Hotel for a Stay Segment
+  const selectHotelForSegment = useCallback((segmentId, hotelData) => {
+    setTrip((prevTrip) => {
+      if (!prevTrip || !prevTrip.staySegments) return prevTrip;
+      
+      const newSegments = [...prevTrip.staySegments];
+      // Match by id or location
+      const idx = newSegments.findIndex(s => (s.id === segmentId) || (s.location === segmentId));
+      if (idx !== -1) {
+         let updatedHotel = { ...hotelData };
+         
+         // Generate price fallback if needed
+         if (updatedHotel.price && updatedHotel.price > 0) {
+             // Already has real price
+             updatedHotel.isEstimatedPrice = false;
+         } else if (updatedHotel.nuitee && updatedHotel.nuitee.totalPrice) {
+             updatedHotel.price = updatedHotel.nuitee.totalPrice;
+             updatedHotel.isEstimatedPrice = false;
+         } else {
+             // Deterministic fallback based on hotel name length + location
+             const nameStr = updatedHotel.name || "";
+             const locStr = newSegments[idx].location || "";
+             const seed = (nameStr + locStr).length || 10;
+             const basePricePerNight = 3500 + (seed % 10) * 500;
+             updatedHotel.price = basePricePerNight * parseInt(newSegments[idx].nights || 1, 10);
+             updatedHotel.isEstimatedPrice = true;
+         }
+         
+         newSegments[idx] = { ...newSegments[idx], selectedHotel: updatedHotel };
+      }
+      return { ...prevTrip, staySegments: newSegments };
+    });
+  }, [setTrip]);
+
   // Map Modal State
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
   const openMapModal = useCallback(() => setIsMapModalOpen(true), []);
@@ -846,6 +880,7 @@ export function TripBuilderProvider({ children }) {
         saveItinerary,
         resetToSample,
         initializeTrip,
+        selectHotelForSegment,
       }}
     >
       {children}

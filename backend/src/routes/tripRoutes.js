@@ -15,6 +15,7 @@ const {
   smartshiftApply,
   getTripBookings,
   updateOperatorAccess,
+  syncItinerary,
 } = require("../controllers/tripController");
 
 router.post("/generate", authMiddleware, validate(tripSchema), generateTrip);
@@ -30,6 +31,8 @@ router.patch("/:id/operator-access", authMiddleware, updateOperatorAccess);
 router.delete("/:id", authMiddleware, deleteTrip);
 
 router.post("/:id/regenerate-day", authMiddleware, regenerateDay);
+
+router.post("/:id/sync-itinerary", authMiddleware, syncItinerary);
 
 router.post("/:id/smartshift/suggest", authMiddleware, smartshiftSuggest);
 

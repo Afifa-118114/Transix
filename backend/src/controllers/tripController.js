@@ -275,6 +275,30 @@ const regenerateDay = asyncHandler(async (req, res) => {
   });
 });
 
+const syncItinerary = asyncHandler(async (req, res) => {
+  const { newStaySegments } = req.body;
+  if (!newStaySegments || !Array.isArray(newStaySegments)) {
+    return res.status(400).json({ success: false, message: "newStaySegments is required and must be an array" });
+  }
+
+  const trip = await Trip.findOne({
+    _id: req.params.id,
+    user: req.user.id,
+  });
+
+  if (!trip) {
+    return res.status(404).json({ success: false, message: "Trip not found" });
+  }
+
+  const { syncItineraryWithStayPlan } = require("../services/aiService");
+  const updatedTrip = await syncItineraryWithStayPlan(trip, newStaySegments);
+
+  res.json({
+    success: true,
+    trip: updatedTrip,
+  });
+});
+
 const smartshiftSuggest = asyncHandler(async (req, res) => {
   const { itemId } = req.body;
   if (!itemId) {
@@ -385,4 +409,5 @@ module.exports = {
   smartshiftApply,
   getTripBookings,
   updateOperatorAccess,
+  syncItinerary,
 };

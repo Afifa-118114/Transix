@@ -1,5 +1,6 @@
 import { Link, useSearchParams } from "react-router-dom";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { getTripDetails } from "../api/tripApi";
 import { FiCompass, FiPlus } from "react-icons/fi";
 import DashboardLayout from "../layouts/DashboardLayout";
 import { useTripBuilder } from "../context/TripBuilderContext";
@@ -12,6 +13,31 @@ import ConflictResolutionModal from "../components/builder/ConflictResolutionMod
 export default function TourBuilder() {
   const { trip, setTrip, initializeTrip, pendingAlternatives, setPendingAlternatives, applyAlternative } = useTripBuilder();
   const [searchParams] = useSearchParams();
+  const [isInitializing, setIsInitializing] = useState(false);
+
+  // Fetch the latest persisted trip when Builder opens
+  useEffect(() => {
+    let isMounted = true;
+    const fetchLatestTrip = async () => {
+      if (trip && trip._id) {
+        setIsInitializing(true);
+        try {
+          const token = localStorage.getItem("token");
+          if (token) {
+            const res = await getTripDetails(trip._id, token);
+            if (res.success && res.trip && isMounted) {
+              setTrip(res.trip);
+            }
+          }
+        } catch (e) {
+          console.error("Failed to load latest trip for builder", e);
+        } finally {
+          if (isMounted) setIsInitializing(false);
+        }
+      }
+    };
+    fetchLatestTrip();
+  }, []); // Run only once on mount
 
   // If URL has source/destination params but no trip is currently in context
   useEffect(() => {
@@ -22,7 +48,7 @@ export default function TourBuilder() {
     }
   }, [searchParams, trip, initializeTrip]);
 
-  if (!trip) {
+  if (!trip && !isInitializing) {
     return (
       <DashboardLayout trip={null} setTrip={setTrip}>
         <div className="flex min-h-[60vh] flex-col items-center justify-center rounded-2xl border border-slate-200/80 bg-white p-8 text-center shadow-xs">

@@ -310,9 +310,27 @@ const validateItinerary = (itinerary, tripInput) => {
     });
     
     if (tripStart && tripEnd) {
-      const expectedTotalNights = Math.round((tripEnd.getTime() - tripStart.getTime()) / (1000 * 60 * 60 * 24));
+      let transitNights = 0;
+      if (Array.isArray(itinerary.days)) {
+        itinerary.days.forEach(day => {
+          if (Array.isArray(day.plan)) {
+            day.plan.forEach(item => {
+              const cat = String(item.category || "").toLowerCase();
+              if (cat.includes("transport") || item.trainNumber || item.flightNumber) {
+                 const tStart = timeToMinutes(item.startTime || (item.time ? String(item.time).split("-")[0] : null));
+                 const tEnd = timeToMinutes(item.endTime || (item.time ? String(item.time).split("-")[1] : null));
+                 // An overnight transport crosses midnight
+                 if (tStart !== null && tEnd !== null && tEnd < tStart) {
+                     transitNights++;
+                 }
+              }
+            });
+          }
+        });
+      }
+      const expectedTotalNights = Math.round((tripEnd.getTime() - tripStart.getTime()) / (1000 * 60 * 60 * 24)) - transitNights;
       if (totalNights !== expectedTotalNights) {
-        addError("STAY_TOTAL_NIGHTS_MISMATCH", null, `Total stay nights (${totalNights}) do not equal expected trip nights (${expectedTotalNights}).`);
+        addError("STAY_TOTAL_NIGHTS_MISMATCH", null, `Total stay nights (${totalNights}) do not equal expected trip nights (${expectedTotalNights}) after accounting for ${transitNights} transit nights.`);
       }
     }
   } else {
