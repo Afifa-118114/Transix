@@ -681,6 +681,7 @@ export function TripBuilderProvider({ children }) {
     let totalActivities = 0;
     let conflictsCount = 0;
     const conflicts = [];
+    const warnings = [];
     let totalTravelMinutes = 0;
 
     if (trip?.itinerary) {
@@ -716,29 +717,6 @@ export function TripBuilderProvider({ children }) {
             });
           }
 
-          // Rule 2: Overlap with previous item
-          if (startMin !== null && prevEndMinutes !== null && startMin < prevEndMinutes) {
-            conflictsCount++;
-            conflicts.push({
-              day: dIdx + 1,
-              itemId: item.id,
-              itemTitle: item.name || item.activity,
-              type: "overlap",
-              message: `Schedule overlap on Day ${dIdx + 1}: "${item.name || item.activity}" starts at ${item.startTime} before "${prevItemTitle}" ends (${minutesToTimeStr(prevEndMinutes)}).`,
-            });
-          }
-
-          // Rule 3: Insufficient Travel Buffer check
-          if (startMin !== null && prevEndMinutes !== null && startMin >= prevEndMinutes && startMin - prevEndMinutes < 15) {
-            conflicts.push({
-              day: dIdx + 1,
-              itemId: item.id,
-              itemTitle: item.name || item.activity,
-              type: "buffer_warning",
-              message: `Tight transition (${startMin - prevEndMinutes}m buffer) between "${prevItemTitle}" and "${item.name || item.activity}".`,
-            });
-          }
-
           if (endMin !== null) {
             prevEndMinutes = endMin;
             prevItemTitle = item.name || item.activity;
@@ -747,8 +725,7 @@ export function TripBuilderProvider({ children }) {
 
         // Day overpacking check (>14 hours)
         if (dayDurationSum > 840) {
-          conflictsCount++;
-          conflicts.push({
+          warnings.push({
             day: dIdx + 1,
             type: "overpacked",
             message: `Day ${dIdx + 1} schedule is tightly packed (${Math.round(dayDurationSum / 60)} hrs total).`,
@@ -776,6 +753,7 @@ export function TripBuilderProvider({ children }) {
       totalActivities,
       conflictsCount,
       conflicts,
+      warnings,
       totalTravelMinutes,
       formattedTravelTime,
       isFeasible,

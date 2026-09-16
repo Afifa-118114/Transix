@@ -213,12 +213,14 @@ export default function TripSummaryPanel() {
 
           {/* Schedule Status & Conflicts List */}
           <div className="mt-2">
-            {validationStats.isFeasible ? (
+            {validationStats.isFeasible && validationStats.warnings?.length === 0 ? (
               <div className="flex items-center gap-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 p-1.5 text-[11px] font-semibold text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-700/50">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                 <span>🟢 All days feasible with proper buffers</span>
               </div>
-            ) : (
+            ) : null}
+
+            {validationStats.conflictsCount > 0 && (
               <div className="space-y-1 rounded-lg bg-amber-50 dark:bg-amber-950/30 p-2 text-xs text-amber-900 dark:text-amber-300 border border-amber-200 dark:border-amber-700/50">
                 <div className="flex items-center gap-1 font-bold text-amber-800 dark:text-amber-300">
                   <FiAlertTriangle className="text-amber-600 dark:text-amber-400 text-xs" />
@@ -227,6 +229,20 @@ export default function TripSummaryPanel() {
                 {validationStats.conflicts.slice(0, 2).map((c, idx) => (
                   <p key={idx} className="text-[10px] text-amber-700 dark:text-amber-400">
                     • {c.message}
+                  </p>
+                ))}
+              </div>
+            )}
+
+            {validationStats.warnings?.length > 0 && (
+              <div className="space-y-1 rounded-lg bg-amber-50 dark:bg-amber-950/30 p-2 text-xs text-amber-900 dark:text-amber-300 border border-amber-200 dark:border-amber-700/50 mt-2">
+                <div className="flex items-center gap-1 font-bold text-amber-800 dark:text-amber-300">
+                  <FiAlertTriangle className="text-amber-600 dark:text-amber-400 text-xs" />
+                  <span>{validationStats.warnings.length} Warning(s)</span>
+                </div>
+                {validationStats.warnings.slice(0, 2).map((w, idx) => (
+                  <p key={idx} className="text-[10px] text-amber-700 dark:text-amber-400">
+                    • {w.message}
                   </p>
                 ))}
               </div>

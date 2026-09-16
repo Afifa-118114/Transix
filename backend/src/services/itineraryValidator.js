@@ -111,84 +111,7 @@ const getActivityLogicalWindow = (item) => {
   return { start: 6 * 60, end: 23 * 60 + 59 };
 };
 
-const getDayConstraints = (trip, dayNum) => {
-  const constraints = [];
-  const currentDate = getDateForDay(trip, dayNum);
-  if (!currentDate) return constraints;
-
-  const baseOffset = (dayNum - 1) * 1440;
-
-  (trip.travelLegs || []).forEach(leg => {
-    if (leg.date === currentDate.toISOString().split("T")[0] || !leg.date) {
-      const startMin = timeToMinutes(leg.startTime);
-      const endMin = timeToMinutes(leg.endTime);
-      
-      if (startMin !== null && endMin !== null) {
-        let absStart = baseOffset + startMin;
-        let absEnd = baseOffset + endMin;
-        if (absEnd < absStart) absEnd += 1440;
-
-        constraints.push({ startMin: Math.max(baseOffset, absStart - BUFFERS.PRE_DEPARTURE), endMin: absStart, type: "buffer", reason: `pre-departure buffer for travel to ${leg.to}` });
-        constraints.push({ startMin: absStart, endMin: absEnd, type: "travel", reason: `fixed travel departure to ${leg.to}` });
-        constraints.push({ startMin: absEnd, endMin: absEnd + BUFFERS.POST_ARRIVAL, type: "buffer", reason: `post-arrival buffer at ${leg.to}` });
-      }
-    }
-  });
-
-  const activeStays = getStaySegmentsForDate(trip, currentDate);
-  activeStays.forEach(activeStay => {
-    if (activeStay && activeStay.selectedHotel) {
-      const checkInDate = parseDate(activeStay.checkIn);
-      const checkOutDate = parseDate(activeStay.checkOut);
-      const hotelName = activeStay.selectedHotel.name || activeStay.location;
-
-      if (checkInDate && checkInDate.getTime() === currentDate.getTime()) {
-        const arrivalLeg = (trip.travelLegs || []).find(leg => leg.to === activeStay.location && (leg.date === currentDate.toISOString().split("T")[0] || !leg.date));
-        let arrivalMin = null;
-        if (arrivalLeg) arrivalMin = timeToMinutes(arrivalLeg.endTime);
-        const defaultCheckInMin = timeToMinutes(activeStay.selectedHotel.checkInTime || "14:00");
-        const actualCheckInStart = arrivalMin !== null ? Math.max(arrivalMin, defaultCheckInMin) : defaultCheckInMin;
-        
-        let absCheckIn = baseOffset + actualCheckInStart;
-        constraints.push({ startMin: absCheckIn, endMin: absCheckIn + BUFFERS.HOTEL_CHECK_IN, type: "hotel_checkin", reason: `hotel check-in at ${hotelName}` });
-      }
-
-      if (checkOutDate && checkOutDate.getTime() === currentDate.getTime()) {
-         const checkoutMin = timeToMinutes(activeStay.selectedHotel.checkOutTime || "11:00");
-         let absCheckOut = baseOffset + checkoutMin;
-         constraints.push({ startMin: Math.max(baseOffset, absCheckOut - 30), endMin: absCheckOut, type: "hotel_checkout", reason: `hotel check-out from ${hotelName}` });
-      }
-    }
-  });
-
-  return constraints;
-};
-
-const mergeConstraints = (constraints) => {
-  if (constraints.length === 0) return [];
-  const sorted = [...constraints].sort((a, b) => a.startMin - b.startMin);
-  const merged = [ { ...sorted[0], originalReasons: [sorted[0].reason], itemIds: sorted[0].itemId ? [sorted[0].itemId] : [] } ];
-
-  for (let i = 1; i < sorted.length; i++) {
-    const curr = sorted[i];
-    const prev = merged[merged.length - 1];
-
-    if (curr.startMin <= prev.endMin) {
-      prev.endMin = Math.max(prev.endMin, curr.endMin);
-      if (!prev.originalReasons.includes(curr.reason)) prev.originalReasons.push(curr.reason);
-      if (curr.itemId && !prev.itemIds.includes(curr.itemId)) prev.itemIds.push(curr.itemId);
-    } else {
-      merged.push({ ...curr, originalReasons: [curr.reason], itemIds: curr.itemId ? [curr.itemId] : [] });
-    }
-  }
-
-  merged.forEach(m => {
-     const meaningful = m.originalReasons.filter(r => !r.includes("buffer"));
-     m.reason = meaningful.length > 0 ? meaningful.join(" and ") : m.originalReasons.join(" and ");
-  });
-
-  return merged;
-};
+// Removed getDayConstraints and mergeConstraints because aiService handles them chronologically
 
 const detectConflicts = (trip) => {
   const conflicts = [];
@@ -205,28 +128,6 @@ const detectConflicts = (trip) => {
   days.forEach((day, dIdx) => {
     const dayNum = day.day || dIdx + 1;
     const currentDate = getDateForDay(trip, dayNum);
-    
-    const constraints = getDayConstraints(trip, dayNum);
-    (day.plan || []).forEach((item) => {
-      if (isImmutableTransport(item) && !isDuplicateTransport(item, trip, currentDate)) {
-        let tStart = timeToMinutes(item.startTime);
-        let tEnd = timeToMinutes(item.endTime);
-        if (tStart !== null && tEnd !== null) {
-          let baseOffset = (dayNum - 1) * 1440;
-          let absStart = baseOffset + tStart;
-          if (absStart < prevAbsoluteEnd && (prevAbsoluteEnd - absStart) < 720) {
-              absStart += 1440;
-              baseOffset += 1440;
-          }
-          let absEnd = baseOffset + tEnd;
-          if (absEnd < absStart) absEnd += 1440;
-          
-          constraints.push({ startMin: absStart, endMin: absEnd, type: "mandatory_activity", reason: `fixed transport (${item.name || item.activity})`, itemId: item.id });
-        }
-      }
-    });
-
-    const mergedConstraints = mergeConstraints(constraints);
     
     let currentDayBaseOffset = (dayNum - 1) * 1440;
     
@@ -274,21 +175,6 @@ const detectConflicts = (trip) => {
              reason: `Activity type is not suitable for this time window.`,
              affectedDay: dayNum
            });
-        }
-
-        for (const block of mergedConstraints) {
-          if (block.itemIds && block.itemIds.includes(item.id)) continue;
-          if (absStart < block.endMin && absEnd > block.startMin) {
-            conflicts.push({
-              type: "HARD_CONSTRAINT_VIOLATION",
-              severity: "high",
-              itemId: item.id,
-              itemTitle: item.name || item.activity,
-              conflictingItemId: block.itemIds && block.itemIds.length > 0 ? block.itemIds[0] : null,
-              reason: `Conflicts with ${block.reason}`,
-              affectedDay: dayNum
-            });
-          }
         }
 
         if (prevAbsoluteEnd !== 0 && absStart < prevAbsoluteEnd) {

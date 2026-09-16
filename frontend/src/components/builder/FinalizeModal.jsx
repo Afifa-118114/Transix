@@ -216,6 +216,20 @@ export default function FinalizeModal() {
               ))}
             </div>
 
+            {validationStats.warnings?.length > 0 && (
+              <div className="mt-3 space-y-1 rounded-xl bg-amber-50 dark:bg-amber-950/30 p-2.5 text-xs text-amber-900 dark:text-amber-300 border border-amber-200 dark:border-amber-700/50">
+                <div className="flex items-center gap-1.5 font-bold text-amber-800 dark:text-amber-300">
+                  <FiAlertTriangle className="text-amber-600 dark:text-amber-400 text-sm" />
+                  <span>{validationStats.warnings.length} Warning(s)</span>
+                </div>
+                {validationStats.warnings.map((w, idx) => (
+                  <p key={idx} className="text-[11px] text-amber-700 dark:text-amber-400 ml-5">
+                    • {w.message}
+                  </p>
+                ))}
+              </div>
+            )}
+
             {/* Trip Stats Pill */}
             <div className="mt-4 flex items-center justify-between rounded-xl bg-slate-50 dark:bg-slate-800/60 p-3 border border-slate-200 dark:border-slate-700/60 text-xs font-semibold text-slate-700 dark:text-slate-300">
               <span>Total Estimated Cost:</span>
