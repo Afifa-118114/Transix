@@ -215,7 +215,7 @@ exports.finalizeCampusTrip = async (req, res) => {
   }
 };
 
-// 5. Update Registration Config (Open/Close, Config)
+// 5. Update Registration Config (Open/Close, Config, Payment Plan, Form Fields)
 exports.updateRegistrationConfig = async (req, res) => {
   try {
     const { id } = req.params;
@@ -224,14 +224,94 @@ exports.updateRegistrationConfig = async (req, res) => {
     const trip = await Trip.findOne({ _id: id, coordinatorId: req.user.id, tripCategory: "CAMPUS" });
     if (!trip) return res.status(404).json({ success: false, message: "Trip not found or unauthorized" });
 
-    trip.registrationSettings = { openDate, closeDate, capacity, totalFee, confirmationFee, eligibility, requiredInfo, formFields };
-    if (documentsConfig) trip.documentsConfig = documentsConfig;
-    if (paymentPlanConfig) trip.paymentPlanConfig = paymentPlanConfig;
+    const parsedTotalFee = Number(totalFee) >= 0 ? Number(totalFee) : (trip.registrationSettings?.totalFee || 0);
+    const parsedConfirmationFee = Number(confirmationFee) >= 0 ? Number(confirmationFee) : (trip.registrationSettings?.confirmationFee || 0);
+
+    if (parsedConfirmationFee > parsedTotalFee) {
+      return res.status(400).json({
+        success: false,
+        message: "Confirmation fee cannot exceed the total trip fee per student."
+      });
+    }
+
+    // Validate Payment Plan if supplied
+    if (paymentPlanConfig && Array.isArray(paymentPlanConfig)) {
+      if (paymentPlanConfig.length !== 3) {
+        return res.status(400).json({
+          success: false,
+          message: "Payment plan must configure exactly three installments (1st Installment, 2nd Installment, Final Installment)."
+        });
+      }
+
+      const installmentNames = ["1st Installment", "2nd Installment", "Final Installment"];
+      for (let i = 0; i < paymentPlanConfig.length; i++) {
+        const inst = paymentPlanConfig[i];
+        if (!inst.name || !installmentNames.includes(inst.name)) {
+          inst.name = installmentNames[i];
+        }
+        const instAmount = Number(inst.amount);
+        if (isNaN(instAmount) || instAmount < 0) {
+          return res.status(400).json({
+            success: false,
+            message: `Invalid amount for ${inst.name}.`
+          });
+        }
+      }
+
+      const sumInstallments = paymentPlanConfig.reduce((sum, inst) => sum + (Number(inst.amount) || 0), 0);
+      const totalAllocated = parsedConfirmationFee + sumInstallments;
+
+      if (totalAllocated !== parsedTotalFee) {
+        const diff = parsedTotalFee - totalAllocated;
+        return res.status(400).json({
+          success: false,
+          message: diff > 0 
+            ? `Payment plan does not match total trip fee. Remaining amount to allocate: ₹${diff.toLocaleString()}`
+            : `Payment plan exceeds total trip fee by ₹${Math.abs(diff).toLocaleString()}`
+        });
+      }
+
+      trip.paymentPlanConfig = paymentPlanConfig.map(inst => ({
+        name: inst.name,
+        amount: Number(inst.amount),
+        dueDate: inst.dueDate ? new Date(inst.dueDate) : null
+      }));
+    }
+
+    // Validate Form Fields if supplied
+    if (formFields && Array.isArray(formFields)) {
+      const seenNames = new Set();
+      for (const field of formFields) {
+        if (!field.label || !field.label.trim()) {
+          return res.status(400).json({ success: false, message: "Field label cannot be empty." });
+        }
+        const fieldName = (field.name || field.label.toLowerCase().replace(/[^a-z0-9_]/g, '_')).trim();
+        if (seenNames.has(fieldName)) {
+          return res.status(400).json({ success: false, message: `Duplicate field identifier '${fieldName}' found.` });
+        }
+        seenNames.add(fieldName);
+        field.name = fieldName;
+        if (field.type === 'select' && (!field.options || field.options.length === 0 || field.options.every(o => !o || !o.trim()))) {
+          return res.status(400).json({ success: false, message: `Dropdown field '${field.label}' must have at least one option.` });
+        }
+      }
+      trip.registrationSettings.formFields = formFields;
+    }
+
+    trip.registrationSettings.openDate = openDate ? new Date(openDate) : trip.registrationSettings?.openDate;
+    trip.registrationSettings.closeDate = closeDate ? new Date(closeDate) : trip.registrationSettings?.closeDate;
+    trip.registrationSettings.capacity = capacity !== undefined ? Number(capacity) : trip.registrationSettings?.capacity;
+    trip.registrationSettings.totalFee = parsedTotalFee;
+    trip.registrationSettings.confirmationFee = parsedConfirmationFee;
+    if (eligibility !== undefined) trip.registrationSettings.eligibility = eligibility;
+    if (requiredInfo !== undefined) trip.registrationSettings.requiredInfo = requiredInfo;
+    if (documentsConfig && Array.isArray(documentsConfig)) trip.documentsConfig = documentsConfig;
 
     await trip.save();
-    res.status(200).json({ success: true, trip, message: "Configuration updated" });
+    res.status(200).json({ success: true, trip, message: "Configuration updated successfully." });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Failed to update configuration" });
+    console.error("updateRegistrationConfig error:", error);
+    res.status(500).json({ success: false, message: error.message || "Failed to update configuration" });
   }
 };
 

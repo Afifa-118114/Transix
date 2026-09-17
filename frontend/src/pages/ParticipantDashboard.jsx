@@ -369,13 +369,8 @@ export default function ParticipantDashboard() {
     { name: 'medicalInfo', label: 'Medical / Other Important Information', type: 'textarea', required: false }
   ];
   
-  const customFields = trip.registrationSettings?.formFields || [];
-  
-  // Merge defaults with custom. If a custom field overrides a default (by name), use custom.
-  const mergedFieldsMap = new Map();
-  defaultFields.forEach(f => mergedFieldsMap.set(f.name, f));
-  customFields.forEach(f => mergedFieldsMap.set(f.name, f));
-  const formFields = Array.from(mergedFieldsMap.values());
+  const customFields = trip.registrationSettings?.formFields;
+  const formFields = (customFields && customFields.length > 0) ? customFields : defaultFields;
 
   const defaultDocs = [
     { documentType: 'Aadhaar Card', required: true, instruction: 'Upload a clear scan of your Aadhaar Card (PDF/JPG/PNG)' },
@@ -389,15 +384,43 @@ export default function ParticipantDashboard() {
   customDocs.forEach(d => mergedDocsMap.set(d.documentType, { ...mergedDocsMap.get(d.documentType), ...d }));
   const requiredDocs = Array.from(mergedDocsMap.values());
   
-  const totalPaid = registration?.payments?.filter(p => p.status === 'PAID').reduce((sum, p) => sum + p.amount, 0) || 0;
+  const isConfirmationPaid = registration?.confirmationPayment?.status === "PAID" || 
+    registration?.payments?.some(p => (p.name === "Confirmation Fee" || p.installmentId === "CONFIRMATION") && p.status === "PAID");
+
+  const totalPaid = (registration?.payments?.filter(p => p.status === 'PAID').reduce((sum, p) => sum + p.amount, 0) || 0) +
+    (isConfirmationPaid && !registration?.payments?.some(p => (p.name === "Confirmation Fee" || p.installmentId === "CONFIRMATION") && p.status === "PAID") ? (registration?.confirmationPayment?.amount || trip.registrationSettings?.confirmationFee || 0) : 0);
+
   const isFullyCompleted = registration?.status === "COMPLETED";
   const coordinatorStatus = registration?.coordinatorReview?.status || "PENDING";
   const isApproved = coordinatorStatus === "APPROVED";
   const isRejected = coordinatorStatus === "REJECTED";
   const isPendingReview = !isApproved && !isRejected;
 
+  const canonicalInstallmentNames = ["1st Installment", "2nd Installment", "Final Installment"];
+  const configuredPaymentPlan = trip.paymentPlanConfig && trip.paymentPlanConfig.length === 3
+    ? trip.paymentPlanConfig
+    : canonicalInstallmentNames.map((name, idx) => {
+        const existing = trip.paymentPlanConfig?.find(inst => inst.name === name) || trip.paymentPlanConfig?.[idx];
+        return {
+          name,
+          amount: existing?.amount ?? 0,
+          dueDate: existing?.dueDate || null
+        };
+      });
+
   const activeAnnouncements = trip.announcements?.filter(a => a.active).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)) || [];
   const latestAnnouncement = activeAnnouncements.length > 0 ? activeAnnouncements[0] : null;
+
+  const getFieldValue = (name) => {
+    if (!registration?.studentInfo) return "";
+    const info = registration.studentInfo;
+    if (info[name] !== undefined && info[name] !== null) return info[name];
+    if (name === 'studentId' && info.rollNo) return info.rollNo;
+    if (name === 'rollNo' && info.studentId) return info.studentId;
+    if (name === 'studentPhone' && info.phone) return info.phone;
+    if (name === 'phone' && info.studentPhone) return info.studentPhone;
+    return "";
+  };
 
   return (
     <DashboardLayout trip={trip} setTrip={() => {}}>
@@ -414,12 +437,16 @@ export default function ParticipantDashboard() {
                 {trip.organizationDetails?.name || 'Organization'} &bull; Educational Trip / Industrial Visit
               </div>
             </div>
-            <button 
-              onClick={() => navigate(`/itinerary/${trip._id}`, { state: { trip, viewOnly: true } })}
-              className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold rounded-xl transition shadow-lg shadow-indigo-900/50 flex items-center gap-2 shrink-0"
-            >
-              <FiMap /> View Itinerary
-            </button>
+
+            {/* View Finalized Itinerary Action Button */}
+            <div className="flex items-center gap-3">
+              <button 
+                onClick={() => navigate(`/itinerary/${trip._id}`, { state: { trip, viewOnly: true } })}
+                className="px-5 py-2.5 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 rounded-xl font-bold text-xs flex items-center gap-2 transition shadow-lg"
+              >
+                <FiMap /> View Itinerary
+              </button>
+            </div>
           </div>
 
           {/* Announcements */}
@@ -433,26 +460,26 @@ export default function ParticipantDashboard() {
             </div>
           )}
 
-          {/* IV Information */}
-          <div className="bg-[#131c31] border border-slate-800 p-6 rounded-2xl mb-8 shadow-lg flex flex-wrap gap-x-12 gap-y-6">
-            <div>
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Source &rarr; Destination</p>
-              <p className="text-sm font-black text-white">{trip.source || 'Origin'} &rarr; {trip.destination}</p>
+          {/* Banner: IV Overview Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            <div className="bg-[#131c31] border border-slate-800 p-4 rounded-xl">
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Destination</p>
+              <p className="text-base font-black text-white truncate">{trip.destination}</p>
             </div>
-            <div>
+            <div className="bg-[#131c31] border border-slate-800 p-4 rounded-xl">
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Duration</p>
+              <p className="text-base font-black text-white">{trip.duration || `${trip.itinerary?.length || 0} Days`}</p>
+            </div>
+            <div className="bg-[#131c31] border border-slate-800 p-4 rounded-xl">
               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Dates</p>
-              <p className="text-sm font-bold text-white">
-                {new Date(trip.startDate).toLocaleDateString('en-GB', {day:'numeric', month:'short', year:'numeric'})} &ndash; {new Date(trip.endDate).toLocaleDateString('en-GB', {day:'numeric', month:'short', year:'numeric'})}
+              <p className="text-xs font-bold text-white mt-0.5">
+                {trip.startDate ? new Date(trip.startDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'TBD'} - {trip.endDate ? new Date(trip.endDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'TBD'}
               </p>
             </div>
-            <div>
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Duration</p>
-              <p className="text-sm font-bold text-white">{trip.duration || `${trip.itinerary?.length || 0} Days`}</p>
-            </div>
             {trip.joinCode && (
-              <div>
+              <div className="bg-[#131c31] border border-slate-800 p-4 rounded-xl">
                 <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">IV Code</p>
-                <p className="text-sm font-black text-indigo-400 tracking-widest">{trip.joinCode}</p>
+                <p className="text-base font-black text-indigo-400 tracking-widest">{trip.joinCode}</p>
               </div>
             )}
           </div>
@@ -489,7 +516,7 @@ export default function ParticipantDashboard() {
                             <select 
                               name={field.name} 
                               required={field.required}
-                              defaultValue={registration?.studentInfo?.[field.name] || ""}
+                              defaultValue={getFieldValue(field.name)}
                               className="w-full bg-[#0a101f] border border-slate-700 rounded-xl p-3 text-sm text-white focus:border-indigo-500 focus:outline-none"
                             >
                               <option value="" disabled>Select {field.label}</option>
@@ -499,7 +526,7 @@ export default function ParticipantDashboard() {
                             <textarea 
                               name={field.name} 
                               required={field.required}
-                              defaultValue={registration?.studentInfo?.[field.name] || ""}
+                              defaultValue={getFieldValue(field.name)}
                               placeholder={`Enter ${field.label.toLowerCase()}`}
                               rows="3"
                               className="w-full bg-[#0a101f] border border-slate-700 rounded-xl p-3 text-sm text-white focus:border-indigo-500 focus:outline-none"
@@ -509,7 +536,7 @@ export default function ParticipantDashboard() {
                               type={field.type || 'text'} 
                               name={field.name} 
                               required={field.required}
-                              defaultValue={registration?.studentInfo?.[field.name] || ""}
+                              defaultValue={getFieldValue(field.name)}
                               placeholder={`Enter ${field.label.toLowerCase()}`}
                               className="w-full bg-[#0a101f] border border-slate-700 rounded-xl p-3 text-sm text-white focus:border-indigo-500 focus:outline-none"
                             />
@@ -673,59 +700,86 @@ export default function ParticipantDashboard() {
             
             /* AFTER REGISTRATION - STATUS VIEW */
             <div className="space-y-6 animate-fade-in">
-              {/* Prominent Status Banner */}
-              {isApproved ? (
-                <div className="p-8 bg-emerald-900/20 border border-emerald-500/40 rounded-2xl text-center shadow-lg">
-                  <FiCheckCircle className="text-5xl text-emerald-400 mx-auto mb-3 animate-pulse" />
-                  <h2 className="text-2xl font-black text-emerald-400 uppercase tracking-tight mb-2">Registration Complete</h2>
-                  <p className="text-emerald-100/90 text-sm font-medium">Your participation in this IV has been confirmed.</p>
-                </div>
-              ) : isRejected ? (
-                <div className="p-8 bg-rose-950/30 border border-rose-500/40 rounded-2xl text-center shadow-lg">
-                  <FiAlertCircle className="text-5xl text-rose-400 mx-auto mb-3" />
-                  <h2 className="text-2xl font-black text-rose-400 uppercase tracking-tight mb-2">Registration Needs Attention</h2>
-                  <p className="text-rose-200/90 text-sm font-medium">Your registration could not be approved yet.</p>
-                  <div className="mt-4 p-4 bg-rose-900/30 border border-rose-800 rounded-xl text-left max-w-lg mx-auto">
-                    <p className="text-[10px] font-bold text-rose-400 uppercase tracking-wider mb-1">Reason for Rejection</p>
-                    <p className="text-xs font-semibold text-rose-100">{registration?.coordinatorReview?.rejectionReason || "Please review and re-upload required documents."}</p>
-                  </div>
-                  <button
-                    onClick={() => setCurrentStep(2)}
-                    className="mt-6 px-6 py-2.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-xl transition shadow-lg"
-                  >
-                    Update Required Information
-                  </button>
-                </div>
-              ) : (
-                <div className="p-8 bg-amber-950/20 border border-amber-500/40 rounded-2xl text-center shadow-lg">
-                  <FiClock className="text-5xl text-amber-400 mx-auto mb-3" />
-                  <h2 className="text-2xl font-black text-amber-400 uppercase tracking-tight mb-2">Registration Submitted</h2>
-                  <p className="text-amber-100/90 text-sm font-medium">Your registration has been successfully submitted and is awaiting coordinator verification.</p>
-                </div>
-              )}
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
                 
-                {/* Registration Checklist */}
-                <div className="col-span-1 bg-[#131c31] border border-slate-800 rounded-2xl p-6 shadow-lg flex flex-col justify-between">
-                  <div>
-                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                {/* Single Compact Registration Complete / Status Card */}
+                <div className="col-span-1 bg-[#131c31] border border-slate-800 rounded-2xl p-6 shadow-lg h-fit space-y-5">
+                  {/* Status Header Block */}
+                  {isApproved ? (
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xl shrink-0">
+                        <FiCheckCircle />
+                      </div>
+                      <div>
+                        <h3 className="text-base font-black text-emerald-400 uppercase tracking-tight">
+                          Registration Complete
+                        </h3>
+                        <p className="text-xs text-emerald-100/90 mt-0.5 leading-snug">
+                          Your participation in this IV has been confirmed.
+                        </p>
+                      </div>
+                    </div>
+                  ) : isRejected ? (
+                    <div className="space-y-3">
+                      <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center text-xl shrink-0">
+                          <FiAlertCircle />
+                        </div>
+                        <div>
+                          <h3 className="text-base font-black text-rose-400 uppercase tracking-tight">
+                            Registration Needs Attention
+                          </h3>
+                          <p className="text-xs text-rose-200/90 mt-0.5 leading-snug">
+                            Your registration could not be approved yet.
+                          </p>
+                        </div>
+                      </div>
+                      <div className="p-3 bg-rose-950/40 border border-rose-900/60 rounded-xl text-left">
+                        <p className="text-[10px] font-bold text-rose-400 uppercase tracking-wider mb-1">Reason for Rejection</p>
+                        <p className="text-xs font-semibold text-rose-100">{registration?.coordinatorReview?.rejectionReason || "Please review and re-upload required documents."}</p>
+                      </div>
+                      <button
+                        onClick={() => setCurrentStep(2)}
+                        className="w-full py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-xl transition shadow-lg"
+                      >
+                        Update Required Information
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-xl shrink-0">
+                        <FiClock />
+                      </div>
+                      <div>
+                        <h3 className="text-base font-black text-amber-400 uppercase tracking-tight">
+                          Registration Submitted
+                        </h3>
+                        <p className="text-xs text-amber-100/90 mt-0.5 leading-snug">
+                          Your registration has been successfully submitted and is awaiting coordinator verification.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Registration Checklist */}
+                  <div className="pt-4 border-t border-slate-800/80">
+                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3.5 flex items-center gap-2">
                       <FiCheckCircle className="text-indigo-400"/> Registration Checklist
                     </h4>
-                    <div className="space-y-3.5">
-                      <div className="flex items-center gap-2 text-xs font-bold text-white">
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2.5 text-xs font-bold text-white">
                         <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-[10px]">✓</span>
                         <span>Details Submitted</span>
                       </div>
-                      <div className="flex items-center gap-2 text-xs font-bold text-white">
+                      <div className="flex items-center gap-2.5 text-xs font-bold text-white">
                         <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-[10px]">✓</span>
                         <span>{isApproved ? 'Required Documents Verified' : 'Required Documents Submitted'}</span>
                       </div>
-                      <div className="flex items-center gap-2 text-xs font-bold text-white">
+                      <div className="flex items-center gap-2.5 text-xs font-bold text-white">
                         <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-[10px]">✓</span>
                         <span>Confirmation Fee Paid (₹{(trip.registrationSettings?.confirmationFee || 0).toLocaleString()})</span>
                       </div>
-                      <div className="flex items-center gap-2 text-xs font-bold">
+                      <div className="flex items-center gap-2.5 text-xs font-bold">
                         {isApproved ? (
                           <>
                             <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-[10px]">✓</span>
@@ -746,7 +800,8 @@ export default function ParticipantDashboard() {
                     </div>
                   </div>
 
-                  <div className="mt-6 pt-4 border-t border-slate-800 text-[11px] text-slate-400">
+                  {/* Status Footer */}
+                  <div className="pt-3 border-t border-slate-800/80 text-xs text-slate-400">
                     Status: <span className={`font-bold ${isApproved ? 'text-emerald-400' : isRejected ? 'text-rose-400' : 'text-amber-400'}`}>
                       {isApproved ? 'Participation Confirmed' : isRejected ? 'Needs Revision' : 'Awaiting Coordinator Verification'}
                     </span>
@@ -776,34 +831,60 @@ export default function ParticipantDashboard() {
 
                    <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Payment Plan</h4>
                    <div className="space-y-2.5">
-                     <div className="flex justify-between items-center p-3 bg-[#0a101f] border border-slate-800 rounded-lg">
+                     {/* Section 1: Confirmation Fee */}
+                     <div className="flex justify-between items-center p-3.5 bg-[#0a101f] border border-slate-800 rounded-xl">
                         <div>
-                          <p className="text-xs font-bold text-white uppercase">Confirmation Fee</p>
-                          <p className="text-[10px] text-emerald-500 font-bold mt-0.5">✓ PAID VIA RAZORPAY</p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-xs font-bold text-white uppercase">Confirmation Fee</p>
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">At Registration</span>
+                          </div>
+                          <p className={`text-[10px] font-bold mt-1 ${isConfirmationPaid ? 'text-emerald-400' : 'text-amber-400'}`}>
+                            {isConfirmationPaid ? '✓ PAID VIA RAZORPAY' : 'AWAITING PAYMENT'}
+                          </p>
                         </div>
                         <div className="text-right">
                           <p className="text-sm font-black text-white">₹{trip.registrationSettings?.confirmationFee?.toLocaleString() || 0}</p>
+                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded mt-0.5 inline-block ${
+                            isConfirmationPaid ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'
+                          }`}>
+                            {isConfirmationPaid ? 'PAID' : 'PENDING'}
+                          </span>
                         </div>
                      </div>
                      
-                     {trip.paymentPlanConfig?.map((inst, i) => {
-                        const pRecord = registration?.payments?.find(p => p.name === inst.name || p.installmentId === inst._id);
+                     {/* Sections 2-4: 1st, 2nd, Final Installments */}
+                     {configuredPaymentPlan.map((inst, i) => {
+                        const pRecord = registration?.payments?.find(p => p.name === inst.name || (inst._id && p.installmentId === inst._id));
                         const isPaid = pRecord?.status === "PAID";
+                        const dueDateObj = inst.dueDate ? new Date(inst.dueDate) : null;
+                        const isOverdue = !isPaid && dueDateObj && dueDateObj < new Date();
+                        const formattedDate = dueDateObj ? dueDateObj.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Date not set';
+
                         return (
-                          <div key={i} className="flex justify-between items-center p-3 bg-[#0a101f] border border-slate-800 rounded-lg">
+                          <div key={i} className="flex justify-between items-center p-3.5 bg-[#0a101f] border border-slate-800 rounded-xl">
                             <div>
-                              <p className="text-xs font-bold text-white uppercase">{inst.name || `Installment ${i+1}`}</p>
-                              <p className={`text-[10px] font-bold mt-0.5 ${isPaid ? 'text-emerald-500' : 'text-amber-500'}`}>
-                                {isPaid ? '✓ PAID' : `Due: ${new Date(inst.dueDate).toLocaleDateString('en-GB', {day:'numeric', month:'short', year:'numeric'})}`}
+                              <p className="text-xs font-bold text-white uppercase">{inst.name}</p>
+                              <p className={`text-[10px] font-bold mt-1 ${
+                                isPaid 
+                                  ? 'text-emerald-400' 
+                                  : isOverdue 
+                                  ? 'text-rose-400' 
+                                  : 'text-slate-400'
+                              }`}>
+                                {isPaid ? '✓ PAID' : isOverdue ? `OVERDUE (Due: ${formattedDate})` : `UPCOMING (Due: ${formattedDate})`}
                               </p>
                             </div>
-                            <div className="text-right flex items-center gap-4">
+                            <div className="text-right">
                               <p className="text-sm font-black text-white">₹{inst.amount?.toLocaleString() || 0}</p>
-                              {!isPaid && (
-                                <button onClick={() => handleMockPay(pRecord?._id || inst._id)} className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold rounded shadow-md transition">
-                                  PAY
-                                </button>
-                              )}
+                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded mt-0.5 inline-block ${
+                                isPaid 
+                                  ? 'bg-emerald-500/10 text-emerald-400' 
+                                  : isOverdue 
+                                  ? 'bg-rose-500/10 text-rose-400' 
+                                  : 'bg-slate-800 text-slate-400'
+                              }`}>
+                                {isPaid ? 'PAID' : isOverdue ? 'OVERDUE' : 'PENDING'}
+                              </span>
                             </div>
                           </div>
                         );
@@ -870,27 +951,6 @@ export default function ParticipantDashboard() {
                     );
                   })}
                 </div>
-              </div>
-
-              {/* Finalized Itinerary Section */}
-              <div className="bg-[#131c31] border border-slate-800 rounded-2xl p-6 shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-                <div>
-                  <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-2">
-                    <FiMap className="text-indigo-400" /> Finalized Itinerary
-                  </h3>
-                  <p className="text-sm font-bold text-white mt-1">
-                    Your {trip.duration || `${trip.itinerary?.length || 0} Days`} {trip.destination} Educational / Industrial Visit
-                  </p>
-                  <p className="text-xs text-slate-400 mt-1">
-                    Complete day-by-day itinerary including company visits, educational activities, and stay plan.
-                  </p>
-                </div>
-                <button
-                  onClick={() => navigate(`/itinerary/${trip._id}`, { state: { trip, viewOnly: true } })}
-                  className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl transition shadow-lg shadow-indigo-900/40 shrink-0 flex items-center gap-2"
-                >
-                  <FiCompass /> View Full Itinerary
-                </button>
               </div>
 
               {/* Message from Coordinator & Before You Travel Grid */}

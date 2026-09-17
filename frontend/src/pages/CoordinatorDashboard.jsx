@@ -4,7 +4,7 @@ import {
   FiUsers, FiCheckCircle, FiFileText, FiDollarSign, FiCopy, FiShare2, 
   FiBell, FiCalendar, FiClock, FiSettings, FiCheck, FiX, FiInfo,
   FiMapPin, FiEye, FiEdit3, FiPieChart, FiAlertCircle, FiSearch, FiFilter,
-  FiSend, FiMessageSquare
+  FiSend, FiMessageSquare, FiPlus
 } from "react-icons/fi";
 import DashboardLayout from "../layouts/DashboardLayout";
 import CampusSettingsModal from "../components/campus/CampusSettingsModal";
@@ -19,6 +19,7 @@ export default function CoordinatorDashboard() {
   // Modals state
   const [showStudentModal, setShowStudentModal] = useState(null);
   const [showRegistrationModal, setShowRegistrationModal] = useState(false);
+  const [settingsModalTab, setSettingsModalTab] = useState("general");
   const [showAnnouncementModal, setShowAnnouncementModal] = useState(false);
 
   // Search & Filter
@@ -134,6 +135,23 @@ export default function CoordinatorDashboard() {
     const totalPaid = p.payments?.filter(py => py.status === "PAID").reduce((sum, py) => sum + py.amount, 0) || 0;
     return totalPaid >= (settings.totalFee || 0) && (settings.totalFee > 0);
   }).length;
+
+  // Canonical Form Fields Preview List
+  const defaultBaseFormFields = [
+    { name: "name", label: "Full Name", type: "text", required: true },
+    { name: "studentId", label: "Student ID / Roll No.", type: "text", required: true },
+    { name: "year", label: "Year", type: "select", required: true, options: ["1st Year", "2nd Year", "3rd Year", "4th Year"] },
+    { name: "department", label: "Department", type: "select", required: true, options: ["Computer Engineering", "Information Technology", "Mechanical Engineering", "Civil Engineering"] },
+    { name: "studentPhone", label: "Student Phone Number", type: "tel", required: true },
+    { name: "parentPhone", label: "Parent/Guardian Phone Number", type: "tel", required: true },
+    { name: "email", label: "Email", type: "email", required: true },
+    { name: "emergencyContactName", label: "Emergency Contact Name", type: "text", required: false },
+    { name: "emergencyContactNumber", label: "Emergency Contact Number", type: "tel", required: false },
+    { name: "emergencyContactRelationship", label: "Emergency Contact Relationship", type: "text", required: false },
+    { name: "foodAllergy", label: "Food Allergy / Dietary Restrictions", type: "textarea", required: false },
+    { name: "medicalInfo", label: "Medical / Other Important Information", type: "textarea", required: false }
+  ];
+  const activeFormFields = (settings.formFields && settings.formFields.length > 0) ? settings.formFields : defaultBaseFormFields;
 
   // Filtered students based on search query and status filter
   const filteredStudents = registeredStudents.filter(student => {
@@ -509,7 +527,7 @@ export default function CoordinatorDashboard() {
                       <FiCalendar className="text-indigo-400" />
                       Registration Details
                     </h3>
-                    <button onClick={() => setShowRegistrationModal(true)} className="text-[10px] font-bold uppercase text-indigo-400 hover:text-indigo-300 transition">Edit Settings</button>
+                    <button onClick={() => { setSettingsModalTab("general"); setShowRegistrationModal(true); }} className="text-[10px] font-bold uppercase text-indigo-400 hover:text-indigo-300 transition">Edit Settings</button>
                   </div>
                   
                   <div className="grid grid-cols-2 gap-y-6 gap-x-4 mb-6">
@@ -531,7 +549,7 @@ export default function CoordinatorDashboard() {
                     </div>
                   </div>
 
-                  <button onClick={() => setShowRegistrationModal(true)} className="w-full py-2.5 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-400 border border-indigo-500/30 rounded-lg text-xs font-bold transition flex items-center justify-center gap-2">
+                  <button onClick={() => { setSettingsModalTab("general"); setShowRegistrationModal(true); }} className="w-full py-2.5 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-400 border border-indigo-500/30 rounded-lg text-xs font-bold transition flex items-center justify-center gap-2">
                     <FiSettings /> Manage Registration
                   </button>
                 </div>
@@ -747,6 +765,36 @@ export default function CoordinatorDashboard() {
                 </div>
               </div>
 
+              {/* COMPACT STUDENT REGISTRATION FORM CARD */}
+              <div className="bg-[#131c31] border border-slate-800 rounded-2xl p-6 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    <FiFileText className="text-indigo-400" />
+                    Student Registration Form
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Configure the information students must provide during registration.
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2 mt-3 text-[11px] font-semibold">
+                    <span className="bg-[#0a101f] border border-slate-800 px-2.5 py-1 rounded-md text-slate-300">
+                      {activeFormFields.length} fields configured
+                    </span>
+                    <span className="bg-[#0a101f] border border-slate-800 px-2.5 py-1 rounded-md text-indigo-400">
+                      {activeFormFields.filter(f => f.required).length} required fields
+                    </span>
+                    <span className="bg-[#0a101f] border border-slate-800 px-2.5 py-1 rounded-md text-slate-400">
+                      {trip.documentsConfig?.length || 3} documents configured
+                    </span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => { setSettingsModalTab("fields"); setShowRegistrationModal(true); }}
+                  className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-lg shadow-indigo-900/40 shrink-0 cursor-pointer"
+                >
+                  <FiEdit3 /> Edit Registration Form
+                </button>
+              </div>
+
             </div>
 
             {/* RIGHT COLUMN (Sidebar) */}
@@ -754,10 +802,18 @@ export default function CoordinatorDashboard() {
               
               {/* Trip & Budget Summary */}
               <div className="bg-[#131c31] border border-slate-800 rounded-2xl p-6 shadow-lg">
-                <h3 className="text-sm font-bold text-white mb-6 flex items-center gap-2">
-                  <FiDollarSign className="text-emerald-400" />
-                  Trip & Budget Summary
-                </h3>
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    <FiDollarSign className="text-emerald-400" />
+                    Trip & Budget Summary
+                  </h3>
+                  <button 
+                    onClick={() => { setSettingsModalTab("payment"); setShowRegistrationModal(true); }}
+                    className="text-[10px] font-bold uppercase text-indigo-400 hover:text-indigo-300 transition cursor-pointer"
+                  >
+                    Edit Budget
+                  </button>
+                </div>
                 
                 <div className="space-y-4 mb-6">
                   <div className="flex justify-between items-center text-xs">
@@ -766,33 +822,62 @@ export default function CoordinatorDashboard() {
                   </div>
                   <div className="flex justify-between items-center text-xs">
                     <span className="text-slate-400 flex items-center gap-2"><FiCheckCircle /> Confirmation Fee</span>
-                    <span className="font-bold text-white">₹{settings.confirmationFee?.toLocaleString() || 0}</span>
+                    <span className="font-bold text-emerald-400">₹{settings.confirmationFee?.toLocaleString() || 0}</span>
                   </div>
                   <div className="flex justify-between items-center text-xs pt-4 border-t border-slate-800">
                     <span className="text-slate-400 flex items-center gap-2"><FiPieChart /> Remaining Balance</span>
-                    <span className="font-bold text-indigo-400">₹{((settings.totalFee || 0) - (settings.confirmationFee || 0)).toLocaleString()}</span>
+                    <span className="font-bold text-indigo-400">₹{Math.max(0, (settings.totalFee || 0) - (settings.confirmationFee || 0)).toLocaleString()}</span>
                   </div>
                 </div>
 
                 <div className="pt-4 border-t border-slate-800">
-                  <h4 className="text-xs font-bold text-slate-300 uppercase mb-4">Payment Plan</h4>
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="text-slate-400">Confirmation</span>
-                      <div className="text-right">
-                        <div className="font-bold text-white">₹{settings.confirmationFee?.toLocaleString() || 0}</div>
-                        <div className="text-[9px] text-slate-500">At Registration</div>
-                      </div>
+                  <div className="flex justify-between items-center mb-3">
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Payment Plan</h4>
+                      <p className="text-[10px] text-indigo-400 font-semibold mt-0.5">
+                        {paymentPlanConfig?.length || 3} installments configured
+                      </p>
                     </div>
-                    {paymentPlanConfig.map((inst, i) => (
-                      <div key={i} className="flex justify-between items-center text-xs">
-                        <span className="text-slate-400">{inst.name || `Installment ${i+1}`}</span>
-                        <div className="text-right">
-                          <div className="font-bold text-white">₹{inst.amount.toLocaleString()}</div>
-                          <div className="text-[9px] text-slate-500">{new Date(inst.dueDate).toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'})}</div>
+                    <button 
+                      onClick={() => { setSettingsModalTab("payment"); setShowRegistrationModal(true); }}
+                      className="px-3 py-1.5 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 rounded-lg text-[10px] font-bold uppercase transition cursor-pointer"
+                    >
+                      Edit Payment Plan
+                    </button>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center text-xs p-2.5 rounded-lg bg-[#0a101f] border border-slate-800">
+                      <div className="flex items-center gap-2">
+                        <span className="text-emerald-400 font-bold">✓</span>
+                        <div>
+                          <p className="font-bold text-white">Confirmation Fee</p>
+                          <p className="text-[9px] text-slate-500">At Registration</p>
                         </div>
                       </div>
-                    ))}
+                      <div className="text-right">
+                        <div className="font-bold text-white">₹{settings.confirmationFee?.toLocaleString() || 0}</div>
+                      </div>
+                    </div>
+                    {paymentPlanConfig && paymentPlanConfig.length > 0 ? (
+                      paymentPlanConfig.map((inst, i) => (
+                        <div key={i} className="flex justify-between items-center text-xs p-2.5 rounded-lg bg-[#0a101f] border border-slate-800">
+                          <div className="flex items-center gap-2">
+                            <span className="text-indigo-400 font-bold">○</span>
+                            <div>
+                              <p className="font-bold text-white">{inst.name || `Installment ${i+1}`}</p>
+                              <p className="text-[9px] text-slate-500">Due: {inst.dueDate ? new Date(inst.dueDate).toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'}) : 'Not set'}</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="font-bold text-white">₹{inst.amount?.toLocaleString() || 0}</div>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="p-3 bg-[#0a101f] border border-slate-800 rounded-lg text-center text-[11px] text-slate-500">
+                        No installments configured yet.
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -877,6 +962,7 @@ export default function CoordinatorDashboard() {
         {showRegistrationModal && (
           <CampusSettingsModal
             trip={trip}
+            initialTab={settingsModalTab}
             onClose={() => setShowRegistrationModal(false)}
             onRefresh={fetchData}
           />
