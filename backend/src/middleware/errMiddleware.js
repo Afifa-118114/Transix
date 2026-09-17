@@ -1,7 +1,8 @@
 const errorHandler = (err, req, res, next) => {
   if (process.env.NODE_ENV !== "production") {
-    console.error("Error Name:", err.name);
-    console.error("Error Message:", err.message);
+    console.error("Error Object:", err);
+    console.error("Error Name:", err?.name);
+    console.error("Error Message:", err?.message);
   }
 
   let statusCode = err.statusCode || 500;

@@ -17,6 +17,7 @@ export default function DetailedItinerary() {
   // Prepare values before hooks
   const trip = state?.trip || contextTrip;
   const initialDay = state?.dayIndex ?? 0;
+  const viewOnly = state?.viewOnly === true;
 
   // Hooks (must always be called)
   const [selectedDay, setSelectedDay] = useState(initialDay);
@@ -178,14 +179,16 @@ export default function DetailedItinerary() {
           setSelectedDay={setSelectedDay}
         />
 
-        <Timeline plan={currentDay.plan} destination={trip.destination} accommodations={accommodationsToday} />
-        <BottomNav
-          selectedDay={selectedDay}
-          totalDays={itinerary.length}
-          setSelectedDay={setSelectedDay}
-          onRegenerate={handleRegenerate}
-          loading={loading}
-        />
+        <Timeline plan={currentDay.plan} destination={trip.destination} accommodations={accommodationsToday} viewOnly={viewOnly} />
+        {!viewOnly && (
+          <BottomNav
+            selectedDay={selectedDay}
+            totalDays={itinerary.length}
+            setSelectedDay={setSelectedDay}
+            onRegenerate={handleRegenerate}
+            loading={loading}
+          />
+        )}
       </div>
     </div>
   );

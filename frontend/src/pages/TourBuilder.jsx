@@ -15,16 +15,19 @@ export default function TourBuilder() {
   const [searchParams] = useSearchParams();
   const [isInitializing, setIsInitializing] = useState(false);
 
-  // Fetch the latest persisted trip when Builder opens
+  // Fetch the latest persisted trip when Builder opens or tripId is in URL
   useEffect(() => {
     let isMounted = true;
     const fetchLatestTrip = async () => {
-      if (trip && trip._id) {
+      const urlTripId = searchParams.get("tripId");
+      const targetId = urlTripId || (trip && trip._id);
+      
+      if (targetId) {
         setIsInitializing(true);
         try {
           const token = localStorage.getItem("token");
           if (token) {
-            const res = await getTripDetails(trip._id, token);
+            const res = await getTripDetails(targetId, token);
             if (res.success && res.trip && isMounted) {
               setTrip(res.trip);
             }
@@ -37,7 +40,7 @@ export default function TourBuilder() {
       }
     };
     fetchLatestTrip();
-  }, []); // Run only once on mount
+  }, [searchParams]); // Re-run if searchParams change
 
   // If URL has source/destination params but no trip is currently in context
   useEffect(() => {

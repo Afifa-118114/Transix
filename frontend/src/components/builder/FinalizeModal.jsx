@@ -51,7 +51,10 @@ export default function FinalizeModal() {
   );
 
   // Authoritative finalization gating
-  const isBudgetValid = !budgetStats.isOverBudget;
+  const isCampus = trip.tripCategory === 'CAMPUS';
+  const campusTotalBudget = isCampus ? ((trip.campusConfig?.budgetPerStudent || 0) * (trip.campusConfig?.expectedParticipants || 1)) : 0;
+  const actualBudgetLimit = isCampus ? campusTotalBudget : budgetStats.totalBudget;
+  const isBudgetValid = budgetStats.totalSpent <= actualBudgetLimit;
   const isFeasible = validationStats.isFeasible && validationStats.conflictsCount === 0;
   const canFinalize = isBudgetValid && isFeasible && (trip.itinerary?.length > 0);
 
@@ -61,8 +64,8 @@ export default function FinalizeModal() {
       status: isBudgetValid,
       isBlocking: true,
       desc: isBudgetValid
-        ? `Within limit (₹${budgetStats.remaining.toLocaleString()} remaining)`
-        : `BLOCKED: Over budget by ₹${budgetStats.overAmount.toLocaleString()} (Limit: ₹${budgetStats.totalBudget.toLocaleString()})`,
+        ? `Within limit (₹${(actualBudgetLimit - budgetStats.totalSpent).toLocaleString()} remaining)`
+        : `BLOCKED: Over budget by ₹${(budgetStats.totalSpent - actualBudgetLimit).toLocaleString()} (Limit: ₹${actualBudgetLimit.toLocaleString()})`,
     },
     {
       title: "Schedule feasibility",
@@ -100,21 +103,37 @@ export default function FinalizeModal() {
       if (!isFeasible) {
         toast.error(`Cannot confirm: Please resolve ${validationStats.conflictsCount} schedule conflict(s) first.`, { icon: "⚠️" });
       } else if (!isBudgetValid) {
-        toast.error(`Cannot confirm: Total cost (₹${budgetStats.totalSpent.toLocaleString()}) exceeds budget (₹${budgetStats.totalBudget.toLocaleString()}).`, { icon: "⚠️" });
+        toast.error(`Cannot confirm: Total cost (₹${budgetStats.totalSpent.toLocaleString()}) exceeds budget (₹${actualBudgetLimit.toLocaleString()}).`, { icon: "⚠️" });
       }
       return;
     }
 
     setIsProcessing(true);
     try {
-      await saveItinerary("Finalized");
+      await saveItinerary();
+
+      if (isCampus) {
+        const token = localStorage.getItem("token");
+        const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/campus-trips/${trip._id}/finalize`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          }
+        });
+        
+        if (!res.ok) {
+          throw new Error("Failed to finalize campus trip");
+        }
+      }
+
       setTimeout(() => {
         setIsProcessing(false);
         setStep("consent");
       }, 400);
     } catch (err) {
       setIsProcessing(false);
-      toast.error("Unable to save your trip. Please try again.");
+      toast.error("Unable to finalize your trip. Please try again.");
     }
   };
 
@@ -178,7 +197,7 @@ export default function FinalizeModal() {
                 )}
                 {!isBudgetValid && (
                   <p className="text-[11px] text-rose-700 dark:text-rose-400">
-                    • Total spent (₹{budgetStats.totalSpent.toLocaleString()}) exceeds budget (₹{budgetStats.totalBudget.toLocaleString()}) by ₹{budgetStats.overAmount.toLocaleString()}.
+                    • Total spent (₹{budgetStats.totalSpent.toLocaleString()}) exceeds budget (₹{actualBudgetLimit.toLocaleString()}) by ₹{(budgetStats.totalSpent - actualBudgetLimit).toLocaleString()}.
                   </p>
                 )}
               </div>
@@ -234,7 +253,7 @@ export default function FinalizeModal() {
             <div className="mt-4 flex items-center justify-between rounded-xl bg-slate-50 dark:bg-slate-800/60 p-3 border border-slate-200 dark:border-slate-700/60 text-xs font-semibold text-slate-700 dark:text-slate-300">
               <span>Total Estimated Cost:</span>
               <span className={`text-sm font-extrabold ${isBudgetValid ? "text-indigo-600 dark:text-indigo-400" : "text-rose-600 dark:text-rose-400"}`}>
-                ₹{budgetStats.totalSpent.toLocaleString()} / ₹{budgetStats.totalBudget.toLocaleString()}
+                ₹{budgetStats.totalSpent.toLocaleString()} / ₹{actualBudgetLimit.toLocaleString()}
               </span>
             </div>
 
@@ -356,9 +375,13 @@ export default function FinalizeModal() {
               <button
                 onClick={() => {
                   handleClose();
-                  navigate(`/itinerary/${trip._id || "active-trip"}`, {
-                    state: { trip, dayIndex: 0 },
-                  });
+                  if (trip.tripCategory === 'CAMPUS') {
+                    navigate(`/campus/${trip._id || "active-trip"}/dashboard`);
+                  } else {
+                    navigate(`/itinerary/${trip._id || "active-trip"}`, {
+                      state: { trip, dayIndex: 0 },
+                    });
+                  }
                 }}
                 className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition"
               >
@@ -369,7 +392,11 @@ export default function FinalizeModal() {
               <button
                 onClick={() => {
                   handleClose();
-                  navigate("/home");
+                  if (trip.tripCategory === 'CAMPUS') {
+                    navigate(`/campus/${trip._id || "active-trip"}/dashboard`);
+                  } else {
+                    navigate("/home");
+                  }
                 }}
                 className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-indigo-600 py-2.5 text-xs font-bold text-white hover:bg-indigo-700 active:scale-98 transition"
               >

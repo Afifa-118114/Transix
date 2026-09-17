@@ -31,6 +31,36 @@ export default function TripSummaryPanel() {
     setIsEditingBudget(false);
   };
 
+  const toggleCampusInclusion = async (category, field) => {
+    if (!trip.campusConfig) return;
+    
+    // Optimistic update
+    const newConfig = {
+      ...trip.campusConfig,
+      [category]: {
+        ...trip.campusConfig[category],
+        [field]: !trip.campusConfig[category][field]
+      }
+    };
+    updateTripMeta("campusConfig", newConfig);
+
+    try {
+      const token = localStorage.getItem("token");
+      await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/campus-trips/${trip._id}/inclusions`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          [category]: newConfig[category]
+        })
+      });
+    } catch (err) {
+      console.error("Failed to sync inclusion config:", err);
+    }
+  };
+
   return (
     <div className="flex h-full flex-col justify-between rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-[#131b2e] p-4 shadow-xs transition-colors">
       <div className="space-y-3.5 overflow-y-auto pr-1">
@@ -115,29 +145,74 @@ export default function TripSummaryPanel() {
           </div>
 
           {/* Budget Numbers */}
-          <div className="mt-2.5 grid grid-cols-2 gap-2">
-            <div className="rounded-lg bg-white dark:bg-[#1a233a] p-2 border border-slate-100 dark:border-slate-700/60">
-              <p className="text-[9px] uppercase font-bold text-slate-400 dark:text-slate-500">
-                Planned Limit
-              </p>
-              <p className="mt-0.5 text-xs font-extrabold text-slate-900 dark:text-white">
-                ₹{budgetStats.totalBudget.toLocaleString()}
-              </p>
+          {trip.tripCategory === 'CAMPUS' ? (
+            <div className="mt-2.5 flex flex-col gap-2">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-lg bg-indigo-50 dark:bg-indigo-900/30 p-2 border border-indigo-100 dark:border-indigo-800/50">
+                  <p className="text-[9px] uppercase font-bold text-indigo-500 dark:text-indigo-400">
+                    Per-Student Budget
+                  </p>
+                  <p className="mt-0.5 text-xs font-extrabold text-indigo-700 dark:text-indigo-300">
+                    ₹{trip.campusConfig?.budgetPerStudent?.toLocaleString()}
+                  </p>
+                </div>
+                <div className="rounded-lg bg-indigo-50 dark:bg-indigo-900/30 p-2 border border-indigo-100 dark:border-indigo-800/50">
+                  <p className="text-[9px] uppercase font-bold text-indigo-500 dark:text-indigo-400">
+                    Expected Students
+                  </p>
+                  <p className="mt-0.5 text-xs font-extrabold text-indigo-700 dark:text-indigo-300">
+                    {trip.campusConfig?.expectedParticipants}
+                  </p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-lg bg-white dark:bg-[#1a233a] p-2 border border-slate-100 dark:border-slate-700/60">
+                  <p className="text-[9px] uppercase font-bold text-slate-400 dark:text-slate-500">
+                    Group Total Limit
+                  </p>
+                  <p className="mt-0.5 text-xs font-extrabold text-slate-900 dark:text-white">
+                    ₹{(trip.campusConfig?.budgetPerStudent * trip.campusConfig?.expectedParticipants || 0).toLocaleString()}
+                  </p>
+                </div>
+                <div className="rounded-lg bg-white dark:bg-[#1a233a] p-2 border border-slate-100 dark:border-slate-700/60">
+                  <p className="text-[9px] uppercase font-bold text-slate-400 dark:text-slate-500">
+                    Total Included Spent
+                  </p>
+                  <p
+                    className={`mt-0.5 text-xs font-extrabold ${
+                      budgetStats.isOverBudget ? "text-rose-600 dark:text-rose-400" : "text-indigo-600 dark:text-indigo-400"
+                    }`}
+                  >
+                    ₹{budgetStats.totalSpent.toLocaleString()}
+                  </p>
+                </div>
+              </div>
             </div>
+          ) : (
+            <div className="mt-2.5 grid grid-cols-2 gap-2">
+              <div className="rounded-lg bg-white dark:bg-[#1a233a] p-2 border border-slate-100 dark:border-slate-700/60">
+                <p className="text-[9px] uppercase font-bold text-slate-400 dark:text-slate-500">
+                  Planned Limit
+                </p>
+                <p className="mt-0.5 text-xs font-extrabold text-slate-900 dark:text-white">
+                  ₹{budgetStats.totalBudget.toLocaleString()}
+                </p>
+              </div>
 
-            <div className="rounded-lg bg-white dark:bg-[#1a233a] p-2 border border-slate-100 dark:border-slate-700/60">
-              <p className="text-[9px] uppercase font-bold text-slate-400 dark:text-slate-500">
-                Total Spent
-              </p>
-              <p
-                className={`mt-0.5 text-xs font-extrabold ${
-                  budgetStats.isOverBudget ? "text-rose-600 dark:text-rose-400" : "text-indigo-600 dark:text-indigo-400"
-                }`}
-              >
-                ₹{budgetStats.totalSpent.toLocaleString()}
-              </p>
+              <div className="rounded-lg bg-white dark:bg-[#1a233a] p-2 border border-slate-100 dark:border-slate-700/60">
+                <p className="text-[9px] uppercase font-bold text-slate-400 dark:text-slate-500">
+                  Total Spent
+                </p>
+                <p
+                  className={`mt-0.5 text-xs font-extrabold ${
+                    budgetStats.isOverBudget ? "text-rose-600 dark:text-rose-400" : "text-indigo-600 dark:text-indigo-400"
+                  }`}
+                >
+                  ₹{budgetStats.totalSpent.toLocaleString()}
+                </p>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Progress Bar */}
           <div className="mt-2.5">
@@ -164,28 +239,64 @@ export default function TripSummaryPanel() {
           </div>
 
           {/* Category Breakdown */}
-          <div className="mt-3 space-y-1 border-t border-slate-200 dark:border-slate-700/60 pt-2">
-            <p className="text-[9px] font-bold uppercase text-slate-400 dark:text-slate-500">
-              Category Breakdown
-            </p>
-            {Object.entries(budgetStats.breakdown).map(([category, amount]) => {
-              if (amount === 0) return null;
-              return (
-                <div
-                  key={category}
-                  className="flex items-center justify-between text-[11px] text-slate-600 dark:text-slate-400"
-                >
-                  <span className="flex items-center gap-1">
-                    <span className="h-1.5 w-1.5 rounded-full bg-indigo-500" />
-                    <span>{category}</span>
-                  </span>
-                  <span className="font-bold text-slate-900 dark:text-white">
-                    ₹{amount.toLocaleString()}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
+          {trip.tripCategory === 'CAMPUS' ? (
+            <div className="mt-3 border-t border-slate-200 dark:border-slate-700/60 pt-2">
+               <p className="text-[9px] font-bold uppercase text-slate-400 dark:text-slate-500 mb-1">
+                Inclusions Status (Per-Student Setup)
+               </p>
+               <div className="flex flex-col gap-1">
+                 <div className="flex justify-between items-center text-[11px]">
+                   <span className="text-slate-600 dark:text-slate-400">Accommodation</span>
+                   <button onClick={() => toggleCampusInclusion('inclusions', 'accommodation')} className={`px-2 py-0.5 rounded text-[9px] font-bold ${trip.campusConfig?.inclusions?.accommodation ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>
+                     {trip.campusConfig?.inclusions?.accommodation ? 'INCLUDED' : 'EXCLUDED'}
+                   </button>
+                 </div>
+                 <div className="flex justify-between items-center text-[11px]">
+                   <span className="text-slate-600 dark:text-slate-400">Main Travel</span>
+                   <button onClick={() => toggleCampusInclusion('inclusions', 'travel')} className={`px-2 py-0.5 rounded text-[9px] font-bold ${trip.campusConfig?.inclusions?.travel ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>
+                     {trip.campusConfig?.inclusions?.travel ? 'INCLUDED' : 'EXCLUDED'}
+                   </button>
+                 </div>
+                 <div className="flex justify-between items-center text-[11px]">
+                   <span className="text-slate-600 dark:text-slate-400">Local Transport</span>
+                   <button onClick={() => toggleCampusInclusion('inclusions', 'localTransport')} className={`px-2 py-0.5 rounded text-[9px] font-bold ${trip.campusConfig?.inclusions?.localTransport ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>
+                     {trip.campusConfig?.inclusions?.localTransport ? 'INCLUDED' : 'EXCLUDED'}
+                   </button>
+                 </div>
+                 <div className="flex justify-between items-center text-[11px]">
+                   <span className="text-slate-600 dark:text-slate-400">Meals</span>
+                   <div className="flex gap-1">
+                     <button onClick={() => toggleCampusInclusion('mealInclusions', 'breakfast')} className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${trip.campusConfig?.mealInclusions?.breakfast ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>B</button>
+                     <button onClick={() => toggleCampusInclusion('mealInclusions', 'lunch')} className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${trip.campusConfig?.mealInclusions?.lunch ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>L</button>
+                     <button onClick={() => toggleCampusInclusion('mealInclusions', 'dinner')} className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${trip.campusConfig?.mealInclusions?.dinner ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>D</button>
+                   </div>
+                 </div>
+               </div>
+            </div>
+          ) : (
+            <div className="mt-3 space-y-1 border-t border-slate-200 dark:border-slate-700/60 pt-2">
+              <p className="text-[9px] font-bold uppercase text-slate-400 dark:text-slate-500">
+                Category Breakdown
+              </p>
+              {Object.entries(budgetStats.breakdown).map(([category, amount]) => {
+                if (amount === 0) return null;
+                return (
+                  <div
+                    key={category}
+                    className="flex items-center justify-between text-[11px] text-slate-600 dark:text-slate-400"
+                  >
+                    <span className="flex items-center gap-1">
+                      <span className="h-1.5 w-1.5 rounded-full bg-indigo-500" />
+                      <span>{category}</span>
+                    </span>
+                    <span className="font-bold text-slate-900 dark:text-white">
+                      ₹{amount.toLocaleString()}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* ================= SCHEDULE STATS ================= */}

@@ -20,6 +20,10 @@ import OperatorTripList from "../pages/operator/OperatorTripList";
 import OperatorTripDetails from "../pages/operator/OperatorTripDetails";
 
 import TourBuilder from "../pages/TourBuilder";
+import CampusLanding from "../pages/CampusLanding";
+import CampusCreate from "../pages/CampusCreate";
+import CoordinatorDashboard from "../pages/CoordinatorDashboard";
+import ParticipantDashboard from "../pages/ParticipantDashboard";
 
 function AppRoutes() {
   return (
@@ -108,6 +112,40 @@ function AppRoutes() {
       <Route path="/food" element={<FoodDining />} />
       <Route path="/essentials" element={<Essentials />} />
       <Route path="/travel-options" element={<TravelOptionsPage />} />
+      
+      {/* Campus Trip Routes */}
+      <Route
+        path="/campus"
+        element={
+          <ProtectedRoute allowedRoles={["traveler", "admin"]}>
+            <CampusLanding />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/campus/create"
+        element={
+          <ProtectedRoute allowedRoles={["traveler", "admin"]}>
+            <CampusCreate />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/campus/:id/dashboard"
+        element={
+          <ProtectedRoute allowedRoles={["traveler", "admin"]}>
+            <CoordinatorDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/campus/:id/participant"
+        element={
+          <ProtectedRoute allowedRoles={["traveler", "admin"]}>
+            <ParticipantDashboard />
+          </ProtectedRoute>
+        }
+      />
       
       {/* Operator Routes */}
       <Route path="/operator/dashboard" element={<ProtectedRoute allowedRoles={["operator", "admin"]}><OperatorDashboard /></ProtectedRoute>} />

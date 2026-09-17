@@ -8,6 +8,81 @@ const tripSchema = new mongoose.Schema(
       required: true,
     },
 
+    tripCategory: {
+      type: String,
+      enum: ["PERSONAL", "CAMPUS"],
+      default: "PERSONAL",
+    },
+
+    coordinatorId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+
+    organizationDetails: {
+      name: String,
+      orgType: String,
+      contactInfo: String,
+    },
+
+    campusConfig: {
+      budgetPerStudent: Number,
+      expectedParticipants: Number,
+      educationalRequirements: [{
+        institutionName: String,
+        institutionType: String,
+        notes: String
+      }],
+      inclusions: {
+        accommodation: { type: Boolean, default: true },
+        travel: { type: Boolean, default: true },
+        localTransport: { type: Boolean, default: true },
+        activities: { type: Boolean, default: true }
+      },
+      exclusions: [String],
+      mealInclusions: {
+        breakfast: { type: Boolean, default: true },
+        lunch: { type: Boolean, default: true },
+        dinner: { type: Boolean, default: true }
+      }
+    },
+
+    registrationSettings: {
+      openDate: Date,
+      closeDate: Date,
+      capacity: Number,
+      totalFee: Number,
+      confirmationFee: { type: Number, default: 0 },
+      eligibility: String,
+      requiredInfo: [String],
+      formFields: [{
+        name: String,
+        label: String,
+        type: { type: String, default: 'text' },
+        required: { type: Boolean, default: false },
+        options: [String]
+      }],
+    },
+
+    documentsConfig: [{
+      documentType: String,
+      required: Boolean,
+      acceptedFileTypes: [String],
+      maxFileSize: Number,
+    }],
+
+    paymentPlanConfig: [{
+      name: String,
+      amount: Number,
+      dueDate: Date,
+    }],
+
+    joinCode: {
+      type: String,
+      unique: true,
+      sparse: true,
+    },
+
     source: {
       type: String,
       required: true,
@@ -106,6 +181,33 @@ const tripSchema = new mongoose.Schema(
         default: null,
       },
     },
+
+    studentAccess: {
+      enabled: {
+        type: Boolean,
+        default: false,
+      },
+      grantedAt: {
+        type: Date,
+        default: null,
+      },
+    },
+
+    announcements: [{
+      message: {
+        type: String,
+        required: true
+      },
+      createdAt: {
+        type: Date,
+        default: Date.now
+      },
+      expiresAt: Date,
+      active: {
+        type: Boolean,
+        default: true
+      }
+    }],
 
     aiGenerated: {
       type: Boolean,

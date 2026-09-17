@@ -1,7 +1,7 @@
 import TimelineCard from "./TimelineCard";
 import { FiHome, FiMapPin, FiMoon } from "react-icons/fi";
 
-export default function Timeline({ plan, destination, accommodations = [] }) {
+export default function Timeline({ plan, destination, accommodations = [], viewOnly = false }) {
   return (
     <div className="relative mx-auto mt-6 w-full max-w-3xl">
       {/* Accommodation Context Cards */}
@@ -41,10 +41,11 @@ export default function Timeline({ plan, destination, accommodations = [] }) {
       <div className="flex flex-col gap-4">
         {plan.map((activity, index) => (
           <TimelineCard
-            key={`${activity.time}-${activity.place}-${index}`}
+            key={activity.id || activity._id || `${activity.category || 'act'}-${activity.time || index}-${activity.activity || activity.place || 'item'}-${index}`}
             activity={activity}
             destination={destination}
             index={index}
+            viewOnly={viewOnly}
           />
         ))}
       </div>

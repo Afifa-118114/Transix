@@ -7,15 +7,34 @@ import { getHotelsForStaySegment } from "../services/inventoryService";
 import { calculatePriceIntelligence } from "../utils/priceIntelligence";
 import { formatDate } from "../utils/formatTrip";
 import { getTripBookings } from "../api/tripApi";
+import { useLocation } from "react-router-dom";
 
 export default function StayPlanPage() {
   const navigate = useNavigate();
+  const { state } = useLocation();
+  const viewOnly = state?.viewOnly === true;
   const { trip, setTrip, budgetStats } = useTripBuilder();
 
   // Use local state for Stay Plan editing to prevent instant syncing
   const [staySegments, setStaySegments] = useState(trip.staySegments || []);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  
+  // Deterministically derive if there are unsaved geographic changes
+  // by structurally comparing local staySegments against the saved trip.staySegments
+  const hasUnsavedChanges = useMemo(() => {
+    const original = trip?.staySegments || [];
+    if (staySegments.length !== original.length) return true;
+    for (let i = 0; i < staySegments.length; i++) {
+      const loc1 = String(staySegments[i].location || "").toLowerCase().trim();
+      const loc2 = String(original[i].location || "").toLowerCase().trim();
+      if (loc1 !== loc2) return true;
+      
+      const n1 = parseInt(staySegments[i].nights, 10) || 0;
+      const n2 = parseInt(original[i].nights, 10) || 0;
+      if (n1 !== n2) return true;
+    }
+    return false;
+  }, [staySegments, trip?.staySegments]);
 
   // Sync local state when trip changes (from other pages) if no unsaved changes
   useEffect(() => {
@@ -237,7 +256,9 @@ export default function StayPlanPage() {
   // Derived state for the sticky action bar
   const totalStayNights = staySegments.reduce((sum, seg) => sum + (parseInt(seg.nights, 10) || 0), 0);
   const selectedHotelsCount = staySegments.filter(s => s.selectedHotel).length;
-  const isStayPlanValid = staySegments.length > 0 && totalStayNights === expectedTripNights && selectedHotelsCount === staySegments.length;
+  // If there are unsaved geographic changes, we only validate the structure (nights).
+  // If no unsaved geographic changes, we validate that all hotels are selected before finalizing.
+  const isStayPlanValid = staySegments.length > 0 && totalStayNights === expectedTripNights && (hasUnsavedChanges || selectedHotelsCount === staySegments.length);
 
   // If no trip is found, redirect to planner
   if (!trip) {
@@ -246,7 +267,6 @@ export default function StayPlanPage() {
 
   const updateLocalSegments = (newSegments) => {
      setStaySegments(recalculateDates(newSegments));
-     setHasUnsavedChanges(true);
   };
 
   const handleSaveStayPlan = async () => {
@@ -297,16 +317,19 @@ export default function StayPlanPage() {
     }
 
     // Check if any segment is missing a hotel
-    const missingHotels = staySegments.filter(s => !s.selectedHotel);
-    
-    if (missingHotels.length > 0) {
-       setMissingHotelsModal({
-          totalSegments: staySegments.length,
-          selectedCount: staySegments.length - missingHotels.length,
-          missingCount: missingHotels.length,
-          missingSegments: missingHotels
-       });
-       return;
+    // ONLY enforce this if the user is doing the final "Save & Update Itinerary" with hotel selections
+    if (!hasUnsavedChanges) {
+      const missingHotels = staySegments.filter(s => !s.selectedHotel);
+      
+      if (missingHotels.length > 0) {
+         setMissingHotelsModal({
+            totalSegments: staySegments.length,
+            selectedCount: staySegments.length - missingHotels.length,
+            missingCount: missingHotels.length,
+            missingSegments: missingHotels
+         });
+         return;
+      }
     }
     
     // Unified sync for both geographic and hotel-only changes
@@ -317,7 +340,6 @@ export default function StayPlanPage() {
       const res = await syncItinerary(trip._id, staySegments, token);
       if (res.success && res.trip) {
         setTrip(res.trip);
-        setHasUnsavedChanges(false);
         setSyncSuccess(true);
       }
     } catch (err) {
@@ -364,10 +386,11 @@ export default function StayPlanPage() {
                              canonicalLower.includes("homestay") ||
                              canonicalLower.includes("restaurant");
 
-          // Reject free-form descriptive text (e.g. "new dest in manali")
-          const isDescriptive = inputLower !== canonicalLower && 
-                                !canonicalLower.includes(inputLower) &&
-                                !(inputLower.includes(canonicalLower) && inputLower.length <= canonicalLower.length + 7);
+          // Reject free-form descriptive text (e.g. "a nice destination near manali")
+          // Relaxed this to allow valid aliases like Alleppey -> Alappuzha
+          const isDescriptive = inputLower.split(/\s+/).length > 3 && 
+                                !canonicalLower.includes(inputLower.split(" ")[0]) &&
+                                !inputLower.includes(canonicalLower);
 
           if (isBusiness || isDescriptive) {
             alert("Please enter a valid geographic destination/city name. Avoid descriptive phrases or specific hotel names.");
@@ -459,6 +482,24 @@ export default function StayPlanPage() {
             <FiArrowLeft className="text-xs" />
             <span>Back to Itinerary</span>
           </button>
+
+          {trip.tripCategory === 'CAMPUS' && (
+            <div className="mb-6 p-4 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-900/20">
+              <div className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-1">
+                Campus IV · Educational Trip
+              </div>
+              <h2 className="text-lg font-black text-slate-900 dark:text-white mb-2">
+                {trip.organizationDetails?.name || 'Organization'} · {trip.source} → {trip.destination}
+              </h2>
+              <div className="flex flex-wrap gap-4 text-xs font-semibold text-slate-600 dark:text-slate-300">
+                <span>{trip.itinerary?.length || totalNights} Days</span>
+                <span className="hidden sm:inline">•</span>
+                <span>{trip.campusConfig?.expectedParticipants || trip.travelers} Students</span>
+                <span className="hidden sm:inline">•</span>
+                <span>₹{(trip.campusConfig?.budgetPerStudent || trip.budget || 0).toLocaleString()} / Student</span>
+              </div>
+            </div>
+          )}
 
           <h1 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Stay Plan</h1>
           <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">
@@ -567,12 +608,16 @@ export default function StayPlanPage() {
                           </div>
                         </div>
                         <div className="flex flex-col gap-2 items-end justify-start">
-                          <div className="flex gap-1 mb-1">
-                            <button onClick={() => handleMoveSegment(index, 'up')} disabled={index === 0} className="px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded disabled:opacity-30 text-xs font-bold">↑</button>
-                            <button onClick={() => handleMoveSegment(index, 'down')} disabled={index === staySegments.length - 1} className="px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded disabled:opacity-30 text-xs font-bold">↓</button>
-                          </div>
-                          <button onClick={() => handleEditClick(index, segment)} className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline">Edit</button>
-                          <button onClick={() => handleRemoveSegment(index)} className="text-xs font-bold text-rose-600 dark:text-rose-400 hover:underline">Remove</button>
+                          {!viewOnly && (
+                            <>
+                              <div className="flex gap-1 mb-1">
+                                <button onClick={() => handleMoveSegment(index, 'up')} disabled={index === 0} className="px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded disabled:opacity-30 text-xs font-bold">↑</button>
+                                <button onClick={() => handleMoveSegment(index, 'down')} disabled={index === staySegments.length - 1} className="px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded disabled:opacity-30 text-xs font-bold">↓</button>
+                              </div>
+                              <button onClick={() => handleEditClick(index, segment)} className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline">Edit</button>
+                              <button onClick={() => handleRemoveSegment(index)} className="text-xs font-bold text-rose-600 dark:text-rose-400 hover:underline">Remove</button>
+                            </>
+                          )}
                         </div>
                       </div>
                     )}
@@ -641,17 +686,19 @@ export default function StayPlanPage() {
                               >
                                 View Details
                               </button>
-                              <button
-                                onClick={() => {
-                                  // Clear selection to change hotel
-                                  const newSegments = [...staySegments];
-                                  newSegments[index].selectedHotel = null;
-                                  updateLocalSegments(newSegments);
-                                }}
-                                className="px-3 py-1.5 rounded-lg border border-indigo-200 dark:border-indigo-800/60 bg-indigo-50 dark:bg-indigo-900/30 text-xs font-bold text-indigo-700 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition whitespace-nowrap"
-                              >
-                                Change Hotel
-                              </button>
+                              {!viewOnly && (
+                                <button
+                                  onClick={() => {
+                                    // Clear selection to change hotel
+                                    const newSegments = [...staySegments];
+                                    newSegments[index].selectedHotel = null;
+                                    updateLocalSegments(newSegments);
+                                  }}
+                                  className="px-3 py-1.5 rounded-lg border border-indigo-200 dark:border-indigo-800/60 bg-indigo-50 dark:bg-indigo-900/30 text-xs font-bold text-indigo-700 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition whitespace-nowrap"
+                                >
+                                  Change Hotel
+                                </button>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -743,7 +790,9 @@ export default function StayPlanPage() {
 
                                 <div className="mt-auto pt-3 border-t border-slate-200 dark:border-slate-700 flex gap-2">
                                   <button onClick={() => handleViewHotel(segment, hotels, rec.originalIndex)} className="flex-1 py-1.5 rounded border border-slate-300 dark:border-slate-600 text-[10px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition">View Details</button>
-                                  <button onClick={() => handleViewHotel(segment, hotels, rec.originalIndex)} className="flex-1 py-1.5 rounded bg-indigo-600 text-[10px] font-bold text-white hover:bg-indigo-700 transition">Select for Stay</button>
+                                  {!viewOnly && (
+                                    <button onClick={() => handleViewHotel(segment, hotels, rec.originalIndex)} className="flex-1 py-1.5 rounded bg-indigo-600 text-[10px] font-bold text-white hover:bg-indigo-700 transition">Select for Stay</button>
+                                  )}
                                 </div>
                               </div>
                             )) : (
@@ -786,14 +835,16 @@ export default function StayPlanPage() {
         </div>
 
         {/* Add Segment Button */}
-        <div className="flex justify-center mt-2">
-          <button
-            onClick={handleAddSegment}
-            className="flex items-center gap-2 px-6 py-3 rounded-xl border-2 border-dashed border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-900/20 text-sm font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition"
-          >
-            <span>+ Add Stay Segment</span>
-          </button>
-        </div>
+        {!viewOnly && (
+          <div className="flex justify-center mt-2">
+            <button
+              onClick={handleAddSegment}
+              className="flex items-center gap-2 px-6 py-3 rounded-xl border-2 border-dashed border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-900/20 text-sm font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition"
+            >
+              <span>+ Add Stay Segment</span>
+            </button>
+          </div>
+        )}
 
         {/* Overall Accommodation Summary */}
         {staySegments.length > 0 && (
@@ -833,25 +884,64 @@ export default function StayPlanPage() {
               </div>
 
               <div className="w-full md:w-64 shrink-0 rounded-xl bg-slate-50 dark:bg-slate-800/50 p-4 border border-slate-100 dark:border-slate-800 flex flex-col justify-center">
-                <div className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-500">Trip Budget Impact</div>
-                <div className="flex justify-between items-baseline mb-1">
-                  <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Overall Budget</span>
-                  <span className="text-sm font-bold text-slate-900 dark:text-white">₹{budgetStats?.totalBudget?.toLocaleString() || '0'}</span>
-                </div>
-                <div className="flex justify-between items-baseline mb-3">
-                  <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Selected Stays</span>
-                  <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">₹{accommodationSummary.totalSelectedPrice.toLocaleString()}</span>
-                </div>
+                {trip.tripCategory === 'CAMPUS' ? (
+                  <>
+                    <div className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-500">Trip Budget Impact</div>
+                    <div className="flex justify-between items-baseline mb-1">
+                      <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Budget per Student</span>
+                      <span className="text-sm font-bold text-slate-900 dark:text-white">₹{trip.campusConfig?.budgetPerStudent?.toLocaleString() || '0'}</span>
+                    </div>
+                    <div className="flex justify-between items-baseline mb-1">
+                      <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Expected Students</span>
+                      <span className="text-sm font-bold text-slate-900 dark:text-white">{trip.campusConfig?.expectedParticipants || '0'}</span>
+                    </div>
+                    <div className="flex justify-between items-baseline mb-3 border-t border-slate-200 dark:border-slate-700 pt-2 mt-1">
+                      <span className="text-sm font-bold text-slate-800 dark:text-slate-200">Total Group Budget</span>
+                      <span className="text-sm font-bold text-indigo-700 dark:text-indigo-300">₹{((trip.campusConfig?.budgetPerStudent || 0) * (trip.campusConfig?.expectedParticipants || 0)).toLocaleString()}</span>
+                    </div>
+                    
+                    <div className="flex justify-between items-baseline mb-3">
+                      <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Selected Stays</span>
+                      <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">₹{accommodationSummary.totalSelectedPrice.toLocaleString()}</span>
+                    </div>
 
-                {(budgetStats?.totalBudget && accommodationSummary.totalSelectedPrice > budgetStats.totalBudget) ? (
-                  <div className="mt-2 p-2 rounded bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/40 text-[10px] font-bold text-red-700 dark:text-red-400 flex items-center gap-1.5">
-                    <FiInfo className="shrink-0" />
-                    <span>Accommodation exceeds overall trip budget.</span>
-                  </div>
-                ) : null}
-                <div className="mt-2 text-[9px] text-slate-400 italic leading-tight">
-                  Budget reflects the total trip budget for all travelers. Stay total is dynamically updated based on your selections.
-                </div>
+                    {trip.campusConfig?.inclusions?.accommodation === false ? (
+                      <div className="mt-2 p-2 rounded bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-900/40 text-[10px] font-bold text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+                        <FiInfo className="shrink-0" />
+                        <span>Accommodation is marked as EXCLUDED from the inclusive group budget.</span>
+                      </div>
+                    ) : (
+                      ((trip.campusConfig?.budgetPerStudent || 0) * (trip.campusConfig?.expectedParticipants || 0)) > 0 && accommodationSummary.totalSelectedPrice > ((trip.campusConfig?.budgetPerStudent || 0) * (trip.campusConfig?.expectedParticipants || 0)) ? (
+                        <div className="mt-2 p-2 rounded bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/40 text-[10px] font-bold text-red-700 dark:text-red-400 flex items-center gap-1.5">
+                          <FiInfo className="shrink-0" />
+                          <span>Accommodation exceeds the total inclusive group budget.</span>
+                        </div>
+                      ) : null
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <div className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-500">Trip Budget Impact</div>
+                    <div className="flex justify-between items-baseline mb-1">
+                      <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Overall Budget</span>
+                      <span className="text-sm font-bold text-slate-900 dark:text-white">₹{budgetStats?.totalBudget?.toLocaleString() || '0'}</span>
+                    </div>
+                    <div className="flex justify-between items-baseline mb-3">
+                      <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Selected Stays</span>
+                      <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">₹{accommodationSummary.totalSelectedPrice.toLocaleString()}</span>
+                    </div>
+
+                    {(budgetStats?.totalBudget && accommodationSummary.totalSelectedPrice > budgetStats.totalBudget) ? (
+                      <div className="mt-2 p-2 rounded bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/40 text-[10px] font-bold text-red-700 dark:text-red-400 flex items-center gap-1.5">
+                        <FiInfo className="shrink-0" />
+                        <span>Accommodation exceeds overall trip budget.</span>
+                      </div>
+                    ) : null}
+                    <div className="mt-2 text-[9px] text-slate-400 italic leading-tight">
+                      Budget reflects the total trip budget for all travelers. Stay total is dynamically updated based on your selections.
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </section>
@@ -859,27 +949,31 @@ export default function StayPlanPage() {
       </div>
 
       {/* Sticky Action Bar */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-[#0f1525]/90 border-t border-slate-200 dark:border-slate-800 shadow-[0_-4px_20px_-5px_rgba(0,0,0,0.1)] z-40 backdrop-blur-md pb-safe">
-        <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-4 flex flex-col md:flex-row items-center justify-between gap-4 transition-all">
-          <div className="flex flex-col sm:flex-row items-center gap-4 text-xs font-bold text-slate-600 dark:text-slate-400">
-            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border ${totalStayNights === expectedTripNights ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400' : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400'}`}>
-              <FiMoon />
-              <span>{totalStayNights}/{expectedTripNights} nights covered</span>
+      {!viewOnly && (
+        <div className="fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-[#0f1525]/90 border-t border-slate-200 dark:border-slate-800 shadow-[0_-4px_20px_-5px_rgba(0,0,0,0.1)] z-40 backdrop-blur-md pb-safe">
+          <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-4 flex flex-col md:flex-row items-center justify-between gap-4 transition-all">
+            <div className="flex flex-col sm:flex-row items-center gap-4 text-xs font-bold text-slate-600 dark:text-slate-400">
+              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border ${totalStayNights === expectedTripNights ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400' : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400'}`}>
+                <FiMoon />
+                <span>{totalStayNights}/{expectedTripNights} nights covered</span>
+              </div>
+              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border ${selectedHotelsCount === staySegments.length ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400' : 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400'}`}>
+                <FiCheck />
+                <span>{selectedHotelsCount}/{staySegments.length} hotels selected</span>
+              </div>
             </div>
-            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border ${selectedHotelsCount === staySegments.length ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400' : 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400'}`}>
-              <FiCheck />
-              <span>{selectedHotelsCount}/{staySegments.length} hotels selected</span>
-            </div>
+            <button 
+              onClick={handleSaveStayPlan} 
+              disabled={isSyncing || !isStayPlanValid} 
+              className="w-full md:w-auto px-8 py-3 bg-indigo-600 text-white font-black rounded-xl hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-indigo-600/20 transition-all flex items-center justify-center gap-2 uppercase tracking-wide text-sm"
+            >
+              {isSyncing 
+                ? (hasUnsavedChanges ? "Saving Stay Plan..." : "Updating Itinerary...") 
+                : (hasUnsavedChanges ? "Save Stay Plan" : "Save & Update Itinerary")}
+            </button>
           </div>
-          <button 
-            onClick={handleSaveStayPlan} 
-            disabled={isSyncing || !isStayPlanValid} 
-            className="w-full md:w-auto px-8 py-3 bg-indigo-600 text-white font-black rounded-xl hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-indigo-600/20 transition-all flex items-center justify-center gap-2 uppercase tracking-wide text-sm"
-          >
-            {isSyncing ? "Updating Itinerary..." : "Save & Update Itinerary"}
-          </button>
         </div>
-      </div>
+      )}
 
       {/* Sync Success Modal */}
       {syncSuccess && (

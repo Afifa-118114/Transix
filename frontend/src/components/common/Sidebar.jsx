@@ -1,4 +1,4 @@
-import { FiHome, FiBookmark, FiUser, FiMap, FiCompass, FiLayers } from "react-icons/fi";
+import { FiHome, FiBookmark, FiUser, FiMap, FiCompass, FiLayers, FiUsers } from "react-icons/fi";
 import { NavLink } from "react-router-dom";
 import logo from "../../assets/logo/logo.png";
 import { useTripBuilder } from "../../context/TripBuilderContext";
@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { title: "Home", path: "/home", icon: <FiHome className="text-xl" /> },
   { title: "Builder", path: "/builder", icon: <FiLayers className="text-xl" /> },
   { title: "Journey", path: "/planner", icon: <FiCompass className="text-xl" /> },
+  { title: "Campus", path: "/campus", icon: <FiUsers className="text-xl" /> },
   { title: "Saved", path: "/saved", icon: <FiBookmark className="text-xl" /> },
   { title: "Profile", path: "/profile", icon: <FiUser className="text-xl" /> },
 ];

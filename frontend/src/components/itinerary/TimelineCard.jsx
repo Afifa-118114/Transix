@@ -4,7 +4,7 @@ import { getPlaceImage } from "../../services/imageService";
 import { useTripBuilder } from "../../context/TripBuilderContext";
 import SmartShiftModal from "./SmartShiftModal";
 
-export default function TimelineCard({ activity, destination, index }) {
+export default function TimelineCard({ activity, destination, index, viewOnly = false }) {
   const [image, setImage] = useState("");
 
   useEffect(() => {
@@ -88,7 +88,7 @@ export default function TimelineCard({ activity, destination, index }) {
               </div>
 
               <div className="flex gap-2">
-                {!isMandatory && (
+                {!isMandatory && !viewOnly && (
                   <button
                     onClick={() => setIsSmartShiftOpen(true)}
                     className="flex items-center gap-1 rounded-lg bg-amber-50 dark:bg-amber-950/40 px-3 py-1.5 text-[10px] font-bold text-amber-600 dark:text-amber-400 transition hover:bg-amber-100 dark:hover:bg-amber-900/50"
