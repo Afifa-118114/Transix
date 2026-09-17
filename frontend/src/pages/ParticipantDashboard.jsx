@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { FiFileText, FiDollarSign, FiMap, FiCheckCircle, FiBell, FiChevronRight, FiUpload } from "react-icons/fi";
+import { FiFileText, FiDollarSign, FiMap, FiCheckCircle, FiBell, FiChevronRight, FiUpload, FiX, FiAlertCircle, FiClock, FiMail, FiPhone, FiMessageSquare, FiInfo, FiCompass, FiBriefcase } from "react-icons/fi";
 import DashboardLayout from "../layouts/DashboardLayout";
 import { useAuth } from "../context/AuthContext";
 
@@ -13,6 +13,8 @@ export default function ParticipantDashboard() {
   const [loading, setLoading] = useState(true);
 
   const [currentStep, setCurrentStep] = useState(1);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [paymentError, setPaymentError] = useState(null);
 
   useEffect(() => {
     fetchData();
@@ -113,21 +115,93 @@ export default function ParticipantDashboard() {
     }
   };
 
-  const handlePreviewDocument = async (docId) => {
+  // Document Preview Modal State
+  const [previewModal, setPreviewModal] = useState({
+    isOpen: false,
+    title: "",
+    loading: false,
+    error: null,
+    blobUrl: null,
+    fileType: "pdf",
+  });
+
+  const closePreviewModal = () => {
+    setPreviewModal((prev) => {
+      if (prev.blobUrl) {
+        URL.revokeObjectURL(prev.blobUrl);
+      }
+      return {
+        isOpen: false,
+        title: "",
+        loading: false,
+        error: null,
+        blobUrl: null,
+        fileType: "pdf",
+      };
+    });
+  };
+
+  useEffect(() => {
+    return () => {
+      if (previewModal.blobUrl) {
+        URL.revokeObjectURL(previewModal.blobUrl);
+      }
+    };
+  }, [previewModal.blobUrl]);
+
+  const handlePreviewDocument = async (uploadedDoc) => {
+    if (!uploadedDoc || !uploadedDoc._id) return;
+
+    if (previewModal.blobUrl) {
+      URL.revokeObjectURL(previewModal.blobUrl);
+    }
+
+    setPreviewModal({
+      isOpen: true,
+      title: uploadedDoc.documentType || "Document Preview",
+      loading: true,
+      error: null,
+      blobUrl: null,
+      fileType: "pdf",
+    });
+
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/campus-trips/${id}/participant/documents/${docId}/preview`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/campus-trips/${id}/participant/documents/${uploadedDoc._id}/preview`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      if (res.ok) {
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        window.open(url, '_blank');
-      } else {
-        alert("Failed to load document preview.");
+
+      if (!res.ok) {
+        let errMsg = `Failed to load document preview (HTTP ${res.status})`;
+        try {
+          const errJson = await res.json();
+          if (errJson.message) errMsg = errJson.message;
+        } catch (_) {}
+        throw new Error(errMsg);
       }
+
+      const blob = await res.blob();
+      const contentType = blob.type || res.headers.get("content-type") || "";
+      const isImg = contentType.startsWith("image/") || (uploadedDoc.fileUrl && /\.(png|jpe?g|webp)$/i.test(uploadedDoc.fileUrl));
+
+      const objectUrl = URL.createObjectURL(blob);
+      setPreviewModal({
+        isOpen: true,
+        title: uploadedDoc.documentType || "Document Preview",
+        loading: false,
+        error: null,
+        blobUrl: objectUrl,
+        fileType: isImg ? "image" : "pdf",
+      });
     } catch (err) {
-      alert("Error opening preview.");
+      setPreviewModal({
+        isOpen: true,
+        title: uploadedDoc.documentType || "Document Preview",
+        loading: false,
+        error: err.message || "Failed to load document preview.",
+        blobUrl: null,
+        fileType: "pdf",
+      });
     }
   };
 
@@ -147,17 +221,114 @@ export default function ParticipantDashboard() {
     else setCurrentStep(4);
   };
 
-  const handleMockPay = async (isConfirmation = false, installmentId = null) => {
-    const url = isConfirmation 
-      ? `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/campus-trips/${id}/participant/payments/mock-confirmation`
-      : `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/campus-trips/${id}/participant/payments/${installmentId}`;
+  const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+      if (window.Razorpay) {
+        resolve(true);
+        return;
+      }
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.async = true;
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
 
-    if (isConfirmation) {
-      alert("Confirmation payment mock processing...");
-      setCurrentStep(4);
-      fetchData();
-      return;
+  const handleRazorpayConfirmationPayment = async () => {
+    setPaymentLoading(true);
+    setPaymentError(null);
+
+    try {
+      const scriptLoaded = await loadRazorpayScript();
+      if (!scriptLoaded) {
+        throw new Error("Failed to load Razorpay Checkout SDK. Please check your internet connection.");
+      }
+
+      const token = localStorage.getItem("token");
+      const orderRes = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/campus-trips/${id}/participant/payment/create-order`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      const orderData = await orderRes.json();
+      if (!orderRes.ok || !orderData.success) {
+        throw new Error(orderData.message || "Failed to initialize payment order");
+      }
+
+      const options = {
+        key: orderData.key_id || import.meta.env.VITE_RAZORPAY_KEY_ID,
+        amount: orderData.amount,
+        currency: orderData.currency || "INR",
+        name: "TRANSIX",
+        description: "Campus IV Confirmation Fee",
+        order_id: orderData.order_id,
+        handler: async function (response) {
+          try {
+            setPaymentLoading(true);
+            const verifyRes = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/campus-trips/${id}/participant/payment/verify`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_signature: response.razorpay_signature
+              })
+            });
+
+            const verifyData = await verifyRes.json();
+            if (!verifyRes.ok || !verifyData.success) {
+              throw new Error(verifyData.message || "Payment signature verification failed. Registration not completed.");
+            }
+
+            setRegistration(verifyData.registration);
+            setCurrentStep(4);
+            await fetchData();
+          } catch (verifyErr) {
+            console.error("Verification error:", verifyErr);
+            setPaymentError(verifyErr.message || "Error verifying payment signature");
+          } finally {
+            setPaymentLoading(false);
+          }
+        },
+        prefill: {
+          name: registration?.studentInfo?.name || user?.name || "",
+          email: registration?.studentInfo?.email || user?.email || "",
+          contact: registration?.studentInfo?.studentPhone || ""
+        },
+        theme: {
+          color: "#4f46e5"
+        },
+        modal: {
+          ondismiss: function () {
+            setPaymentLoading(false);
+            setPaymentError("Payment cancelled. You can try again.");
+          }
+        }
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.on("payment.failed", function (response) {
+        setPaymentLoading(false);
+        setPaymentError(response.error?.description || "Payment failed. Your registration has not been completed.");
+      });
+      rzp.open();
+    } catch (err) {
+      console.error("Checkout initiation error:", err);
+      setPaymentLoading(false);
+      setPaymentError(err.message || "Failed to start payment checkout");
     }
+  };
+
+  const handleMockPay = async (installmentId) => {
+    const url = `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/campus-trips/${id}/participant/payments/${installmentId}`;
 
     try {
       const token = localStorage.getItem("token");
@@ -220,6 +391,10 @@ export default function ParticipantDashboard() {
   
   const totalPaid = registration?.payments?.filter(p => p.status === 'PAID').reduce((sum, p) => sum + p.amount, 0) || 0;
   const isFullyCompleted = registration?.status === "COMPLETED";
+  const coordinatorStatus = registration?.coordinatorReview?.status || "PENDING";
+  const isApproved = coordinatorStatus === "APPROVED";
+  const isRejected = coordinatorStatus === "REJECTED";
+  const isPendingReview = !isApproved && !isRejected;
 
   const activeAnnouncements = trip.announcements?.filter(a => a.active).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)) || [];
   const latestAnnouncement = activeAnnouncements.length > 0 ? activeAnnouncements[0] : null;
@@ -396,10 +571,10 @@ export default function ParticipantDashboard() {
                               </label>
                               {uploaded && uploaded.fileUrl && (
                                 <button 
-                                  onClick={(e) => { e.preventDefault(); handlePreviewDocument(uploaded._id); }}
+                                  onClick={(e) => { e.preventDefault(); handlePreviewDocument(uploaded); }}
                                   className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold rounded-lg transition"
                                 >
-                                  Preview
+                                  View Uploaded
                                 </button>
                               )}
                             </div>
@@ -436,21 +611,56 @@ export default function ParticipantDashboard() {
                       <div className="w-16 h-16 bg-indigo-900/30 rounded-full flex items-center justify-center text-indigo-400 text-2xl mb-4">
                         <FiDollarSign />
                       </div>
-                      <p className="text-sm font-semibold text-slate-400 mb-2">Total Trip Fee: ₹{trip.registrationSettings?.totalFee?.toLocaleString()}</p>
-                      <h2 className="text-3xl font-black text-white mb-2">₹{trip.registrationSettings?.confirmationFee?.toLocaleString()}</h2>
-                      <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-8">Required to confirm participation</p>
-                      <div className="flex gap-4 w-full justify-center">
+
+                      {/* Fee Breakdown Cards */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full max-w-xl mb-6">
+                        <div className="p-4 bg-[#131c31] border border-slate-800 rounded-xl text-center">
+                          <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Confirmation Fee</p>
+                          <p className="text-xl font-black text-emerald-400">₹{(trip.registrationSettings?.confirmationFee || 0).toLocaleString()}</p>
+                        </div>
+                        <div className="p-4 bg-[#131c31] border border-slate-800 rounded-xl text-center">
+                          <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Total Trip Fee</p>
+                          <p className="text-xl font-black text-white">₹{(trip.registrationSettings?.totalFee || 0).toLocaleString()}</p>
+                        </div>
+                        <div className="p-4 bg-[#131c31] border border-slate-800 rounded-xl text-center">
+                          <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Remaining After Confirmation</p>
+                          <p className="text-xl font-black text-amber-400">₹{Math.max(0, (trip.registrationSettings?.totalFee || 0) - (trip.registrationSettings?.confirmationFee || 0)).toLocaleString()}</p>
+                        </div>
+                      </div>
+
+                      <p className="text-xs text-slate-400 mb-6 max-w-md">
+                        Pay the confirmation fee using Razorpay Test Checkout to complete your student registration. Remaining balance will be payable in upcoming installments.
+                      </p>
+
+                      {/* Payment Error / Cancellation Notice */}
+                      {paymentError && (
+                        <div className="w-full max-w-xl p-4 bg-rose-950/40 border border-rose-800/60 rounded-xl text-rose-300 text-xs flex items-center gap-3 text-left mb-6">
+                          <FiAlertCircle className="text-rose-400 text-xl flex-shrink-0" />
+                          <div className="flex-1 font-medium">{paymentError}</div>
+                        </div>
+                      )}
+
+                      <div className="flex flex-wrap gap-4 w-full justify-center">
                         <button 
                           onClick={() => setCurrentStep(2)}
-                          className="px-6 py-3 text-slate-400 hover:text-white font-bold transition flex items-center gap-2"
+                          disabled={paymentLoading}
+                          className="px-6 py-3 text-slate-400 hover:text-white font-bold transition flex items-center gap-2 disabled:opacity-50"
                         >
                           <FiChevronRight className="rotate-180" /> Back
                         </button>
                         <button 
-                          onClick={() => handleMockPay(true)}
-                          className="px-8 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-900/50 transition md:w-auto"
+                          onClick={handleRazorpayConfirmationPayment}
+                          disabled={paymentLoading}
+                          className="px-8 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-lg shadow-emerald-900/50 transition flex items-center justify-center gap-2 md:w-auto"
                         >
-                          Pay ₹{trip.registrationSettings?.confirmationFee?.toLocaleString()} Now
+                          {paymentLoading ? (
+                            <>
+                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                              Processing...
+                            </>
+                          ) : (
+                            `Pay ₹${(trip.registrationSettings?.confirmationFee || 0).toLocaleString()} & Complete Registration`
+                          )}
                         </button>
                       </div>
                     </div>
@@ -463,40 +673,96 @@ export default function ParticipantDashboard() {
             
             /* AFTER REGISTRATION - STATUS VIEW */
             <div className="space-y-6 animate-fade-in">
-              <div className="p-8 bg-emerald-900/20 border border-emerald-500/30 rounded-2xl text-center">
-                <FiCheckCircle className="text-5xl text-emerald-400 mx-auto mb-4" />
-                <h2 className="text-2xl font-black text-emerald-400 uppercase tracking-tight mb-2">Registration Complete</h2>
-                <p className="text-emerald-100/70 text-sm font-medium">Your participation in this IV has been confirmed.</p>
-              </div>
+              {/* Prominent Status Banner */}
+              {isApproved ? (
+                <div className="p-8 bg-emerald-900/20 border border-emerald-500/40 rounded-2xl text-center shadow-lg">
+                  <FiCheckCircle className="text-5xl text-emerald-400 mx-auto mb-3 animate-pulse" />
+                  <h2 className="text-2xl font-black text-emerald-400 uppercase tracking-tight mb-2">Registration Complete</h2>
+                  <p className="text-emerald-100/90 text-sm font-medium">Your participation in this IV has been confirmed.</p>
+                </div>
+              ) : isRejected ? (
+                <div className="p-8 bg-rose-950/30 border border-rose-500/40 rounded-2xl text-center shadow-lg">
+                  <FiAlertCircle className="text-5xl text-rose-400 mx-auto mb-3" />
+                  <h2 className="text-2xl font-black text-rose-400 uppercase tracking-tight mb-2">Registration Needs Attention</h2>
+                  <p className="text-rose-200/90 text-sm font-medium">Your registration could not be approved yet.</p>
+                  <div className="mt-4 p-4 bg-rose-900/30 border border-rose-800 rounded-xl text-left max-w-lg mx-auto">
+                    <p className="text-[10px] font-bold text-rose-400 uppercase tracking-wider mb-1">Reason for Rejection</p>
+                    <p className="text-xs font-semibold text-rose-100">{registration?.coordinatorReview?.rejectionReason || "Please review and re-upload required documents."}</p>
+                  </div>
+                  <button
+                    onClick={() => setCurrentStep(2)}
+                    className="mt-6 px-6 py-2.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-xl transition shadow-lg"
+                  >
+                    Update Required Information
+                  </button>
+                </div>
+              ) : (
+                <div className="p-8 bg-amber-950/20 border border-amber-500/40 rounded-2xl text-center shadow-lg">
+                  <FiClock className="text-5xl text-amber-400 mx-auto mb-3" />
+                  <h2 className="text-2xl font-black text-amber-400 uppercase tracking-tight mb-2">Registration Submitted</h2>
+                  <p className="text-amber-100/90 text-sm font-medium">Your registration has been successfully submitted and is awaiting coordinator verification.</p>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 
-                {/* Checklists */}
-                <div className="col-span-1 bg-[#131c31] border border-slate-800 rounded-2xl p-6 shadow-lg flex flex-col gap-6">
+                {/* Registration Checklist */}
+                <div className="col-span-1 bg-[#131c31] border border-slate-800 rounded-2xl p-6 shadow-lg flex flex-col justify-between">
                   <div>
-                    <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2"><FiCheckCircle className="text-indigo-400"/> Registration</h4>
-                    <p className="text-sm font-bold text-white">✓ Details Submitted</p>
+                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                      <FiCheckCircle className="text-indigo-400"/> Registration Checklist
+                    </h4>
+                    <div className="space-y-3.5">
+                      <div className="flex items-center gap-2 text-xs font-bold text-white">
+                        <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-[10px]">✓</span>
+                        <span>Details Submitted</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs font-bold text-white">
+                        <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-[10px]">✓</span>
+                        <span>{isApproved ? 'Required Documents Verified' : 'Required Documents Submitted'}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs font-bold text-white">
+                        <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-[10px]">✓</span>
+                        <span>Confirmation Fee Paid (₹{(trip.registrationSettings?.confirmationFee || 0).toLocaleString()})</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs font-bold">
+                        {isApproved ? (
+                          <>
+                            <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-[10px]">✓</span>
+                            <span className="text-emerald-400">Coordinator Approved</span>
+                          </>
+                        ) : isRejected ? (
+                          <>
+                            <span className="w-5 h-5 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center text-[10px]">✕</span>
+                            <span className="text-rose-400">Action Required</span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center text-[10px]">⏳</span>
+                            <span className="text-amber-400">Coordinator Approval Pending</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2"><FiFileText className="text-indigo-400"/> Documents</h4>
-                    <p className="text-sm font-bold text-white">✓ All Required Uploaded</p>
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2"><FiDollarSign className="text-indigo-400"/> Confirmation</h4>
-                    <p className="text-sm font-bold text-white">✓ Confirmation Fee Paid</p>
+
+                  <div className="mt-6 pt-4 border-t border-slate-800 text-[11px] text-slate-400">
+                    Status: <span className={`font-bold ${isApproved ? 'text-emerald-400' : isRejected ? 'text-rose-400' : 'text-amber-400'}`}>
+                      {isApproved ? 'Participation Confirmed' : isRejected ? 'Needs Revision' : 'Awaiting Coordinator Verification'}
+                    </span>
                   </div>
                 </div>
 
-                {/* Payments */}
+                {/* Payment & Installment Status */}
                 <div className="col-span-1 md:col-span-2 bg-[#131c31] border border-slate-800 rounded-2xl p-6 shadow-lg flex flex-col">
-                   <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-6 flex items-center gap-2">
-                     <FiDollarSign className="text-indigo-400"/> Payment Status
+                   <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-6 flex items-center gap-2">
+                     <FiDollarSign className="text-indigo-400"/> Payment & Installment Status
                    </h3>
                    
-                   <div className="grid grid-cols-3 gap-4 mb-8">
+                   <div className="grid grid-cols-3 gap-4 mb-6">
                      <div className="bg-[#0a101f] p-4 rounded-xl border border-slate-800">
                        <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Total Fee</p>
-                       <p className="text-lg font-black text-white">₹{trip.registrationSettings?.totalFee?.toLocaleString()}</p>
+                       <p className="text-lg font-black text-white">₹{trip.registrationSettings?.totalFee?.toLocaleString() || 0}</p>
                      </div>
                      <div className="bg-emerald-900/10 p-4 rounded-xl border border-emerald-900/30">
                        <p className="text-[10px] font-bold text-emerald-500/70 uppercase mb-1">Paid</p>
@@ -508,15 +774,15 @@ export default function ParticipantDashboard() {
                      </div>
                    </div>
 
-                   <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Payment Plan</h4>
-                   <div className="space-y-3">
+                   <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Payment Plan</h4>
+                   <div className="space-y-2.5">
                      <div className="flex justify-between items-center p-3 bg-[#0a101f] border border-slate-800 rounded-lg">
                         <div>
                           <p className="text-xs font-bold text-white uppercase">Confirmation Fee</p>
-                          <p className="text-[10px] text-emerald-500 font-bold mt-1">PAID</p>
+                          <p className="text-[10px] text-emerald-500 font-bold mt-0.5">✓ PAID VIA RAZORPAY</p>
                         </div>
                         <div className="text-right">
-                          <p className="text-sm font-black text-white">₹{trip.registrationSettings?.confirmationFee?.toLocaleString()}</p>
+                          <p className="text-sm font-black text-white">₹{trip.registrationSettings?.confirmationFee?.toLocaleString() || 0}</p>
                         </div>
                      </div>
                      
@@ -526,31 +792,275 @@ export default function ParticipantDashboard() {
                         return (
                           <div key={i} className="flex justify-between items-center p-3 bg-[#0a101f] border border-slate-800 rounded-lg">
                             <div>
-                              <p className="text-xs font-bold text-white uppercase">{inst.name}</p>
-                              <p className={`text-[10px] font-bold mt-1 ${isPaid ? 'text-emerald-500' : 'text-amber-500'}`}>
-                                {isPaid ? 'PAID' : `Due: ${new Date(inst.dueDate).toLocaleDateString('en-GB', {day:'numeric', month:'short'})}`}
+                              <p className="text-xs font-bold text-white uppercase">{inst.name || `Installment ${i+1}`}</p>
+                              <p className={`text-[10px] font-bold mt-0.5 ${isPaid ? 'text-emerald-500' : 'text-amber-500'}`}>
+                                {isPaid ? '✓ PAID' : `Due: ${new Date(inst.dueDate).toLocaleDateString('en-GB', {day:'numeric', month:'short', year:'numeric'})}`}
                               </p>
                             </div>
                             <div className="text-right flex items-center gap-4">
-                              <p className="text-sm font-black text-white">₹{inst.amount.toLocaleString()}</p>
+                              <p className="text-sm font-black text-white">₹{inst.amount?.toLocaleString() || 0}</p>
                               {!isPaid && (
-                                <button onClick={() => handleMockPay(false, pRecord?._id || inst._id)} className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white text-[10px] font-bold rounded shadow-md">
+                                <button onClick={() => handleMockPay(pRecord?._id || inst._id)} className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold rounded shadow-md transition">
                                   PAY
                                 </button>
                               )}
                             </div>
                           </div>
-                        )
+                        );
                      })}
                    </div>
                 </div>
 
               </div>
+
+              {/* Document Status Section */}
+              <div className="bg-[#131c31] border border-slate-800 rounded-2xl p-6 shadow-lg">
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                    <FiFileText className="text-indigo-400" /> Student Document Status
+                  </h3>
+                  <span className="text-[10px] bg-slate-800 px-2.5 py-1 rounded text-slate-300 font-semibold">
+                    {registration?.documents?.length || 0} Uploaded
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {requiredDocs.map((docItem, idx) => {
+                    const uploaded = registration?.documents?.find(d => d.documentType === docItem.documentType);
+                    const docStatus = uploaded?.status || "NOT_UPLOADED";
+                    const isVerified = docStatus === "VERIFIED";
+                    const isReview = docStatus === "UNDER_REVIEW" || docStatus === "UPLOADED";
+                    const isDocRejected = docStatus === "REJECTED";
+
+                    return (
+                      <div key={idx} className="p-4 bg-[#0a101f] border border-slate-800 rounded-xl flex flex-col justify-between">
+                        <div>
+                          <div className="flex justify-between items-start gap-2 mb-2">
+                            <h4 className="text-xs font-bold text-white leading-snug">{docItem.documentType}</h4>
+                            <span className={`text-[9px] font-black px-1.5 py-0.5 rounded tracking-wider uppercase shrink-0 ${
+                              isVerified ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' :
+                              isDocRejected ? 'bg-rose-950 text-rose-400 border border-rose-800' :
+                              uploaded ? 'bg-amber-950 text-amber-400 border border-amber-800' :
+                              'bg-slate-800 text-slate-400'
+                            }`}>
+                              {isVerified ? 'Verified' : isDocRejected ? 'Rejected' : uploaded ? 'Submitted / Verification Pending' : 'Pending'}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-slate-400 mb-3">{docItem.instruction || 'Required student document'}</p>
+                        </div>
+
+                        <div className="pt-3 border-t border-slate-800/80 flex justify-between items-center">
+                          {uploaded ? (
+                            <button
+                              onClick={() => handlePreviewDocument(uploaded)}
+                              className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white text-[11px] font-bold rounded-lg transition"
+                            >
+                              View Uploaded
+                            </button>
+                          ) : (
+                            <span className="text-[10px] text-rose-400 font-semibold">Not uploaded</span>
+                          )}
+                          {isDocRejected && uploaded?.rejectionReason && (
+                            <span className="text-[10px] text-rose-400 italic truncate max-w-[120px]" title={uploaded.rejectionReason}>
+                              {uploaded.rejectionReason}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Finalized Itinerary Section */}
+              <div className="bg-[#131c31] border border-slate-800 rounded-2xl p-6 shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-2">
+                    <FiMap className="text-indigo-400" /> Finalized Itinerary
+                  </h3>
+                  <p className="text-sm font-bold text-white mt-1">
+                    Your {trip.duration || `${trip.itinerary?.length || 0} Days`} {trip.destination} Educational / Industrial Visit
+                  </p>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Complete day-by-day itinerary including company visits, educational activities, and stay plan.
+                  </p>
+                </div>
+                <button
+                  onClick={() => navigate(`/itinerary/${trip._id}`, { state: { trip, viewOnly: true } })}
+                  className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl transition shadow-lg shadow-indigo-900/40 shrink-0 flex items-center gap-2"
+                >
+                  <FiCompass /> View Full Itinerary
+                </button>
+              </div>
+
+              {/* Message from Coordinator & Before You Travel Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                {/* Message from Coordinator */}
+                <div className="bg-[#131c31] border border-slate-800 rounded-2xl p-6 shadow-lg flex flex-col justify-between">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                      <FiMessageSquare className="text-indigo-400" /> Message from Coordinator
+                    </h3>
+                    
+                    {registration?.coordinatorMessage?.message ? (
+                      <div className="p-4 bg-[#0a101f] border border-slate-800 rounded-xl space-y-2">
+                        <p className="text-xs text-indigo-300 font-bold">Hi {studentName},</p>
+                        <p className="text-xs text-slate-200 whitespace-pre-wrap leading-relaxed">
+                          {registration.coordinatorMessage.message}
+                        </p>
+                        <div className="pt-2 border-t border-slate-800/80 flex justify-between items-center text-[10px] text-slate-500">
+                          <span>&mdash; {trip.coordinatorId?.name || "Trip Coordinator"}</span>
+                          {registration.coordinatorMessage.updatedAt && (
+                            <span>{new Date(registration.coordinatorMessage.updatedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</span>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="p-4 bg-[#0a101f] border border-slate-800 rounded-xl text-xs text-slate-400 italic">
+                        No personal notes from your coordinator yet. Please refer to announcements for trip-wide notifications.
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mt-6 pt-4 border-t border-slate-800 flex items-center justify-between">
+                    <span className="text-xs text-slate-400">{trip.coordinatorId?.name || 'Coordinator'}</span>
+                    <a
+                      href={`mailto:${trip.coordinatorId?.email || 'coordinator@transix.com'}`}
+                      className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-lg transition flex items-center gap-1.5"
+                    >
+                      <FiMail /> Contact Coordinator
+                    </a>
+                  </div>
+                </div>
+
+                {/* Before You Travel */}
+                <div className="bg-[#131c31] border border-slate-800 rounded-2xl p-6 shadow-lg flex flex-col justify-between">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                      <FiBriefcase className="text-indigo-400" /> Before You Travel
+                    </h3>
+                    <div className="space-y-3 text-xs">
+                      <div>
+                        <p className="text-[10px] font-bold text-slate-500 uppercase">Reporting Date & Time</p>
+                        <p className="font-bold text-white">
+                          {new Date(trip.startDate).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold text-slate-500 uppercase">Reporting Location</p>
+                        <p className="font-bold text-white">{trip.source || 'College Campus / Main Assembly Point'}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold text-slate-500 uppercase">Things to Carry</p>
+                        <p className="text-slate-300 text-[11px] leading-relaxed">
+                          Valid College ID card, printed Parent Consent/Undertaking form, personal medications, and appropriate clothing.
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold text-slate-500 uppercase">Emergency Contact</p>
+                        <p className="text-slate-300 font-semibold text-[11px]">
+                          {registration?.studentInfo?.emergencyContactName || 'Guardian'} ({registration?.studentInfo?.emergencyContactNumber || registration?.studentInfo?.parentPhone || 'On File'})
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 pt-3 border-t border-slate-800 text-[10px] text-slate-500 flex items-center gap-1">
+                    <FiInfo className="text-indigo-400" /> Please arrive at least 30 minutes before scheduled departure.
+                  </div>
+                </div>
+
+              </div>
+
             </div>
           )}
 
         </div>
       </div>
+
+      {/* Document Preview Modal */}
+      {previewModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
+          <div className="bg-[#131c31] border border-slate-800 rounded-2xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
+            {/* Modal Header */}
+            <div className="p-4 sm:p-5 border-b border-slate-800 flex justify-between items-center bg-[#0a101f]">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-indigo-900/40 text-indigo-400 flex items-center justify-center">
+                  <FiFileText size={18} />
+                </div>
+                <div>
+                  <h3 className="text-sm sm:text-base font-bold text-white">
+                    Document Preview
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    {previewModal.title}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={closePreviewModal}
+                className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition"
+                aria-label="Close Preview"
+              >
+                <FiX size={20} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-4 flex-1 overflow-auto flex items-center justify-center min-h-[420px] bg-[#070c18]">
+              {previewModal.loading && (
+                <div className="flex flex-col items-center gap-3 py-16">
+                  <div className="w-10 h-10 border-3 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                  <p className="text-xs font-semibold text-slate-400">Loading document securely...</p>
+                </div>
+              )}
+
+              {previewModal.error && (
+                <div className="max-w-md p-6 bg-rose-950/40 border border-rose-800/60 rounded-xl text-center">
+                  <FiAlertCircle className="mx-auto text-rose-400 text-3xl mb-2" />
+                  <h4 className="text-sm font-bold text-rose-300 mb-1">Failed to Load Preview</h4>
+                  <p className="text-xs text-rose-400/80 mb-4">{previewModal.error}</p>
+                  <button
+                    onClick={closePreviewModal}
+                    className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-bold transition"
+                  >
+                    Close
+                  </button>
+                </div>
+              )}
+
+              {!previewModal.loading && !previewModal.error && previewModal.blobUrl && (
+                previewModal.fileType === "image" ? (
+                  <div className="flex items-center justify-center w-full h-full p-2">
+                    <img
+                      src={previewModal.blobUrl}
+                      alt={previewModal.title}
+                      className="max-h-[70vh] max-w-full rounded-lg object-contain shadow-lg border border-slate-800"
+                    />
+                  </div>
+                ) : (
+                  <iframe
+                    src={previewModal.blobUrl}
+                    title={previewModal.title}
+                    className="w-full h-[70vh] rounded-xl border border-slate-800 bg-white"
+                  />
+                )
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-3 sm:p-4 border-t border-slate-800 bg-[#0a101f] flex justify-end">
+              <button
+                onClick={closePreviewModal}
+                className="px-5 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-lg transition"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 }

@@ -23,9 +23,15 @@ router.put("/:id/participant/registration", authMiddleware, campusController.sub
 router.post("/:id/participant/documents", authMiddleware, upload.single('file'), campusController.uploadDocument);
 router.get("/:id/participant/documents/:docId/preview", authMiddleware, campusController.previewDocument);
 router.post("/:id/participant/payments/:installmentId", authMiddleware, campusController.processPayment);
+router.post("/:id/participant/payment/create-order", authMiddleware, campusController.createPaymentOrder);
+router.post("/:id/participant/payment/verify", authMiddleware, campusController.verifyPayment);
 
 // Coordinator actions for participants
 router.get("/:id/participants", authMiddleware, campusController.getParticipants);
+router.get("/:id/participants/:regId/documents/:docId/preview", authMiddleware, campusController.previewDocument);
 router.patch("/:id/participants/:regId/documents/:docId/status", authMiddleware, campusController.updateDocumentStatus);
+router.post("/:id/registrations/:regId/approve", authMiddleware, campusController.approveRegistration);
+router.post("/:id/registrations/:regId/reject", authMiddleware, campusController.rejectRegistration);
+router.post("/:id/registrations/:regId/message", authMiddleware, campusController.updateCoordinatorMessage);
 
 module.exports = router;

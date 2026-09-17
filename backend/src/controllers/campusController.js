@@ -1,6 +1,17 @@
 const Trip = require("../models/Trip");
 const CampusRegistration = require("../models/CampusRegistration");
+const User = require("../models/User");
 const crypto = require("crypto");
+const cloudinary = require("cloudinary").v2;
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+const axios = require("axios");
+const Razorpay = require("razorpay");
 const { generateTripPlan } = require("../services/aiService");
 const { getDestinationImage } = require("../services/imageService");
 
@@ -152,7 +163,7 @@ exports.getMyCampusTrips = async (req, res) => {
 exports.getCampusTripById = async (req, res) => {
   try {
     const { id } = req.params;
-    const trip = await Trip.findById(id);
+    const trip = await Trip.findById(id).populate("coordinatorId", "name email phone");
 
     if (!trip || trip.tripCategory !== "CAMPUS") {
       return res.status(404).json({ success: false, message: "Campus trip not found" });
@@ -161,7 +172,8 @@ exports.getCampusTripById = async (req, res) => {
     // Check relationship
     let relationship = "NONE";
     let registration = null;
-    if (trip.coordinatorId.toString() === req.user.id.toString()) {
+    const coordinatorUserId = trip.coordinatorId?._id ? trip.coordinatorId._id.toString() : trip.coordinatorId?.toString();
+    if (coordinatorUserId && coordinatorUserId === req.user.id.toString()) {
       relationship = "COORDINATOR";
     } else {
       const reg = await CampusRegistration.findOne({ tripId: id, userId: req.user.id });
@@ -354,7 +366,7 @@ exports.getParticipants = async (req, res) => {
     const trip = await Trip.findOne({ _id: id, coordinatorId: req.user.id });
     if (!trip) return res.status(404).json({ success: false, message: "Unauthorized" });
 
-    const participants = await CampusRegistration.find({ tripId: id }).populate("userId", "name email");
+    const participants = await CampusRegistration.find({ tripId: id }).populate("userId", "name email phone");
     res.status(200).json({ success: true, participants });
   } catch (error) {
     res.status(500).json({ success: false, message: "Failed to fetch participants" });
@@ -416,7 +428,7 @@ exports.updateCampusConfig = async (req, res) => {
 const evaluateRegistrationStatus = (reg, trip) => {
   if (["CANCELLED", "REJECTED", "WAITLISTED"].includes(reg.status)) return reg.status;
 
-  const hasDetails = reg.studentInfo && Object.keys(reg.studentInfo).length > 0;
+  const hasDetails = reg.studentInfo && (reg.studentInfo instanceof Map ? reg.studentInfo.size > 0 : Object.keys(reg.studentInfo).length > 0);
   if (!hasDetails) return "DRAFT";
 
   const requiredDocs = trip.documentsConfig?.filter(d => d.required) || [];
@@ -427,7 +439,8 @@ const evaluateRegistrationStatus = (reg, trip) => {
   if (requiredDocs.length > 0 && !hasAllDocs) return "DOCUMENTS_PENDING";
 
   const confirmationFee = trip.registrationSettings?.confirmationFee || 0;
-  const totalPaid = reg.payments?.filter(p => p.status === "PAID").reduce((sum, p) => sum + p.amount, 0) || 0;
+  const totalPaid = (reg.payments?.filter(p => p.status === "PAID").reduce((sum, p) => sum + p.amount, 0) || 0) +
+    (reg.confirmationPayment?.status === "PAID" && !reg.payments?.some(p => p.name === "Confirmation Fee" && p.status === "PAID") ? (reg.confirmationPayment.amount || 0) : 0);
 
   if (confirmationFee > 0 && totalPaid < confirmationFee) return "PAYMENT_PENDING";
 
@@ -510,27 +523,72 @@ exports.uploadDocument = async (req, res) => {
 // 11.5 Preview Document (Secure)
 exports.previewDocument = async (req, res) => {
   try {
-    const { id, docId } = req.params;
+    const { id, docId, regId } = req.params;
     const userId = req.user.id;
 
-    const reg = await CampusRegistration.findOne({ tripId: id, userId });
+    const trip = await Trip.findById(id);
+    if (!trip) return res.status(404).json({ success: false, message: "Trip not found" });
+
+    // Allow both the student owner and the coordinator to preview
+    const isCoordinator = trip.coordinatorId?.toString() === userId.toString();
+    const query = isCoordinator 
+      ? (regId ? { _id: regId, tripId: id } : { tripId: id, "documents._id": docId }) 
+      : { tripId: id, userId };
+    const reg = await CampusRegistration.findOne(query);
     if (!reg) return res.status(404).json({ success: false, message: "Registration not found" });
 
     const doc = reg.documents.id(docId);
     if (!doc || !doc.fileUrl) return res.status(404).json({ success: false, message: "Document not found" });
 
-    // Fetch the actual PDF from Cloudinary natively
-    const https = require("https");
-    https.get(doc.fileUrl, (cloudinaryRes) => {
-      res.setHeader("Content-Type", "application/pdf");
-      cloudinaryRes.pipe(res);
-    }).on("error", (error) => {
-      console.error("Cloudinary Fetch Error:", error);
-      res.status(500).json({ success: false, message: "Failed to stream document" });
-    });
+    let downloadUrl = doc.fileUrl;
+    if (doc.fileUrl.includes("res.cloudinary.com")) {
+      const match = doc.fileUrl.match(/\/(image|raw|video)\/upload\/(?:v\d+\/)?(.+)$/);
+      if (match) {
+        const resourceType = match[1];
+        const publicIdWithExt = match[2];
+
+        if (resourceType === "raw") {
+          // Cloudinary RAW resources retain the file extension as part of public_id
+          downloadUrl = cloudinary.utils.private_download_url(publicIdWithExt, "", {
+            resource_type: "raw",
+            type: "upload"
+          });
+        } else {
+          // IMAGE or other resource types expect public_id without extension and format separately
+          const lastDot = publicIdWithExt.lastIndexOf(".");
+          if (lastDot !== -1) {
+            const publicId = publicIdWithExt.substring(0, lastDot);
+            const format = publicIdWithExt.substring(lastDot + 1);
+            downloadUrl = cloudinary.utils.private_download_url(publicId, format, {
+              resource_type: resourceType,
+              type: "upload"
+            });
+          } else {
+            downloadUrl = cloudinary.utils.private_download_url(publicIdWithExt, "", {
+              resource_type: resourceType,
+              type: "upload"
+            });
+          }
+        }
+      }
+    }
+
+    const cloudinaryRes = await axios.get(downloadUrl, { responseType: "stream" });
+    let contentType = cloudinaryRes.headers["content-type"];
+    if (!contentType || contentType === "application/octet-stream" || contentType === "text/plain") {
+      if (doc.fileUrl.toLowerCase().endsWith(".pdf")) {
+        contentType = "application/pdf";
+      } else if (doc.fileUrl.toLowerCase().endsWith(".png")) {
+        contentType = "image/png";
+      } else if (doc.fileUrl.toLowerCase().endsWith(".jpg") || doc.fileUrl.toLowerCase().endsWith(".jpeg")) {
+        contentType = "image/jpeg";
+      }
+    }
+    res.setHeader("Content-Type", contentType);
+    cloudinaryRes.data.pipe(res);
   } catch (error) {
-    console.error("Preview Document Error:", error);
-    res.status(500).json({ success: false, message: "Failed to load document" });
+    console.error("Preview Document Error:", error.message || error);
+    res.status(500).json({ success: false, message: "Failed to load document preview" });
   }
 };
 
@@ -562,5 +620,348 @@ exports.processPayment = async (req, res) => {
   } catch (error) {
     console.error("Process Payment Error:", error);
     res.status(500).json({ success: false, message: "Failed to process payment" });
+  }
+};
+
+// 13. Create Razorpay Payment Order (Participant - Confirmation Fee)
+exports.createPaymentOrder = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    const trip = await Trip.findById(id);
+    if (!trip) {
+      return res.status(404).json({ success: false, message: "Trip not found" });
+    }
+
+    const reg = await CampusRegistration.findOne({ tripId: id, userId });
+    if (!reg) {
+      return res.status(404).json({ success: false, message: "Registration not found" });
+    }
+
+    // Check student registration state
+    if (reg.status === "DRAFT") {
+      return res.status(400).json({ success: false, message: "Please submit student registration details first" });
+    }
+
+    const requiredDocs = trip.documentsConfig?.filter(d => d.required) || [];
+    const hasAllDocs = requiredDocs.every(d => 
+      reg.documents?.some(rd => rd.documentType === d.documentType && ["UNDER_REVIEW", "VERIFIED"].includes(rd.status))
+    );
+    if (requiredDocs.length > 0 && !hasAllDocs) {
+      return res.status(400).json({ success: false, message: "Please upload all required documents before paying the confirmation fee" });
+    }
+
+    // Check if already paid
+    if (reg.confirmationPayment?.status === "PAID" || reg.payments?.some(p => p.name === "Confirmation Fee" && p.status === "PAID")) {
+      return res.status(400).json({ success: false, message: "Confirmation fee has already been paid" });
+    }
+
+    const confirmationFee = trip.registrationSettings?.confirmationFee || 0;
+    if (confirmationFee <= 0) {
+      return res.status(400).json({ success: false, message: "No confirmation fee is required for this trip" });
+    }
+
+    const amountInPaise = Math.round(confirmationFee * 100);
+    if (amountInPaise < 100) {
+      return res.status(400).json({ success: false, message: "Invalid confirmation fee amount" });
+    }
+
+    if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+      return res.status(500).json({ success: false, message: "Razorpay credentials not configured on server" });
+    }
+
+    const razorpay = new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID,
+      key_secret: process.env.RAZORPAY_KEY_SECRET
+    });
+
+    const receiptId = `c_${id.toString().slice(-8)}_${reg._id.toString().slice(-8)}_${Date.now().toString().slice(-6)}`;
+    const order = await razorpay.orders.create({
+      amount: amountInPaise,
+      currency: "INR",
+      receipt: receiptId,
+      notes: {
+        tripId: id.toString(),
+        registrationId: reg._id.toString(),
+        userId: userId.toString(),
+        feeType: "CONFIRMATION_FEE"
+      }
+    });
+
+    // Store Razorpay order in confirmationPayment on existing registration
+    reg.confirmationPayment = {
+      amount: confirmationFee,
+      razorpayOrderId: order.id,
+      status: "PENDING"
+    };
+    await reg.save();
+
+    res.status(200).json({
+      success: true,
+      order_id: order.id,
+      amount: order.amount,
+      currency: order.currency,
+      key_id: process.env.RAZORPAY_KEY_ID
+    });
+  } catch (error) {
+    console.error("Create Razorpay Order Error:", error.message || error);
+    res.status(500).json({ success: false, message: error.message || "Failed to create payment order" });
+  }
+};
+
+// 14. Verify Razorpay Payment (Participant - Confirmation Fee)
+exports.verifyPayment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    const { razorpay_payment_id, razorpay_order_id, razorpay_signature } = req.body;
+
+    if (!razorpay_payment_id || !razorpay_order_id || !razorpay_signature) {
+      return res.status(400).json({ success: false, message: "Missing required payment verification parameters" });
+    }
+
+    const trip = await Trip.findById(id);
+    if (!trip) {
+      return res.status(404).json({ success: false, message: "Trip not found" });
+    }
+
+    const reg = await CampusRegistration.findOne({ tripId: id, userId });
+    if (!reg) {
+      return res.status(404).json({ success: false, message: "Registration not found" });
+    }
+
+    // Verify order ID matches server-stored order ID on this registration
+    const serverOrderId = reg.confirmationPayment?.razorpayOrderId;
+    if (!serverOrderId || serverOrderId !== razorpay_order_id) {
+      return res.status(400).json({ success: false, message: "Order ID mismatch with registration record" });
+    }
+
+    // Mandatory Cryptographic HMAC-SHA256 signature verification
+    const expectedSignature = crypto
+      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+      .update(`${serverOrderId}|${razorpay_payment_id}`)
+      .digest("hex");
+
+    if (expectedSignature !== razorpay_signature) {
+      if (reg.confirmationPayment) {
+        reg.confirmationPayment.status = "FAILED";
+        await reg.save();
+      }
+      return res.status(400).json({ success: false, message: "Payment signature verification failed. Invalid or tampered transaction." });
+    }
+
+    // Payment authentic: update confirmationPayment object
+    reg.confirmationPayment.status = "PAID";
+    reg.confirmationPayment.razorpayPaymentId = razorpay_payment_id;
+    reg.confirmationPayment.razorpaySignature = razorpay_signature;
+    reg.confirmationPayment.paidAt = new Date();
+
+    // Ensure confirmation payment is recorded in reg.payments for ledger and history
+    const confirmationFee = trip.registrationSettings?.confirmationFee || reg.confirmationPayment.amount;
+    const existingPaymentRecord = reg.payments?.find(p => p.name === "Confirmation Fee");
+    if (existingPaymentRecord) {
+      existingPaymentRecord.status = "PAID";
+      existingPaymentRecord.amount = confirmationFee;
+      existingPaymentRecord.paymentReference = razorpay_payment_id;
+      existingPaymentRecord.paidDate = new Date();
+    } else {
+      if (!reg.payments) reg.payments = [];
+      reg.payments.push({
+        name: "Confirmation Fee",
+        amount: confirmationFee,
+        status: "PAID",
+        paymentReference: razorpay_payment_id,
+        paidDate: new Date()
+      });
+    }
+
+    // Whenever confirmation fee payment is verified, registration is submitted for coordinator review (PENDING)
+    reg.coordinatorReview = {
+      ...(reg.coordinatorReview ? (reg.coordinatorReview.toObject?.() || reg.coordinatorReview) : {}),
+      status: "PENDING",
+      reviewedBy: null,
+      reviewedAt: null,
+      rejectionReason: null
+    };
+
+    // Evaluate registration status according to existing status engine
+    reg.status = evaluateRegistrationStatus(reg, trip);
+    await reg.save();
+
+    res.status(200).json({
+      success: true,
+      registration: reg,
+      message: "Confirmation payment verified successfully. Registration submitted for coordinator review!"
+    });
+  } catch (error) {
+    console.error("Verify Payment Error:", error.message || error);
+    res.status(500).json({ success: false, message: "Failed to verify payment" });
+  }
+};
+
+// 15. Approve Participant Registration (Coordinator)
+exports.approveRegistration = async (req, res) => {
+  try {
+    const { id, regId } = req.params;
+    const coordinatorId = req.user.id;
+
+    const trip = await Trip.findOne({ _id: id, coordinatorId, tripCategory: "CAMPUS" });
+    if (!trip) {
+      return res.status(404).json({ success: false, message: "Campus trip not found or unauthorized" });
+    }
+
+    const reg = await CampusRegistration.findOne({ _id: regId, tripId: id });
+    if (!reg) {
+      return res.status(404).json({ success: false, message: "Registration not found" });
+    }
+
+    // Validation 1: Student details submitted
+    const hasDetails = reg.studentInfo && (reg.studentInfo instanceof Map ? reg.studentInfo.size > 0 : Object.keys(reg.studentInfo).length > 0);
+    if (!hasDetails) {
+      return res.status(400).json({ success: false, message: "Cannot approve student: Student registration details are missing." });
+    }
+
+    // Validation 2: Required documents uploaded and verified
+    const requiredDocs = trip.documentsConfig?.filter(d => d.required) || [];
+    const missingOrUnverifiedDocs = [];
+
+    if (requiredDocs.length > 0) {
+      for (const reqDoc of requiredDocs) {
+        const typeName = reqDoc.name || reqDoc.documentType;
+        const uploaded = reg.documents?.find(d => d.documentType === typeName);
+        if (!uploaded) {
+          missingOrUnverifiedDocs.push(`${typeName} (Not uploaded)`);
+        } else if (uploaded.status !== "VERIFIED") {
+          missingOrUnverifiedDocs.push(`${typeName} (${uploaded.status})`);
+        }
+      }
+    } else if (reg.documents && reg.documents.length > 0) {
+      // If trip doesn't have documentsConfig predefined, all submitted student documents must be verified
+      for (const doc of reg.documents) {
+        if (doc.status !== "VERIFIED") {
+          missingOrUnverifiedDocs.push(`${doc.documentType} (${doc.status})`);
+        }
+      }
+    }
+
+    if (missingOrUnverifiedDocs.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot approve yet. Missing document verification: ${missingOrUnverifiedDocs.join(", ")}`
+      });
+    }
+
+    // Validation 3: Confirmation payment verified
+    const confirmationFee = trip.registrationSettings?.confirmationFee || 0;
+    if (confirmationFee > 0) {
+      const isPaid = reg.confirmationPayment?.status === "PAID" || reg.payments?.some(p => p.name === "Confirmation Fee" && p.status === "PAID");
+      if (!isPaid) {
+        return res.status(400).json({
+          success: false,
+          message: "Cannot approve student: Confirmation fee payment has not been verified."
+        });
+      }
+    }
+
+    // All checks passed -> approve
+    reg.coordinatorReview = {
+      status: "APPROVED",
+      reviewedBy: coordinatorId,
+      reviewedAt: new Date(),
+      rejectionReason: undefined
+    };
+
+    await reg.save();
+
+    res.status(200).json({
+      success: true,
+      registration: reg,
+      message: "Student registration approved successfully. Participation is now confirmed."
+    });
+  } catch (error) {
+    console.error("Approve Registration Error:", error);
+    res.status(500).json({ success: false, message: "Failed to approve registration" });
+  }
+};
+
+// 16. Reject Participant Registration (Coordinator)
+exports.rejectRegistration = async (req, res) => {
+  try {
+    const { id, regId } = req.params;
+    const coordinatorId = req.user.id;
+    const { rejectionReason } = req.body;
+
+    if (!rejectionReason || !rejectionReason.trim()) {
+      return res.status(400).json({ success: false, message: "A reason for rejection is required." });
+    }
+
+    const trip = await Trip.findOne({ _id: id, coordinatorId, tripCategory: "CAMPUS" });
+    if (!trip) {
+      return res.status(404).json({ success: false, message: "Campus trip not found or unauthorized" });
+    }
+
+    const reg = await CampusRegistration.findOne({ _id: regId, tripId: id });
+    if (!reg) {
+      return res.status(404).json({ success: false, message: "Registration not found" });
+    }
+
+    reg.coordinatorReview = {
+      status: "REJECTED",
+      rejectionReason: rejectionReason.trim(),
+      reviewedBy: coordinatorId,
+      reviewedAt: new Date()
+    };
+
+    await reg.save();
+
+    res.status(200).json({
+      success: true,
+      registration: reg,
+      message: "Student registration marked as rejected."
+    });
+  } catch (error) {
+    console.error("Reject Registration Error:", error);
+    res.status(500).json({ success: false, message: "Failed to reject registration" });
+  }
+};
+
+// 17. Update Personal Coordinator Message for Participant
+exports.updateCoordinatorMessage = async (req, res) => {
+  try {
+    const { id, regId } = req.params;
+    const coordinatorId = req.user.id;
+    const { message } = req.body;
+
+    if (!message || !message.trim()) {
+      return res.status(400).json({ success: false, message: "Message content cannot be empty." });
+    }
+
+    const trip = await Trip.findOne({ _id: id, coordinatorId, tripCategory: "CAMPUS" });
+    if (!trip) {
+      return res.status(404).json({ success: false, message: "Campus trip not found or unauthorized" });
+    }
+
+    const reg = await CampusRegistration.findOne({ _id: regId, tripId: id });
+    if (!reg) {
+      return res.status(404).json({ success: false, message: "Registration not found" });
+    }
+
+    reg.coordinatorMessage = {
+      message: message.trim(),
+      updatedAt: new Date(),
+      updatedBy: coordinatorId
+    };
+
+    await reg.save();
+
+    res.status(200).json({
+      success: true,
+      registration: reg,
+      message: "Coordinator message sent successfully."
+    });
+  } catch (error) {
+    console.error("Update Coordinator Message Error:", error);
+    res.status(500).json({ success: false, message: "Failed to update coordinator message" });
   }
 };

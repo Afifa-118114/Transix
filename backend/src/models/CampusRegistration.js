@@ -47,7 +47,40 @@ const campusRegistrationSchema = new mongoose.Schema({
     of: String
   },
   documents: [documentSchema],
-  payments: [paymentSchema]
+  payments: [paymentSchema],
+  confirmationPayment: {
+    amount: Number,
+    razorpayOrderId: String,
+    razorpayPaymentId: String,
+    razorpaySignature: String,
+    status: {
+      type: String,
+      enum: ["PENDING", "PAID", "FAILED"],
+      default: "PENDING"
+    },
+    paidAt: Date
+  },
+  coordinatorReview: {
+    status: {
+      type: String,
+      enum: ["PENDING", "APPROVED", "REJECTED"],
+      default: "PENDING"
+    },
+    reviewedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User"
+    },
+    reviewedAt: Date,
+    rejectionReason: String
+  },
+  coordinatorMessage: {
+    message: String,
+    updatedAt: Date,
+    updatedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User"
+    }
+  }
 }, { timestamps: true });
 
 // Prevent duplicate registrations
