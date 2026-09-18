@@ -6,7 +6,7 @@ const model = genAI.getGenerativeModel({
   model: "gemini-3.6-flash",
 });
 
-const { validateItinerary, timeToMinutes, minutesToTimeStr } = require("./itineraryValidator");
+const { validateItinerary, timeToMinutes, minutesToTimeStr, calculateCampusGroupRoomRate } = require("./itineraryValidator");
 
 const { resolveStationCandidates } = require("./stationService");
 const { searchDirectTrains } = require("./trainPlannerService");
@@ -206,7 +206,7 @@ RULES:
    - Dinner should be approximately 08:00 PM - 11:00 PM.
    - Normal activities should prefer 07:00 AM - 08:00 PM. Avoid normal activities between 08:00 PM and 07:00 AM unless actual availability or transport requires it.
 5. PRESERVE DURATIONS: Do not invent availability or silently shorten realistic activity durations just to fit them. Respect transport and fixed-event constraints absolutely.
-6. Total estimated cost MUST NOT exceed ${tripData.budget} ${tripData.currency}. Aim for ~10% under budget. Provide ONLY pure numbers for "estimatedCost" (no currency symbols).
+6. Total estimated cost MUST NOT exceed ${tripData.tripCategory === 'CAMPUS' && tripData.campusConfig ? (tripData.campusConfig.budgetPerStudent * tripData.campusConfig.expectedParticipants) : tripData.budget} ${tripData.currency}. Aim for ~10% under budget. Provide ONLY pure numbers for "estimatedCost" (no currency symbols).
 
 Return ONLY this EXACT JSON structure, do NOT use markdown or backticks:
 
@@ -638,147 +638,332 @@ Return
 const crypto = require("crypto");
 
 const syncItineraryWithStayPlan = async (trip, newStaySegments) => {
+  if (!Array.isArray(newStaySegments) || newStaySegments.length === 0) {
+    throw new Error("Cannot synchronize itinerary: Stay Plan has no segments.");
+  }
+
   const oldItinerary = trip.itinerary || [];
-  const tripStart = new Date(trip.startDate);
-  const tripEnd = new Date(trip.endDate);
+
+  const parseIsoDate = (dStr) => {
+    if (!dStr) return null;
+    if (dStr instanceof Date) return dStr;
+    const s = String(dStr).split("T")[0];
+    return new Date(`${s}T00:00:00Z`);
+  };
+
+  const tripStart = parseIsoDate(trip.startDate);
+  const tripEnd = parseIsoDate(trip.endDate);
+  if (!tripStart || isNaN(tripStart.getTime()) || !tripEnd || isNaN(tripEnd.getTime())) {
+    throw new Error("Invalid trip startDate or endDate.");
+  }
+
   const expectedDays = Math.max(1, Math.round((tripEnd.getTime() - tripStart.getTime()) / (1000 * 60 * 60 * 24)) + 1);
 
-  const requiredDayLocations = {};
+  // 1. Identify overnight transit nights from old itinerary
+  const transitNights = new Set();
   for (let d = 1; d <= expectedDays; d++) {
-    if (d === expectedDays) continue; // Departure day has no overnight stay
-
-    const overnightDate = new Date(tripStart);
-    overnightDate.setUTCDate(tripStart.getUTCDate() + (d - 1));
-    const overnightIso = overnightDate.toISOString().split("T")[0];
-
-    let isTransit = false;
     const oldDayData = oldItinerary[d - 1];
     if (oldDayData && Array.isArray(oldDayData.plan)) {
       for (const item of oldDayData.plan) {
         const cat = String(item.category || "").toLowerCase();
         if (cat.includes("transport") || item.trainNumber || item.flightNumber) {
-          const timeToMins = (t) => {
-            if (!t) return null;
-            const parts = t.trim().split(/\s+/);
-            if (parts.length < 2) return null;
-            const [time, period] = parts;
-            const tParts = time.split(":");
-            if (tParts.length < 2) return null;
-            let h = parseInt(tParts[0], 10);
-            const m = parseInt(tParts[1], 10);
-            if (period.toLowerCase() === "pm" && h !== 12) h += 12;
-            if (period.toLowerCase() === "am" && h === 12) h = 0;
-            return h * 60 + m;
-          };
-
-          const tStart = timeToMins(item.startTime || (item.time ? String(item.time).split("-")[0] : null));
-          const tEnd = timeToMins(item.endTime || (item.time ? String(item.time).split("-")[1] : null));
+          const tStart = timeToMinutes(item.startTime || (item.time ? String(item.time).split("-")[0] : null));
+          const tEnd = timeToMinutes(item.endTime || (item.time ? String(item.time).split("-")[1] : null));
           if (tStart !== null && tEnd !== null && tEnd < tStart) {
-            isTransit = true;
+            transitNights.add(d);
             break;
           }
         }
       }
     }
-
-    if (isTransit) continue;
-
-    let foundSeg = null;
-    let isFirstDay = false;
-    for (const seg of newStaySegments) {
-      if (seg.checkIn && seg.checkOut) {
-        if (overnightIso >= seg.checkIn && overnightIso < seg.checkOut) {
-          foundSeg = seg;
-          isFirstDay = (overnightIso === seg.checkIn);
-          break;
-        }
-      }
-    }
-
-    if (foundSeg) {
-      requiredDayLocations[d] = {
-        location: foundSeg.location,
-        hotelName: foundSeg.selectedHotel?.name || "Hotel",
-        hotelPrice: foundSeg.selectedHotel?.price || "0",
-        isFirstDayInLocation: isFirstDay,
-      };
-    }
   }
 
-  const oldDayLocations = {};
-  for (let d = 1; d <= expectedDays; d++) {
-    if (d === expectedDays) continue;
+  // 2. Canonicalize segments: assign sequential checkIn / checkOut dates
+  const canonicalSegments = [];
+  let currDate = new Date(tripStart);
+  let dayIdx = 1;
+
+  for (let i = 0; i < newStaySegments.length; i++) {
+    const rawSeg = newStaySegments[i];
+    const nights = Math.max(1, parseInt(rawSeg.nights, 10) || 1);
+    const location = String(rawSeg.location || trip.destination || "Destination").trim();
+    const segId = rawSeg.id || `stay-${crypto.randomUUID()}`;
+
+    // Skip transit nights before checkIn
+    while (transitNights.has(dayIdx) && dayIdx < expectedDays) {
+      currDate.setUTCDate(currDate.getUTCDate() + 1);
+      dayIdx++;
+    }
+
+    const checkIn = currDate.toISOString().split("T")[0];
+    let remaining = nights;
+    while (remaining > 0 && dayIdx < expectedDays) {
+      currDate.setUTCDate(currDate.getUTCDate() + 1);
+      if (!transitNights.has(dayIdx)) {
+        remaining--;
+      }
+      dayIdx++;
+    }
+    const checkOut = currDate.toISOString().split("T")[0];
+
+    canonicalSegments.push({
+      ...rawSeg,
+      id: segId,
+      location,
+      nights,
+      checkIn,
+      checkOut,
+      selectedHotel: rawSeg.selectedHotel || null,
+    });
+  }
+
+  // 3. Map each night (1 .. expectedDays - 1) to its assigned segment
+  const nightToSegment = {};
+  for (let d = 1; d < expectedDays; d++) {
+    if (transitNights.has(d)) {
+      nightToSegment[d] = null;
+      continue;
+    }
     const overnightDate = new Date(tripStart);
     overnightDate.setUTCDate(tripStart.getUTCDate() + (d - 1));
     const overnightIso = overnightDate.toISOString().split("T")[0];
 
+    const matchSeg = canonicalSegments.find(s => overnightIso >= s.checkIn && overnightIso < s.checkOut);
+    nightToSegment[d] = matchSeg || null;
+  }
+
+  // 4. Determine old day locations
+  const oldDayLocations = {};
+  for (let d = 1; d <= expectedDays; d++) {
+    const overnightDate = new Date(tripStart);
+    overnightDate.setUTCDate(tripStart.getUTCDate() + (d - 1));
+    const overnightIso = overnightDate.toISOString().split("T")[0];
+
+    let oldLoc = null;
     for (const seg of (trip.staySegments || [])) {
       if (seg.checkIn && seg.checkOut) {
         if (overnightIso >= seg.checkIn && overnightIso < seg.checkOut) {
-          oldDayLocations[d] = seg.location;
+          oldLoc = seg.location;
           break;
         }
       }
     }
+    if (!oldLoc && oldItinerary[d - 1]?.title) {
+      const match = oldItinerary[d - 1].title.match(/in\s+([A-Za-z\s]+)/i);
+      if (match) oldLoc = match[1].trim();
+    }
+    oldDayLocations[d] = oldLoc || (d === expectedDays ? (oldDayLocations[d - 1] || trip.destination) : trip.destination);
   }
 
-  const totalDays = expectedDays;
+  // 5. Build robust Day Metadata for all days (1 .. expectedDays)
+  const dayMeta = {};
+  for (let d = 1; d <= expectedDays; d++) {
+    const isDeparture = (d === expectedDays);
+    const isTransit = transitNights.has(d);
+    const staySegForNight = isDeparture ? null : nightToSegment[d];
+    const prevNightStay = (d > 1) ? nightToSegment[d - 1] : null;
 
+    let dayLocation = trip.destination;
+    if (staySegForNight) {
+      dayLocation = staySegForNight.location;
+    } else if (prevNightStay) {
+      dayLocation = prevNightStay.location;
+    }
+
+    dayMeta[d] = {
+      dayNum: d,
+      isDeparture,
+      isTransit,
+      staySegForNight,
+      prevNightStay,
+      location: dayLocation,
+    };
+  }
+
+  // 6. Compare previous Stay Plan and new Stay Plan to classify the change
+  const oldStaySegments = trip.staySegments || [];
+  const oldLocations = oldStaySegments.map(s => String(s.location || "").toLowerCase().trim()).filter(Boolean);
+  const newLocations = canonicalSegments.map(s => String(s.location || "").toLowerCase().trim()).filter(Boolean);
+
+  const uniqueOldLocations = new Set(oldLocations);
+  for (let d = 1; d <= expectedDays; d++) {
+    if (oldDayLocations[d]) {
+      uniqueOldLocations.add(String(oldDayLocations[d]).toLowerCase().trim());
+    }
+  }
+
+  const uniqueNewLocations = new Set(newLocations);
+  const newDestinations = [...uniqueNewLocations].filter(loc => !uniqueOldLocations.has(loc));
+  const removedDestinations = [...uniqueOldLocations].filter(loc => !uniqueNewLocations.has(loc));
+
+  const isSameCount = oldStaySegments.length === canonicalSegments.length;
+  const isSameOrder = isSameCount && oldLocations.every((loc, i) => loc === newLocations[i]);
+  const isSameNights = isSameCount && oldStaySegments.every((s, i) => parseInt(s.nights || 1, 10) === parseInt(canonicalSegments[i].nights || 1, 10));
+  const isSameHotels = isSameCount && oldStaySegments.every((s, i) => {
+    const hOld = s.selectedHotel?.id || s.selectedHotel?._id || s.selectedHotel?.name || null;
+    const hNew = canonicalSegments[i].selectedHotel?.id || canonicalSegments[i].selectedHotel?._id || canonicalSegments[i].selectedHotel?.name || null;
+    return hOld === hNew;
+  });
+  const sameLocationsSet = newDestinations.length === 0 && removedDestinations.length === 0;
+
+  let changeType = "MIXED_CHANGE";
+  if (isSameCount && isSameOrder && isSameNights && isSameHotels) {
+    changeType = "NO_CHANGE";
+  } else if (isSameCount && isSameOrder && isSameNights && !isSameHotels) {
+    changeType = "HOTEL_ONLY";
+  } else if (sameLocationsSet && isSameCount && !isSameOrder && isSameNights) {
+    changeType = "ORDER_ONLY";
+  } else if (sameLocationsSet && isSameCount && isSameOrder && !isSameNights) {
+    changeType = "NIGHT_DURATION_CHANGE";
+  } else if (sameLocationsSet && (!isSameOrder || !isSameNights)) {
+    changeType = "ORDER_AND_NIGHTS_CHANGE";
+  } else if (newDestinations.length > 0 && removedDestinations.length === 0) {
+    changeType = "ADDITION_OF_NEW_DESTINATION";
+  } else if (newDestinations.length === 0 && removedDestinations.length > 0) {
+    changeType = "REMOVAL_OF_DESTINATION";
+  } else if (newDestinations.length > 0 && removedDestinations.length > 0) {
+    changeType = "DESTINATION_CHANGE";
+  }
+
+  // Helper to extract clean core activities from a day's plan
+  const extractCorePlan = (plan) => {
+    if (!Array.isArray(plan)) return [];
+    return plan.filter(p => {
+      const cat = String(p.category || "").toLowerCase();
+      const act = String(p.activity || "").toLowerCase();
+      const isHotelOp = cat === "operational" || act.includes("check-in") || act.includes("check out");
+      const isIntercityTravel = (cat === "transport" || p.trainNumber || p.flightNumber) &&
+        (act.includes("travel:") || act.includes("return:") || act.includes("transfer to") || act.includes("travel to") || act.includes("airport"));
+      return !isHotelOp && !isIntercityTravel;
+    });
+  };
+
+  // Map old nights to old segments
+  const nightToOldSegment = {};
+  for (let d = 1; d < expectedDays; d++) {
+    if (transitNights.has(d)) continue;
+    const overnightDate = new Date(tripStart);
+    overnightDate.setUTCDate(tripStart.getUTCDate() + (d - 1));
+    const overnightIso = overnightDate.toISOString().split("T")[0];
+    const matchOld = oldStaySegments.find(s => overnightIso >= s.checkIn && overnightIso < s.checkOut);
+    if (matchOld) nightToOldSegment[d] = matchOld;
+  }
+
+  // Pools of available existing day plans
+  const poolBySegmentId = {};
+  const poolByLocation = {};
+
+  for (let d = 1; d < expectedDays; d++) {
+    if (transitNights.has(d)) continue;
+    const oldDayData = oldItinerary[d - 1];
+    const corePlan = extractCorePlan(oldDayData?.plan);
+    const dayTitle = oldDayData?.title || `Day in ${oldDayLocations[d]}`;
+    const oldSeg = nightToOldSegment[d];
+    const locLower = String(oldDayLocations[d] || (oldSeg?.location) || "").toLowerCase().trim();
+
+    const dayObj = {
+      title: dayTitle,
+      plan: corePlan,
+      location: locLower,
+      originalDayNum: d
+    };
+
+    if (oldSeg && oldSeg.id) {
+      if (!poolBySegmentId[oldSeg.id]) poolBySegmentId[oldSeg.id] = [];
+      poolBySegmentId[oldSeg.id].push(dayObj);
+    }
+    if (locLower) {
+      if (!poolByLocation[locLower]) poolByLocation[locLower] = [];
+      poolByLocation[locLower].push(dayObj);
+    }
+  }
+
+  // Old departure day
+  const oldDepartureDayData = oldItinerary[expectedDays - 1];
+  const oldDepartureCorePlan = extractCorePlan(oldDepartureDayData?.plan);
+
+  // 7. Map existing activities deterministically or identify dirty days
   const newItineraryDays = [];
   const dirtyDays = [];
+  const usedPooledDays = new Set();
 
-  for (let d = 1; d <= totalDays; d++) {
-    const required = requiredDayLocations[d];
-    const oldLoc = oldDayLocations[d];
-    const oldDayData = oldItinerary[d - 1];
+  for (let d = 1; d <= expectedDays; d++) {
+    const meta = dayMeta[d];
 
-    if (d === expectedDays) {
-      // Departure day has no stay. Copy existing day data entirely.
-      if (oldDayData) {
-        newItineraryDays.push({
-          day: d,
-          title: oldDayData.title,
-          plan: oldDayData.plan
-        });
-      } else {
-        newItineraryDays.push(null);
-      }
-      continue;
-    }
-
-    if (!required && !oldLoc && oldDayData) {
-      // Transit night (no stay location in old or new). Copy existing day data entirely.
+    if (meta.isDeparture) {
+      // Departure day: preserve activities, strip old checkouts/checkins/transports
       newItineraryDays.push({
         day: d,
-        title: oldDayData.title,
-        plan: oldDayData.plan
+        title: oldDepartureDayData?.title || `Day ${d} - Departure from ${meta.location}`,
+        plan: oldDepartureCorePlan.length > 0 ? [...oldDepartureCorePlan] : []
       });
       continue;
     }
 
-    if (oldLoc && required && oldLoc.toLowerCase() === required.location.toLowerCase() && oldDayData) {
-      const cleanPlan = oldDayData.plan.filter(p =>
-        p.category !== "transport" &&
-        p.category !== "operational" &&
-        !p.trainNumber &&
-        !p.flightNumber &&
-        !p.activity?.toLowerCase().includes("check-in") &&
-        !p.activity?.toLowerCase().includes("check out") &&
-        !p.activity?.toLowerCase().includes("airport")
-      );
+    if (meta.isTransit) {
+      const oldDayData = oldItinerary[d - 1];
+      newItineraryDays.push(oldDayData ? { day: d, title: oldDayData.title, plan: oldDayData.plan || [] } : { day: d, title: `Day ${d} - Transit`, plan: [] });
+      continue;
+    }
 
+    // For regular stay days:
+    const seg = meta.staySegForNight;
+    const targetLoc = (meta.location || "").toLowerCase().trim();
+
+    let matchedDayObj = null;
+
+    // For HOTEL_ONLY or NO_CHANGE, keep day d aligned directly if location matches
+    if (changeType === "HOTEL_ONLY" || changeType === "NO_CHANGE") {
+      const oldDayData = oldItinerary[d - 1];
+      const oldLoc = String(oldDayLocations[d] || "").toLowerCase().trim();
+      if (oldDayData && oldLoc === targetLoc) {
+        matchedDayObj = {
+          title: oldDayData.title,
+          plan: extractCorePlan(oldDayData.plan),
+          location: targetLoc,
+          originalDayNum: d
+        };
+      }
+    }
+
+    // 1. Try to pull an unused day from matching segment ID pool
+    if (!matchedDayObj && seg && seg.id && poolBySegmentId[seg.id]) {
+      matchedDayObj = poolBySegmentId[seg.id].find(obj => !usedPooledDays.has(obj));
+    }
+
+    // 2. If not found by segment ID, try to pull from matching location pool
+    if (!matchedDayObj && targetLoc && poolByLocation[targetLoc]) {
+      matchedDayObj = poolByLocation[targetLoc].find(obj => !usedPooledDays.has(obj));
+    }
+
+    if (matchedDayObj) {
+      usedPooledDays.add(matchedDayObj);
+      let dayTitle = matchedDayObj.title || `Day ${d} in ${meta.location}`;
+      dayTitle = dayTitle.replace(/^Day\s*\d+\s*[-:–]?\s*/i, `Day ${d} - `);
       newItineraryDays.push({
         day: d,
-        title: oldDayData.title || `Day ${d} in ${required.location}`,
-        plan: cleanPlan
+        title: dayTitle,
+        plan: [...matchedDayObj.plan]
       });
     } else {
-      dirtyDays.push({ dayNum: d, location: required?.location || "Unknown" });
+      // Truly new location/day without existing activities -> mark dirty for Gemini
+      dirtyDays.push({ dayNum: d, location: meta.location });
       newItineraryDays.push(null);
     }
   }
 
-  if (dirtyDays.length > 0) {
+  const geminiRequired = dirtyDays.length > 0;
+
+  // Concise backend debug logging
+  console.log(`[StayPlan Sync]
+Change type: ${changeType}
+Locations changed: ${!sameLocationsSet}
+New destinations: ${newDestinations.length}
+Removed destinations: ${removedDestinations.length}
+Gemini required: ${geminiRequired}${geminiRequired ? `\nAffected days: [${dirtyDays.map(d => d.dayNum).join(", ")}]` : ""}`);
+
+  // 8. Call Gemini ONLY if there are dirty days!
+  if (geminiRequired) {
     const dirtyPrompt = `
 You are an expert travel planner.
 I have a trip to ${trip.destination} for ${trip.travelers} travelers.
@@ -813,21 +998,13 @@ Rules:
 `;
 
     let result;
-    for (let i = 0; i < 3; i++) {
-      try {
-        result = await model.generateContent(dirtyPrompt);
-        break;
-      } catch (err) {
-        if (err.message.includes("503")) {
-          if (i < 2) {
-            await new Promise((resolve) => setTimeout(resolve, 2000));
-            continue;
-          } else {
-            throw new Error("Gemini AI is currently experiencing high demand and is temporarily unavailable. Please try again later.");
-          }
-        }
-        throw err;
+    try {
+      result = await model.generateContent(dirtyPrompt);
+    } catch (err) {
+      if (err.message && (err.message.includes("429") || err.message.includes("quota") || err.message.includes("RESOURCE_EXHAUSTED"))) {
+        throw new Error("Gemini API quota exceeded. Please try again in a few moments.");
       }
+      throw err;
     }
 
     let text = result.response.text().replace(/\`\`\`json/g, "").replace(/\`\`\`/g, "").trim();
@@ -840,72 +1017,168 @@ Rules:
     }
   }
 
+  // 9. Assemble final days and inject structured operational events
   const finalDays = [];
-  for (let d = 1; d <= totalDays; d++) {
+  for (let d = 1; d <= expectedDays; d++) {
     let dayData = newItineraryDays[d - 1] || { day: d, title: `Day ${d}`, plan: [] };
     if (!Array.isArray(dayData.plan)) dayData.plan = [];
-
-    const reqLoc = requiredDayLocations[d];
-
-    if (reqLoc.isFirstDayInLocation) {
-      let fromLoc = trip.source;
-      if (d > 1 && requiredDayLocations[d - 1]) {
-        fromLoc = requiredDayLocations[d - 1].location;
-      }
-      dayData.plan.unshift({
-        time: "09:00 AM - 12:00 PM",
-        place: `Travel to ${reqLoc.location}`,
-        activity: `Travel: ${fromLoc} to ${reqLoc.location}`,
-        category: "transport",
-        duration: "3h",
-        estimatedCost: "1000"
-      });
-
-      dayData.plan.push({
-        time: "02:00 PM - 02:30 PM",
-        place: reqLoc.hotelName !== "Hotel" ? reqLoc.hotelName : reqLoc.location,
-        activity: `Check-in at ${reqLoc.hotelName}`,
-        category: "operational",
-        duration: "30m",
-        estimatedCost: `${reqLoc.hotelPrice}`
-      });
-    }
-
-    const nextLoc = requiredDayLocations[d + 1];
-    if (!nextLoc || nextLoc.location !== reqLoc.location) {
-      dayData.plan.push({
-        time: "11:00 AM - 11:30 AM",
-        place: reqLoc.hotelName !== "Hotel" ? reqLoc.hotelName : reqLoc.location,
-        activity: `Check out from ${reqLoc.hotelName}`,
-        category: "operational",
-        duration: "30m",
-        estimatedCost: "0"
-      });
-    }
-
-    dayData.plan.forEach(p => {
-      if (!p.id && !p._id) {
-        p.id = `itin_${crypto.randomUUID()}`;
-      }
-    });
-
     finalDays.push(dayData);
   }
 
-  const parsedData = { days: finalDays, staySegments: newStaySegments };
+  const isCampus = trip.tripCategory === "CAMPUS";
+  const expectedStudents = isCampus
+    ? parseInt(trip.campusConfig?.expectedParticipants, 10) || parseInt(trip.travelers, 10) || 1
+    : 1;
+  const studentsPerRoom = isCampus
+    ? parseInt(trip.campusConfig?.studentsPerRoom, 10) || 2
+    : 2;
+  const requiredRooms = isCampus
+    ? Math.max(1, Math.ceil(expectedStudents / studentsPerRoom))
+    : 1;
 
+  // Inject Check-in and Check-out for each canonical stay segment
+  canonicalSegments.forEach((seg, sIdx) => {
+    const checkInDate = new Date(seg.checkIn + "T00:00:00Z");
+    const checkOutDate = new Date(seg.checkOut + "T00:00:00Z");
+    const dayInIdx = Math.round((checkInDate - tripStart) / (1000 * 60 * 60 * 24)); // 0-based
+    const dayOutIdx = Math.round((checkOutDate - tripStart) / (1000 * 60 * 60 * 24)); // 0-based
+
+    const hotelName = seg.selectedHotel?.name || "Hotel";
+    const nights = Math.max(1, parseInt(seg.nights || 1, 10));
+
+    let hotelPrice = 0;
+    if (seg.selectedHotel) {
+      if (isCampus) {
+        if (seg.selectedHotel.groupPrice && Number(seg.selectedHotel.groupPrice) > 0) {
+          hotelPrice = Number(seg.selectedHotel.groupPrice);
+        } else if (seg.selectedHotel.rooms && Number(seg.selectedHotel.rooms) > 1 && seg.selectedHotel.price) {
+          hotelPrice = Number(seg.selectedHotel.price);
+        } else {
+          let nightlyRate = Number(seg.selectedHotel.nightlyPrice || seg.selectedHotel.pricePerNight || 0);
+          if (!nightlyRate && seg.selectedHotel.price) {
+            nightlyRate = Math.round(Number(seg.selectedHotel.price) / nights);
+          }
+          if (!nightlyRate || nightlyRate < 1000) {
+            const nameStr = seg.selectedHotel.name || "";
+            const locStr = seg.location || "";
+            const seed = (nameStr + locStr).length || 10;
+            nightlyRate = 3500 + (seed % 10) * 500;
+          }
+          const groupNightlyRate = calculateCampusGroupRoomRate(nightlyRate, requiredRooms);
+          hotelPrice = requiredRooms * groupNightlyRate * nights;
+          seg.selectedHotel.nightlyPrice = groupNightlyRate;
+        }
+        // Keep hotel object properties consistent
+        seg.selectedHotel.price = hotelPrice;
+        seg.selectedHotel.groupPrice = hotelPrice;
+        seg.selectedHotel.rooms = requiredRooms;
+        seg.selectedHotel.perStudentPrice = Math.round(hotelPrice / expectedStudents);
+      } else {
+        hotelPrice = seg.selectedHotel.price || "0";
+      }
+    }
+
+    const defaultTransportCost = isCampus
+      ? String(Math.round(expectedStudents * 500))
+      : "1000";
+
+    // Intercity transport on check-in day
+    if (dayInIdx >= 0 && dayInIdx < finalDays.length) {
+      const dayPlan = finalDays[dayInIdx].plan;
+      const fromLoc = (sIdx > 0 && canonicalSegments[sIdx - 1]) ? canonicalSegments[sIdx - 1].location : trip.source;
+
+      const hasTransport = dayPlan.some(p => p.category === "transport" || p.trainNumber || p.flightNumber);
+      if (!hasTransport && fromLoc.toLowerCase() !== seg.location.toLowerCase()) {
+        dayPlan.unshift({
+          id: `itin_${crypto.randomUUID()}`,
+          time: "09:00 AM - 12:00 PM",
+          place: `Travel to ${seg.location}`,
+          activity: `Travel: ${fromLoc} to ${seg.location}`,
+          category: "transport",
+          duration: "3h",
+          estimatedCost: defaultTransportCost
+        });
+      }
+
+      // Hotel Check-in
+      dayPlan.push({
+        id: `sync-checkin-${seg.id}`,
+        time: "02:00 PM - 02:30 PM",
+        place: hotelName !== "Hotel" ? hotelName : seg.location,
+        activity: `Check-in at ${hotelName}`,
+        category: "operational",
+        duration: "30m",
+        estimatedCost: `${hotelPrice}`,
+        stayId: seg.id
+      });
+    }
+
+    // Hotel Check-out
+    if (dayOutIdx >= 0 && dayOutIdx < finalDays.length) {
+      const dayPlan = finalDays[dayOutIdx].plan;
+      dayPlan.push({
+        id: `sync-checkout-${seg.id}`,
+        time: "11:00 AM - 11:30 AM",
+        place: hotelName !== "Hotel" ? hotelName : seg.location,
+        activity: `Check out from ${hotelName}`,
+        category: "operational",
+        duration: "30m",
+        estimatedCost: "0",
+        stayId: seg.id
+      });
+    }
+  });
+
+  // Departure day return transport (if not already present)
+  const depDay = finalDays[expectedDays - 1];
+  if (depDay && Array.isArray(depDay.plan)) {
+    const hasDepTransport = depDay.plan.some(p => p.category === "transport" || p.trainNumber || p.flightNumber);
+    if (!hasDepTransport) {
+      const lastSeg = canonicalSegments[canonicalSegments.length - 1];
+      const fromLoc = lastSeg ? lastSeg.location : trip.destination;
+      const depTransportCost = isCampus
+        ? String(Math.round(expectedStudents * 500))
+        : "1000";
+      depDay.plan.push({
+        id: `itin_${crypto.randomUUID()}`,
+        time: "02:00 PM - 05:00 PM",
+        place: `Travel to ${trip.source}`,
+        activity: `Return: ${fromLoc} to ${trip.source}`,
+        category: "transport",
+        duration: "3h",
+        estimatedCost: depTransportCost
+      });
+    }
+  }
+
+  // Ensure every item in every day plan has a valid unique ID
+  finalDays.forEach(day => {
+    if (Array.isArray(day.plan)) {
+      day.plan.forEach(p => {
+        if (!p.id && !p._id) {
+          p.id = `itin_${crypto.randomUUID()}`;
+        }
+      });
+    }
+  });
+
+  const parsedData = { days: finalDays, staySegments: canonicalSegments };
+
+  // 9. Run deterministic scheduler
   buildDeterministicTimeline(parsedData);
 
+  // 10. Run itinerary validator
   const valRes = validateItinerary(parsedData, trip);
   if (valRes.errors && valRes.errors.length > 0) {
     const hardConflicts = valRes.errors.filter(c => !c.message.includes("is tightly packed"));
     if (hardConflicts.length > 0) {
-      throw new Error("Synchronized itinerary generated schedule conflicts: " + hardConflicts[0].message);
+      throw new Error("Synchronized itinerary generated schedule conflicts: " + hardConflicts.map(c => c.message).join(" | "));
     }
   }
 
+  // 11. Transactional persistence: only update trip when all steps succeed
   trip.itinerary = parsedData.days;
-  trip.staySegments = newStaySegments;
+  trip.staySegments = canonicalSegments;
   trip.markModified("itinerary");
   trip.markModified("staySegments");
 

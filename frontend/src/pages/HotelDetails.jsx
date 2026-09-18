@@ -8,6 +8,7 @@ import HotelInfo from "../components/hotels/HotelInfo";
 import HotelActionButtons from "../components/hotels/HotelActionButtons";
 import { FiArrowLeft, FiInfo, FiTrendingDown, FiMapPin, FiStar, FiCheck } from "react-icons/fi";
 import { calculatePriceIntelligence } from "../utils/priceIntelligence";
+import { calculateStayAccommodation } from "../utils/campusBudgetUtils";
 
 export default function HotelDetails() {
   const navigate = useNavigate();
@@ -31,7 +32,7 @@ export default function HotelDetails() {
     ? Math.max(0, hotelsList.findIndex((h) => h.id === state.hotelId))
     : 0;
 
-  const [activeHotel, setActiveHotel] = useState(initialIndex);
+  const [activeHotel, setActiveHotel] = useState(initialIndex >= 0 ? initialIndex : 0);
   const [activePhoto, setActivePhoto] = useState(0);
   const [showScoreInfo, setShowScoreInfo] = useState(null);
 
@@ -62,6 +63,27 @@ export default function HotelDetails() {
   const handleSelectForStay = (hotelData) => {
     if (!stayContext) return;
     selectHotelForSegment(stayContext.staySegmentId, hotelData);
+    if (Array.isArray(state?.draftStaySegments)) {
+      const updatedDraft = state.draftStaySegments.map((seg, idx) => {
+        if (seg.id === stayContext.staySegmentId || seg.location === stayContext.staySegmentId || idx === stayContext.segmentIndex) {
+          const dummySeg = { ...seg, selectedHotel: hotelData };
+          const stayPricing = calculateStayAccommodation(dummySeg, trip);
+          const updatedHotel = {
+            ...hotelData,
+            price: stayPricing.groupCost,
+            groupPrice: stayPricing.groupCost,
+            perStudentPrice: stayPricing.perStudentCost,
+            rooms: stayPricing.rooms,
+            nightlyPrice: stayPricing.nightlyRate,
+            isEstimatedPrice: stayPricing.isEstimated,
+          };
+          return { ...seg, selectedHotel: updatedHotel };
+        }
+        return seg;
+      });
+      navigate(`/itinerary/${trip._id || 'draft'}/stays`, { state: { draftStaySegments: updatedDraft } });
+      return;
+    }
     navigate(-1); // Go back to Stay Plan
   };
 

@@ -6,6 +6,7 @@ import { generateSmartAlternatives } from "../utils/alternativeEngine";
 import { normalizeTrip, getDuration, timeToMinutes, minutesToTimeStr, parsePrice } from "../utils/formatTrip";
 import { normalizeInventoryItem } from "../utils/normalizeInventoryItem";
 import { updateTrip } from "../api/tripApi";
+import { calculateTripBudgetAnalysis, calculateStayAccommodation } from "../utils/campusBudgetUtils";
 
 export const TripBuilderContext = createContext();
 
@@ -620,60 +621,7 @@ export function TripBuilderProvider({ children }) {
 
   // Live Budget Engine
   const budgetStats = useMemo(() => {
-    let totalSpent = 0;
-    const breakdown = {
-      Transport: 0,
-      Hotels: 0,
-      Activities: 0,
-      Food: 0,
-      "Local Transport": 0,
-      Shopping: 0,
-      Experiences: 0,
-    };
-
-    if (trip?.itinerary) {
-      trip.itinerary.forEach((day) => {
-        (day.plan || []).forEach((item) => {
-          const price = parsePrice(item.price || item.estimatedCost || item.fare || 0);
-          totalSpent += price;
-
-          const cat = (item.category || "").toLowerCase();
-          if (cat.includes("train") || cat.includes("flight") || cat.includes("bus")) {
-            breakdown.Transport += price;
-          } else if (cat.includes("hotel") || cat.includes("stay")) {
-            breakdown.Hotels += price;
-          } else if (cat.includes("activity") || cat.includes("sightseeing")) {
-            breakdown.Activities += price;
-          } else if (cat.includes("food") || cat.includes("dining") || cat.includes("cafe")) {
-            breakdown.Food += price;
-          } else if (cat.includes("transport") || cat.includes("taxi") || cat.includes("cab")) {
-            breakdown["Local Transport"] += price;
-          } else if (cat.includes("shopping")) {
-            breakdown.Shopping += price;
-          } else if (cat.includes("experience")) {
-            breakdown.Experiences += price;
-          } else {
-            breakdown.Activities += price;
-          }
-        });
-      });
-    }
-
-    const totalBudget = Number(trip?.budget) || 60000;
-    const remaining = totalBudget - totalSpent;
-    const isOverBudget = remaining < 0;
-    const overAmount = Math.abs(remaining);
-    const spentPercentage = Math.min(100, Math.round((totalSpent / totalBudget) * 100));
-
-    return {
-      totalBudget,
-      totalSpent,
-      remaining,
-      isOverBudget,
-      overAmount,
-      spentPercentage,
-      breakdown,
-    };
+    return calculateTripBudgetAnalysis(trip, trip?.staySegments, trip?.itinerary);
   }, [trip]);
 
   // Validation Engine with Travel Buffers & Conflict Tracking
@@ -743,7 +691,9 @@ export function TripBuilderProvider({ children }) {
       conflicts.push({
         day: "Budget",
         type: "overbudget",
-        message: `Trip exceeds your budget of ₹${budgetStats.totalBudget.toLocaleString("en-IN")} by ₹${budgetStats.overAmount.toLocaleString("en-IN")}.`,
+        message: budgetStats.isCampus
+          ? `Campus Trip exceeds total group budget of ₹${budgetStats.totalBudget.toLocaleString("en-IN")} by ₹${budgetStats.overAmount.toLocaleString("en-IN")}.`
+          : `Trip exceeds your budget of ₹${budgetStats.totalBudget.toLocaleString("en-IN")} by ₹${budgetStats.overAmount.toLocaleString("en-IN")}.`,
       });
     }
 
@@ -804,31 +754,26 @@ export function TripBuilderProvider({ children }) {
   const selectHotelForSegment = useCallback((segmentId, hotelData) => {
     setTrip((prevTrip) => {
       if (!prevTrip || !prevTrip.staySegments) return prevTrip;
-      
       const newSegments = [...prevTrip.staySegments];
-      // Match by id or location
-      const idx = newSegments.findIndex(s => (s.id === segmentId) || (s.location === segmentId));
+      
+      // Match by id or location or numeric index
+      let idx = newSegments.findIndex(s => (s.id === segmentId) || (s.location === segmentId));
+      if (idx === -1 && typeof segmentId === "number" && segmentId >= 0 && segmentId < newSegments.length) {
+        idx = segmentId;
+      }
       if (idx !== -1) {
-         let updatedHotel = { ...hotelData };
-         
-         // Generate price fallback if needed
-         if (updatedHotel.price && updatedHotel.price > 0) {
-             // Already has real price
-             updatedHotel.isEstimatedPrice = false;
-         } else if (updatedHotel.nuitee && updatedHotel.nuitee.totalPrice) {
-             updatedHotel.price = updatedHotel.nuitee.totalPrice;
-             updatedHotel.isEstimatedPrice = false;
-         } else {
-             // Deterministic fallback based on hotel name length + location
-             const nameStr = updatedHotel.name || "";
-             const locStr = newSegments[idx].location || "";
-             const seed = (nameStr + locStr).length || 10;
-             const basePricePerNight = 3500 + (seed % 10) * 500;
-             updatedHotel.price = basePricePerNight * parseInt(newSegments[idx].nights || 1, 10);
-             updatedHotel.isEstimatedPrice = true;
-         }
-         
-         newSegments[idx] = { ...newSegments[idx], selectedHotel: updatedHotel };
+        const dummySeg = { ...newSegments[idx], selectedHotel: hotelData };
+        const stayPricing = calculateStayAccommodation(dummySeg, prevTrip);
+        let updatedHotel = {
+          ...hotelData,
+          price: stayPricing.groupCost,
+          groupPrice: stayPricing.groupCost,
+          perStudentPrice: stayPricing.perStudentCost,
+          rooms: stayPricing.rooms,
+          nightlyPrice: stayPricing.nightlyRate,
+          isEstimatedPrice: stayPricing.isEstimated,
+        };
+        newSegments[idx] = { ...newSegments[idx], selectedHotel: updatedHotel };
       }
       return { ...prevTrip, staySegments: newSegments };
     });

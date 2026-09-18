@@ -23,6 +23,7 @@ export default function CampusCreate() {
     endDate: "",
     travelers: 50, // Default capacity
     budget: 10000,
+    accommodationBudgetPerStudent: "",
     travelMode: "Train",
     hotelType: "Standard",
     educationalRequirements: [{ institutionName: "", institutionType: "Industry/Manufacturing", notes: "" }],
@@ -104,6 +105,11 @@ export default function CampusCreate() {
         endDate: formData.endDate,
         travelers: formData.travelers,
         budget: formData.budget,
+        accommodationBudgetPerStudent: Math.min(
+          Number(formData.budget) || 15000,
+          (Number(formData.duration) || 10) * 1000,
+          10000
+        ),
         travelMode: formData.travelMode,
         hotelType: formData.hotelType,
         educationalRequirements: formData.educationalRequirements,
@@ -261,7 +267,7 @@ export default function CampusCreate() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Per Student Budget (₹)</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Overall Budget / Student (₹) *</label>
                   <input 
                     type="number" name="budget" min="1000" required
                     value={formData.budget} onChange={handleChange}
@@ -269,6 +275,35 @@ export default function CampusCreate() {
                   />
                 </div>
               </div>
+              {(() => {
+                const derivedAccom = Math.min(
+                  Number(formData.budget) || 15000,
+                  (Number(formData.duration) || 10) * 1000,
+                  10000
+                );
+                const participants = Number(formData.travelers) || 200;
+                return (
+                  <div className="p-4 rounded-xl bg-indigo-50/50 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/40">
+                    <div className="flex items-center justify-between text-xs mb-1.5">
+                      <span className="font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 text-[11px]">
+                        Derived Accommodation Allocation
+                      </span>
+                      <span className="font-black text-indigo-700 dark:text-indigo-300">
+                        ₹{derivedAccom.toLocaleString()} / student
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 font-semibold">
+                      <span>Max Group Accommodation Allocation ({participants} students):</span>
+                      <span className="font-bold text-slate-900 dark:text-white">
+                        ₹{(derivedAccom * participants).toLocaleString()}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-[10px] text-slate-400">
+                      Calculated as MIN(Overall Budget, Duration × ₹1,000, ₹10,000 ceiling).
+                    </p>
+                  </div>
+                );
+              })()}
               <button type="submit" className="mt-4 flex items-center justify-center gap-2 w-full py-3.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition">
                 Next <FiArrowRight />
               </button>

@@ -283,7 +283,7 @@ const syncItinerary = asyncHandler(async (req, res) => {
 
   const trip = await Trip.findOne({
     _id: req.params.id,
-    user: req.user.id,
+    $or: [{ user: req.user.id }, { coordinatorId: req.user.id }],
   });
 
   if (!trip) {
@@ -292,6 +292,9 @@ const syncItinerary = asyncHandler(async (req, res) => {
 
   const { syncItineraryWithStayPlan } = require("../services/aiService");
   const updatedTrip = await syncItineraryWithStayPlan(trip, newStaySegments);
+
+  // Sync booking requirements for any updated hotels
+  await syncBookingRequirements(updatedTrip);
 
   res.json({
     success: true,

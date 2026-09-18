@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   FiDollarSign,
   FiCheckCircle,
@@ -10,10 +10,17 @@ import {
   FiRefreshCw,
 } from "react-icons/fi";
 import { useTripBuilder } from "../../context/TripBuilderContext";
+import {
+  getCampusAccommodationBudget,
+  getTripDurationDays,
+  calculateCampusCategoryBudgetAnalysis,
+} from "../../utils/campusBudgetUtils";
+import CampusBudgetAnalysis from "../campus/CampusBudgetAnalysis";
 
 export default function TripSummaryPanel() {
   const {
     trip,
+    setTrip,
     updateTripMeta,
     budgetStats,
     validationStats,
@@ -21,13 +28,56 @@ export default function TripSummaryPanel() {
     resetToSample,
     setIsFinalizeModalOpen,
     isSaved,
+    setIsSaved,
   } = useTripBuilder();
 
   const [isEditingBudget, setIsEditingBudget] = useState(false);
-  const [tempBudget, setTempBudget] = useState(trip.budget || 60000);
+  const [tempBudget, setTempBudget] = useState(trip.campusConfig?.budgetPerStudent || trip.budget || 60000);
 
-  const handleBudgetSave = () => {
-    updateTripMeta("budget", Number(tempBudget) || 60000);
+  const categoryBudget = useMemo(() => {
+    if (trip.tripCategory !== 'CAMPUS') return null;
+    return (
+      budgetStats?.categoryBudget ||
+      calculateCampusCategoryBudgetAnalysis(trip, trip?.staySegments, trip?.itinerary)
+    );
+  }, [trip, budgetStats]);
+
+  const handleBudgetSave = async () => {
+    if (trip.tripCategory === 'CAMPUS') {
+      const perStudent = Number(tempBudget) || 15000;
+      const tripDurationDays = getTripDurationDays(trip);
+      const derivedAccomBudget = Math.min(perStudent, tripDurationDays * 1000, 10000);
+      const expectedParticipants = Number(trip.campusConfig?.expectedParticipants) || 1;
+      const newConfig = {
+        ...trip.campusConfig,
+        budgetPerStudent: perStudent,
+        accommodationBudgetPerStudent: derivedAccomBudget,
+      };
+      updateTripMeta("campusConfig", newConfig);
+      updateTripMeta("budget", perStudent * expectedParticipants);
+
+      try {
+        const token = localStorage.getItem("token");
+        await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/campus-trips/${trip._id}/inclusions`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            inclusions: newConfig.inclusions,
+            exclusions: newConfig.exclusions,
+            mealInclusions: newConfig.mealInclusions,
+            accommodationBudgetPerStudent: derivedAccomBudget,
+            budgetPerStudent: perStudent
+          })
+        });
+      } catch (err) {
+        console.error("Failed to sync budget to backend:", err);
+      }
+    } else {
+      updateTripMeta("budget", Number(tempBudget) || 60000);
+    }
     setIsEditingBudget(false);
   };
 
@@ -108,193 +158,133 @@ export default function TripSummaryPanel() {
 
         {/* ================= LIVE BUDGET ENGINE ================= */}
         <div className="rounded-xl border border-slate-200 dark:border-slate-700/60 bg-slate-50/50 dark:bg-slate-800/40 p-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5">
-              <FiDollarSign className="text-indigo-600 dark:text-indigo-400 text-sm font-bold" />
-              <h3 className="text-xs font-bold text-slate-900 dark:text-white">Trip Budget</h3>
-            </div>
-
-            {/* Editable Budget Limit */}
-            {isEditingBudget ? (
-              <div className="flex items-center gap-1">
-                <input
-                  type="number"
-                  value={tempBudget}
-                  onChange={(e) => setTempBudget(e.target.value)}
-                  className="w-20 rounded-md border border-indigo-400 dark:border-indigo-600 bg-white dark:bg-[#1a233a] px-1.5 py-0.5 text-xs font-bold text-slate-900 dark:text-white outline-none"
-                  autoFocus
-                />
-                <button
-                  onClick={handleBudgetSave}
-                  className="rounded-md bg-indigo-600 px-2 py-0.5 text-xs font-bold text-white"
-                >
-                  Save
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => {
-                  setTempBudget(budgetStats.totalBudget);
-                  setIsEditingBudget(true);
-                }}
-                className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline"
-              >
-                Edit Limit
-              </button>
-            )}
-          </div>
-
-          {/* Budget Numbers */}
           {trip.tripCategory === 'CAMPUS' ? (
-            <div className="mt-2.5 flex flex-col gap-2">
-              <div className="grid grid-cols-2 gap-2">
-                <div className="rounded-lg bg-indigo-50 dark:bg-indigo-900/30 p-2 border border-indigo-100 dark:border-indigo-800/50">
-                  <p className="text-[9px] uppercase font-bold text-indigo-500 dark:text-indigo-400">
-                    Per-Student Budget
-                  </p>
-                  <p className="mt-0.5 text-xs font-extrabold text-indigo-700 dark:text-indigo-300">
-                    ₹{trip.campusConfig?.budgetPerStudent?.toLocaleString()}
-                  </p>
+            <CampusBudgetAnalysis
+              trip={trip}
+              categoryBudget={categoryBudget}
+              updateTripMeta={updateTripMeta}
+              setTrip={setTrip}
+              saveItinerary={saveItinerary}
+              setIsSaved={setIsSaved}
+              toggleCampusInclusion={toggleCampusInclusion}
+            />
+          ) : (
+            <div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <FiDollarSign className="text-indigo-600 dark:text-indigo-400 text-sm font-bold" />
+                  <h3 className="text-xs font-bold text-slate-900 dark:text-white">Trip Budget</h3>
                 </div>
-                <div className="rounded-lg bg-indigo-50 dark:bg-indigo-900/30 p-2 border border-indigo-100 dark:border-indigo-800/50">
-                  <p className="text-[9px] uppercase font-bold text-indigo-500 dark:text-indigo-400">
-                    Expected Students
-                  </p>
-                  <p className="mt-0.5 text-xs font-extrabold text-indigo-700 dark:text-indigo-300">
-                    {trip.campusConfig?.expectedParticipants}
-                  </p>
-                </div>
+
+                {/* Editable Budget Limit for Personal Trips */}
+                {isEditingBudget ? (
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number"
+                      value={tempBudget}
+                      onChange={(e) => setTempBudget(e.target.value)}
+                      className="w-20 rounded-md border border-indigo-400 dark:border-indigo-600 bg-white dark:bg-[#1a233a] px-1.5 py-0.5 text-xs font-bold text-slate-900 dark:text-white outline-none"
+                      autoFocus
+                    />
+                    <div className="flex justify-end gap-1.5">
+                      <button
+                        onClick={() => setIsEditingBudget(false)}
+                        className="rounded px-2 py-0.5 text-[10px] font-bold text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleBudgetSave}
+                        className="rounded bg-indigo-600 px-2.5 py-0.5 text-[10px] font-bold text-white hover:bg-indigo-700"
+                      >
+                        Save
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setTempBudget(budgetStats.totalBudget);
+                      setIsEditingBudget(true);
+                    }}
+                    className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline"
+                  >
+                    Edit Limit
+                  </button>
+                )}
               </div>
-              <div className="grid grid-cols-2 gap-2">
+
+              <div className="mt-2.5 grid grid-cols-2 gap-2">
                 <div className="rounded-lg bg-white dark:bg-[#1a233a] p-2 border border-slate-100 dark:border-slate-700/60">
                   <p className="text-[9px] uppercase font-bold text-slate-400 dark:text-slate-500">
-                    Group Total Limit
+                    Planned Limit
                   </p>
                   <p className="mt-0.5 text-xs font-extrabold text-slate-900 dark:text-white">
-                    ₹{(trip.campusConfig?.budgetPerStudent * trip.campusConfig?.expectedParticipants || 0).toLocaleString()}
+                    ₹{budgetStats.totalBudget?.toLocaleString()}
                   </p>
                 </div>
+
                 <div className="rounded-lg bg-white dark:bg-[#1a233a] p-2 border border-slate-100 dark:border-slate-700/60">
                   <p className="text-[9px] uppercase font-bold text-slate-400 dark:text-slate-500">
-                    Total Included Spent
+                    Total Spent
                   </p>
                   <p
                     className={`mt-0.5 text-xs font-extrabold ${
                       budgetStats.isOverBudget ? "text-rose-600 dark:text-rose-400" : "text-indigo-600 dark:text-indigo-400"
                     }`}
                   >
-                    ₹{budgetStats.totalSpent.toLocaleString()}
+                    ₹{budgetStats.totalSpent?.toLocaleString()}
                   </p>
                 </div>
               </div>
-            </div>
-          ) : (
-            <div className="mt-2.5 grid grid-cols-2 gap-2">
-              <div className="rounded-lg bg-white dark:bg-[#1a233a] p-2 border border-slate-100 dark:border-slate-700/60">
-                <p className="text-[9px] uppercase font-bold text-slate-400 dark:text-slate-500">
-                  Planned Limit
-                </p>
-                <p className="mt-0.5 text-xs font-extrabold text-slate-900 dark:text-white">
-                  ₹{budgetStats.totalBudget.toLocaleString()}
-                </p>
-              </div>
 
-              <div className="rounded-lg bg-white dark:bg-[#1a233a] p-2 border border-slate-100 dark:border-slate-700/60">
-                <p className="text-[9px] uppercase font-bold text-slate-400 dark:text-slate-500">
-                  Total Spent
-                </p>
-                <p
-                  className={`mt-0.5 text-xs font-extrabold ${
-                    budgetStats.isOverBudget ? "text-rose-600 dark:text-rose-400" : "text-indigo-600 dark:text-indigo-400"
-                  }`}
-                >
-                  ₹{budgetStats.totalSpent.toLocaleString()}
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Progress Bar */}
-          <div className="mt-2.5">
-            <div className="flex items-center justify-between text-[10px] font-semibold text-slate-500 dark:text-slate-400">
-              <span>{budgetStats.spentPercentage}% utilized</span>
-              <span className={budgetStats.isOverBudget ? "text-rose-600 dark:text-rose-400 font-bold" : "text-emerald-700 dark:text-emerald-400 font-bold"}>
-                {budgetStats.isOverBudget
-                  ? `₹${budgetStats.overAmount.toLocaleString()} over`
-                  : `₹${budgetStats.remaining.toLocaleString()} left`}
-              </span>
-            </div>
-            <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
-              <div
-                className={`h-full rounded-full transition-all duration-300 ${
-                  budgetStats.isOverBudget
-                    ? "bg-rose-500"
-                    : budgetStats.spentPercentage > 85
-                    ? "bg-amber-500"
-                    : "bg-indigo-600"
-                }`}
-                style={{ width: `${Math.min(100, budgetStats.spentPercentage)}%` }}
-              />
-            </div>
-          </div>
-
-          {/* Category Breakdown */}
-          {trip.tripCategory === 'CAMPUS' ? (
-            <div className="mt-3 border-t border-slate-200 dark:border-slate-700/60 pt-2">
-               <p className="text-[9px] font-bold uppercase text-slate-400 dark:text-slate-500 mb-1">
-                Inclusions Status (Per-Student Setup)
-               </p>
-               <div className="flex flex-col gap-1">
-                 <div className="flex justify-between items-center text-[11px]">
-                   <span className="text-slate-600 dark:text-slate-400">Accommodation</span>
-                   <button onClick={() => toggleCampusInclusion('inclusions', 'accommodation')} className={`px-2 py-0.5 rounded text-[9px] font-bold ${trip.campusConfig?.inclusions?.accommodation ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>
-                     {trip.campusConfig?.inclusions?.accommodation ? 'INCLUDED' : 'EXCLUDED'}
-                   </button>
-                 </div>
-                 <div className="flex justify-between items-center text-[11px]">
-                   <span className="text-slate-600 dark:text-slate-400">Main Travel</span>
-                   <button onClick={() => toggleCampusInclusion('inclusions', 'travel')} className={`px-2 py-0.5 rounded text-[9px] font-bold ${trip.campusConfig?.inclusions?.travel ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>
-                     {trip.campusConfig?.inclusions?.travel ? 'INCLUDED' : 'EXCLUDED'}
-                   </button>
-                 </div>
-                 <div className="flex justify-between items-center text-[11px]">
-                   <span className="text-slate-600 dark:text-slate-400">Local Transport</span>
-                   <button onClick={() => toggleCampusInclusion('inclusions', 'localTransport')} className={`px-2 py-0.5 rounded text-[9px] font-bold ${trip.campusConfig?.inclusions?.localTransport ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>
-                     {trip.campusConfig?.inclusions?.localTransport ? 'INCLUDED' : 'EXCLUDED'}
-                   </button>
-                 </div>
-                 <div className="flex justify-between items-center text-[11px]">
-                   <span className="text-slate-600 dark:text-slate-400">Meals</span>
-                   <div className="flex gap-1">
-                     <button onClick={() => toggleCampusInclusion('mealInclusions', 'breakfast')} className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${trip.campusConfig?.mealInclusions?.breakfast ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>B</button>
-                     <button onClick={() => toggleCampusInclusion('mealInclusions', 'lunch')} className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${trip.campusConfig?.mealInclusions?.lunch ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>L</button>
-                     <button onClick={() => toggleCampusInclusion('mealInclusions', 'dinner')} className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${trip.campusConfig?.mealInclusions?.dinner ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>D</button>
-                   </div>
-                 </div>
-               </div>
-            </div>
-          ) : (
-            <div className="mt-3 space-y-1 border-t border-slate-200 dark:border-slate-700/60 pt-2">
-              <p className="text-[9px] font-bold uppercase text-slate-400 dark:text-slate-500">
-                Category Breakdown
-              </p>
-              {Object.entries(budgetStats.breakdown).map(([category, amount]) => {
-                if (amount === 0) return null;
-                return (
+              {/* Progress Bar for Personal Trip */}
+              <div className="mt-2.5">
+                <div className="flex items-center justify-between text-[10px] font-semibold text-slate-500 dark:text-slate-400">
+                  <span>{budgetStats.spentPercentage}% utilized</span>
+                  <span className={budgetStats.isOverBudget ? "text-rose-600 dark:text-rose-400 font-bold" : "text-emerald-700 dark:text-emerald-400 font-bold"}>
+                    {budgetStats.isOverBudget
+                      ? `₹${budgetStats.overAmount?.toLocaleString()} over`
+                      : `₹${budgetStats.remaining?.toLocaleString()} left`}
+                  </span>
+                </div>
+                <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
                   <div
-                    key={category}
-                    className="flex items-center justify-between text-[11px] text-slate-600 dark:text-slate-400"
-                  >
-                    <span className="flex items-center gap-1">
-                      <span className="h-1.5 w-1.5 rounded-full bg-indigo-500" />
-                      <span>{category}</span>
-                    </span>
-                    <span className="font-bold text-slate-900 dark:text-white">
-                      ₹{amount.toLocaleString()}
-                    </span>
-                  </div>
-                );
-              })}
+                    className={`h-full rounded-full transition-all duration-300 ${
+                      budgetStats.isOverBudget
+                        ? "bg-rose-500"
+                        : budgetStats.spentPercentage > 85
+                        ? "bg-amber-500"
+                        : "bg-indigo-600"
+                    }`}
+                    style={{ width: `${Math.min(100, budgetStats.spentPercentage)}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Category Breakdown for Personal Trip */}
+              <div className="mt-3 space-y-1 border-t border-slate-200 dark:border-slate-700/60 pt-2">
+                <p className="text-[9px] font-bold uppercase text-slate-400 dark:text-slate-500">
+                  Category Breakdown
+                </p>
+                {budgetStats.breakdown && Object.entries(budgetStats.breakdown).map(([category, amount]) => {
+                  if (amount === 0) return null;
+                  return (
+                    <div
+                      key={category}
+                      className="flex items-center justify-between text-[11px] text-slate-600 dark:text-slate-400"
+                    >
+                      <span className="flex items-center gap-1">
+                        <span className="h-1.5 w-1.5 rounded-full bg-indigo-500" />
+                        <span>{category}</span>
+                      </span>
+                      <span className="font-bold text-slate-900 dark:text-white">
+                        ₹{amount.toLocaleString()}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>

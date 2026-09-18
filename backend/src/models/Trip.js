@@ -27,6 +27,7 @@ const tripSchema = new mongoose.Schema(
 
     campusConfig: {
       budgetPerStudent: Number,
+      accommodationBudgetPerStudent: Number,
       expectedParticipants: Number,
       educationalRequirements: [{
         institutionName: String,

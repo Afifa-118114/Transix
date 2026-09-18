@@ -50,6 +50,20 @@ exports.createCampusTrip = async (req, res) => {
       tripCategory: "CAMPUS",
       campusConfig: {
         budgetPerStudent: budget,
+        accommodationBudgetPerStudent: (() => {
+          let durationDays = 10;
+          if (req.body.startDate && req.body.endDate) {
+            const start = new Date(req.body.startDate);
+            const end = new Date(req.body.endDate);
+            if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+              durationDays = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+            }
+          } else if (req.body.duration) {
+            const match = String(req.body.duration).match(/\d+/);
+            if (match) durationDays = parseInt(match[0], 10);
+          }
+          return Math.min(budget, durationDays * 1000, 10000);
+        })(),
         expectedParticipants: travelers,
         educationalRequirements: educationalRequirements || [],
         inclusions: inclusions || {},
@@ -483,14 +497,36 @@ exports.updateDocumentStatus = async (req, res) => {
 exports.updateCampusConfig = async (req, res) => {
   try {
     const { id } = req.params;
-    const { inclusions, exclusions, mealInclusions } = req.body;
+    const { inclusions, exclusions, mealInclusions, accommodationBudgetPerStudent, budgetPerStudent } = req.body;
 
     const trip = await Trip.findOne({ _id: id, coordinatorId: req.user.id, tripCategory: "CAMPUS" });
     if (!trip) return res.status(404).json({ success: false, message: "Trip not found or unauthorized" });
 
+    if (!trip.campusConfig) trip.campusConfig = {};
     if (inclusions) trip.campusConfig.inclusions = inclusions;
     if (exclusions) trip.campusConfig.exclusions = exclusions;
     if (mealInclusions) trip.campusConfig.mealInclusions = mealInclusions;
+    if (budgetPerStudent !== undefined && budgetPerStudent !== null) {
+      trip.campusConfig.budgetPerStudent = Number(budgetPerStudent);
+    }
+    // Always derive canonical accommodation budget per student based on trip duration
+    const durationDays = (() => {
+      if (trip.startDate && trip.endDate) {
+        const start = new Date(trip.startDate);
+        const end = new Date(trip.endDate);
+        if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+          return Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+        }
+      }
+      if (Array.isArray(trip.itinerary) && trip.itinerary.length > 0) return trip.itinerary.length;
+      if (trip.duration) {
+        const match = String(trip.duration).match(/\d+/);
+        if (match) return parseInt(match[0], 10);
+      }
+      return 10;
+    })();
+    const studentBudget = trip.campusConfig.budgetPerStudent || trip.budget || 15000;
+    trip.campusConfig.accommodationBudgetPerStudent = Math.min(studentBudget, durationDays * 1000, 10000);
 
     // We must manually mark the nested object as modified so mongoose saves it
     trip.markModified('campusConfig');

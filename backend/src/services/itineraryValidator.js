@@ -210,6 +210,57 @@ const detectConflicts = (trip) => {
   return deduplicatedConflicts;
 };
 
+const calculateCampusGroupRoomRate = (baseRate, requiredRooms = 1) => {
+  if (!baseRate || baseRate <= 0) return 1800;
+
+  if (baseRate <= 2500) {
+    return Math.max(1200, Math.round(baseRate));
+  }
+
+  let discount = 0.25;
+  if (requiredRooms >= 50) {
+    discount = 0.50;
+  } else if (requiredRooms >= 20) {
+    discount = 0.40;
+  } else if (requiredRooms >= 10) {
+    discount = 0.30;
+  }
+
+  let discountedRate = Math.round(baseRate * (1 - discount));
+  if (discountedRate > 2500) {
+    discountedRate = 2500;
+  }
+  if (discountedRate < 1200) {
+    discountedRate = Math.min(baseRate, 1200);
+  }
+  return discountedRate;
+};
+
+const getTripDurationDays = (trip) => {
+  if (!trip) return 10;
+  if (trip.startDate && trip.endDate) {
+    const startStr = String(trip.startDate);
+    const endStr = String(trip.endDate);
+    const start = new Date(startStr + (startStr.includes('T') ? '' : 'T00:00:00Z'));
+    const end = new Date(endStr + (endStr.includes('T') ? '' : 'T00:00:00Z'));
+    if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+      const days = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      if (days > 0) return days;
+    }
+  }
+  if (Array.isArray(trip.itinerary) && trip.itinerary.length > 0) return trip.itinerary.length;
+  if (Array.isArray(trip.days) && trip.days.length > 0) return trip.days.length;
+  if (trip.duration) {
+    if (typeof trip.duration === "number" && trip.duration > 0) return trip.duration;
+    const match = String(trip.duration).match(/(\d+)/);
+    if (match) {
+      const days = parseInt(match[1], 10);
+      if (days > 0) return days;
+    }
+  }
+  return trip?.tripCategory === "CAMPUS" ? 10 : 5;
+};
+
 const validateItinerary = (itinerary, tripInput) => {
   const result = {
     valid: true,
@@ -232,7 +283,9 @@ const validateItinerary = (itinerary, tripInput) => {
   }
 
   // 1. Budget Validation
+  const isCampus = tripInput.tripCategory === "CAMPUS";
   let totalCost = 0;
+  let totalHotelCost = 0;
   let hasOverallHotelCost = false;
   
   if (Array.isArray(itinerary.days)) {
@@ -244,15 +297,44 @@ const validateItinerary = (itinerary, tripInput) => {
             const cat = String(item.category || "").toLowerCase();
             const act = String(item.activity || "").toLowerCase();
             
-            const userBudget = parseFloat(tripInput.budget) || 0;
-            if (day.day === 1 && (cat.includes("hotel") || cat.includes("stay") || act.includes("hotel")) && cost > (userBudget * 0.25)) {
-              hasOverallHotelCost = true;
-            }
-            
-            if (hasOverallHotelCost && day.day > 1 && (cat.includes("hotel") || cat.includes("stay") || act.includes("hotel"))) {
-              // skip
-            } else {
+            if (isCampus) {
+              const inclusions = tripInput.campusConfig?.inclusions;
+              const mealInclusions = tripInput.campusConfig?.mealInclusions;
+
+              const isHotel = cat.includes("hotel") || cat.includes("stay") || act.includes("hotel") || (cat.includes("operational") && act.includes("check-in"));
+              const isTravel = cat.includes("transport") || act.includes("travel") || act.includes("return");
+              const isLocalTransport = cat.includes("local") || cat.includes("taxi") || cat.includes("cab");
+              const isActivity = cat.includes("activity") || cat.includes("sightseeing") || cat.includes("visit");
+              const isBreakfast = act.includes("breakfast");
+              const isLunch = act.includes("lunch");
+              const isDinner = act.includes("dinner");
+              const isShopping = cat.includes("shopping") || act.includes("shopping");
+
+              if (isHotel) {
+                totalHotelCost += cost;
+              }
+
+              if (inclusions?.accommodation === false && isHotel) return;
+              if (inclusions?.travel === false && isTravel) return;
+              if (inclusions?.localTransport === false && isLocalTransport) return;
+              if (inclusions?.activities === false && isActivity) return;
+              if (mealInclusions?.breakfast === false && isBreakfast) return;
+              if (mealInclusions?.lunch === false && isLunch) return;
+              if (mealInclusions?.dinner === false && isDinner) return;
+              if (isShopping || item.isExcluded || item.optional) return;
+
               totalCost += cost;
+            } else {
+              const userBudget = parseFloat(tripInput.budget) || 0;
+              if (day.day === 1 && (cat.includes("hotel") || cat.includes("stay") || act.includes("hotel")) && cost > (userBudget * 0.25)) {
+                hasOverallHotelCost = true;
+              }
+              
+              if (hasOverallHotelCost && day.day > 1 && (cat.includes("hotel") || cat.includes("stay") || act.includes("hotel"))) {
+                // skip
+              } else {
+                totalCost += cost;
+              }
             }
           }
         });
@@ -260,9 +342,45 @@ const validateItinerary = (itinerary, tripInput) => {
     });
   }
   
-  const userBudget = parseFloat(tripInput.budget) || 0;
-  if (userBudget > 0 && totalCost > userBudget) {
-    addError("BUDGET_EXCEEDED", null, `Total estimated cost (${totalCost}) strictly exceeds the maximum user budget (${userBudget}). Planners must stay within the budget.`);
+  if (isCampus) {
+    const budgetPerStudent = parseFloat(tripInput.campusConfig?.budgetPerStudent) || parseFloat(tripInput.budget) || 0;
+    const expectedStudents = parseInt(tripInput.campusConfig?.expectedParticipants, 10) || parseInt(tripInput.travelers, 10) || 1;
+    const totalGroupBudget = budgetPerStudent * expectedStudents;
+
+    const tripDurationDays = getTripDurationDays(tripInput);
+    const accommodationAllocationPerStudent = Math.min(
+      budgetPerStudent > 0 ? budgetPerStudent : 10000,
+      tripDurationDays * 1000,
+      10000
+    );
+    const accommodationGroupAllocation = accommodationAllocationPerStudent * expectedStudents;
+
+    // Accommodation Allocation Check (Separate from overall trip budget)
+    const inclusions = tripInput.campusConfig?.inclusions;
+    if (inclusions?.accommodation !== false && accommodationGroupAllocation > 0 && totalHotelCost > accommodationGroupAllocation) {
+      const diff = totalHotelCost - accommodationGroupAllocation;
+      const perStudentDiff = Math.round(diff / expectedStudents);
+      addError(
+        "ACCOMMODATION_BUDGET_EXCEEDED",
+        null,
+        `Campus accommodation allocation exceeded. Allocation per student: ₹${accommodationAllocationPerStudent.toLocaleString('en-IN')}, Estimated accommodation per student: ₹${Math.round(totalHotelCost / expectedStudents).toLocaleString('en-IN')}, Over by: ₹${perStudentDiff.toLocaleString('en-IN')} / student (Group over by: ₹${diff.toLocaleString('en-IN')}). Accommodation must stay within the allocation ceiling.`
+      );
+    }
+
+    // Overall Campus Trip Budget Check
+    if (totalGroupBudget > 0 && totalCost > totalGroupBudget) {
+      const diff = totalCost - totalGroupBudget;
+      addError(
+        "BUDGET_EXCEEDED",
+        null,
+        `Campus Trip budget exceeded. Budget per student: ₹${budgetPerStudent.toLocaleString('en-IN')}, Expected students: ${expectedStudents}, Total group budget: ₹${totalGroupBudget.toLocaleString('en-IN')}, Estimated group cost: ₹${totalCost.toLocaleString('en-IN')}, Difference: ₹${diff.toLocaleString('en-IN')}. Planners must stay within the budget.`
+      );
+    }
+  } else {
+    const userBudget = parseFloat(tripInput.budget) || 0;
+    if (userBudget > 0 && totalCost > userBudget) {
+      addError("BUDGET_EXCEEDED", null, `Total estimated cost (${totalCost}) strictly exceeds the maximum user budget (${userBudget}). Planners must stay within the budget.`);
+    }
   }
 
   // 2. Stay Segments Validation
@@ -431,5 +549,7 @@ module.exports = {
   validateItinerary,
   isImmutableTransport,
   timeToMinutes,
-  minutesToTimeStr
+  minutesToTimeStr,
+  getTripDurationDays,
+  calculateCampusGroupRoomRate
 };

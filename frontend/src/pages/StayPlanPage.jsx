@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { useNavigate, Navigate } from "react-router-dom";
+import { useNavigate, useLocation, Navigate } from "react-router-dom";
 import { useTripBuilder } from "../context/TripBuilderContext";
 import DashboardLayout from "../layouts/DashboardLayout";
 import { FiArrowLeft, FiMapPin, FiCalendar, FiMoon, FiStar, FiInfo, FiCheck, FiAlertCircle } from "react-icons/fi";
@@ -7,7 +7,7 @@ import { getHotelsForStaySegment } from "../services/inventoryService";
 import { calculatePriceIntelligence } from "../utils/priceIntelligence";
 import { formatDate } from "../utils/formatTrip";
 import { getTripBookings } from "../api/tripApi";
-import { useLocation } from "react-router-dom";
+import { calculateStayAccommodation, calculateAccommodationSummary, calculateAccommodationBudgetAnalysis, getCampusAccommodationBudget } from "../utils/campusBudgetUtils";
 
 export default function StayPlanPage() {
   const navigate = useNavigate();
@@ -16,32 +16,47 @@ export default function StayPlanPage() {
   const { trip, setTrip, budgetStats } = useTripBuilder();
 
   // Use local state for Stay Plan editing to prevent instant syncing
-  const [staySegments, setStaySegments] = useState(trip.staySegments || []);
+  const [staySegments, setStaySegments] = useState(() => {
+    if (state?.draftStaySegments && Array.isArray(state.draftStaySegments) && state.draftStaySegments.length > 0) {
+      return state.draftStaySegments;
+    }
+    return trip.staySegments || [];
+  });
   const [isSyncing, setIsSyncing] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+
+  const originalPersisted = React.useRef(trip?.staySegments || []);
+
+  useEffect(() => {
+    if (state?.draftStaySegments && Array.isArray(state.draftStaySegments) && state.draftStaySegments.length > 0) {
+      setStaySegments(state.draftStaySegments);
+    }
+  }, [state?.draftStaySegments]);
   
   // Deterministically derive if there are unsaved geographic changes
   // by structurally comparing local staySegments against the saved trip.staySegments
   const hasUnsavedChanges = useMemo(() => {
-    const original = trip?.staySegments || [];
+    const original = originalPersisted.current || [];
     if (staySegments.length !== original.length) return true;
     for (let i = 0; i < staySegments.length; i++) {
       const loc1 = String(staySegments[i].location || "").toLowerCase().trim();
-      const loc2 = String(original[i].location || "").toLowerCase().trim();
+      const loc2 = String(original[i]?.location || "").toLowerCase().trim();
       if (loc1 !== loc2) return true;
       
       const n1 = parseInt(staySegments[i].nights, 10) || 0;
-      const n2 = parseInt(original[i].nights, 10) || 0;
+      const n2 = parseInt(original[i]?.nights, 10) || 0;
       if (n1 !== n2) return true;
     }
     return false;
-  }, [staySegments, trip?.staySegments]);
+  }, [staySegments]);
 
   // Sync local state when trip changes (from other pages) if no unsaved changes
   useEffect(() => {
-    if (!hasUnsavedChanges) {
+    if (!hasUnsavedChanges && (!state?.draftStaySegments || state.draftStaySegments.length === 0)) {
       setStaySegments(trip.staySegments || []);
+      originalPersisted.current = trip.staySegments || [];
     }
-  }, [trip.staySegments, hasUnsavedChanges]);
+  }, [trip.staySegments, hasUnsavedChanges, state?.draftStaySegments]);
 
   // Local state for fetching status and results
   const [segmentData, setSegmentData] = useState({});
@@ -108,18 +123,16 @@ export default function StayPlanPage() {
           checkIn: segment.checkIn,
           checkOut: segment.checkOut,
           nights: segment.nights,
-          travelers: trip.travelers || 2
-        }
+          travelers: trip.travelers || 2,
+          segmentIndex: staySegments.findIndex(s => s === segment || s.id === segment.id)
+        },
+        draftStaySegments: staySegments
       }
     });
   };
 
   // Handle viewing a specific hotel
   const handleViewHotel = (segment, hotels, hotelIndex) => {
-    if (hasUnsavedChanges) {
-      alert("Please save your Stay Plan edits before selecting hotels.");
-      return;
-    }
     navigate("/hotel-details", {
       state: {
         hotels: hotels,
@@ -130,42 +143,50 @@ export default function StayPlanPage() {
           checkIn: segment.checkIn,
           checkOut: segment.checkOut,
           nights: segment.nights,
-          travelers: trip.travelers || 2
-        }
+          travelers: trip.travelers || 2,
+          segmentIndex: staySegments.findIndex(s => s === segment || s.id === segment.id)
+        },
+        draftStaySegments: staySegments
       }
     });
   };
 
+  // Immediate hotel selection for draft stay segment without navigating away
+  const handleSelectHotel = (segmentIndex, hotelData) => {
+    const seg = staySegments[segmentIndex];
+    const dummySeg = { ...seg, selectedHotel: hotelData };
+    const stayPricing = calculateStayAccommodation(dummySeg, trip);
+    const updatedHotel = {
+      ...hotelData,
+      price: stayPricing.groupCost,
+      groupPrice: stayPricing.groupCost,
+      perStudentPrice: stayPricing.perStudentCost,
+      rooms: stayPricing.rooms,
+      nightlyPrice: stayPricing.nightlyRate,
+      isEstimatedPrice: stayPricing.isEstimated,
+    };
+    const newSegments = [...staySegments];
+    newSegments[segmentIndex] = {
+      ...newSegments[segmentIndex],
+      selectedHotel: updatedHotel
+    };
+    updateLocalSegments(newSegments);
+  };
+
   // Calculate Summary
   const accommodationSummary = useMemo(() => {
-    let totalSelectedPrice = 0;
-    let selectedCount = 0;
-    const items = staySegments.map((segment) => {
-      if (segment.selectedHotel) {
-        selectedCount++;
-        totalSelectedPrice += segment.selectedHotel.price || 0;
-        return {
-          location: segment.location,
-          nights: segment.nights,
-          price: segment.selectedHotel.price,
-          name: segment.selectedHotel.name
-        };
-      }
-      return {
-        location: segment.location,
-        nights: segment.nights,
-        price: null,
-        name: null
-      };
-    });
-
-    return { totalSelectedPrice, selectedCount, items };
-  }, [staySegments]);
+    return calculateAccommodationSummary(staySegments, trip);
+  }, [staySegments, trip]);
 
   // Overall Trip total nights calculation
   const totalNights = useMemo(() => {
     return staySegments.reduce((acc, seg) => acc + (seg.nights || 0), 0);
   }, [staySegments]);
+
+  // Canonical Accommodation Budget Analysis strictly for Accommodation / Stay Plan Page
+  const accommodationBudgetAnalysis = useMemo(() => {
+    return calculateAccommodationBudgetAnalysis(trip, staySegments);
+  }, [trip, staySegments]);
 
   const [editingSegmentIdx, setEditingSegmentIdx] = useState(null);
   const [editForm, setEditForm] = useState({ location: '', nights: 1 });
@@ -256,9 +277,7 @@ export default function StayPlanPage() {
   // Derived state for the sticky action bar
   const totalStayNights = staySegments.reduce((sum, seg) => sum + (parseInt(seg.nights, 10) || 0), 0);
   const selectedHotelsCount = staySegments.filter(s => s.selectedHotel).length;
-  // If there are unsaved geographic changes, we only validate the structure (nights).
-  // If no unsaved geographic changes, we validate that all hotels are selected before finalizing.
-  const isStayPlanValid = staySegments.length > 0 && totalStayNights === expectedTripNights && (hasUnsavedChanges || selectedHotelsCount === staySegments.length);
+  const isStayPlanValid = staySegments.length > 0 && totalStayNights === expectedTripNights;
 
   // If no trip is found, redirect to planner
   if (!trip) {
@@ -269,7 +288,7 @@ export default function StayPlanPage() {
      setStaySegments(recalculateDates(newSegments));
   };
 
-  const handleSaveStayPlan = async () => {
+  const handleSaveStayPlan = () => {
     // 1. Validation: Nights must be positive
     for (let i = 0; i < staySegments.length; i++) {
         const n = parseInt(staySegments[i].nights, 10);
@@ -281,8 +300,8 @@ export default function StayPlanPage() {
 
     // 2. Validation: valid geographic location
     const hasInvalid = staySegments.some(s => {
-       const loc = s.location.toLowerCase().trim();
-       return loc === "new destination" || loc.includes("hotel") || loc.includes("resort") || loc.includes("boutique");
+       const loc = (s.location || "").toLowerCase().trim();
+       return !loc || loc === "new destination" || loc.includes("hotel") || loc.includes("resort") || loc.includes("boutique");
     });
     if (hasInvalid) {
        alert("Cannot save Stay Plan: One or more segments have an invalid geographic location.");
@@ -316,23 +335,23 @@ export default function StayPlanPage() {
        }
     }
 
-    // Check if any segment is missing a hotel
-    // ONLY enforce this if the user is doing the final "Save & Update Itinerary" with hotel selections
-    if (!hasUnsavedChanges) {
-      const missingHotels = staySegments.filter(s => !s.selectedHotel);
-      
-      if (missingHotels.length > 0) {
-         setMissingHotelsModal({
-            totalSegments: staySegments.length,
-            selectedCount: staySegments.length - missingHotels.length,
-            missingCount: missingHotels.length,
-            missingSegments: missingHotels
-         });
-         return;
-      }
+    // 4. Check if any segment is missing a hotel
+    const missingHotels = staySegments.filter(s => !s.selectedHotel);
+    if (missingHotels.length > 0) {
+       setMissingHotelsModal({
+          totalSegments: staySegments.length,
+          selectedCount: staySegments.length - missingHotels.length,
+          missingCount: missingHotels.length,
+          missingSegments: missingHotels
+       });
+       return;
     }
     
-    // Unified sync for both geographic and hotel-only changes
+    // 5. Open confirmation modal before executing single transaction
+    setShowConfirmModal(true);
+  };
+
+  const executeSaveStayPlan = async () => {
     setIsSyncing(true);
     try {
       const token = localStorage.getItem("token");
@@ -340,6 +359,8 @@ export default function StayPlanPage() {
       const res = await syncItinerary(trip._id, staySegments, token);
       if (res.success && res.trip) {
         setTrip(res.trip);
+        originalPersisted.current = res.trip.staySegments || [];
+        setStaySegments(res.trip.staySegments || []);
         setSyncSuccess(true);
       }
     } catch (err) {
@@ -652,16 +673,43 @@ export default function StayPlanPage() {
                           </div>
                           <div className="mt-3 flex flex-wrap items-end justify-between gap-4">
                             <div>
-                              {segment.selectedHotel.price > 0 ? (
-                                <div>
-                                  <div className="text-lg font-black text-slate-900 dark:text-white">₹{segment.selectedHotel.price.toLocaleString()} <span className="text-xs font-semibold text-slate-500">total</span></div>
-                                  {segment.selectedHotel.isEstimatedPrice && (
-                                    <div className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider mt-0.5">Estimated Fallback</div>
-                                  )}
-                                </div>
-                              ) : (
-                                <span className="text-sm font-bold text-slate-500">Price unavailable</span>
-                              )}
+                              {(() => {
+                                const isCampus = trip.tripCategory === 'CAMPUS';
+                                const stayPricing = calculateStayAccommodation(segment, trip);
+                                if (!stayPricing.hasHotel) {
+                                  return <span className="text-sm font-bold text-slate-500">Price unavailable</span>;
+                                }
+                                if (isCampus) {
+                                  return (
+                                    <div>
+                                      <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-2">
+                                        <div className="text-lg font-black text-slate-900 dark:text-white">
+                                          ₹{stayPricing.groupCost.toLocaleString()} <span className="text-xs font-semibold text-slate-500">estimated group cost</span>
+                                        </div>
+                                        <div className="text-xs font-bold text-indigo-600 dark:text-indigo-400">
+                                          ₹{stayPricing.perStudentCost.toLocaleString()} / student
+                                        </div>
+                                      </div>
+                                      <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-0.5">
+                                        ₹{stayPricing.nightlyRate.toLocaleString()} / room / night • {stayPricing.rooms} rooms ({stayPricing.studentsPerRoom} students/room) • {stayPricing.nights} nights
+                                      </div>
+                                      <div className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider mt-0.5">
+                                        Estimated Educational Group Accommodation Cost
+                                      </div>
+                                    </div>
+                                  );
+                                }
+                                return (
+                                  <div>
+                                    <div className="text-lg font-black text-slate-900 dark:text-white">
+                                      ₹{(segment.selectedHotel.price || stayPricing.groupCost).toLocaleString()} <span className="text-xs font-semibold text-slate-500">total</span>
+                                    </div>
+                                    {segment.selectedHotel.isEstimatedPrice && (
+                                      <div className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider mt-0.5">Estimated Fallback</div>
+                                    )}
+                                  </div>
+                                );
+                              })()}
                             </div>
                             <div className="flex gap-2">
                               {(() => {
@@ -791,7 +839,7 @@ export default function StayPlanPage() {
                                 <div className="mt-auto pt-3 border-t border-slate-200 dark:border-slate-700 flex gap-2">
                                   <button onClick={() => handleViewHotel(segment, hotels, rec.originalIndex)} className="flex-1 py-1.5 rounded border border-slate-300 dark:border-slate-600 text-[10px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition">View Details</button>
                                   {!viewOnly && (
-                                    <button onClick={() => handleViewHotel(segment, hotels, rec.originalIndex)} className="flex-1 py-1.5 rounded bg-indigo-600 text-[10px] font-bold text-white hover:bg-indigo-700 transition">Select for Stay</button>
+                                    <button onClick={() => handleSelectHotel(index, rec)} className="flex-1 py-1.5 rounded bg-indigo-600 text-[10px] font-bold text-white hover:bg-indigo-700 transition">Select for Stay</button>
                                   )}
                                 </div>
                               </div>
@@ -809,7 +857,9 @@ export default function StayPlanPage() {
                                   </div>
                                   <div className="mt-auto flex gap-2">
                                     <button onClick={() => handleViewHotel(segment, hotels, i)} className="flex-1 py-1.5 rounded border border-slate-300 dark:border-slate-600 text-[10px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition">View Details</button>
-                                    <button onClick={() => handleViewHotel(segment, hotels, i)} className="flex-1 py-1.5 rounded bg-indigo-600 text-[10px] font-bold text-white hover:bg-indigo-700 transition">Select for Stay</button>
+                                    {!viewOnly && (
+                                      <button onClick={() => handleSelectHotel(index, hotel)} className="flex-1 py-1.5 rounded bg-indigo-600 text-[10px] font-bold text-white hover:bg-indigo-700 transition">Select for Stay</button>
+                                    )}
                                   </div>
                                 </div>
                               ))
@@ -856,67 +906,183 @@ export default function StayPlanPage() {
             <div className="flex flex-col md:flex-row gap-8">
               <div className="flex-1 space-y-3">
                 {accommodationSummary.items.map((item, i) => (
-                  <div key={i} className="flex justify-between items-center text-sm">
+                  <div key={i} className="flex justify-between items-start text-sm py-2 border-b border-slate-100 dark:border-slate-800/60 last:border-0">
                     <div>
-                      <span className="font-bold text-slate-800 dark:text-slate-200">{item.location}</span>
-                      <span className="text-slate-500 ml-2 text-xs">{item.nights} nights</span>
-                      {item.name && <div className="text-[10px] font-medium text-slate-400 mt-0.5">{item.name}</div>}
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-slate-800 dark:text-slate-200">{item.location}</span>
+                        <span className="text-slate-500 text-xs">({item.nights} {item.nights === 1 ? 'night' : 'nights'})</span>
+                      </div>
+                      {item.pricing?.hasHotel ? (
+                        <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-0.5">
+                          <span className="text-slate-700 dark:text-slate-300 font-semibold">{item.pricing.hotelName}</span>
+                          {item.pricing.isCampus && (
+                            <span className="ml-1 text-[10px] text-slate-400">• {item.pricing.rooms} rooms @ ₹{item.pricing.nightlyRate.toLocaleString()}/night</span>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-[11px] text-slate-400 italic mt-0.5">No hotel selected</div>
+                      )}
                     </div>
-                    <div className="font-semibold text-slate-700 dark:text-slate-300">
-                      {item.price ? `₹${item.price.toLocaleString()}` : <span className="text-xs text-slate-400 italic">Not selected</span>}
+                    <div className="text-right">
+                      {item.pricing?.hasHotel ? (
+                        item.pricing.isCampus ? (
+                          <>
+                            <div className="font-bold text-slate-900 dark:text-white">
+                              ₹{item.pricing.groupCost.toLocaleString()} <span className="text-[10px] font-normal text-slate-400">group</span>
+                            </div>
+                            <div className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">
+                              ₹{item.pricing.perStudentCost.toLocaleString()} <span className="text-[10px] font-normal text-slate-400">/ student</span>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="font-semibold text-slate-700 dark:text-slate-300">
+                            ₹{item.pricing.groupCost.toLocaleString()}
+                          </div>
+                        )
+                      ) : (
+                        <span className="text-xs text-slate-400 italic">Not selected</span>
+                      )}
                     </div>
                   </div>
                 ))}
 
-                <div className="border-t border-slate-200 dark:border-slate-800 pt-3 mt-4 flex justify-between items-end">
-                  <div className="text-base font-black text-slate-900 dark:text-white">Total</div>
-                  <div className="text-xl font-black text-indigo-600 dark:text-indigo-400">
-                    {accommodationSummary.selectedCount === staySegments.length ? (
-                      `₹${accommodationSummary.totalSelectedPrice.toLocaleString()}`
+                <div className="border-t-2 border-slate-200 dark:border-slate-700 pt-3 mt-2 flex justify-between items-end">
+                  <div>
+                    <div className="text-base font-black text-slate-900 dark:text-white uppercase">Total Accommodation</div>
+                    <div className="text-[10px] font-semibold text-slate-500">
+                      {accommodationSummary.selectedCount} of {staySegments.length} hotels selected (Estimated)
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    {trip.tripCategory === 'CAMPUS' ? (
+                      <>
+                        <div className="text-lg font-black text-indigo-600 dark:text-indigo-400">
+                          ₹{accommodationSummary.totalGroupAccommodation.toLocaleString()} <span className="text-xs font-normal text-slate-500">group</span>
+                        </div>
+                        <div className="text-xs font-bold text-indigo-700 dark:text-indigo-300">
+                          ₹{accommodationSummary.totalPerStudentAccommodation.toLocaleString()} <span className="text-[10px] font-normal text-slate-400">/ student</span>
+                        </div>
+                      </>
                     ) : (
-                      <div className="text-right">
-                        <div>₹{accommodationSummary.totalSelectedPrice.toLocaleString()}</div>
-                        <div className="text-[10px] font-semibold text-slate-500">{accommodationSummary.selectedCount} of {staySegments.length} selected</div>
+                      <div className="text-xl font-black text-indigo-600 dark:text-indigo-400">
+                        ₹{accommodationSummary.totalSelectedPrice.toLocaleString()}
                       </div>
                     )}
                   </div>
                 </div>
               </div>
 
-              <div className="w-full md:w-64 shrink-0 rounded-xl bg-slate-50 dark:bg-slate-800/50 p-4 border border-slate-100 dark:border-slate-800 flex flex-col justify-center">
+              <div className="w-full md:w-84 shrink-0 rounded-2xl bg-slate-50 dark:bg-slate-800/50 p-4 border border-slate-200/80 dark:border-slate-700/80 flex flex-col gap-3">
                 {trip.tripCategory === 'CAMPUS' ? (
                   <>
-                    <div className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-500">Trip Budget Impact</div>
-                    <div className="flex justify-between items-baseline mb-1">
-                      <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Budget per Student</span>
-                      <span className="text-sm font-bold text-slate-900 dark:text-white">₹{trip.campusConfig?.budgetPerStudent?.toLocaleString() || '0'}</span>
-                    </div>
-                    <div className="flex justify-between items-baseline mb-1">
-                      <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Expected Students</span>
-                      <span className="text-sm font-bold text-slate-900 dark:text-white">{trip.campusConfig?.expectedParticipants || '0'}</span>
-                    </div>
-                    <div className="flex justify-between items-baseline mb-3 border-t border-slate-200 dark:border-slate-700 pt-2 mt-1">
-                      <span className="text-sm font-bold text-slate-800 dark:text-slate-200">Total Group Budget</span>
-                      <span className="text-sm font-bold text-indigo-700 dark:text-indigo-300">₹{((trip.campusConfig?.budgetPerStudent || 0) * (trip.campusConfig?.expectedParticipants || 0)).toLocaleString()}</span>
-                    </div>
-                    
-                    <div className="flex justify-between items-baseline mb-3">
-                      <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Selected Stays</span>
-                      <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">₹{accommodationSummary.totalSelectedPrice.toLocaleString()}</span>
+                    <div className="text-xs font-black uppercase tracking-wider text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700 pb-2">
+                      Trip Budget Impact
                     </div>
 
-                    {trip.campusConfig?.inclusions?.accommodation === false ? (
-                      <div className="mt-2 p-2 rounded bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-900/40 text-[10px] font-bold text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+                    {/* OVERALL TRIP BUDGET EXCEEDED BANNER */}
+                    {accommodationBudgetAnalysis.exceedsOverallBudget ? (
+                      <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-xs text-rose-800 dark:text-rose-200 flex flex-col gap-1.5 shadow-xs">
+                        <div className="flex items-center gap-1.5 font-black uppercase tracking-wider text-[11px] text-rose-600 dark:text-rose-400">
+                          <FiAlertCircle className="shrink-0 text-sm" />
+                          <span>Overall Budget Exceeded</span>
+                        </div>
+                        <p className="font-bold text-[11px] leading-tight text-rose-900 dark:text-rose-100">
+                          Estimated accommodation exceeds the overall trip budget.
+                        </p>
+                        <div className="mt-1 pt-1.5 border-t border-rose-200/80 dark:border-rose-800/50 text-[11px] space-y-1">
+                          <div className="flex justify-between">
+                            <span className="text-slate-600 dark:text-slate-400">Overall Trip Budget:</span>
+                            <span className="font-semibold">
+                              ₹{accommodationBudgetAnalysis.overallTripBudgetPerStudent.toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-600 dark:text-slate-400">Estimated Accommodation:</span>
+                            <span className="font-semibold">
+                              ₹{accommodationBudgetAnalysis.estimatedAccommodationPerStudent.toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-rose-600 dark:text-rose-400 font-bold">
+                            <span>Over by:</span>
+                            <span>₹{accommodationBudgetAnalysis.overOverallAmountPerStudent.toLocaleString()} / student</span>
+                          </div>
+                          <div className="flex justify-between pt-1 border-t border-rose-200/60 dark:border-rose-800/40 text-rose-600 dark:text-rose-400 font-bold">
+                            <span>Group over by:</span>
+                            <span>₹{accommodationBudgetAnalysis.overOverallAmountGroup.toLocaleString()}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ) : accommodationBudgetAnalysis.exceedsInternalLimit ? (
+                      <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 text-xs text-amber-800 dark:text-amber-200 flex flex-col gap-1.5 shadow-xs">
+                        <div className="flex items-center gap-1.5 font-black uppercase tracking-wider text-[11px] text-amber-600 dark:text-amber-400">
+                          <FiAlertCircle className="shrink-0 text-sm" />
+                          <span>Accommodation Allowance Advisory</span>
+                        </div>
+                        <p className="font-semibold text-[11px] leading-tight text-amber-900 dark:text-amber-100">
+                          Accommodation estimate is above the planned accommodation allowance for this trip.
+                        </p>
+                      </div>
+                    ) : null}
+
+                    {/* PER STUDENT LEVEL */}
+                    <div className="rounded-xl bg-white dark:bg-[#1a233a] p-3 border border-indigo-100 dark:border-indigo-900/40 shadow-xs">
+                      <div className="text-[10px] font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400 mb-2">
+                        Per Student
+                      </div>
+                      <div className="space-y-1.5 text-xs">
+                        <div className="flex justify-between">
+                          <span className="text-slate-500 dark:text-slate-400">Overall Trip Budget:</span>
+                          <span className="font-bold text-slate-900 dark:text-white">
+                            ₹{accommodationBudgetAnalysis.overallTripBudgetPerStudent.toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-500 dark:text-slate-400">Estimated Accommodation:</span>
+                          <span className="font-bold text-slate-900 dark:text-white">
+                            ₹{accommodationBudgetAnalysis.estimatedAccommodationPerStudent.toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="flex justify-between border-t border-slate-100 dark:border-slate-700 pt-1">
+                          <span className="font-semibold text-slate-600 dark:text-slate-300">Remaining Overall Budget:</span>
+                          <span className={`font-black ${accommodationBudgetAnalysis.remainingOverallPerStudentBudget < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                            {accommodationBudgetAnalysis.remainingOverallPerStudentBudget < 0 ? '-' : ''}₹{Math.abs(accommodationBudgetAnalysis.remainingOverallPerStudentBudget).toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* GROUP / BULK LEVEL */}
+                    <div className="rounded-xl bg-white dark:bg-[#1a233a] p-3 border border-slate-100 dark:border-slate-700 shadow-xs">
+                      <div className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
+                        Group / Bulk ({accommodationBudgetAnalysis.expectedStudents} Students)
+                      </div>
+                      <div className="space-y-1.5 text-xs">
+                        <div className="flex justify-between">
+                          <span className="text-slate-500 dark:text-slate-400">Overall Trip Budget:</span>
+                          <span className="font-bold text-slate-900 dark:text-white">
+                            ₹{accommodationBudgetAnalysis.overallTripBudgetGroup.toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-500 dark:text-slate-400">Estimated Accommodation:</span>
+                          <span className="font-bold text-slate-900 dark:text-white">
+                            ₹{accommodationBudgetAnalysis.estimatedAccommodationGroup.toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="flex justify-between border-t border-slate-100 dark:border-slate-700 pt-1">
+                          <span className="font-semibold text-slate-600 dark:text-slate-300">Remaining Overall Budget:</span>
+                          <span className={`font-black ${accommodationBudgetAnalysis.remainingOverallGroupBudget < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                            {accommodationBudgetAnalysis.remainingOverallGroupBudget < 0 ? '-' : ''}₹{Math.abs(accommodationBudgetAnalysis.remainingOverallGroupBudget).toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {trip.campusConfig?.inclusions?.accommodation === false && (
+                      <div className="p-2 rounded bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-900/40 text-[10px] font-bold text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
                         <FiInfo className="shrink-0" />
                         <span>Accommodation is marked as EXCLUDED from the inclusive group budget.</span>
                       </div>
-                    ) : (
-                      ((trip.campusConfig?.budgetPerStudent || 0) * (trip.campusConfig?.expectedParticipants || 0)) > 0 && accommodationSummary.totalSelectedPrice > ((trip.campusConfig?.budgetPerStudent || 0) * (trip.campusConfig?.expectedParticipants || 0)) ? (
-                        <div className="mt-2 p-2 rounded bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/40 text-[10px] font-bold text-red-700 dark:text-red-400 flex items-center gap-1.5">
-                          <FiInfo className="shrink-0" />
-                          <span>Accommodation exceeds the total inclusive group budget.</span>
-                        </div>
-                      ) : null
                     )}
                   </>
                 ) : (
@@ -924,19 +1090,25 @@ export default function StayPlanPage() {
                     <div className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-500">Trip Budget Impact</div>
                     <div className="flex justify-between items-baseline mb-1">
                       <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Overall Budget</span>
-                      <span className="text-sm font-bold text-slate-900 dark:text-white">₹{budgetStats?.totalBudget?.toLocaleString() || '0'}</span>
+                      <span className="text-sm font-bold text-slate-900 dark:text-white">₹{accommodationBudgetAnalysis.totalBudget.toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between items-baseline mb-3">
-                      <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Selected Stays</span>
-                      <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">₹{accommodationSummary.totalSelectedPrice.toLocaleString()}</span>
+                      <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Estimated Accommodation</span>
+                      <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">₹{accommodationBudgetAnalysis.estimatedAccommodation.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between items-baseline mb-1 border-t border-slate-200 dark:border-slate-700 pt-2">
+                      <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Remaining</span>
+                      <span className={`text-sm font-black ${accommodationBudgetAnalysis.isOverBudget ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                        {accommodationBudgetAnalysis.isOverBudget ? '-' : ''}₹{Math.abs(accommodationBudgetAnalysis.remaining).toLocaleString()}
+                      </span>
                     </div>
 
-                    {(budgetStats?.totalBudget && accommodationSummary.totalSelectedPrice > budgetStats.totalBudget) ? (
+                    {accommodationBudgetAnalysis.isOverBudget && (
                       <div className="mt-2 p-2 rounded bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/40 text-[10px] font-bold text-red-700 dark:text-red-400 flex items-center gap-1.5">
-                        <FiInfo className="shrink-0" />
-                        <span>Accommodation exceeds overall trip budget.</span>
+                        <FiAlertCircle className="shrink-0" />
+                        <span>Accommodation exceeds total budget by ₹{accommodationBudgetAnalysis.overAmount.toLocaleString()}.</span>
                       </div>
-                    ) : null}
+                    )}
                     <div className="mt-2 text-[9px] text-slate-400 italic leading-tight">
                       Budget reflects the total trip budget for all travelers. Stay total is dynamically updated based on your selections.
                     </div>
@@ -967,10 +1139,75 @@ export default function StayPlanPage() {
               disabled={isSyncing || !isStayPlanValid} 
               className="w-full md:w-auto px-8 py-3 bg-indigo-600 text-white font-black rounded-xl hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-indigo-600/20 transition-all flex items-center justify-center gap-2 uppercase tracking-wide text-sm"
             >
-              {isSyncing 
-                ? (hasUnsavedChanges ? "Saving Stay Plan..." : "Updating Itinerary...") 
-                : (hasUnsavedChanges ? "Save Stay Plan" : "Save & Update Itinerary")}
+              {isSyncing ? "Saving & Updating Itinerary..." : "Save Plan & Update Itinerary"}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal before Save & Update */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl bg-white dark:bg-[#131b2e] p-6 shadow-xl border border-indigo-100 dark:border-indigo-900/40">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2.5 bg-indigo-100 dark:bg-indigo-900/30 rounded-full text-indigo-600 dark:text-indigo-400">
+                <FiCalendar className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-xl font-black text-slate-900 dark:text-white">
+                  Update Itinerary?
+                </h3>
+                <p className="text-xs font-semibold text-slate-500">Your Stay Plan has been modified.</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600 dark:text-slate-300 mb-3 font-medium">
+              Saving these changes will:
+            </p>
+            <ul className="space-y-2 text-xs text-slate-600 dark:text-slate-400 mb-4 bg-slate-50 dark:bg-slate-800/50 p-3.5 rounded-xl border border-slate-100 dark:border-slate-800 font-medium">
+              <li className="flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+                <span>Update your Stay Plan</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+                <span>Update the affected itinerary days</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+                <span>Recalculate the schedule</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+                <span>Validate the updated itinerary</span>
+              </li>
+            </ul>
+
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 italic mb-6">
+              This may update activities and timings where the destination/location has changed.
+            </p>
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setShowConfirmModal(false)}
+                disabled={isSyncing}
+                className="flex-1 py-3 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 transition text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowConfirmModal(false);
+                  executeSaveStayPlan();
+                }}
+                disabled={isSyncing}
+                className="flex-1 py-3 bg-indigo-600 text-white font-black rounded-xl hover:bg-indigo-700 transition shadow-md shadow-indigo-600/20 text-sm"
+              >
+                Save & Update
+              </button>
+            </div>
           </div>
         </div>
       )}
