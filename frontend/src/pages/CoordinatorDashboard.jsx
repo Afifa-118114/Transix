@@ -934,7 +934,7 @@ export default function CoordinatorDashboard() {
                 </h3>
                 
                 <div className="flex flex-col gap-2">
-                  <button onClick={() => navigate(`/itinerary/${trip._id}`, { state: { viewOnly: true, trip, dayIndex: 0 }})} className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-slate-800/50 transition text-left group">
+                  <button onClick={() => navigate(`/itinerary/${trip._id}`, { state: { viewOnly: true, trip, dayIndex: 0, relation: "COORDINATOR" }})} className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-slate-800/50 transition text-left group">
                     <div className="w-8 h-8 rounded-lg bg-indigo-900/40 text-indigo-400 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition"><FiEye /></div>
                     <div>
                       <div className="text-xs font-bold text-slate-200">View Finalized Itinerary</div>

@@ -441,7 +441,7 @@ export default function ParticipantDashboard() {
             {/* View Finalized Itinerary Action Button */}
             <div className="flex items-center gap-3">
               <button 
-                onClick={() => navigate(`/itinerary/${trip._id}`, { state: { trip, viewOnly: true } })}
+                onClick={() => navigate(`/itinerary/${trip._id}`, { state: { trip, viewOnly: true, relation: "PARTICIPANT" } })}
                 className="px-5 py-2.5 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 rounded-xl font-bold text-xs flex items-center gap-2 transition shadow-lg"
               >
                 <FiMap /> View Itinerary
