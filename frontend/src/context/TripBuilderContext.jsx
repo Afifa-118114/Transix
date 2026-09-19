@@ -1,9 +1,21 @@
 import { createContext, useContext, useState, useEffect, useMemo, useCallback } from "react";
 import toast from "react-hot-toast";
 import { getDestinationInventory } from "../services/inventoryService";
-import { detectConflicts, findEarliestValidSlot } from "../utils/schedulingEngine";
+import {
+  detectConflicts,
+  findEarliestValidSlot,
+  isImmutableTransport,
+  scheduleTrainJourneyIntoTrip,
+  scheduleFlightJourneyIntoTrip,
+  validateTripSchedule,
+  generateConflictSuggestions,
+  findExistingTrainRecord,
+  findExistingTransportRecord,
+  buildProposedTrainAdaptation,
+  buildProposedTransportAdaptation,
+} from "../utils/schedulingEngine";
 import { generateSmartAlternatives } from "../utils/alternativeEngine";
-import { normalizeTrip, getDuration, timeToMinutes, minutesToTimeStr, parsePrice } from "../utils/formatTrip";
+import { normalizeTrip, getDuration, timeToMinutes, minutesToTimeStr, parsePrice, parseDurationMinutes } from "../utils/formatTrip";
 import { normalizeInventoryItem } from "../utils/normalizeInventoryItem";
 import { updateTrip } from "../api/tripApi";
 import { calculateTripBudgetAnalysis, calculateStayAccommodation } from "../utils/campusBudgetUtils";
@@ -779,6 +791,187 @@ export function TripBuilderProvider({ children }) {
     });
   }, [setTrip]);
 
+  // Select Train for a specific travel journey and update canonical trip itinerary
+  const selectTrainForTrip = useCallback(async (train, routeContext = {}) => {
+    if (!train || !train.trainNumber) return { success: false, error: "Invalid train data" };
+    if (!trip) return { success: false, error: "No active trip found" };
+
+    // 1. Run the deterministic train journey scheduler
+    const scheduleResult = scheduleTrainJourneyIntoTrip(trip, train, routeContext);
+    if (!scheduleResult.success) {
+      return { success: false, error: scheduleResult.error || "Failed to schedule train journey." };
+    }
+
+    const proposedTrip = scheduleResult.trip;
+
+    // 2. Run the schedule validator
+    const validationResult = validateTripSchedule(proposedTrip);
+    if (!validationResult.valid) {
+      const errorMsg = validationResult.errors.join(". ");
+      console.warn("Schedule validation failed:", errorMsg);
+      return {
+        success: false,
+        error: `Schedule validation failed: ${errorMsg}`,
+      };
+    }
+
+    // 3. Persist to backend MongoDB if this is an existing database trip
+    const token = localStorage.getItem("token");
+    const isBackendTrip = Boolean(token && proposedTrip._id && !String(proposedTrip._id).startsWith("trip-"));
+
+    if (isBackendTrip) {
+      try {
+        await updateTrip(
+          proposedTrip._id,
+          {
+            itinerary: proposedTrip.itinerary,
+            travelLegs: proposedTrip.travelLegs,
+            staySegments: proposedTrip.staySegments,
+          },
+          token
+        );
+      } catch (err) {
+        console.error("Failed to persist train to backend Trip:", err);
+        const errMsg = err?.response?.data?.message || err?.message || "Failed to save train to server.";
+        return { success: false, error: errMsg };
+      }
+    }
+
+    // 4. Update canonical state in TripBuilderContext and localStorage
+    setTrip(proposedTrip);
+    setIsSaved(true);
+
+    return {
+      success: true,
+      actionType: "updated",
+      adaptationSummary: scheduleResult.adaptationSummary,
+    };
+  }, [trip, setTrip]);
+
+  // Preview transport changes (supporting Train or Flight independently) without mutating canonical state
+  const previewTransportChanges = useCallback(({ outboundTransport, returnTransport, outboundTrain, returnTrain, outboundFlight, returnFlight, routeContext = {} }) => {
+    if (!trip) return { success: false, error: "No active trip found" };
+    return buildProposedTransportAdaptation(trip, {
+      outboundTransport: outboundTransport || outboundFlight || outboundTrain,
+      returnTransport: returnTransport || returnFlight || returnTrain,
+      routeContext,
+    });
+  }, [trip]);
+
+  // Backward-compatible alias for existing train callers
+  const previewTrainChanges = useCallback(({ outboundTrain, returnTrain, routeContext = {} }) => {
+    return previewTransportChanges({ outboundTrain, returnTrain, routeContext });
+  }, [previewTransportChanges]);
+
+  // Apply already-reviewed and user-approved transport adaptation (Train or Flight)
+  const applyApprovedTransportChanges = useCallback(async (proposedTrip, adaptationSummary = null) => {
+    if (!proposedTrip || !Array.isArray(proposedTrip.itinerary)) {
+      return { success: false, error: "Invalid proposed trip data" };
+    }
+
+    // Zero-conflict invariant: verify proposed itinerary is strictly conflict-free before persistence
+    const preConflicts = detectConflicts(proposedTrip);
+    if (preConflicts && preConflicts.length > 0) {
+      return {
+        success: false,
+        error: `Cannot apply changes: itinerary has ${preConflicts.length} schedule conflict(s).`,
+      };
+    }
+
+    // Persist to backend MongoDB if this is an existing database trip
+    const token = localStorage.getItem("token");
+    const isBackendTrip = Boolean(token && proposedTrip._id && !String(proposedTrip._id).startsWith("trip-"));
+
+    if (isBackendTrip) {
+      try {
+        await updateTrip(
+          proposedTrip._id,
+          {
+            itinerary: proposedTrip.itinerary,
+            travelLegs: proposedTrip.travelLegs,
+            staySegments: proposedTrip.staySegments,
+            transport: proposedTrip.transport,
+          },
+          token
+        );
+      } catch (err) {
+        console.error("Failed to persist approved transport changes to server:", err);
+        const errMsg = err?.response?.data?.message || err?.message || "Failed to save transport to server.";
+        return { success: false, error: errMsg };
+      }
+    }
+
+    // Update canonical state in TripBuilderContext and localStorage
+    setTrip(proposedTrip);
+    setIsSaved(true);
+
+    return {
+      success: true,
+      actionType: "updated",
+      adaptationSummary,
+    };
+  }, [setTrip]);
+
+  const applyApprovedTrainChanges = applyApprovedTransportChanges;
+
+  // Dynamic scheduling conflict suggestions for Detailed Itinerary
+  const schedulingConflicts = useMemo(() => {
+    if (!trip || !Array.isArray(trip.itinerary)) return [];
+    try {
+      const res = generateConflictSuggestions(trip);
+      return res.enrichedConflicts || [];
+    } catch (e) {
+      console.warn("Error computing conflict suggestions:", e);
+      return [];
+    }
+  }, [trip]);
+
+  // Apply safe conflict resolution suggestion
+  const applySuggestion = useCallback(async (action) => {
+    if (!action || !trip) return;
+    setTrip((prevTrip) => {
+      if (!prevTrip || !Array.isArray(prevTrip.itinerary)) return prevTrip;
+      const newItinerary = prevTrip.itinerary.map(d => ({ ...d, plan: [...(d.plan || [])] }));
+
+      const fromDayIdx = (action.fromDay || action.day) - 1;
+      const toDayIdx = (action.toDay || action.day) - 1;
+      if (fromDayIdx < 0 || fromDayIdx >= newItinerary.length || toDayIdx < 0 || toDayIdx >= newItinerary.length) {
+        return prevTrip;
+      }
+
+      const fromPlan = newItinerary[fromDayIdx].plan;
+      const itemIdx = fromPlan.findIndex(i => i.id === action.itemId);
+      if (itemIdx === -1) return prevTrip;
+
+      const [movedItem] = fromPlan.splice(itemIdx, 1);
+      movedItem.startTime = action.startTime;
+      movedItem.endTime = action.endTime;
+      movedItem.time = `${action.startTime} - ${action.endTime}`;
+      const dur = (timeToMinutes(action.endTime) - timeToMinutes(action.startTime)) || movedItem.durationMinutes || 90;
+      movedItem.durationMinutes = dur;
+
+      newItinerary[toDayIdx].plan.push(movedItem);
+      newItinerary[toDayIdx].plan.sort((a, b) => {
+        const aStart = timeToMinutes(a.startTime || (a.time ? String(a.time).split("-")[0] : "00:00")) || 0;
+        const bStart = timeToMinutes(b.startTime || (b.time ? String(b.time).split("-")[0] : "00:00")) || 0;
+        return aStart - bStart;
+      });
+
+      const updated = {
+        ...prevTrip,
+        itinerary: newItinerary,
+      };
+
+      const token = localStorage.getItem("token");
+      if (token && updated._id && !String(updated._id).startsWith("trip-")) {
+        updateTrip(updated._id, { itinerary: updated.itinerary }, token).catch(e => console.warn("Background update error:", e));
+      }
+
+      toast.success(`Rescheduled "${movedItem.name || movedItem.activity}"`, { icon: "✅" });
+      return updated;
+    });
+  }, [trip, setTrip]);
+
   // Map Modal State
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
   const openMapModal = useCallback(() => setIsMapModalOpen(true), []);
@@ -826,9 +1019,98 @@ export function TripBuilderProvider({ children }) {
         resetToSample,
         initializeTrip,
         selectHotelForSegment,
+        selectTrainForTrip,
+        previewTrainChanges,
+        previewTransportChanges,
+        applyApprovedTrainChanges,
+        applyApprovedTransportChanges,
+        schedulingConflicts,
+        applySuggestion,
       }}
     >
       {children}
     </TripBuilderContext.Provider>
   );
+}
+
+// Utility to inspect if canonical trip already has a selected train for a given journey direction
+export function findSelectedTrainInItinerary(trip, routeContext = {}) {
+  if (!trip || !Array.isArray(trip.itinerary)) return null;
+
+  const discovered = findExistingTrainRecord(trip, routeContext.direction || "outbound", routeContext);
+  if (discovered) return discovered;
+
+  const {
+    direction = "outbound",
+    source = trip.source || "Mumbai",
+    destination = trip.destination || "Destination",
+    dayIndex = null,
+  } = routeContext;
+
+  const norm = (str) => (str || "").toLowerCase().trim();
+  const tripSrc = norm(trip.source || source || "mumbai");
+  const tripDst = norm(trip.destination || destination || "destination");
+  const targetDir = String(direction).toLowerCase();
+  const totalDays = trip.itinerary.length;
+
+  for (let d = 0; d < totalDays; d++) {
+    if (dayIndex !== null && d !== dayIndex) continue;
+    const plan = trip.itinerary[d]?.plan || [];
+    for (const item of plan) {
+      if (!item || !item.trainNumber) continue;
+
+      if (item.journeyDirection) {
+        if (item.journeyDirection === targetDir) return item;
+        continue;
+      }
+
+      const act = norm(item.activity || item.name || "");
+      const notes = norm(item.notes || "");
+      const rSrc = norm(item.routeSource || item.source || item.from?.name || item.from?.code || "");
+      const rDst = norm(item.routeDestination || item.destination || item.to?.name || item.to?.code || "");
+
+      if (targetDir === "return") {
+        if (act.includes("return") || act.includes("farewell") || act.includes("back to") || notes.includes("return journey")) return item;
+        if (rSrc.includes(tripDst) && rDst.includes(tripSrc)) return item;
+        if (d >= totalDays - 1 && (rDst.includes(tripSrc) || rSrc.includes(tripDst))) return item;
+      } else {
+        // Outbound
+        if (act.includes("return") || act.includes("farewell") || act.includes("back to") || notes.includes("return journey")) continue;
+        if (rSrc.includes(tripSrc) && rDst.includes(tripDst)) return item;
+        if (d === 0 || d === 1) return item;
+      }
+    }
+  }
+
+  // Also check trip.travelLegs if present
+  if (Array.isArray(trip.travelLegs)) {
+    const leg = trip.travelLegs.find(l => {
+      if (!l.trainNumber) return false;
+      if (l.journeyDirection) return l.journeyDirection === targetDir;
+      if (targetDir === "return") {
+        return norm(l.to || l.destination).includes(tripSrc) || norm(l.from || l.source).includes(tripDst);
+      } else {
+        return norm(l.from || l.source).includes(tripSrc) || norm(l.to || l.destination).includes(tripDst);
+      }
+    });
+    if (leg) return leg;
+  }
+
+  return null;
+}
+
+// Utility to inspect if canonical trip already has a selected flight for a given journey direction
+export function findSelectedFlightInItinerary(trip, routeContext = {}) {
+  if (!trip || !Array.isArray(trip.itinerary)) return null;
+  const discovered = findExistingTransportRecord(trip, routeContext.direction || "outbound", routeContext);
+  if (discovered && (discovered.mode === "flight" || discovered.flightNumber)) {
+    return discovered;
+  }
+  return null;
+}
+
+// Unified utility to inspect existing transport (train or flight) for a given journey direction
+export function findSelectedTransportInItinerary(trip, routeContext = {}) {
+  if (!trip || !Array.isArray(trip.itinerary)) return null;
+  return findExistingTransportRecord(trip, routeContext.direction || "outbound", routeContext);
 }

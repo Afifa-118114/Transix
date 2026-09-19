@@ -1,112 +1,131 @@
-import { FaArrowRight, FaStar } from "react-icons/fa";
+import { FaArrowRight, FaTrain, FaPlane } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
+import { formatCompactSchedule } from "../../../utils/scheduleFormatter";
 
-export default function TravelCard({ option, source, destination }) {
+export default function TravelCard({ option, source, destination, tripId, startDate, endDate }) {
   const navigate = useNavigate();
+  const isFlight = option.type?.toLowerCase() === "flight";
+  const modeKey = isFlight ? "flight" : "train";
+
+  const handleNavigate = () => {
+    navigate(
+      `/travel-options?source=${encodeURIComponent(source)}&destination=${encodeURIComponent(destination)}&mode=${modeKey}`,
+      {
+        state: {
+          tripId,
+          source,
+          destination,
+          travelMode: modeKey,
+          startDate,
+          endDate,
+        },
+      }
+    );
+  };
+
+  const scheduleText = option.operatingDays
+    ? formatCompactSchedule(option.operatingDays)
+    : option.runningDays
+    ? formatCompactSchedule(option.runningDays)
+    : option.frequency
+    ? formatCompactSchedule(option.frequency)
+    : isFlight
+    ? "Daily"
+    : "Regular Schedule";
+
+  const titleText = isFlight
+    ? (option.operator || option.name || "Domestic Flight")
+    : (option.operator || option.name || "Express Train");
 
   return (
-    <div className="group relative flex flex-col justify-between rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-[#131b2e] p-4 shadow-xs transition-all duration-200 hover:border-indigo-300 dark:hover:border-indigo-600/50 hover:shadow-md">
-      {/* Top Row: Icon, Title & Recommended Badge */}
+    <div
+      onClick={handleNavigate}
+      className={`group relative flex flex-col justify-between rounded-2xl border bg-white dark:bg-[#131b2e] p-4 sm:p-4.5 shadow-xs transition-all duration-150 cursor-pointer
+        ${
+          isFlight
+            ? "border-slate-200/80 dark:border-slate-800 hover:border-sky-400 dark:hover:border-sky-500 hover:shadow-sm"
+            : "border-slate-200/80 dark:border-slate-800 hover:border-indigo-400 dark:hover:border-indigo-500 hover:shadow-sm"
+        }`}
+    >
       <div>
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-50 dark:bg-indigo-950/70 text-xl text-indigo-600 dark:text-indigo-400">
-              {option.icon}
-            </div>
-
-            <div>
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white">{option.type}</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1">{option.operator || option.company}</p>
-            </div>
+        {/* Top Header: Mode & Status */}
+        <div className="flex items-center justify-between gap-2 mb-2.5">
+          <div className="flex items-center gap-2">
+            <span
+              className={`flex h-7 w-7 items-center justify-center rounded-lg text-xs ${
+                isFlight
+                  ? "bg-sky-50 dark:bg-sky-950/70 text-sky-600 dark:text-sky-400 border border-sky-100 dark:border-sky-800/60"
+                  : "bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-800/60"
+              }`}
+            >
+              {isFlight ? <FaPlane /> : <FaTrain />}
+            </span>
+            <span className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              {option.type}
+            </span>
           </div>
 
-          {option.recommended && (
-            <span className="rounded-full bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800/60 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
-              Best Match
+          {option.isSelected && (
+            <span className="rounded-md bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800/60 px-2 py-0.5 text-[9px] font-bold text-emerald-700 dark:text-emerald-300">
+              Selected in Itinerary
             </span>
           )}
         </div>
 
-        {/* Stats Grid */}
-        <div className="mt-4 grid grid-cols-3 gap-2 rounded-xl bg-slate-50/80 dark:bg-slate-800/60 p-2.5 text-center border border-slate-100 dark:border-slate-700/60">
-          <div>
-            <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase">Duration</p>
-            <p className="mt-0.5 text-xs font-bold text-slate-800 dark:text-white">{option.duration}</p>
-          </div>
+        {/* Carrier / Flight / Train Name */}
+        <h4 className="text-sm font-extrabold text-slate-900 dark:text-white truncate">
+          {titleText}
+        </h4>
 
-          <div>
-            <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase">Est. Fare</p>
-            <p className="mt-0.5 text-xs font-extrabold text-indigo-600 dark:text-indigo-400">
-              {typeof option.price === "number"
-                ? `₹${option.price.toLocaleString()}`
-                : option.price?.startsWith("₹")
-                ? option.price
-                : `₹${option.price || 1500}`}
-            </p>
+        {/* Departure → Arrival Time */}
+        <div className="mt-2 flex items-center justify-between text-xs">
+          <div className="font-extrabold text-slate-900 dark:text-white">
+            {option.departure && option.arrival ? (
+              <span>{option.departure} → {option.arrival}</span>
+            ) : (
+              <span>Scheduled Timing</span>
+            )}
           </div>
+        </div>
 
+        {/* Route: Mumbai → Kerala */}
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+          {source} → {destination}
+        </p>
+
+        {/* Compact Stats Row: Duration & Schedule */}
+        <div className="mt-3 flex items-center justify-between text-xs text-slate-600 dark:text-slate-300 rounded-xl bg-slate-50/70 dark:bg-slate-900/40 px-3 py-2 border border-slate-100 dark:border-slate-800">
           <div>
-            <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase">Rating</p>
-            <p className="mt-0.5 flex items-center justify-center gap-1 text-xs font-bold text-slate-800 dark:text-white">
-              <FaStar className="text-amber-400 text-[10px]" />
-              <span>{option.rating || "4.8"}</span>
-            </p>
+            <span className="text-slate-400 dark:text-slate-500">Duration: </span>
+            <strong className="font-bold text-slate-800 dark:text-slate-200">
+              {option.duration || (isFlight ? "~2h 30m" : "23h 30m")}
+            </strong>
+          </div>
+          <div>
+            <span className="text-slate-400 dark:text-slate-500">Schedule: </span>
+            <strong className="font-bold text-slate-800 dark:text-slate-200">
+              {scheduleText}
+            </strong>
           </div>
         </div>
       </div>
 
-      {/* Bottom Actions */}
-      <div className="mt-4 flex items-center gap-2 border-t border-slate-100 dark:border-slate-800/80 pt-3">
+      {/* Action Footer: Explore Trains → / Explore Flights → */}
+      <div className="mt-3.5 flex items-center justify-end border-t border-slate-100 dark:border-slate-800/80 pt-2.5">
         <button
-          onClick={() => {
-            import("../../../utils/tourBuilderHelper").then(({ addItemToTourBuilder }) => {
-              const isTrain = option.type?.toLowerCase() === "train";
-              addItemToTourBuilder(
-                {
-                  id: option.id || (isTrain && option.trainNumber ? `train-${option.trainNumber}` : undefined),
-                  trainNumber: option.trainNumber,
-                  trainName: option.trainName || option.operator,
-                  departure: option.departure,
-                  arrival: option.arrival,
-                  stops: option.stops,
-                  route: option.route,
-                  fares: option.fares,
-                  name: isTrain
-                    ? `${option.trainName || option.operator} (#${option.trainNumber || ""})`
-                    : `${option.operator || option.company || option.type} (${source} → ${destination})`,
-                  activity: `${option.type} Journey: ${source} → ${destination}`,
-                  category: (option.type || "train").toLowerCase(),
-                  categoryLabel: option.type,
-                  icon: option.type === "Flight" ? "✈️" : option.type === "Train" ? "🚆" : "🚌",
-                  price: typeof option.price === "number" ? option.price : 1500,
-                  displayPrice: typeof option.price === "number" ? `₹${option.price.toLocaleString()}` : option.price,
-                  duration: option.duration,
-                  location: `${source} → ${destination}`,
-                  notes: option.departure && option.arrival ? `Departs ${option.departure} • Arrives ${option.arrival} (${option.duration})` : undefined,
-                },
-                0
-              );
-            });
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleNavigate();
           }}
-          className="flex-1 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 py-2 text-center text-xs font-bold text-indigo-700 dark:text-indigo-300 transition hover:bg-indigo-600 hover:text-white dark:hover:bg-indigo-600 dark:hover:text-white"
+          className={`flex items-center gap-1.5 text-xs font-extrabold transition ${
+            isFlight
+              ? "text-sky-600 hover:text-sky-500 dark:text-sky-400"
+              : "text-indigo-600 hover:text-indigo-500 dark:text-indigo-400"
+          }`}
         >
-          + Add to Tour
-        </button>
-
-        <button
-          onClick={() =>
-            navigate("/travel-options", {
-              state: {
-                source,
-                destination,
-                travelMode: (option.type || "train").toLowerCase(),
-              },
-            })
-          }
-          className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 transition hover:bg-slate-50 dark:hover:bg-slate-700"
-        >
-          <span>Explore</span>
-          <FaArrowRight className="text-[10px]" />
+          <span>Explore {isFlight ? "Flights" : "Trains"}</span>
+          <FaArrowRight className="text-[10px] group-hover:translate-x-0.5 transition-transform" />
         </button>
       </div>
     </div>

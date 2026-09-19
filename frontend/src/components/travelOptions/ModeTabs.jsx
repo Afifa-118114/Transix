@@ -1,4 +1,4 @@
-import { FaTrain, FaPlane, FaBus } from "react-icons/fa";
+import { FaTrain, FaPlane } from "react-icons/fa";
 
 const modes = [
   {
@@ -10,11 +10,6 @@ const modes = [
     id: "flight",
     name: "Flight",
     icon: <FaPlane className="text-xs" />,
-  },
-  {
-    id: "bus",
-    name: "Bus",
-    icon: <FaBus className="text-xs" />,
   },
 ];
 

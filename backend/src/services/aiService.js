@@ -126,30 +126,66 @@ const generateTripPlan = async (tripData) => {
   }
 
   // Transport Feasibility Resolver
-  let feasibleTransportString = "No specific trains found. Use logical estimates based on Road/Flight if applicable.";
+  let feasibleTransportString = "No specific transport found. Use logical estimates based on selected mode.";
   try {
-    const sourceCandidates = await resolveStationCandidates(tripData.source);
-    const destinationCandidates = await resolveStationCandidates(tripData.destination);
+    if (String(tripData.travelMode).toLowerCase() === "flight") {
+      const FlightSchedule = require("../models/FlightSchedule");
+      const { resolveAirports } = require("../utils/airportCodes");
+      const { doesScheduleOperateOnWeekday } = require("../utils/flightScheduleMatcher");
 
-    let trains = [];
-    if (sourceCandidates && destinationCandidates) {
-      trains = await searchDirectTrains(sourceCandidates, destinationCandidates, tripData.startDate);
-    }
+      const originTargets = resolveAirports(tripData.source);
+      const destTargets = resolveAirports(tripData.destination);
+      const originCodes = originTargets.map(t => t.code);
+      const destCodes = destTargets.map(t => t.code);
 
-    if (trains && trains.length > 0) {
-      const topTrains = trains.slice(0, 5).map(t =>
-        `Train ${t.trainNumber} (${t.trainName}): Departs ${t.from.name} at ${t.from.departure}, Arrives ${t.to.name} at ${t.to.arrival}. Duration: ${t.duration}, Est. Fare: ${t.estimatedFare}`
-      );
-      feasibleTransportString = `REAL TRAIN OPTIONS AVAILABLE:\n${topTrains.join("\n")}`;
+      const matchedFlights = await FlightSchedule.find({
+        $and: [
+          { $or: [{ "origin.code": { $in: originCodes } }, { "origin.name": { $in: originTargets.map(t => t.name) } }] },
+          { $or: [{ "destination.code": { $in: destCodes } }, { "destination.name": { $in: destTargets.map(t => t.name) } }] }
+        ]
+      }).limit(50).lean();
+
+      let filtered = matchedFlights;
+      if (tripData.startDate) {
+        const travelDateObj = new Date(tripData.startDate);
+        if (!isNaN(travelDateObj.getTime())) {
+          const dayFiltered = matchedFlights.filter(f => doesScheduleOperateOnWeekday(f, travelDateObj));
+          if (dayFiltered.length > 0) filtered = dayFiltered;
+        }
+      }
+
+      if (filtered.length > 0) {
+        const topFlights = filtered.slice(0, 5).map(f =>
+          `Flight ${f.airline} #${f.flightNumber}: Departs ${f.origin.name} (${f.origin.code}) at ${f.departureTime}, Arrives ${f.destination.name} (${f.destination.code}) at ${f.arrivalTime}. Operating: ${f.daysOfWeek.join(", ")}`
+        );
+        feasibleTransportString = `REAL FLIGHT OPTIONS AVAILABLE:\n${topFlights.join("\n")}`;
+      } else {
+        feasibleTransportString = `REAL FLIGHT ROUTE: Direct domestic flight schedule pattern between ${tripData.source} and ${tripData.destination}. Estimated flight duration: 2h 30m.`;
+      }
     } else {
-      const otherOptions = await fetchTravelOptions(tripData.source, tripData.destination);
-      let fallbacks = [];
-      if (otherOptions.flight && otherOptions.flight.length > 0) fallbacks.push(`Flight: ~${otherOptions.flight[0].duration}, Fare: ${otherOptions.flight[0].estimatedFare}`);
-      if (otherOptions.bus && otherOptions.bus.length > 0) fallbacks.push(`Bus: ~${otherOptions.bus[0].duration}, Fare: ${otherOptions.bus[0].estimatedFare}`);
-      if (otherOptions.cab && otherOptions.cab.length > 0) fallbacks.push(`Cab: ~${otherOptions.cab[0].duration}, Fare: ${otherOptions.cab[0].estimatedFare}`);
+      const sourceCandidates = await resolveStationCandidates(tripData.source);
+      const destinationCandidates = await resolveStationCandidates(tripData.destination);
 
-      if (fallbacks.length > 0) {
-        feasibleTransportString = `REAL TRANSPORT OPTIONS AVAILABLE:\n${fallbacks.join("\n")}`;
+      let trains = [];
+      if (sourceCandidates && destinationCandidates) {
+        trains = await searchDirectTrains(sourceCandidates, destinationCandidates, tripData.startDate);
+      }
+
+      if (trains && trains.length > 0) {
+        const topTrains = trains.slice(0, 5).map(t =>
+          `Train ${t.trainNumber} (${t.trainName}): Departs ${t.from.name} at ${t.from.departure}, Arrives ${t.to.name} at ${t.to.arrival}. Duration: ${t.duration}, Est. Fare: ${t.estimatedFare}`
+        );
+        feasibleTransportString = `REAL TRAIN OPTIONS AVAILABLE:\n${topTrains.join("\n")}`;
+      } else {
+        const otherOptions = await fetchTravelOptions(tripData.source, tripData.destination);
+        let fallbacks = [];
+        if (otherOptions.flight && otherOptions.flight.length > 0) fallbacks.push(`Flight: ~${otherOptions.flight[0].duration}, Fare: ${otherOptions.flight[0].estimatedFare}`);
+        if (otherOptions.bus && otherOptions.bus.length > 0) fallbacks.push(`Bus: ~${otherOptions.bus[0].duration}, Fare: ${otherOptions.bus[0].estimatedFare}`);
+        if (otherOptions.cab && otherOptions.cab.length > 0) fallbacks.push(`Cab: ~${otherOptions.cab[0].duration}, Fare: ${otherOptions.cab[0].estimatedFare}`);
+
+        if (fallbacks.length > 0) {
+          feasibleTransportString = `REAL TRANSPORT OPTIONS AVAILABLE:\n${fallbacks.join("\n")}`;
+        }
       }
     }
   } catch (err) {
@@ -207,6 +243,22 @@ RULES:
    - Normal activities should prefer 07:00 AM - 08:00 PM. Avoid normal activities between 08:00 PM and 07:00 AM unless actual availability or transport requires it.
 5. PRESERVE DURATIONS: Do not invent availability or silently shorten realistic activity durations just to fit them. Respect transport and fixed-event constraints absolutely.
 6. Total estimated cost MUST NOT exceed ${tripData.tripCategory === 'CAMPUS' && tripData.campusConfig ? (tripData.campusConfig.budgetPerStudent * tripData.campusConfig.expectedParticipants) : tripData.budget} ${tripData.currency}. Aim for ~10% under budget. Provide ONLY pure numbers for "estimatedCost" (no currency symbols).
+7. TRANSPORT MODE IS A HARD USER CONSTRAINT:
+   The user has explicitly chosen the initial travel mode: ${String(tripData.travelMode).toUpperCase()}.
+   - If the user selects TRAIN as the trip's initial travel mode:
+     * Outbound intercity transport (${tripData.source} → ${tripData.destination}) MUST be TRAIN.
+     * Return intercity transport (${tripData.destination} → ${tripData.source}) MUST be TRAIN.
+     * Do NOT use Flight or Bus as primary intercity transport.
+   - If the user selects FLIGHT as the trip's initial travel mode:
+     * Outbound intercity transport (${tripData.source} → ${tripData.destination}) MUST be FLIGHT.
+     * Return intercity transport (${tripData.destination} → ${tripData.source}) MUST be FLIGHT.
+     * Do NOT use Train or Bus as primary intercity transport.
+   - Do not substitute one mode for another.
+   - Do not infer or choose a different outbound/return mode.
+   - Do not generate both Train and Flight for the same journey leg.
+   - IMPORTANT - LOCAL/IN-TRIP TRANSPORT IS SEPARATE:
+     This strict mode constraint applies exclusively to the primary intercity outbound/return journey legs between ${tripData.source} and ${tripData.destination}.
+     Inside ${tripData.destination}, local movements (such as hotel to sightseeing spots, local transfers, cabs, or day excursions) are separate operational/local transport requirements and must NOT be forced into Train or Flight.
 
 Return ONLY this EXACT JSON structure, do NOT use markdown or backticks:
 
@@ -286,6 +338,22 @@ Return ONLY this EXACT JSON structure, do NOT use markdown or backticks:
 
     try {
       parsedData = JSON.parse(text);
+
+      // Deterministic transport mode constraint enforcement
+      if (Array.isArray(parsedData.travelLegs)) {
+        const expectedMode = String(tripData.travelMode).toLowerCase() === "flight" ? "Flight" : "Train";
+        const srcLower = String(tripData.source || "").toLowerCase();
+        const destLower = String(tripData.destination || "").toLowerCase();
+        parsedData.travelLegs.forEach(leg => {
+          const fromLower = String(leg.from || "").toLowerCase();
+          const toLower = String(leg.to || "").toLowerCase();
+          const isIntercity = (fromLower.includes(srcLower) && toLower.includes(destLower)) ||
+                              (fromLower.includes(destLower) && toLower.includes(srcLower));
+          if (isIntercity) {
+            leg.mode = expectedMode;
+          }
+        });
+      }
 
       // Pass 1: Build baseline timeline to accurately detect overnight transport boundaries
       buildDeterministicTimeline(parsedData);
