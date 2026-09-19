@@ -1,9 +1,37 @@
+import React, { useState, useEffect } from "react";
 import { FiBell, FiSun, FiMoon } from "react-icons/fi";
 import { Link } from "react-router-dom";
 import { useTheme } from "../../context/ThemeContext";
+import NotificationPanel from "../notifications/NotificationPanel";
+import TripChatModal from "../chat/TripChatModal";
+import { getUnreadNotificationCount } from "../../api/notificationApi";
 
 export default function Navbar({ trip, setTrip }) {
   const { isDark, toggleTheme } = useTheme();
+
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [isNotificationPanelOpen, setIsNotificationPanelOpen] = useState(false);
+  const [activeChatTripId, setActiveChatTripId] = useState(null);
+  const [isChatModalOpen, setIsChatModalOpen] = useState(false);
+
+  useEffect(() => {
+    const fetchUnread = async () => {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+      try {
+        const res = await getUnreadNotificationCount(token);
+        if (res?.success && typeof res.unreadCount === "number") {
+          setUnreadCount(res.unreadCount);
+        }
+      } catch (err) {
+        // quiet error
+      }
+    };
+
+    fetchUnread();
+    const interval = setInterval(fetchUnread, 15000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <header className="flex h-15 items-center justify-between rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-[#131b2e] px-5 shadow-xs transition-colors">
@@ -68,14 +96,44 @@ export default function Navbar({ trip, setTrip }) {
           {isDark ? <FiSun className="text-base text-amber-400" /> : <FiMoon className="text-base" />}
         </button>
 
+        {/* Bell Notifications */}
         <button
+          type="button"
+          onClick={() => setIsNotificationPanelOpen((prev) => !prev)}
           title="Notifications"
-          className="relative flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-slate-200 transition"
+          className="relative flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-slate-200 transition cursor-pointer"
         >
           <FiBell className="text-base" />
-          <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-indigo-600" />
+          {unreadCount > 0 && (
+            <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-indigo-600 px-1 text-[9px] font-black text-white shadow-xs animate-pulse">
+              {unreadCount}
+            </span>
+          )}
         </button>
       </div>
+
+      {/* Notifications Dropdown Panel */}
+      <NotificationPanel
+        isOpen={isNotificationPanelOpen}
+        onClose={() => setIsNotificationPanelOpen(false)}
+        onUnreadCountChange={(cnt) => setUnreadCount(cnt)}
+        onOpenTripChat={(tripId) => {
+          setActiveChatTripId(tripId);
+          setIsChatModalOpen(true);
+        }}
+      />
+
+      {/* 1-to-1 Trip Chat Modal */}
+      {activeChatTripId && (
+        <TripChatModal
+          isOpen={isChatModalOpen}
+          tripId={activeChatTripId}
+          onClose={() => {
+            setIsChatModalOpen(false);
+            setActiveChatTripId(null);
+          }}
+        />
+      )}
     </header>
   );
 }

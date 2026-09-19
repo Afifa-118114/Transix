@@ -49,7 +49,7 @@ export default function RegisterForm() {
   return (
     <AuthLayout>
       <form onSubmit={handleSubmit} className="w-full flex flex-col">
-        
+
         <div className="flex flex-col mb-8">
           <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
             Create your account
@@ -71,13 +71,12 @@ export default function RegisterForm() {
               Create account as
             </label>
             <div className="grid grid-cols-2 gap-3">
-              <div 
+              <div
                 onClick={() => setForm({ ...form, role: "traveler" })}
-                className={`cursor-pointer rounded-xl border p-3 flex items-start gap-3 transition-all ${
-                  form.role === "traveler" 
-                    ? "border-blue-600 bg-blue-50/50 dark:bg-blue-900/20 ring-1 ring-blue-600" 
+                className={`cursor-pointer rounded-xl border p-3 flex items-start gap-3 transition-all ${form.role === "traveler"
+                    ? "border-blue-600 bg-blue-50/50 dark:bg-blue-900/20 ring-1 ring-blue-600"
                     : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
-                }`}
+                  }`}
               >
                 <div className="text-xl">👤</div>
                 <div>
@@ -85,13 +84,12 @@ export default function RegisterForm() {
                   <div className="text-[10px] font-semibold text-slate-500">Plan and manage your own journeys.</div>
                 </div>
               </div>
-              <div 
+              <div
                 onClick={() => setForm({ ...form, role: "operator" })}
-                className={`cursor-pointer rounded-xl border p-3 flex items-start gap-3 transition-all ${
-                  form.role === "operator" 
-                    ? "border-blue-600 bg-blue-50/50 dark:bg-blue-900/20 ring-1 ring-blue-600" 
+                className={`cursor-pointer rounded-xl border p-3 flex items-start gap-3 transition-all ${form.role === "operator"
+                    ? "border-blue-600 bg-blue-50/50 dark:bg-blue-900/20 ring-1 ring-blue-600"
                     : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
-                }`}
+                  }`}
               >
                 <div className="text-xl">⚙️</div>
                 <div>

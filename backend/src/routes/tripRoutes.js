@@ -18,6 +18,13 @@ const {
   syncItinerary,
 } = require("../controllers/tripController");
 
+const {
+  getTripMessages,
+  sendTripMessage,
+  getUnreadMessageCount,
+  markMessagesRead,
+} = require("../controllers/operatorController");
+
 router.post("/generate", authMiddleware, validate(tripSchema), generateTrip);
 
 router.get("/", authMiddleware, getAllTrips);
@@ -38,5 +45,11 @@ router.post("/:id/smartshift/suggest", authMiddleware, smartshiftSuggest);
 
 router.post("/:id/smartshift/apply", authMiddleware, smartshiftApply);
 router.get("/:id/bookings", authMiddleware, getTripBookings);
+
+// 1-to-1 Trip Chat between Operator and Trip Owner/Coordinator
+router.get("/:id/messages", authMiddleware, getTripMessages);
+router.post("/:id/messages", authMiddleware, sendTripMessage);
+router.get("/:id/messages/unread", authMiddleware, getUnreadMessageCount);
+router.patch("/:id/messages/read", authMiddleware, markMessagesRead);
 
 module.exports = router;

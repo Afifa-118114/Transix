@@ -20,7 +20,7 @@ const bookingRequirementSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ["ACCOMMODATION", "TRANSPORT"],
+      enum: ["ACCOMMODATION", "TRANSPORT", "ACTIVITY", "VISIT", "PERMISSION"],
       required: true,
     },
     title: {
@@ -62,7 +62,7 @@ const bookingRequirementSchema = new mongoose.Schema(
 
 // Prevent duplicates: one accommodation booking per stay segment
 bookingRequirementSchema.index({ tripId: 1, staySegmentId: 1, type: 1 }, { unique: true, partialFilterExpression: { type: "ACCOMMODATION" } });
-// Prevent duplicates: one transport booking per item
-bookingRequirementSchema.index({ tripId: 1, itemId: 1, type: 1 }, { unique: true, partialFilterExpression: { type: "TRANSPORT" } });
+// Prevent duplicates: one booking per item
+bookingRequirementSchema.index({ tripId: 1, itemId: 1, type: 1 }, { unique: true, partialFilterExpression: { itemId: { $exists: true } } });
 
 module.exports = mongoose.model("BookingRequirement", bookingRequirementSchema);

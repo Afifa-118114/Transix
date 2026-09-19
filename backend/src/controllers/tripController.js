@@ -158,6 +158,8 @@ const updateTrip = asyncHandler(async (req, res, next) => {
   // Whitelist only genuine user-editable trip fields
   const allowedUpdates = [
     "itinerary",
+    "travelLegs",
+    "staySegments",
     "budget",
     "travelers",
     "status",
@@ -177,7 +179,7 @@ const updateTrip = asyncHandler(async (req, res, next) => {
   const updatedTrip = await Trip.findOneAndUpdate(
     {
       _id: id,
-      user: req.user.id,
+      $or: [{ user: req.user.id }, { coordinatorId: req.user.id }],
     },
     updateData,
     {

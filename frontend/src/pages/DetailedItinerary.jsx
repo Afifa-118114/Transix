@@ -1,5 +1,5 @@
 import { useLocation, Navigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTripBuilder } from "../context/TripBuilderContext";
 import { useAuth } from "../context/AuthContext";
 
@@ -16,8 +16,8 @@ export default function DetailedItinerary() {
   const { trip: contextTrip, schedulingConflicts, applySuggestion } = useTripBuilder();
   const { user } = useAuth();
 
-  // Prepare values before hooks
-  const trip = state?.trip || contextTrip;
+  // Prepare values before hooks (prefer live context trip over stale navigation state)
+  const trip = contextTrip || state?.trip;
   const initialDay = state?.dayIndex ?? 0;
   const viewOnly = state?.viewOnly === true;
 
@@ -25,6 +25,13 @@ export default function DetailedItinerary() {
   const [selectedDay, setSelectedDay] = useState(initialDay);
   const [itinerary, setItinerary] = useState(trip?.itinerary || []);
   const [loading, setLoading] = useState(false);
+
+  // Synchronize local itinerary state whenever the canonical trip changes
+  useEffect(() => {
+    if (trip?.itinerary) {
+      setItinerary(trip.itinerary);
+    }
+  }, [trip?.itinerary]);
 
   // Redirect only if absolutely no trip exists in context or storage
   if (!trip) {

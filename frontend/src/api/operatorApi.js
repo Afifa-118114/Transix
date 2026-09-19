@@ -36,3 +36,31 @@ export const updateTripOperationalStatus = async (tripId, data, token) => {
   });
   return res.data;
 };
+
+export const getTripMessages = async (tripId, token) => {
+  const res = await axios.get(`${API}/operator/trips/${tripId}/messages`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return res.data;
+};
+
+export const sendTripMessage = async (tripId, data, token) => {
+  const res = await axios.post(`${API}/operator/trips/${tripId}/messages`, data, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return res.data;
+};
+
+export const getUnreadMessageCount = async (tripId, token) => {
+  const res = await axios.get(`${API}/operator/trips/${tripId}/messages/unread`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return res.data;
+};
+
+export const markMessagesRead = async (tripId, token) => {
+  const res = await axios.patch(`${API}/operator/trips/${tripId}/messages/read`, {}, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return res.data;
+};

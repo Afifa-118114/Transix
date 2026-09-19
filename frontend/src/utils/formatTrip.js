@@ -143,10 +143,19 @@ export function normalizeTrip(rawTrip) {
     let currentTimelineMin = 9 * 60 + 30;
 
     const normalizedPlan = rawPlan.map((p, pIdx) => {
+      const isTrain = Boolean(p.trainNumber || p.category === "transport");
       const priceNum = parsePrice(p.price || p.estimatedCost || p.fare);
       const displayPrice = p.displayPrice || (priceNum > 0 ? `₹${priceNum.toLocaleString("en-IN")}` : null);
 
-      let durationMins = parseDurationMinutes(p.durationMinutes || p.duration, 90);
+      let durationMins = isTrain
+        ? (p.durationMinutes || (typeof p.duration === "string" ? (() => {
+            const hMatch = p.duration.match(/(\d+)\s*h/i);
+            const mMatch = p.duration.match(/(\d+)\s*m/i);
+            const hrs = hMatch ? parseInt(hMatch[1], 10) : 0;
+            const mins = mMatch ? parseInt(mMatch[1], 10) : 0;
+            return (hrs * 60 + mins) || 180;
+          })() : 180))
+        : parseDurationMinutes(p.durationMinutes || p.duration, 90);
 
       // Extract existing explicit user-configured times if present
       let explicitStart = null;
@@ -169,7 +178,12 @@ export function normalizeTrip(rawTrip) {
         startMin = explicitStart;
         endMin = explicitEnd;
         durationMins = endMin - startMin; // Preserve explicit duration
-        currentTimelineMin = endMin + 25;
+        if (!isTrain) currentTimelineMin = endMin + 25;
+      } else if (isTrain && (p.departure || p.startTime)) {
+        // Real train scheduled departure time
+        const parsedDep = timeToMinutes(p.departure || p.startTime);
+        startMin = parsedDep !== null ? parsedDep : currentTimelineMin;
+        endMin = (startMin + (durationMins % 1440)) % 1440;
       } else {
         // Only if absolutely no valid time was provided, fall back to sequential placement
         startMin = currentTimelineMin;
@@ -177,38 +191,52 @@ export function normalizeTrip(rawTrip) {
         currentTimelineMin = endMin + 25;
       }
 
-      const startTimeStr = minutesToTimeStr(startMin);
-      const endTimeStr = minutesToTimeStr(endMin);
+      const startTimeStr = (isTrain && !p.legType && p.departure) ? p.departure : minutesToTimeStr(startMin);
+      const endTimeStr = (isTrain && !p.legType && p.arrival) ? p.arrival : minutesToTimeStr(endMin);
 
       const canonicalId = p._id ? String(p._id) : p.id;
       
       return {
         id: canonicalId,
         _id: canonicalId,
-        name: p.name || p.activity || p.place || `Activity ${pIdx + 1}`,
+        name: p.name || p.activity || p.place || (isTrain ? `${p.trainName} (#${p.trainNumber})` : `Activity ${pIdx + 1}`),
         activity: p.activity || p.name || p.place || `Activity ${pIdx + 1}`,
         place: p.place || p.location || destination,
         location: p.location || p.place || destination,
         notes: p.notes || p.description || "",
-        time: `${startTimeStr} - ${endTimeStr}`,
-        startTime: startTimeStr,
-        endTime: endTimeStr,
-        duration: `${Math.floor(durationMins / 60)}h ${durationMins % 60}m`,
+        time: p.time || (isTrain && !p.legType ? `${p.departure || startTimeStr} - ${p.arrival || endTimeStr}` : `${startTimeStr} - ${endTimeStr}`),
+        startTime: p.startTime || (isTrain && !p.legType ? (p.departure || startTimeStr) : startTimeStr),
+        endTime: p.endTime || (isTrain && !p.legType ? (p.arrival || endTimeStr) : endTimeStr),
+        departure: p.departure || (isTrain ? startTimeStr : null),
+        arrival: p.arrival || (isTrain ? endTimeStr : null),
+        duration: isTrain ? (p.duration || `${Math.floor(durationMins / 60)}h ${durationMins % 60}m`) : `${Math.floor(durationMins / 60)}h ${durationMins % 60}m`,
         durationMinutes: durationMins,
         price: priceNum,
         displayPrice,
-        category: p.category || "activity",
-        categoryLabel: p.categoryLabel || "Activities",
+        category: p.category || (isTrain ? "transport" : "activity"),
+        categoryLabel: p.categoryLabel || (isTrain ? "Transport" : "Activities"),
         rating: p.rating || 4.7,
         dnaMatch: p.dnaMatch || 94,
-        icon: p.icon || "✨",
+        icon: p.icon || (isTrain ? "🚆" : "✨"),
         image: p.image || rawTrip.heroImage || null,
         trainNumber: p.trainNumber || null,
         trainName: p.trainName || null,
-        stops: p.stops,
-        route: p.route,
-        fares: p.fares,
-        runningDays: p.runningDays,
+        type: p.type || (isTrain ? "Express" : null),
+        journeyDirection: p.journeyDirection || null,
+        routeSource: p.routeSource || null,
+        routeDestination: p.routeDestination || null,
+        source: p.source || null,
+        destination: p.destination || null,
+        from: p.from || null,
+        to: p.to || null,
+        stops: p.stops !== undefined ? p.stops : p.totalStops,
+        totalStops: p.totalStops !== undefined ? p.totalStops : p.stops,
+        route: p.route || null,
+        fares: p.fares || null,
+        runningDays: p.runningDays || null,
+        isGateway: Boolean(p.isGateway),
+        gatewayLabel: p.gatewayLabel || null,
+        legType: p.legType || null,
         isStaySegmentHotel: p.isStaySegmentHotel || false,
         staySegmentId: p.staySegmentId || null,
       };

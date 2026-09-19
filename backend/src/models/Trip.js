@@ -177,6 +177,11 @@ const tripSchema = new mongoose.Schema(
         type: Boolean,
         default: false,
       },
+      operatorId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        default: null,
+      },
       grantedAt: {
         type: Date,
         default: null,

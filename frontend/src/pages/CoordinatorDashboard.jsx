@@ -8,6 +8,8 @@ import {
 } from "react-icons/fi";
 import DashboardLayout from "../layouts/DashboardLayout";
 import CampusSettingsModal from "../components/campus/CampusSettingsModal";
+import TripChatModal from "../components/chat/TripChatModal";
+import { getUnreadMessageCount } from "../api/tripApi";
 
 export default function CoordinatorDashboard() {
   const { id } = useParams();
@@ -29,6 +31,10 @@ export default function CoordinatorDashboard() {
   // Coordinator Personal Message Input
   const [coordinatorMessageInput, setCoordinatorMessageInput] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
+
+  // 1-to-1 Trip Chat with Operator State
+  const [isChatModalOpen, setIsChatModalOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   // Document Preview Modal State
   const [previewModal, setPreviewModal] = useState({
@@ -68,16 +74,38 @@ export default function CoordinatorDashboard() {
     fetchData();
   }, [id, navigate]);
 
+  // Periodic polling for unread operator messages when chat modal is closed
+  useEffect(() => {
+    if (!id || isChatModalOpen) return;
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    const interval = setInterval(() => {
+      getUnreadMessageCount(id, token)
+        .then((res) => {
+          if (res?.success) setUnreadCount(res.unreadCount || 0);
+        })
+        .catch(() => {});
+    }, 15000);
+
+    return () => clearInterval(interval);
+  }, [id, isChatModalOpen]);
+
   const fetchData = async () => {
     try {
       const token = localStorage.getItem("token");
-      const [tripRes, partRes] = await Promise.all([
+      const [tripRes, partRes, unreadRes] = await Promise.all([
         fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/campus-trips/${id}`, { headers: { Authorization: `Bearer ${token}` }}),
-        fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/campus-trips/${id}/participants`, { headers: { Authorization: `Bearer ${token}` }})
+        fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/campus-trips/${id}/participants`, { headers: { Authorization: `Bearer ${token}` }}),
+        getUnreadMessageCount(id, token).catch(() => null)
       ]);
 
       const tripData = await tripRes.json();
       const partData = await partRes.json();
+
+      if (unreadRes?.success) {
+        setUnreadCount(unreadRes.unreadCount || 0);
+      }
 
       if (tripData.success && tripData.relationship === "COORDINATOR") {
         setTrip(tripData.trip);
@@ -427,19 +455,41 @@ export default function CoordinatorDashboard() {
                 </div>
               </div>
 
-              {/* IV Code Block */}
-              {trip.status === "Finalized" && trip.joinCode && (
+              {/* IV Code & Operations Communication Block */}
+              {trip.status === "Finalized" && (
                 <div className="shrink-0 bg-[#131c31] border border-slate-700 p-4 rounded-xl shadow-lg backdrop-blur-md">
-                  <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">IV Code</p>
-                  <div className="flex items-center gap-4">
-                    <h2 className="text-2xl font-black text-white tracking-widest">{trip.joinCode}</h2>
-                    <div className="flex gap-2">
-                      <button onClick={() => navigator.clipboard.writeText(trip.joinCode)} className="p-2 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 transition" title="Copy">
-                        <FiCopy className="text-slate-300" />
-                      </button>
-                      <button className="flex items-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition shadow-md shadow-indigo-900/50">
-                        <FiShare2 />
-                        <span>Share with Students</span>
+                  {trip.joinCode && <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">IV Code</p>}
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                    {trip.joinCode && (
+                      <h2 className="text-2xl font-black text-white tracking-widest sm:mr-2">{trip.joinCode}</h2>
+                    )}
+                    <div className="flex flex-wrap items-center gap-2">
+                      {trip.joinCode && (
+                        <button onClick={() => navigator.clipboard.writeText(trip.joinCode)} className="p-2 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 transition" title="Copy IV Code">
+                          <FiCopy className="text-slate-300" />
+                        </button>
+                      )}
+                      {trip.joinCode && (
+                        <button className="flex items-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition shadow-md shadow-indigo-900/50">
+                          <FiShare2 />
+                          <span>Share with Students</span>
+                        </button>
+                      )}
+                      <button
+                        onClick={() => {
+                          setIsChatModalOpen(true);
+                          setUnreadCount(0);
+                        }}
+                        className="relative flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-750 text-white border border-slate-700 hover:border-indigo-500/70 text-xs font-bold rounded-lg transition shadow-md group"
+                        title="Direct chat with Transix Tour Operations"
+                      >
+                        <FiMessageSquare className="text-indigo-400 group-hover:text-indigo-300" size={14} />
+                        <span>Chat with Operator</span>
+                        {unreadCount > 0 && (
+                          <span className="ml-0.5 px-1.5 py-0.2 bg-indigo-500 text-white text-[10px] font-black rounded-full animate-pulse shadow-xs">
+                            {unreadCount}
+                          </span>
+                        )}
                       </button>
                     </div>
                   </div>
@@ -1437,6 +1487,24 @@ export default function CoordinatorDashboard() {
             </div>
           </div>
         )}
+
+        {/* 1-to-1 Trip Chat Modal with Tour Operator */}
+        <TripChatModal
+          isOpen={isChatModalOpen}
+          onClose={() => {
+            setIsChatModalOpen(false);
+            const token = localStorage.getItem("token");
+            if (token && id) {
+              getUnreadMessageCount(id, token)
+                .then((res) => {
+                  if (res?.success) setUnreadCount(res.unreadCount || 0);
+                })
+                .catch(() => {});
+            }
+          }}
+          tripId={id}
+          currentRole="coordinator"
+        />
 
       </div>
     </DashboardLayout>
