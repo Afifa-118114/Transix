@@ -1,11 +1,14 @@
 import { useState } from "react";
-import { registerUser } from "../../api/authApi";
+import { registerUser, googleAuthUser } from "../../api/authApi";
+import { useAuth } from "../../hooks/useAuth";
 import { useNavigate, Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import AuthLayout from "./AuthLayout";
+import GoogleAuthButton from "./GoogleAuthButton";
 
 export default function RegisterForm() {
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const [form, setForm] = useState({
     name: "",
@@ -44,6 +47,50 @@ export default function RegisterForm() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGoogleSuccess = async (credential) => {
+    try {
+      setLoading(true);
+      setErrorMsg("");
+
+      const data = await googleAuthUser({
+        credential,
+        role: form.role,
+      });
+
+      if (data.token && data.user) {
+        login(data.user, data.token);
+        toast.success(
+          data.message === "Login successful"
+            ? `Welcome back, ${data.user.name}!`
+            : `Welcome to Transix, ${data.user.name}!`,
+          { icon: "🎉" }
+        );
+        if (data.user.role === "operator") {
+          navigate("/operator/dashboard");
+        } else {
+          navigate("/home");
+        }
+      } else {
+        setErrorMsg("Invalid response from server.");
+      }
+    } catch (err) {
+      const msg =
+        err.response?.data?.message ||
+        (err.code === "ERR_NETWORK"
+          ? "Cannot connect to server. Please ensure backend is running."
+          : "Google Sign-Up failed. Please try again.");
+      setErrorMsg(msg);
+      toast.error(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleError = (msg) => {
+    setErrorMsg(msg);
+    toast.error(msg);
   };
 
   return (
@@ -147,10 +194,23 @@ export default function RegisterForm() {
           <button
             type="submit"
             disabled={loading}
-            className="mt-4 w-full rounded-[14px] bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 py-3.5 text-sm font-bold text-white shadow-md shadow-blue-600/20 dark:shadow-blue-900/20 transition-all active:scale-[0.98] disabled:opacity-70 flex justify-center"
+            className="mt-2 w-full rounded-[14px] bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 py-3.5 text-sm font-bold text-white shadow-md shadow-blue-600/20 dark:shadow-blue-900/20 transition-all active:scale-[0.98] disabled:opacity-70 flex justify-center cursor-pointer"
           >
             {loading ? "Creating Account..." : "Create Account →"}
           </button>
+
+          <div className="relative my-2 flex items-center justify-center">
+            <div className="border-t border-slate-200 dark:border-slate-800 w-full"></div>
+            <span className="bg-[#f8fafc] dark:bg-[#0b0f19] px-3 text-xs font-bold uppercase tracking-wider text-slate-400">
+              or
+            </span>
+          </div>
+
+          <GoogleAuthButton
+            onGoogleSuccess={handleGoogleSuccess}
+            onError={handleGoogleError}
+            loading={loading}
+          />
         </div>
 
         <div className="mt-8 pt-8 border-t border-slate-200 dark:border-slate-800 flex flex-col items-center">
