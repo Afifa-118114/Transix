@@ -19,8 +19,14 @@ const notificationSchema = new mongoose.Schema(
     },
     senderRole: {
       type: String,
-      enum: ["operator", "coordinator", "traveler"],
+      enum: ["operator", "coordinator", "traveler", "vendor"],
       required: true,
+    },
+    category: {
+      type: String,
+      enum: ["TRAVELER", "VENDOR"],
+      default: "TRAVELER",
+      index: true,
     },
     tripId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -35,12 +41,27 @@ const notificationSchema = new mongoose.Schema(
     messageId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "TripMessage",
-      required: true,
+      required: false,
+      index: true,
+    },
+    vendorMessageId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "VendorRequestMessage",
+      index: true,
+    },
+    vendorRequestId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "VendorRequest",
+      index: true,
+    },
+    vendorId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Vendor",
       index: true,
     },
     type: {
       type: String,
-      enum: ["MESSAGE", "SYSTEM", "BOOKING"],
+      enum: ["MESSAGE", "SYSTEM", "BOOKING", "VENDOR"],
       default: "MESSAGE",
     },
     title: {

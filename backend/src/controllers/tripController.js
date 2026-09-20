@@ -482,11 +482,15 @@ const updateOperatorAccess = asyncHandler(async (req, res) => {
 
   const trip = await Trip.findOne({
     _id: id,
-    user: req.user.id,
+    $or: [{ user: req.user.id }, { coordinatorId: req.user.id }],
   });
 
   if (!trip) {
     throw new AppError("Trip not found", 404);
+  }
+
+  if (enabled && trip.status !== "Finalized") {
+    throw new AppError("Trip must be finalized before sharing with an operator", 400);
   }
 
   trip.operatorAccess = {
@@ -503,6 +507,35 @@ const updateOperatorAccess = asyncHandler(async (req, res) => {
   });
 });
 
+const finalizeTrip = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+
+  const trip = await Trip.findOne({
+    _id: id,
+    $or: [{ user: req.user.id }, { coordinatorId: req.user.id }],
+  });
+
+  if (!trip) {
+    throw new AppError("Trip not found", 404);
+  }
+
+  if (!trip.itinerary || trip.itinerary.length === 0) {
+    throw new AppError("Cannot finalize: Itinerary is incomplete.", 400);
+  }
+
+  trip.status = "Finalized";
+  await trip.save();
+
+  // Sync booking requirements for the finalized trip
+  await syncBookingRequirements(trip);
+
+  res.status(200).json({
+    success: true,
+    message: "Trip finalized successfully",
+    trip,
+  });
+});
+
 module.exports = {
   generateTrip,
   getAllTrips,
@@ -514,5 +547,6 @@ module.exports = {
   smartshiftApply,
   getTripBookings,
   updateOperatorAccess,
+  finalizeTrip,
   syncItinerary,
 };

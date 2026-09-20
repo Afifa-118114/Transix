@@ -12,7 +12,7 @@ import {
   FiAlertTriangle,
 } from "react-icons/fi";
 import { useTripBuilder } from "../../context/TripBuilderContext";
-import { updateOperatorAccess } from "../../api/tripApi";
+import { updateOperatorAccess, finalizeTrip } from "../../api/tripApi";
 import BusPreferenceSection from "./BusPreferenceSection";
 import toast from "react-hot-toast";
 
@@ -20,6 +20,7 @@ export default function FinalizeModal() {
   const navigate = useNavigate();
   const {
     trip,
+    setTrip,
     budgetStats = {},
     validationStats = {},
     isFinalizeModalOpen,
@@ -301,8 +302,8 @@ export default function FinalizeModal() {
     try {
       await saveItinerary();
 
+      const token = localStorage.getItem("token");
       if (isCampus) {
-        const token = localStorage.getItem("token");
         const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/campus-trips/${trip._id}/finalize`, {
           method: 'POST',
           headers: {
@@ -314,6 +315,15 @@ export default function FinalizeModal() {
         if (!res.ok) {
           throw new Error("Failed to finalize campus trip");
         }
+        const data = await res.json();
+        if (data?.trip && setTrip) {
+          setTrip(data.trip);
+        }
+      } else {
+        const data = await finalizeTrip(trip._id, token);
+        if (data?.trip && setTrip) {
+          setTrip(data.trip);
+        }
       }
 
       setTimeout(() => {
@@ -322,7 +332,7 @@ export default function FinalizeModal() {
       }, 400);
     } catch (err) {
       setIsProcessing(false);
-      toast.error("Unable to finalize your trip. Please try again.");
+      toast.error(err.response?.data?.message || "Unable to finalize your trip. Please try again.");
     }
   };
 
@@ -331,10 +341,13 @@ export default function FinalizeModal() {
       setIsProcessing(true);
       try {
         const token = localStorage.getItem("token");
-        await updateOperatorAccess(trip._id, true, token);
+        const res = await updateOperatorAccess(trip._id, true, token);
+        if (res?.trip && setTrip) {
+          setTrip(res.trip);
+        }
         toast.success("Trip shared with your operator.");
       } catch (err) {
-        toast.error("Failed to share trip.");
+        toast.error(err.response?.data?.message || "Failed to share trip.");
       }
       setIsProcessing(false);
     }

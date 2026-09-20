@@ -12,6 +12,7 @@ const flightRoutes = require("./routes/flightRoutes");
 const operatorRoutes = require("./routes/operatorRoutes");
 const campusRoutes = require("./routes/campusRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
+const vendorRoutes = require("./routes/vendorRoutes");
 const app = express();
 
 const corsOptions = {
@@ -45,6 +46,7 @@ app.use("/api/flights", flightRoutes);
 app.use("/api/operator", operatorRoutes);
 app.use("/api/campus-trips", campusRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/vendor", vendorRoutes);
 app.use(errorHandler);
 
 module.exports = app;

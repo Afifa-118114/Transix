@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "import:flight-schedules": "node src/import/importFlightSchedules.js"
+    "import:flight-schedules": "node src/import/importFlightSchedules.js",
+    "import:locations-and-vendors": "node src/import/importLocationsAndVendors.js"
   },
   "keywords": [],
   "author": "",

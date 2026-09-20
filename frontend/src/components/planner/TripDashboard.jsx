@@ -20,17 +20,21 @@ const TripDashboard = ({ trip, setTrip }) => {
   if (!trip) return null;
 
   const handleToggleAccess = async () => {
+    const currentAccess = trip.operatorAccess?.enabled || false;
+    if (!currentAccess && trip.status !== "Finalized") {
+      toast.error("Trip must be finalized before sharing with an operator.", { icon: "⚠️" });
+      return;
+    }
     setIsProcessingAccess(true);
     try {
       const token = localStorage.getItem("token");
-      const currentAccess = trip.operatorAccess?.enabled || false;
       const res = await updateOperatorAccess(trip._id, !currentAccess, token);
       if (res.success) {
         setTrip(res.trip);
         toast.success(res.message);
       }
     } catch (err) {
-      toast.error("Failed to update operator access.");
+      toast.error(err.response?.data?.message || "Failed to update operator access.");
     }
     setIsProcessingAccess(false);
   };

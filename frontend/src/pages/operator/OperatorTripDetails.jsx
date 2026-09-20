@@ -1,12 +1,20 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
 import { 
   getOperatorTripDetails, 
   updateBookingStatus, 
   getDashboardStats,
   getTripMessages,
   sendTripMessage,
-  getUnreadMessageCount
+  getUnreadMessageCount,
+  getTripFleetVendors,
+  getTripFleetVendorRequests,
+  sendFleetVendorRequests,
+  selectFleetVendor,
+  requestFleetVendorConfirmation,
+  getOperatorVendorRequestMessages,
+  sendOperatorVendorRequestMessage,
+  searchConnectedVendors,
 } from "../../api/operatorApi";
 import { formatDate } from "../../utils/formatTrip";
 import OperatorSidebar from "../../components/operator/OperatorSidebar";
@@ -15,10 +23,12 @@ import OperatorMessageModal from "../../components/operator/OperatorMessageModal
 import DayTabs from "../../components/itinerary/DayTabs";
 import Timeline from "../../components/itinerary/Timeline";
 import { 
-  FiArrowLeft, FiMapPin, FiCalendar, FiExternalLink, FiClock,
-  FiCheckCircle, FiArrowRight, FiUsers, FiDollarSign, FiLayers,
-  FiAlertCircle, FiMenu, FiX, FiCheck, FiMail, FiPhone, FiCompass,
-  FiMessageSquare, FiSend, FiHome, FiStar
+  FiArrowLeft, FiClock, FiCheckCircle, FiAlertCircle, 
+  FiCalendar, FiUsers, FiDollarSign, FiMessageSquare, 
+  FiRefreshCw, FiExternalLink, FiSend, FiX, FiCheck,
+  FiFileText, FiShield, FiBriefcase, FiAlertTriangle,
+  FiMapPin, FiArrowRight, FiMenu, FiUser, FiInfo, FiTruck,
+  FiMail, FiPhone, FiHome, FiStar, FiCompass, FiChevronUp, FiChevronDown, FiLayers
 } from "react-icons/fi";
 import { GraduationCap } from "lucide-react";
 import { findExistingTransportRecord } from "../../utils/schedulingEngine";
@@ -27,6 +37,7 @@ import { detectBusRequirements, resolveLocalTransportArrangement, calculateDayDa
 export default function OperatorTripDetails() {
   const { tripId } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const [trip, setTrip] = useState(null);
   const [bookings, setBookings] = useState([]);
@@ -38,12 +49,50 @@ export default function OperatorTripDetails() {
   const [error, setError] = useState(null);
   const [feedback, setFeedback] = useState(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState("itinerary"); // "itinerary" | "messages" | "bookings" | "accommodation" | "transport"
+  const [activeTab, setActiveTab] = useState(() => searchParams.get("tab") || "itinerary"); // "itinerary" | "messages" | "bookings" | "accommodation" | "transport" | "activities"
+  const highlightedActivityId = searchParams.get("activityId");
+
+  useEffect(() => {
+    const tabParam = searchParams.get("tab");
+    if (tabParam && ["itinerary", "messages", "bookings", "accommodation", "transport", "activities"].includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (activeTab === "activities" && highlightedActivityId) {
+      setTimeout(() => {
+        const el = document.getElementById(`activity-card-${highlightedActivityId}`);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }, 300);
+    }
+  }, [activeTab, highlightedActivityId]);
   const [selectedDayIndex, setSelectedDayIndex] = useState(0);
   const [statusUpdating, setStatusUpdating] = useState({});
   const [isMessageModalOpen, setIsMessageModalOpen] = useState(false);
   const [sendingMessage, setSendingMessage] = useState(false);
   const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
+
+  // Campus Fleet Vendor Workflow State
+  const [fleetVendorsData, setFleetVendorsData] = useState(null);
+  const [loadingFleetVendors, setLoadingFleetVendors] = useState(false);
+  const [fleetRequests, setFleetRequests] = useState([]);
+  const [selectedVendorIds, setSelectedVendorIds] = useState([]);
+  const [dispatchingRequests, setDispatchingRequests] = useState(false);
+  const [selectingVendor, setSelectingVendor] = useState(false);
+  const [requestingConfirmation, setRequestingConfirmation] = useState(false);
+  const [vendorSelectionModal, setVendorSelectionModal] = useState(null);
+  const [showRejectedVendors, setShowRejectedVendors] = useState(false);
+  const [showConfirmRequestModal, setShowConfirmRequestModal] = useState(false);
+  const [requestSuccessData, setRequestSuccessData] = useState(null);
+  const [activeChatModalRequest, setActiveChatModalRequest] = useState(null);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [loadingChatMessages, setLoadingChatMessages] = useState(false);
+  const [chatMessageInput, setChatMessageInput] = useState("");
+  const [sendingChatMessage, setSendingChatMessage] = useState(false);
+  const [viewResponseModal, setViewResponseModal] = useState(null);
 
   useEffect(() => {
     const fetchTrip = async () => {
@@ -197,6 +246,197 @@ export default function OperatorTripDetails() {
 
   const isCampus = trip?.tripCategory === "CAMPUS";
   const contactPerson = recipient || (trip ? (trip.coordinatorId || trip.user) : null);
+
+  const loadCampusVendorData = async () => {
+    if (!tripId || !isCampus) return;
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    setLoadingFleetVendors(true);
+    try {
+      const [vendorsRes, requestsRes] = await Promise.all([
+        getTripFleetVendors(tripId, token).catch(err => {
+          console.error("Failed to load matching fleet vendors:", err);
+          return null;
+        }),
+        getTripFleetVendorRequests(tripId, token).catch(err => {
+          console.error("Failed to load vendor requests:", err);
+          return null;
+        })
+      ]);
+
+      if (vendorsRes?.success) {
+        const normalizedData = {
+          ...vendorsRes,
+          route: vendorsRes.route || vendorsRes.matching?.route,
+          matchedCount: vendorsRes.matchedCount ?? vendorsRes.matching?.matchedVendors?.length ?? 0,
+          matchedVendors: vendorsRes.matchedVendors || vendorsRes.matching?.matchedVendors || [],
+          partiallyMatchedVendors: vendorsRes.partiallyMatchedVendors || vendorsRes.matching?.partiallyMatchedVendors || [],
+          rejectedVendors: vendorsRes.rejectedVendors || vendorsRes.matching?.rejectedVendors || [],
+          totalConnectedVendors: vendorsRes.totalConnectedVendors || vendorsRes.matching?.totalConnectedVendors || 100,
+        };
+        setFleetVendorsData(normalizedData);
+      }
+      if (requestsRes?.success) {
+        setFleetRequests(requestsRes.requests || []);
+      }
+    } finally {
+      setLoadingFleetVendors(false);
+    }
+  };
+
+  useEffect(() => {
+    if (tripId && isCampus) {
+      loadCampusVendorData();
+    }
+  }, [tripId, isCampus]);
+
+  const handleToggleSelectVendor = (vendorId) => {
+    setSelectedVendorIds(prev => 
+      prev.includes(vendorId) ? prev.filter(id => id !== vendorId) : [...prev, vendorId]
+    );
+  };
+
+  const handleOpenConfirmRequestModal = () => {
+    if (selectedVendorIds.length === 0) return;
+    setShowConfirmRequestModal(true);
+  };
+
+  const handleConfirmSendVendorRequests = async () => {
+    if (selectedVendorIds.length === 0) return;
+    setDispatchingRequests(true);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await sendFleetVendorRequests(tripId, selectedVendorIds, token);
+      if (res?.success) {
+        setShowConfirmRequestModal(false);
+        setRequestSuccessData({
+          vendorCount: res.createdCount || selectedVendorIds.length,
+          originCity: fleetVendorsData?.route?.originCity || trip?.source,
+          originState: fleetVendorsData?.route?.originState,
+          destCity: fleetVendorsData?.route?.destinationCity || trip?.destination,
+          destState: fleetVendorsData?.route?.destinationState,
+          travelers: campusFleetPlan?.totalTravelers || trip?.travelers || 20,
+          vehicleSummary: `${campusFleetPlan?.vehiclesRequired || 1} × ${campusFleetPlan?.comfort || "AC"} ${campusFleetPlan?.vehicleType || "Coach"}`,
+        });
+        setSelectedVendorIds([]);
+        const reqRes = await getTripFleetVendorRequests(tripId, token);
+        if (reqRes?.success) setFleetRequests(reqRes.requests || []);
+      }
+    } catch (err) {
+      setFeedback({
+        type: "error",
+        message: err.response?.data?.message || err.message || "Failed to send vendor requests."
+      });
+    } finally {
+      setDispatchingRequests(false);
+    }
+  };
+
+  const handleOpenChatModal = async (req) => {
+    setActiveChatModalRequest(req);
+    setLoadingChatMessages(true);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await getOperatorVendorRequestMessages(req._id, token);
+      if (res?.success) {
+        setChatMessages(res.messages || []);
+      }
+    } catch (err) {
+      console.error("Failed to load chat messages", err);
+    } finally {
+      setLoadingChatMessages(false);
+    }
+  };
+
+  const handleSendChatMessage = async (e) => {
+    e.preventDefault();
+    if (!activeChatModalRequest || !chatMessageInput.trim()) return;
+    setSendingChatMessage(true);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await sendOperatorVendorRequestMessage(activeChatModalRequest._id, chatMessageInput.trim(), token);
+      if (res?.success) {
+        setChatMessages(prev => [...prev, res.message]);
+        setChatMessageInput("");
+      }
+    } catch (err) {
+      console.error("Failed to send message", err);
+    } finally {
+      setSendingChatMessage(false);
+    }
+  };
+
+  const handleSelectVendorConfirm = async () => {
+    if (!vendorSelectionModal) return;
+    setSelectingVendor(true);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await selectFleetVendor(tripId, { requestId: vendorSelectionModal._id }, token);
+      if (res?.success) {
+        setFeedback({
+          type: "success",
+          message: `Selected ${vendorSelectionModal.vendorId?.name || "vendor"} for this campus group fleet.`
+        });
+        setVendorSelectionModal(null);
+        const reqRes = await getTripFleetVendorRequests(tripId, token);
+        if (reqRes?.success) setFleetRequests(reqRes.requests || []);
+      }
+    } catch (err) {
+      setFeedback({
+        type: "error",
+        message: err.response?.data?.message || err.message || "Failed to select vendor."
+      });
+    } finally {
+      setSelectingVendor(false);
+    }
+  };
+
+  const handleRequestConfirmation = async (requestId) => {
+    setRequestingConfirmation(true);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await requestFleetVendorConfirmation(tripId, { requestId }, token);
+      if (res?.success) {
+        setFeedback({
+          type: "success",
+          message: "Confirmation requested. The vendor can now confirm in the Demo Vendor Portal."
+        });
+        const reqRes = await getTripFleetVendorRequests(tripId, token);
+        if (reqRes?.success) setFleetRequests(reqRes.requests || []);
+      }
+    } catch (err) {
+      setFeedback({
+        type: "error",
+        message: err.response?.data?.message || err.message || "Failed to request confirmation."
+      });
+    } finally {
+      setRequestingConfirmation(false);
+    }
+  };
+
+  const getMatchingFleetLabel = (vendor) => {
+    const matches = vendor?.matchingFleet || vendor?.fleet || [];
+    if (!matches || matches.length === 0) {
+      const cap = campusFleetPlan?.capacityPerVehicle || 25;
+      const comfort = campusFleetPlan?.comfort || "AC";
+      const vType = campusFleetPlan?.vehicleType || "Coach";
+      return `${cap}-seat ${comfort} ${vType}`.replace(/\s+/g, " ").trim();
+    }
+    // Prioritize coaches matching the group requirement
+    const coachMatch = matches.find(f => f.category && f.category.toLowerCase().includes("coach")) || matches[0];
+    const cap = coachMatch.capacity || campusFleetPlan?.capacityPerVehicle || 25;
+    const acText = coachMatch.ac !== false ? "AC " : "";
+    let typeName = "Coach";
+    if (coachMatch.category) {
+      const c = coachMatch.category.toLowerCase();
+      if (c.includes("coach")) typeName = "Coach";
+      else if (c.includes("bus")) typeName = "Bus";
+      else if (c.includes("traveller")) typeName = "Tempo Traveller";
+    }
+    return `${cap}-seat ${acText}${typeName}`.replace(/\s+/g, " ").trim();
+  };
+
   const staySegmentsList = useMemo(() => {
     if (Array.isArray(trip?.staySegments) && trip.staySegments.length > 0) {
       return trip.staySegments;
@@ -658,6 +898,18 @@ export default function OperatorTripDetails() {
             >
               <FiArrowRight size={13} />
               <span>{isCampus ? "Transport & Fleet" : "Transport Legs"} ({isCampus ? 2 : (transportBookings.length || trip.travelLegs?.length || 0)})</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab("activities")}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
+                activeTab === "activities"
+                  ? "bg-indigo-600 text-white shadow-xs"
+                  : "text-slate-400 hover:text-white bg-slate-900 hover:bg-slate-800"
+              }`}
+            >
+              <FiCompass size={13} />
+              <span>Activities ({activityBookings.length})</span>
             </button>
           </div>
 
@@ -1163,6 +1415,44 @@ export default function OperatorTripDetails() {
                     </span>
                   </div>
 
+                  {/* Confirmed Fleet Banner (if BookingRequirement confirmed) */}
+                  {campusFleetBooking?.status === "CONFIRMED" && (
+                    <div className="bg-emerald-950/40 border border-emerald-500/60 rounded-2xl p-5 shadow-lg">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="flex items-start gap-3.5">
+                          <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center justify-center shrink-0 mt-0.5 shadow-inner">
+                            <FiCheckCircle size={22} />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-900/80 text-emerald-300 border border-emerald-700/60">
+                                OPERATIONAL FLEET CONFIRMED
+                              </span>
+                              <span className="text-xs text-slate-400">Single Group Fleet Arrangement</span>
+                            </div>
+                            <div className="text-base font-black text-white mt-1">
+                              {campusFleetBooking.vendorName || "Confirmed Fleet Partner"}
+                            </div>
+                            <div className="text-xs text-slate-400 mt-1 flex flex-wrap items-center gap-3">
+                              <span>
+                                Reference: <code className="text-emerald-400 font-mono font-bold bg-slate-900 px-2 py-0.5 rounded border border-emerald-900/60">{campusFleetBooking.externalReferenceId || "TX-FLT-CONFIRMED"}</code>
+                              </span>
+                              <span className="text-slate-500">•</span>
+                              <span className="text-slate-300 font-medium">
+                                Fleet ready for execution
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="shrink-0 flex items-center gap-2">
+                          <span className="px-3 py-1 text-xs font-black uppercase tracking-wider rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
+                            CONFIRMED
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* ONE Group Transport / Fleet Card */}
                   {campusFleetPlan && (
                     <div className="bg-indigo-950/40 border border-indigo-800/80 rounded-2xl p-5 shadow-xs space-y-4">
@@ -1194,6 +1484,14 @@ export default function OperatorTripDetails() {
                           <span className={`px-2.5 py-1 text-[10px] uppercase font-black tracking-wider rounded-lg border ${getStatusBadge(campusFleetBooking?.status || "PENDING")}`}>
                             {(campusFleetBooking?.status || "PENDING").replace("_", " ")}
                           </span>
+
+                          <button
+                            onClick={loadCampusVendorData}
+                            title="Refresh matching vendors and responses"
+                            className="p-1.5 rounded-lg bg-indigo-900/60 hover:bg-indigo-800 text-indigo-300 hover:text-white transition border border-indigo-700/50"
+                          >
+                            <FiRefreshCw size={13} className={loadingFleetVendors ? "animate-spin" : ""} />
+                          </button>
                         </div>
                       </div>
 
@@ -1222,6 +1520,30 @@ export default function OperatorTripDetails() {
                         </div>
                       )}
 
+                      {/* Canonical Resolved Operational Route */}
+                      <div className="bg-slate-900/90 rounded-xl p-3.5 border border-indigo-900/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                        <div className="flex items-center gap-2">
+                          <FiCompass className="text-indigo-400 shrink-0" size={16} />
+                          <span className="font-bold text-slate-300">Resolved Operational Route:</span>
+                          <div className="flex items-center gap-1.5 text-white font-extrabold flex-wrap">
+                            <span>{fleetVendorsData?.route?.originCity || trip.source}</span>
+                            <span className="px-1.5 py-0.2 rounded bg-indigo-950 text-[10px] text-indigo-300 font-mono border border-indigo-800">
+                              {fleetVendorsData?.route?.originState || "Resolving state..."}
+                            </span>
+                            <FiArrowRight size={12} className="text-indigo-400 mx-0.5" />
+                            <span>{fleetVendorsData?.route?.destinationCity || trip.destination}</span>
+                            <span className="px-1.5 py-0.2 rounded bg-indigo-950 text-[10px] text-indigo-300 font-mono border border-indigo-800">
+                              {fleetVendorsData?.route?.destinationState || "Resolving state..."}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="text-slate-400 text-[11px] font-medium flex items-center gap-2 shrink-0">
+                          <span>Connected Network: {fleetVendorsData?.totalConnectedVendors || 100}</span>
+                          <span>•</span>
+                          <span className="text-emerald-400 font-bold">{fleetVendorsData?.matchedCount || 0} suitable match(es)</span>
+                        </div>
+                      </div>
+
                       {/* Operator Status Management for the ONE Fleet */}
                       {campusFleetBooking && (
                         <div className="pt-3 border-t border-indigo-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
@@ -1240,6 +1562,303 @@ export default function OperatorTripDetails() {
                       )}
                     </div>
                   )}
+
+                  {/* Success State Banner */}
+                  {requestSuccessData && (
+                    <div className="bg-emerald-950/40 border border-emerald-800/80 rounded-2xl p-5 space-y-3 shadow-md">
+                      <div className="flex items-center gap-2 text-emerald-400 font-black text-sm">
+                        <FiCheckCircle size={18} />
+                        <span>✓ Request sent successfully</span>
+                      </div>
+                      <p className="text-xs text-slate-300">
+                        <strong className="text-white">{requestSuccessData.vendorCount} vendors</strong> have received the group fleet request.
+                      </p>
+                      <div className="text-xs bg-slate-900/80 p-3 rounded-xl border border-emerald-900/60 space-y-1 text-slate-300">
+                        <div className="font-extrabold text-white">
+                          {requestSuccessData.originCity} → {requestSuccessData.destCity}
+                        </div>
+                        <div>{requestSuccessData.travelers} travelers • {requestSuccessData.vehicleSummary}</div>
+                        <div className="text-[11px] text-emerald-300/90 font-medium">Availability + quotation requested.</div>
+                      </div>
+                      <div>
+                        <button
+                          onClick={() => {
+                            const el = document.getElementById("operator-responses-section");
+                            if (el) el.scrollIntoView({ behavior: "smooth" });
+                          }}
+                          className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition shadow"
+                        >
+                          View Vendor Responses
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Vendor Responses Section */}
+                  {fleetRequests.length > 0 && (
+                    <div id="operator-responses-section" className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 shadow-sm">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-800">
+                        <div>
+                          <div className="text-[10px] font-black uppercase tracking-widest text-indigo-400">
+                            GROUP FLEET REQUEST
+                          </div>
+                          <div className="text-base font-extrabold text-white">
+                            {fleetVendorsData?.route?.originCity || trip?.source} → {fleetVendorsData?.route?.destinationCity || trip?.destination}
+                          </div>
+                          <div className="text-xs text-slate-400">
+                            {campusFleetPlan?.totalTravelers || trip?.travelers} Travelers • {campusFleetPlan?.vehiclesRequired} × {campusFleetPlan?.comfort} {campusFleetPlan?.vehicleType}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Link 
+                            to="/vendor/requests" 
+                            target="_blank"
+                            className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-400 hover:text-indigo-300 bg-indigo-950/60 hover:bg-indigo-900/80 px-3 py-1.5 rounded-lg border border-indigo-800/60 transition"
+                          >
+                            <FiExternalLink size={12} />
+                            <span>Vendor Portal</span>
+                          </Link>
+                        </div>
+                      </div>
+
+                      <div className="text-xs font-bold uppercase tracking-wider text-slate-400 pt-1">
+                        Responses ({fleetRequests.length})
+                      </div>
+
+                      <div className="space-y-3">
+                        {fleetRequests.map((req) => {
+                          const vName = req.vendorId?.name || "Connected Vendor";
+                          const isAvail = req.response?.availability === "AVAILABLE";
+                          const isPartAvail = req.response?.availability === "PARTIALLY_AVAILABLE";
+                          const isUnavail = req.response?.availability === "UNAVAILABLE" || req.status === "REJECTED";
+                          const isAwaiting = req.status === "SENT" || req.status === "VIEWED" || req.status === "ACCEPTED";
+                          const quoteAmount = req.response?.quotation?.totalAmount || req.response?.quote;
+                          const vehiclesAlloc = req.response?.vehicles && req.response.vehicles.length > 0
+                            ? req.response.vehicles.map(v => `${v.count} × ${v.category} (${v.seatsPerVehicle} seats each)`).join(", ")
+                            : (req.response?.vehiclesAvailable ? `${req.response.vehiclesAvailable} × ${campusFleetPlan?.vehicleType || "Coaches"}` : null);
+
+                          return (
+                            <div key={req._id} className="bg-slate-950/70 border border-slate-800 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition hover:border-slate-700">
+                              <div className="space-y-1.5 min-w-0 flex-1">
+                                <div className="flex items-center gap-2.5 flex-wrap">
+                                  <span className="font-extrabold text-white text-sm">{vName}</span>
+                                  {isAvail && (
+                                    <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-emerald-950 text-emerald-300 border border-emerald-800/60 flex items-center gap-1">
+                                      <FiCheck size={10} /> Available
+                                    </span>
+                                  )}
+                                  {isPartAvail && (
+                                    <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-amber-950 text-amber-300 border border-amber-800/60">
+                                      ◐ Partially Available
+                                    </span>
+                                  )}
+                                  {isUnavail && (
+                                    <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-rose-950 text-rose-300 border border-rose-800/60">
+                                      ✕ Not Available
+                                    </span>
+                                  )}
+                                  {isAwaiting && (
+                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-800 text-slate-400 border border-slate-700">
+                                      Awaiting Response
+                                    </span>
+                                  )}
+                                </div>
+
+                                {req.response?.rejectionReason && (
+                                  <div className="text-xs text-rose-400">
+                                    <span className="font-bold">Reason:</span> {req.response.rejectionReason}
+                                    {req.response.rejectionMessage && <span> • "{req.response.rejectionMessage}"</span>}
+                                  </div>
+                                )}
+
+                                {vehiclesAlloc && (
+                                  <div className="text-xs text-slate-300 font-medium">
+                                    {vehiclesAlloc}
+                                  </div>
+                                )}
+
+                                {quoteAmount > 0 && (
+                                  <div className="text-sm font-extrabold text-emerald-400">
+                                    ₹{quoteAmount.toLocaleString("en-IN")}
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="shrink-0 flex items-center gap-2">
+                                {(req.status === "RESPONDED" || req.status === "SELECTED" || req.status === "CONFIRMED") && (
+                                  <button
+                                    onClick={() => setViewResponseModal(req)}
+                                    className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-bold transition border border-slate-700"
+                                  >
+                                    View Response
+                                  </button>
+                                )}
+                                {isAwaiting && (
+                                  <button
+                                    onClick={() => setViewResponseModal(req)}
+                                    className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-300 text-xs font-medium transition border border-slate-700"
+                                  >
+                                    View Request
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => handleOpenChatModal(req)}
+                                  className="px-3 py-1.5 rounded-lg bg-indigo-600/90 hover:bg-indigo-600 text-white text-xs font-bold transition flex items-center gap-1.5 shadow"
+                                >
+                                  <FiMessageSquare size={12} />
+                                  <span>Message Vendor</span>
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Connected Vendor Matching Section */}
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 shadow-sm">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
+                      <div>
+                        <h3 className="text-sm font-extrabold text-white flex items-center gap-2">
+                          <span>Suitable Connected Vendors</span>
+                          <span className="px-2 py-0.5 rounded-full bg-indigo-950 text-indigo-300 text-[10px] font-black border border-indigo-800/80">
+                            {fleetVendorsData?.matchedCount || 0} MATCHES
+                          </span>
+                        </h3>
+                        <p className="text-xs text-slate-400 mt-1">
+                          Vendors matching the selected route and fleet requirement.
+                        </p>
+                      </div>
+
+                      {/* Multi-Select Action Button */}
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={handleOpenConfirmRequestModal}
+                          disabled={selectedVendorIds.length === 0 || dispatchingRequests}
+                          className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:text-slate-500 text-white font-bold text-xs flex items-center gap-2 shadow-md transition disabled:cursor-not-allowed"
+                        >
+                          <FiSend size={13} />
+                          <span>
+                            {dispatchingRequests
+                              ? "Sending..."
+                              : `Request Quotes (${selectedVendorIds.length} selected)`}
+                          </span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Vendor Grid */}
+                    {loadingFleetVendors ? (
+                      <div className="py-8 text-center text-slate-500 text-xs">
+                        <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                        Matching connected vendors with MongoDB...
+                      </div>
+                    ) : (fleetVendorsData?.matchedVendors || []).length === 0 ? (
+                      <div className="py-8 text-center text-slate-400 text-xs bg-slate-950/40 rounded-xl border border-slate-800/80 p-6">
+                        <FiAlertCircle className="mx-auto text-amber-400 mb-2" size={24} />
+                        <div className="font-bold text-white">No connected vendors match this route and fleet requirement.</div>
+                        <p className="text-slate-400 text-[11px] mt-1 max-w-md mx-auto">
+                          Verify that connected vendors serve both {fleetVendorsData?.route?.originState} and {fleetVendorsData?.route?.destinationState} with {campusFleetPlan?.vehicleType || "requested fleet"}.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {(fleetVendorsData?.matchedVendors || []).map((vendor) => {
+                          const existingReq = fleetRequests.find(r => (r.vendorId?._id || r.vendorId) === vendor._id);
+                          const isSelected = selectedVendorIds.includes(vendor._id);
+
+                          return (
+                            <div
+                              key={vendor._id}
+                              onClick={() => {
+                                if (!existingReq) handleToggleSelectVendor(vendor._id);
+                              }}
+                              className={`p-4 rounded-xl border transition flex items-center justify-between gap-3 ${
+                                existingReq
+                                  ? "bg-slate-950/60 border-slate-800/90 cursor-default opacity-85"
+                                  : isSelected
+                                  ? "bg-indigo-950/40 border-indigo-500 shadow-md ring-1 ring-indigo-500/50 cursor-pointer"
+                                  : "bg-slate-950/70 border-slate-800/80 hover:border-slate-700 cursor-pointer"
+                              }`}
+                            >
+                              <div className="min-w-0 flex-1">
+                                <h4 className="font-extrabold text-white text-sm leading-tight truncate">
+                                  {vendor.name}
+                                </h4>
+                                <div className="text-xs font-semibold text-slate-400 mt-1">
+                                  {getMatchingFleetLabel(vendor)}
+                                </div>
+                              </div>
+
+                              <div className="shrink-0">
+                                {existingReq ? (
+                                  <span className="px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider bg-purple-950 text-purple-300 border border-purple-800/60">
+                                    {existingReq.status.replace("_", " ")}
+                                  </span>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleToggleSelectVendor(vendor._id);
+                                    }}
+                                    className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                                      isSelected
+                                        ? "bg-indigo-600 text-white shadow-sm ring-1 ring-indigo-400"
+                                        : "bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white border border-slate-700/60"
+                                    }`}
+                                  >
+                                    {isSelected ? (
+                                      <>
+                                        <FiCheck size={12} />
+                                        <span>Selected</span>
+                                      </>
+                                    ) : (
+                                      <span>Select</span>
+                                    )}
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Expandable Accordion for Ineligible / Rejected Vendors */}
+                    {(fleetVendorsData?.rejectedVendors || []).length > 0 && (
+                      <div className="pt-3 border-t border-slate-800/80">
+                        <button
+                          onClick={() => setShowRejectedVendors(prev => !prev)}
+                          className="text-xs font-bold text-slate-400 hover:text-slate-300 flex items-center gap-1.5 transition"
+                        >
+                          <span>
+                            {showRejectedVendors ? "Hide" : "View"} Partially Matched / Ineligible Vendors ({fleetVendorsData.rejectedVendors.length})
+                          </span>
+                          {showRejectedVendors ? <FiChevronUp size={14} /> : <FiChevronDown size={14} />}
+                        </button>
+
+                        {showRejectedVendors && (
+                          <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                            {fleetVendorsData.rejectedVendors.map(rej => (
+                              <div key={rej.vendorId} className="p-3 bg-slate-950/40 rounded-xl border border-slate-800/60 flex items-start justify-between gap-2">
+                                <div>
+                                  <div className="font-bold text-slate-300">{rej.name}</div>
+                                  <div className="text-[11px] text-rose-400/90 mt-0.5">
+                                    Reason: {rej.reason}
+                                  </div>
+                                </div>
+                                <span className="px-1.5 py-0.5 text-[9px] font-bold rounded bg-rose-950/60 text-rose-400 border border-rose-900/50 uppercase">
+                                  Ineligible
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
 
                   {/* Underneath: TRIP TRANSPORT MOVEMENTS List (No independent booking statuses) */}
                   <div className="space-y-3 pt-2">
@@ -1469,6 +2088,174 @@ export default function OperatorTripDetails() {
             </div>
           )}
 
+          {/* TAB 5: ACTIVITIES & VISITS BOOKING REQUIREMENTS */}
+          {activeTab === "activities" && (
+            <div className="space-y-6">
+              <div className="bg-slate-900 rounded-2xl border border-slate-800 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+                <div>
+                  <h3 className="text-sm font-black uppercase tracking-wider text-white">
+                    {isCampus ? "Visits & Permissions" : "Trip Activities"}
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {isCampus 
+                      ? "Official institutional permissions, educational visits, and scheduled academic activities."
+                      : "Operational coordination, tickets, entry passes, and vendor coordination for trip activities."}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 self-start sm:self-auto">
+                  <span className="px-3 py-1 rounded-lg bg-indigo-950/70 text-indigo-300 text-xs font-bold border border-indigo-800/60">
+                    {activityBookings.length} Requirement{activityBookings.length !== 1 ? "s" : ""}
+                  </span>
+                  <span className="px-3 py-1 rounded-lg bg-emerald-950/70 text-emerald-300 text-xs font-bold border border-emerald-800/60">
+                    {actConfirmed} Confirmed
+                  </span>
+                </div>
+              </div>
+
+              {activityBookings.length === 0 ? (
+                <div className="bg-slate-900 rounded-2xl border border-slate-800 p-12 text-center text-slate-400 text-xs">
+                  <FiCompass className="mx-auto text-slate-600 mb-2" size={28} />
+                  <p className="font-semibold text-slate-300">No activity booking requirements found.</p>
+                  <p className="text-slate-500 text-[11px] mt-0.5">
+                    No activities or visits require operational booking for this trip.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {activityBookings.map((b) => {
+                    const isHighlighted = highlightedActivityId === b._id;
+                    let dayNum = null;
+                    let timingStr = null;
+                    if (Array.isArray(trip?.itinerary)) {
+                      trip.itinerary.forEach((day, dIdx) => {
+                        const items = day.activities || day.events || [];
+                        const found = items.find(
+                          item => String(item.id || item._id) === String(b.itemId) || item.title === b.title || item.name === b.title
+                        );
+                        if (found) {
+                          dayNum = day.dayNumber || dIdx + 1;
+                          timingStr = found.time || found.timing || found.startTime;
+                        }
+                      });
+                    }
+
+                    const dateStr = dayNum && trip.startDate 
+                      ? calculateDayDate(trip.startDate, dayNum) 
+                      : (trip.startDate ? formatDate(trip.startDate) : "Scheduled Date");
+
+                    const timeLabel = timingStr || (b.notes && b.notes.includes("Day") ? b.notes : "Operational Coordination");
+                    const participantsLabel = isCampus
+                      ? `${campusFleetPlan?.totalTravelers || trip.travelers} Participants (${campusFleetPlan?.studentsCount || trip.travelers} Students, ${campusFleetPlan?.teachersStaffCount || 0} Staff)`
+                      : `${trip.travelers || 2} Travelers`;
+
+                    return (
+                      <div
+                        key={b._id}
+                        id={`activity-card-${b._id}`}
+                        className={`bg-slate-900 rounded-2xl border p-5 space-y-4 shadow-sm transition ${
+                          isHighlighted
+                            ? "border-indigo-500 ring-2 ring-indigo-500/50 bg-indigo-950/20"
+                            : "border-slate-800 hover:border-slate-750"
+                        }`}
+                      >
+                        {/* Header */}
+                        <div className="flex items-start justify-between gap-3 pb-3 border-b border-slate-800">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-slate-800 text-slate-300 border border-slate-700">
+                                {b.type}
+                              </span>
+                              {isHighlighted && (
+                                <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-indigo-600 text-white animate-pulse">
+                                  Selected Activity
+                                </span>
+                              )}
+                            </div>
+                            <h4 className="text-base font-extrabold text-white mt-1 leading-snug">
+                              {b.title}
+                            </h4>
+                            <div className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
+                              <FiMapPin size={12} className="text-indigo-400 shrink-0" />
+                              <span className="truncate">{b.location || trip.destination}</span>
+                            </div>
+                          </div>
+
+                          <div className="shrink-0">
+                            <span className={`px-2.5 py-1 text-[10px] uppercase font-black tracking-wider rounded-lg border ${getStatusBadge(b.status)}`}>
+                              {b.status.replace("_", " ")}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Details Grid */}
+                        <div className="grid grid-cols-2 gap-3 text-xs bg-slate-950/70 p-3.5 rounded-xl border border-slate-800/80">
+                          <div>
+                            <span className="text-slate-500 font-medium block text-[10px] uppercase tracking-wider">Date & Schedule</span>
+                            <span className="font-bold text-slate-200">{dateStr}</span>
+                            {dayNum && <span className="text-slate-500 ml-1 text-[11px]">(Day {dayNum})</span>}
+                          </div>
+                          <div>
+                            <span className="text-slate-500 font-medium block text-[10px] uppercase tracking-wider">Timing</span>
+                            <span className="font-bold text-indigo-300 truncate block">{timeLabel}</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-500 font-medium block text-[10px] uppercase tracking-wider">Trip & Route</span>
+                            <span className="font-semibold text-slate-300 truncate block">
+                              {trip.organizationDetails?.name || `${trip.source} → ${trip.destination}`}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-slate-500 font-medium block text-[10px] uppercase tracking-wider">Participants</span>
+                            <span className="font-semibold text-slate-300 truncate block">{participantsLabel}</span>
+                          </div>
+                          <div className="col-span-2 border-t border-slate-800/80 pt-2 flex items-center justify-between">
+                            <div>
+                              <span className="text-slate-500 font-medium block text-[10px] uppercase tracking-wider">Provider / Authority</span>
+                              <span className="font-semibold text-slate-300">
+                                {b.vendorName || "Direct Entry / Local Authority"}
+                              </span>
+                            </div>
+                            {b.externalUrl && (
+                              <a
+                                href={b.externalUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-indigo-400 hover:underline flex items-center gap-1 font-bold"
+                              >
+                                <span>Official Portal</span>
+                                <FiExternalLink size={11} />
+                              </a>
+                            )}
+                          </div>
+                          {b.notes && (
+                            <div className="col-span-2 text-[11px] text-slate-400 italic pt-1 border-t border-slate-800/80">
+                              Notes: {b.notes}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Operational Action */}
+                        <div className="flex items-center justify-between gap-3 pt-1">
+                          <div className="text-[11px] text-slate-400 font-medium">
+                            Operational Action:
+                          </div>
+                          <div className="w-48">
+                            <StatusDropdown
+                              currentStatus={b.status}
+                              disabled={statusUpdating[b._id]}
+                              validTransitions={validTransitions}
+                              onStatusChange={(newStatus) => handleStatusChange(b._id, newStatus)}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
         </main>
       </div>
 
@@ -1494,6 +2281,368 @@ export default function OperatorTripDetails() {
           setMessages((prev) => [...prev, newMsg]);
         }}
       />
+
+      {/* Vendor Selection Confirmation Dialog Modal */}
+      {vendorSelectionModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div>
+                <div className="text-[10px] font-black uppercase tracking-widest text-indigo-400">
+                  CONFIRM VENDOR SELECTION
+                </div>
+                <h3 className="text-base font-extrabold text-white">
+                  Select {vendorSelectionModal.vendorId?.name || "Vendor"}?
+                </h3>
+              </div>
+              <button
+                onClick={() => setVendorSelectionModal(null)}
+                className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition"
+              >
+                <FiX size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-2.5 text-xs bg-slate-950/70 p-4 rounded-xl border border-slate-800/80">
+              <div className="flex justify-between">
+                <span className="text-slate-400">Trip:</span>
+                <span className="font-bold text-white">{trip.title || "Campus Tour"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Route:</span>
+                <span className="font-bold text-white">
+                  {fleetVendorsData?.route?.originCity || trip.source} ({fleetVendorsData?.route?.originState || "Origin"}) → {fleetVendorsData?.route?.destinationCity || trip.destination} ({fleetVendorsData?.route?.destinationState || "Destination"})
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Dates:</span>
+                <span className="font-bold text-white">
+                  {trip.startDate ? formatDate(trip.startDate) : "Start"} – {trip.endDate ? formatDate(trip.endDate) : "End"}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Travelers:</span>
+                <span className="font-bold text-white">
+                  {campusFleetPlan?.totalTravelers} ({campusFleetPlan?.studentsCount || 0} students, {campusFleetPlan?.teachersStaffCount || 0} staff)
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Required Fleet:</span>
+                <span className="font-bold text-white">
+                  {campusFleetPlan?.vehiclesRequired}x {campusFleetPlan?.comfort} {campusFleetPlan?.vehicleType}
+                </span>
+              </div>
+              <div className="flex justify-between border-t border-slate-800 pt-2 text-sm">
+                <span className="font-bold text-indigo-300">Quote:</span>
+                <span className="font-black text-emerald-400">
+                  ₹{vendorSelectionModal.response?.quote ? vendorSelectionModal.response.quote.toLocaleString("en-IN") : "—"}
+                </span>
+              </div>
+              {vendorSelectionModal.response?.notes && (
+                <div className="text-slate-400 italic pt-1 border-t border-slate-800">
+                  Notes: "{vendorSelectionModal.response.notes}"
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                onClick={() => setVendorSelectionModal(null)}
+                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-300 font-bold text-xs transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSelectVendorConfirm}
+                disabled={selectingVendor}
+                className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg transition disabled:opacity-50"
+              >
+                {selectingVendor ? "Selecting..." : "Confirm Selection"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 1. OPERATOR CONFIRM VENDOR REQUEST MODAL */}
+      {showConfirmRequestModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-5 text-xs">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div>
+                <h3 className="text-base font-black text-white">
+                  Confirm Vendor Request
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  You are requesting availability and pricing from <strong className="text-indigo-400">{selectedVendorIds.length} connected vendors</strong>.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowConfirmRequestModal(false)}
+                className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition"
+              >
+                <FiX size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+              {/* Trip Requirements */}
+              <div className="bg-slate-950/80 p-3.5 rounded-xl border border-slate-800/80 space-y-1.5">
+                <div className="text-[10px] font-black uppercase tracking-wider text-indigo-400">
+                  TRIP REQUIREMENTS
+                </div>
+                <div className="text-sm font-extrabold text-white flex items-center gap-1.5">
+                  <span>{fleetVendorsData?.route?.originCity || trip?.source}</span>
+                  <span className="text-slate-500">→</span>
+                  <span>{fleetVendorsData?.route?.destinationCity || trip?.destination}</span>
+                </div>
+                <div className="text-slate-300 font-semibold">
+                  {campusFleetPlan?.totalTravelers || trip?.travelers || 20} Travelers
+                </div>
+                <div className="text-slate-400 text-[11px]">
+                  {campusFleetPlan?.studentsCount || trip?.travelers || 20} Students · {campusFleetPlan?.teachersStaffCount || 0} Staff
+                </div>
+              </div>
+
+              {/* Fleet Requirement */}
+              <div className="bg-slate-950/80 p-3.5 rounded-xl border border-slate-800/80 space-y-1.5">
+                <div className="text-[10px] font-black uppercase tracking-wider text-indigo-400">
+                  FLEET REQUIREMENT
+                </div>
+                <div className="text-sm font-extrabold text-white">
+                  {campusFleetPlan?.vehiclesRequired} × {campusFleetPlan?.comfort} {campusFleetPlan?.vehicleType}
+                </div>
+                <div className="text-slate-300">
+                  Minimum capacity: <strong className="text-white">{campusFleetPlan?.capacityPerVehicle} seats/vehicle</strong>
+                </div>
+                <div className="text-slate-300">
+                  Total capacity required: <strong className="text-emerald-400">{campusFleetPlan?.totalTravelers || trip?.travelers || 20}</strong>
+                </div>
+              </div>
+
+              {/* Traveler Preferences */}
+              <div className="bg-slate-950/80 p-3.5 rounded-xl border border-slate-800/80 space-y-1.5">
+                <div className="text-[10px] font-black uppercase tracking-wider text-indigo-400">
+                  TRAVELER PREFERENCES
+                </div>
+                <div className="grid grid-cols-2 gap-1.5 text-slate-300">
+                  <div>• {campusFleetPlan?.comfort || "AC"}</div>
+                  <div>• {campusFleetPlan?.vehicleType || "Coach"}</div>
+                  <div>• Group transport</div>
+                  <div>• Driver included</div>
+                  <div className="col-span-2">• Multi-day requirement</div>
+                </div>
+              </div>
+
+              {/* Vendor Response Request */}
+              <div className="bg-indigo-950/30 p-3.5 rounded-xl border border-indigo-900/50 space-y-1.5">
+                <div className="text-[10px] font-black uppercase tracking-wider text-indigo-300">
+                  VENDOR RESPONSE REQUEST
+                </div>
+                <div className="grid grid-cols-2 gap-1.5 text-indigo-200">
+                  <div className="flex items-center gap-1.5"><FiCheck size={12} className="text-emerald-400" /> Availability</div>
+                  <div className="flex items-center gap-1.5"><FiCheck size={12} className="text-emerald-400" /> Vehicle allocation</div>
+                  <div className="flex items-center gap-1.5"><FiCheck size={12} className="text-emerald-400" /> Price / quotation</div>
+                  <div className="flex items-center gap-1.5"><FiCheck size={12} className="text-emerald-400" /> Notes / conditions</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => setShowConfirmRequestModal(false)}
+                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-300 font-bold text-xs transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmSendVendorRequests}
+                disabled={dispatchingRequests}
+                className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:text-slate-500 text-white font-bold text-xs shadow-lg transition flex items-center gap-2"
+              >
+                <span>{dispatchingRequests ? "Sending Requests..." : "Send Request →"}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2. OPERATOR 1-TO-1 CHAT MODAL WITH VENDOR */}
+      {activeChatModalRequest && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 text-xs flex flex-col h-[520px]">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800 shrink-0">
+              <div>
+                <div className="text-[10px] font-black uppercase tracking-wider text-indigo-400">
+                  OPERATOR ↔ VENDOR CHAT
+                </div>
+                <h3 className="text-base font-extrabold text-white">
+                  {activeChatModalRequest.vendorId?.name || "Vendor"}
+                </h3>
+                <div className="text-[11px] text-slate-400">
+                  {activeChatModalRequest.route?.originCity || trip?.source} → {activeChatModalRequest.route?.destinationCity || trip?.destination} • Group Fleet Request
+                </div>
+              </div>
+              <button
+                onClick={() => setActiveChatModalRequest(null)}
+                className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition"
+              >
+                <FiX size={18} />
+              </button>
+            </div>
+
+            {/* Message Thread */}
+            <div className="flex-1 overflow-y-auto space-y-2.5 p-3 bg-slate-950/70 rounded-xl border border-slate-800">
+              {loadingChatMessages ? (
+                <div className="text-center text-slate-500 py-8">Loading messages...</div>
+              ) : chatMessages.length === 0 ? (
+                <div className="text-center text-slate-500 py-8 italic">
+                  No messages yet. Send a message to coordinate with {activeChatModalRequest.vendorId?.name || "the vendor"}.
+                </div>
+              ) : (
+                chatMessages.map((m) => {
+                  const isOperator = m.senderRole === "operator";
+                  return (
+                    <div
+                      key={m._id || Math.random()}
+                      className={`flex flex-col ${isOperator ? "items-end" : "items-start"}`}
+                    >
+                      <div className="text-[10px] text-slate-400 mb-0.5">
+                        {isOperator ? "Operator (You)" : (m.senderName || "Vendor")}
+                      </div>
+                      <div
+                        className={`p-2.5 rounded-xl max-w-[85%] text-xs ${
+                          isOperator
+                            ? "bg-indigo-600 text-white rounded-br-xs"
+                            : "bg-slate-800 text-slate-200 rounded-bl-xs border border-slate-700"
+                        }`}
+                      >
+                        {m.message}
+                      </div>
+                      <div className="text-[9px] text-slate-500 mt-0.5">
+                        {new Date(m.createdAt || Date.now()).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Input form */}
+            <form onSubmit={handleSendChatMessage} className="flex gap-2 shrink-0 pt-1">
+              <input
+                type="text"
+                placeholder="Type message..."
+                value={chatMessageInput}
+                onChange={(e) => setChatMessageInput(e.target.value)}
+                className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 transition"
+              />
+              <button
+                type="submit"
+                disabled={sendingChatMessage || !chatMessageInput.trim()}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-bold text-xs rounded-xl transition flex items-center gap-1.5"
+              >
+                <span>Send</span>
+                <FiSend size={12} />
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 3. VIEW RESPONSE DETAILS MODAL */}
+      {viewResponseModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 text-xs">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div>
+                <div className="text-[10px] font-black uppercase tracking-wider text-indigo-400">
+                  VENDOR RESPONSE DETAILS
+                </div>
+                <h3 className="text-base font-extrabold text-white">
+                  {viewResponseModal.vendorId?.name || "Connected Vendor"}
+                </h3>
+              </div>
+              <button
+                onClick={() => setViewResponseModal(null)}
+                className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition"
+              >
+                <FiX size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-3 bg-slate-950/70 p-4 rounded-xl border border-slate-800 text-slate-300">
+              <div className="flex justify-between items-center">
+                <span className="text-slate-400">Status:</span>
+                <span className="font-bold text-white uppercase">{viewResponseModal.status}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-400">Availability:</span>
+                <span className="font-extrabold text-emerald-400">
+                  {viewResponseModal.response?.availability || "AWAITING RESPONSE"}
+                </span>
+              </div>
+
+              {viewResponseModal.response?.vehicles && viewResponseModal.response.vehicles.length > 0 && (
+                <div className="border-t border-slate-800 pt-2 space-y-1">
+                  <span className="text-slate-400 font-bold block">Allocated Vehicles:</span>
+                  {viewResponseModal.response.vehicles.map((v, i) => (
+                    <div key={i} className="text-white">
+                      • {v.count} × {v.category} ({v.seatsPerVehicle} seats each, total {v.totalCapacity} seats)
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {viewResponseModal.response?.quotation && (
+                <div className="border-t border-slate-800 pt-2 space-y-1">
+                  <span className="text-slate-400 font-bold block">Quotation Breakdown:</span>
+                  <div className="flex justify-between">
+                    <span>Base Amount:</span>
+                    <span className="font-semibold text-white">₹{viewResponseModal.response.quotation.baseAmount?.toLocaleString("en-IN") || 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Additional Charges:</span>
+                    <span className="font-semibold text-white">₹{viewResponseModal.response.quotation.additionalCharges?.toLocaleString("en-IN") || 0}</span>
+                  </div>
+                  <div className="flex justify-between border-t border-slate-800 pt-1 text-sm font-extrabold text-emerald-400">
+                    <span>Total Amount:</span>
+                    <span>₹{viewResponseModal.response.quotation.totalAmount?.toLocaleString("en-IN") || 0}</span>
+                  </div>
+                </div>
+              )}
+
+              {viewResponseModal.response?.notes && (
+                <div className="border-t border-slate-800 pt-2">
+                  <span className="text-slate-400 font-bold block">Notes:</span>
+                  <p className="text-slate-300 italic mt-0.5">"{viewResponseModal.response.notes}"</p>
+                </div>
+              )}
+
+              {viewResponseModal.response?.rejectionReason && (
+                <div className="border-t border-slate-800 pt-2 text-rose-400">
+                  <span className="font-bold block">Rejection Reason:</span>
+                  <p className="mt-0.5">{viewResponseModal.response.rejectionReason}</p>
+                  {viewResponseModal.response.rejectionMessage && (
+                    <p className="italic text-xs text-rose-300 mt-0.5">"{viewResponseModal.response.rejectionMessage}"</p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                onClick={() => setViewResponseModal(null)}
+                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-300 font-bold text-xs transition"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

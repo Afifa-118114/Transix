@@ -10,8 +10,10 @@ const getUserNotifications = asyncHandler(async (req, res) => {
   const notifications = await Notification.find({ recipientId: userId })
     .sort({ createdAt: -1 })
     .limit(50)
-    .populate("tripId", "destination source organizationDetails tripCategory status")
+    .populate("tripId", "destination source organizationDetails tripCategory status startDate endDate")
     .populate("messageId", "message subject senderRole createdAt readAt")
+    .populate("vendorRequestId")
+    .populate("vendorId", "name status fleet")
     .populate("senderId", "name email role");
 
   const unreadCount = await Notification.countDocuments({

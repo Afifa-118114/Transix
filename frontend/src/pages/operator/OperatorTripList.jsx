@@ -40,6 +40,15 @@ export default function OperatorTripList() {
       }
     };
     fetchData();
+
+    const interval = setInterval(fetchData, 10000);
+    const onFocus = () => fetchData();
+    window.addEventListener("focus", onFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
+    };
   }, []);
 
   // Filter trips according to ?type=

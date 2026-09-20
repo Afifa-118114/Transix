@@ -18,6 +18,12 @@ import TravelOptionsPage from "../pages/TravelOptionsPage";
 import OperatorDashboard from "../pages/operator/OperatorDashboard";
 import OperatorTripList from "../pages/operator/OperatorTripList";
 import OperatorTripDetails from "../pages/operator/OperatorTripDetails";
+import OperatorVendors from "../pages/operator/OperatorVendors";
+import OperatorBookings from "../pages/operator/OperatorBookings";
+import OperatorActivities from "../pages/operator/OperatorActivities";
+import OperatorVendorRequests from "../pages/operator/OperatorVendorRequests";
+import OperatorChatPage from "../pages/operator/OperatorChatPage";
+import DemoVendorPortal from "../pages/vendor/DemoVendorPortal";
 
 import TourBuilder from "../pages/TourBuilder";
 import CampusLanding from "../pages/CampusLanding";
@@ -151,6 +157,14 @@ function AppRoutes() {
       <Route path="/operator/dashboard" element={<ProtectedRoute allowedRoles={["operator", "admin"]}><OperatorDashboard /></ProtectedRoute>} />
       <Route path="/operator/trips" element={<ProtectedRoute allowedRoles={["operator", "admin"]}><OperatorTripList /></ProtectedRoute>} />
       <Route path="/operator/trips/:tripId" element={<ProtectedRoute allowedRoles={["operator", "admin"]}><OperatorTripDetails /></ProtectedRoute>} />
+      <Route path="/operator/bookings" element={<ProtectedRoute allowedRoles={["operator", "admin"]}><OperatorBookings /></ProtectedRoute>} />
+      <Route path="/operator/activities" element={<ProtectedRoute allowedRoles={["operator", "admin"]}><OperatorActivities /></ProtectedRoute>} />
+      <Route path="/operator/vendor-requests" element={<ProtectedRoute allowedRoles={["operator", "admin"]}><OperatorVendorRequests /></ProtectedRoute>} />
+      <Route path="/operator/chat" element={<ProtectedRoute allowedRoles={["operator", "admin"]}><OperatorChatPage /></ProtectedRoute>} />
+      <Route path="/operator/vendors" element={<ProtectedRoute allowedRoles={["operator", "admin"]}><OperatorVendors /></ProtectedRoute>} />
+
+      {/* Demo Vendor Portal Route */}
+      <Route path="/vendor/requests" element={<DemoVendorPortal />} />
     </Routes>
   );
 }

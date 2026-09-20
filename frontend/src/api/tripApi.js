@@ -41,6 +41,19 @@ export const updateTrip = async (tripId, tripData, token) => {
   return res.data;
 };
 
+export const finalizeTrip = async (tripId, token) => {
+  const res = await axios.post(
+    `${API}/trips/${tripId}/finalize`,
+    {},
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+  return res.data;
+};
+
 export const updateOperatorAccess = async (tripId, enabled, token) => {
   const res = await axios.patch(
     `${API}/trips/${tripId}/operator-access`,

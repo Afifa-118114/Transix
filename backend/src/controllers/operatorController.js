@@ -4,6 +4,11 @@ const User = require("../models/User");
 const BookingRequirement = require("../models/BookingRequirement");
 const TripMessage = require("../models/TripMessage");
 const Notification = require("../models/Notification");
+const Vendor = require("../models/Vendor");
+const VendorRequest = require("../models/VendorRequest");
+const VendorRequestMessage = require("../models/VendorRequestMessage");
+const { findMatchingFleetVendors } = require("../services/vendorMatchingService");
+const { resolveCityToState } = require("../services/locationService");
 const AppError = require("../utils/AppError");
 
 // Synchronize canonical trip data with operator BookingRequirement collection
@@ -44,8 +49,18 @@ const syncTripRequirements = async (trip) => {
     ? trip.busRequirements
     : detectBusRequirements(trip);
 
-  const isCampus = trip.tripCategory === "CAMPUS";
-  const campusPlan = trip.campusTransportPlan || (isCampus ? trip.campusConfig?.groupTransportPlan : null);
+  const isCampus = trip.tripCategory === "CAMPUS" || Boolean(trip.campusConfig?.expectedParticipants);
+  const campusPlan = trip.campusTransportPlan || (isCampus ? trip.campusConfig?.groupTransportPlan : null) || (isCampus ? {
+    vehiclesRequired: Math.ceil((trip.travelers || 20) / 25),
+    vehicleType: "Coach",
+    comfort: "AC",
+    capacityPerVehicle: 25,
+    totalTravelers: trip.travelers || 20,
+    studentsCount: trip.travelers || 20,
+    teachersStaffCount: 0,
+    luggageCount: trip.travelers || 20,
+    notes: "",
+  } : null);
 
   if (isCampus) {
     // 1. For Campus trips, sync the master Group Transport Plan fleet requirement (ONE fleet arrangement)
@@ -392,6 +407,40 @@ const getDashboardStats = asyncHandler(async (req, res) => {
           type: "VISIT",
         });
       }
+    }
+  }
+
+  // 5. Derive actionable work from real VendorRequest records
+  const allVendorRequests = await VendorRequest.find({ tripId: { $in: tripIds } }).populate("vendorId", "name");
+  for (const trip of trips) {
+    const tripRequests = allVendorRequests.filter(r => r.tripId.toString() === trip._id.toString());
+    const respondedRequests = tripRequests.filter(r => r.status === "RESPONDED");
+    const awaitingConfirmationRequests = tripRequests.filter(r => r.status === "CONFIRMATION_REQUESTED");
+
+    const tripLabel = trip.tripCategory === "CAMPUS" 
+      ? `Campus Trip • ${trip.organizationDetails?.name || trip.destination}`
+      : `Personal Trip • ${trip.source} → ${trip.destination}`;
+
+    if (respondedRequests.length > 0) {
+      actionItems.push({
+        id: `vendor-resp-${trip._id}`,
+        tripId: trip._id,
+        title: `${respondedRequests.length} Vendor response${respondedRequests.length > 1 ? "s" : ""} awaiting review`,
+        subtitle: tripLabel,
+        severity: "HIGH",
+        type: "VENDOR_RESPONSE",
+      });
+    }
+
+    if (awaitingConfirmationRequests.length > 0) {
+      actionItems.push({
+        id: `vendor-conf-${trip._id}`,
+        tripId: trip._id,
+        title: "Fleet confirmation awaiting vendor response",
+        subtitle: tripLabel,
+        severity: "MEDIUM",
+        type: "VENDOR_CONFIRMATION",
+      });
     }
   }
 
@@ -881,6 +930,584 @@ const updateTripOperationalStatus = asyncHandler(async (req, res) => {
   });
 });
 
+const getFleetVendorsForTrip = asyncHandler(async (req, res) => {
+  const { tripId } = req.params;
+
+  const trip = await Trip.findById(tripId);
+  if (!trip) throw new AppError("Trip not found", 404);
+
+  // Synchronize trip requirements so campus-group-fleet requirement is up to date
+  await syncTripRequirements(trip);
+
+  const fleetBooking = await BookingRequirement.findOne({
+    tripId: trip._id,
+    itemId: "campus-group-fleet",
+    type: "TRANSPORT",
+  });
+
+  const isCampus = trip.tripCategory === "CAMPUS" || Boolean(trip.campusConfig?.expectedParticipants);
+  const campusPlan = trip.campusTransportPlan || (isCampus ? trip.campusConfig?.groupTransportPlan : null) || {
+    vehiclesRequired: Math.ceil((trip.travelers || 20) / 25),
+    vehicleType: "Luxury Coach",
+    comfort: "AC",
+    capacityPerVehicle: 25,
+    totalTravelers: trip.travelers || 20,
+    studentsCount: trip.travelers || 20,
+    teachersStaffCount: 0,
+    luggageCount: trip.travelers || 20,
+    notes: "",
+  };
+
+  const matchingResult = await findMatchingFleetVendors({
+    originCity: trip.source,
+    destinationCity: trip.destination,
+    fleetRequirement: campusPlan,
+  });
+
+  // Get existing requests for this trip
+  const existingRequests = await VendorRequest.find({ tripId: trip._id })
+    .populate("vendorId", "name status fleet capabilities serviceStates")
+    .sort({ createdAt: -1 });
+
+  res.status(200).json({
+    success: true,
+    trip: {
+      _id: trip._id,
+      source: trip.source,
+      destination: trip.destination,
+      startDate: trip.startDate,
+      endDate: trip.endDate,
+      travelers: trip.travelers,
+      tripCategory: trip.tripCategory,
+      organizationDetails: trip.organizationDetails,
+    },
+    fleetRequirement: campusPlan,
+    fleetBooking,
+    route: matchingResult.route || {
+      originCity: trip.source,
+      originState: "Resolving state...",
+      destinationCity: trip.destination,
+      destinationState: "Resolving state...",
+    },
+    totalConnectedVendors: matchingResult.totalConnectedVendors || 100,
+    matchedCount: matchingResult.matchedVendors?.length || 0,
+    matchedVendors: matchingResult.matchedVendors || [],
+    partiallyMatchedVendors: matchingResult.partiallyMatchedVendors || [],
+    rejectedVendors: matchingResult.rejectedVendors || [],
+    summary: matchingResult.summary || {},
+    matching: matchingResult,
+    existingRequests,
+  });
+});
+
+const sendFleetVendorRequests = asyncHandler(async (req, res) => {
+  const { tripId } = req.params;
+  let rawVendorIds = req.body.vendorIds !== undefined ? req.body.vendorIds : req.body;
+  if (!Array.isArray(rawVendorIds) && rawVendorIds && Array.isArray(rawVendorIds.vendorIds)) {
+    rawVendorIds = rawVendorIds.vendorIds;
+  }
+  const vendorIds = Array.isArray(rawVendorIds) ? rawVendorIds : [];
+
+  if (vendorIds.length === 0) {
+    throw new AppError("Please provide an array of vendor IDs to send requests to", 400);
+  }
+
+  const trip = await Trip.findById(tripId);
+  if (!trip) throw new AppError("Trip not found", 404);
+
+  const isCampus = trip.tripCategory === "CAMPUS" || Boolean(trip.campusConfig?.expectedParticipants);
+  const campusPlan = trip.campusTransportPlan || (isCampus ? trip.campusConfig?.groupTransportPlan : null) || {
+    vehiclesRequired: Math.ceil((trip.travelers || 20) / 25),
+    vehicleType: "Coach",
+    comfort: "AC",
+    capacityPerVehicle: 25,
+    totalTravelers: trip.travelers || 20,
+    studentsCount: trip.travelers || 20,
+    teachersStaffCount: 0,
+    luggageCount: trip.travelers || 20,
+    notes: "",
+  };
+
+  let fleetBooking = await BookingRequirement.findOne({
+    tripId: trip._id,
+    itemId: "campus-group-fleet",
+    type: "TRANSPORT",
+  });
+
+  if (!fleetBooking) {
+    await syncTripRequirements(trip);
+    fleetBooking = await BookingRequirement.findOne({
+      tripId: trip._id,
+      itemId: "campus-group-fleet",
+      type: "TRANSPORT",
+    });
+  }
+
+  // Direct upsert guarantee if not yet in database
+  if (!fleetBooking) {
+    const travelerId = trip.user?._id || trip.user || trip.coordinatorId?._id || trip.coordinatorId || req.user?._id;
+    fleetBooking = await BookingRequirement.findOneAndUpdate(
+      { tripId: trip._id, itemId: "campus-group-fleet", type: "TRANSPORT" },
+      {
+        $setOnInsert: {
+          travelerId,
+          status: "PENDING",
+        },
+        $set: {
+          title: `Campus Fleet: ${campusPlan.vehiclesRequired}x ${campusPlan.comfort} ${campusPlan.vehicleType} (${campusPlan.totalTravelers} Travelers)`,
+          location: `${trip.source} → ${trip.destination} (Tour Fleet)`,
+          vendorName: "Pending Fleet Vendor Assignment",
+          notes: `${campusPlan.vehiclesRequired} vehicles required (${campusPlan.capacityPerVehicle} seats/coach) for ${campusPlan.totalTravelers} travelers.`,
+        },
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+  }
+
+  const originResolution = await resolveCityToState(trip.source);
+  const destResolution = await resolveCityToState(trip.destination);
+
+  const originState = originResolution.resolved ? originResolution.state : "Unknown";
+  const destState = destResolution.resolved ? destResolution.state : "Unknown";
+  const totalTravelers = Number(campusPlan.totalTravelers) || Number(trip.travelers) || 20;
+  const studentsCount = Number(campusPlan.studentsCount) || totalTravelers;
+  const staffCount = Number(campusPlan.teachersStaffCount) || 0;
+  const vehiclesRequired = Number(campusPlan.vehiclesRequired) || 1;
+  const capacityPerVehicle = Number(campusPlan.capacityPerVehicle) || 25;
+  const vehicleCategory = campusPlan.vehicleType || "Coach";
+
+  const requestSnapshot = {
+    originCity: trip.source,
+    destinationCity: trip.destination,
+    originState,
+    destinationState: destState,
+    travelStartDate: trip.startDate,
+    travelEndDate: trip.endDate,
+    totalTravelers,
+    studentsCount,
+    teachersStaffCount: staffCount,
+    vehiclesRequired,
+    capacityPerVehicle,
+    vehicleType: vehicleCategory,
+    comfort: campusPlan.comfort || "AC",
+    luggageCount: campusPlan.luggageCount || totalTravelers,
+    requiredCapabilities: {
+      intercity: true,
+      multiDay: true,
+      groupTransport: true,
+      driverIncluded: true,
+    },
+    notes: campusPlan.notes || "",
+  };
+
+  const createdRequests = [];
+  const skippedVendorIds = [];
+
+  for (const vId of vendorIds) {
+    const existing = await VendorRequest.findOne({
+      tripId: trip._id,
+      vendorId: vId,
+      requestType: "GROUP_FLEET",
+    });
+
+    if (existing) {
+      skippedVendorIds.push(vId);
+      continue;
+    }
+
+    const newReq = await VendorRequest.create({
+      tripId: trip._id,
+      fleetRequirementId: fleetBooking._id,
+      bookingRequirementId: fleetBooking._id,
+      vendorId: vId,
+      requestType: "GROUP_FLEET",
+      status: "SENT",
+      requestedAt: new Date(),
+      route: {
+        originCity: trip.source,
+        originState,
+        destinationCity: trip.destination,
+        destinationState: destState,
+      },
+      travelers: {
+        total: totalTravelers,
+        students: studentsCount,
+        staff: staffCount,
+      },
+      tripType: "Campus",
+      duration: "Multi-day",
+      fleetRequirement: {
+        vehicleCategory,
+        vehicleCount: vehiclesRequired,
+        minimumCapacityPerVehicle: capacityPerVehicle,
+        totalCapacityRequired: totalTravelers,
+        ac: campusPlan.comfort !== "NON_AC",
+        driverIncluded: true,
+        groupTransport: true,
+        multiDay: true,
+      },
+      preferences: {
+        ac: campusPlan.comfort !== "NON_AC",
+        vehicleCategory,
+        groupTransport: true,
+        driverIncluded: true,
+        multiDay: true,
+      },
+      requestedResponse: {
+        availability: true,
+        vehicleAllocation: true,
+        quotation: true,
+        notes: true,
+      },
+      requestSnapshot,
+    });
+
+    createdRequests.push(newReq);
+  }
+
+  // If fleet booking was NOT_BOOKED or PENDING, transition to PROCESSING
+  if (createdRequests.length > 0 && (fleetBooking.status === "NOT_BOOKED" || fleetBooking.status === "PENDING")) {
+    fleetBooking.status = "PROCESSING";
+    fleetBooking.notes = `${fleetBooking.notes || ""} [Requests sent to ${createdRequests.length} vendor(s)]`.trim();
+    await fleetBooking.save();
+  }
+
+  res.status(200).json({
+    success: true,
+    message: `Requests dispatched to ${createdRequests.length} vendor(s)${skippedVendorIds.length > 0 ? ` (${skippedVendorIds.length} already had active requests)` : ""}`,
+    createdCount: createdRequests.length,
+    skippedCount: skippedVendorIds.length,
+    requests: createdRequests,
+  });
+});
+
+const getOperatorVendorRequestMessages = asyncHandler(async (req, res) => {
+  const { requestId } = req.params;
+
+  const request = await VendorRequest.findById(requestId).populate("vendorId", "name");
+  if (!request) {
+    throw new AppError("Vendor request not found", 404);
+  }
+
+  const messages = await VendorRequestMessage.find({ vendorRequestId: requestId }).sort({ createdAt: 1 });
+
+  res.status(200).json({
+    success: true,
+    count: messages.length,
+    vendorName: request.vendorId?.name || "Vendor",
+    messages,
+  });
+});
+
+const sendOperatorVendorRequestMessage = asyncHandler(async (req, res) => {
+  const { requestId } = req.params;
+  const { message } = req.body;
+
+  if (!message || !message.trim()) {
+    throw new AppError("Message content cannot be empty", 400);
+  }
+
+  const request = await VendorRequest.findById(requestId).populate("vendorId", "name");
+  if (!request) {
+    throw new AppError("Vendor request not found", 404);
+  }
+
+  const newMsg = await VendorRequestMessage.create({
+    vendorRequestId: requestId,
+    tripId: request.tripId,
+    vendorId: request.vendorId?._id || request.vendorId,
+    senderRole: "operator",
+    senderName: req.user?.name || "Transix Operations",
+    message: message.trim(),
+  });
+
+  res.status(201).json({
+    success: true,
+    message: newMsg,
+  });
+});
+
+const getTripFleetVendorRequests = asyncHandler(async (req, res) => {
+  const { tripId } = req.params;
+
+  const requests = await VendorRequest.find({ tripId })
+    .populate("vendorId", "name status fleet capabilities serviceStates")
+    .sort({ createdAt: -1 });
+
+  res.status(200).json({
+    success: true,
+    count: requests.length,
+    requests,
+  });
+});
+
+const selectFleetVendor = asyncHandler(async (req, res) => {
+  const { tripId } = req.params;
+  const { requestId } = req.body;
+
+  if (!requestId) {
+    throw new AppError("requestId is required", 400);
+  }
+
+  const selectedRequest = await VendorRequest.findOne({ _id: requestId, tripId })
+    .populate("vendorId", "name");
+
+  if (!selectedRequest) {
+    throw new AppError("Vendor request not found for this trip", 404);
+  }
+
+  if (selectedRequest.response?.availability === "UNAVAILABLE") {
+    throw new AppError("Cannot select a vendor that responded as UNAVAILABLE", 400);
+  }
+
+  selectedRequest.status = "SELECTED";
+  await selectedRequest.save();
+
+  res.status(200).json({
+    success: true,
+    message: `Selected ${selectedRequest.vendorId?.name || "vendor"} for this group fleet requirement`,
+    request: selectedRequest,
+  });
+});
+
+const requestFleetVendorConfirmation = asyncHandler(async (req, res) => {
+  const { tripId } = req.params;
+  const { requestId } = req.body;
+
+  if (!requestId) {
+    throw new AppError("requestId is required", 400);
+  }
+
+  const request = await VendorRequest.findOne({ _id: requestId, tripId })
+    .populate("vendorId", "name");
+
+  if (!request) {
+    throw new AppError("Vendor request not found for this trip", 404);
+  }
+
+  if (request.status !== "SELECTED" && request.status !== "RESPONDED") {
+    throw new AppError("Request must be in RESPONDED or SELECTED state to request confirmation", 400);
+  }
+
+  if (request.response?.availability === "UNAVAILABLE") {
+    throw new AppError("Cannot request confirmation for an UNAVAILABLE response", 400);
+  }
+
+  request.status = "CONFIRMATION_REQUESTED";
+  request.confirmation = {
+    status: "PENDING",
+  };
+  await request.save();
+
+  res.status(200).json({
+    success: true,
+    message: `Confirmation requested from ${request.vendorId?.name || "vendor"}`,
+    request,
+  });
+});
+
+const getAllVendorsDirectory = asyncHandler(async (req, res) => {
+  const { state, category, comfort, capability, search } = req.query;
+
+  const query = {};
+
+  if (state) {
+    query.serviceStates = { $in: [new RegExp(`^${state.trim()}$`, "i")] };
+  }
+  if (category) {
+    query["fleet.category"] = category.trim();
+  }
+  if (comfort) {
+    query["fleet.comfort"] = new RegExp(`^${comfort.trim()}$`, "i");
+  }
+  if (capability) {
+    query[`capabilities.${capability.trim()}`] = true;
+  }
+  if (search) {
+    query.name = new RegExp(search.trim(), "i");
+  }
+
+  const vendors = await Vendor.find(query).sort({ name: 1 });
+  const allStates = await Vendor.distinct("serviceStates");
+  const allCategories = await Vendor.distinct("fleet.category");
+
+  res.status(200).json({
+    success: true,
+    count: vendors.length,
+    vendors,
+    filterMeta: {
+      states: allStates.sort(),
+      categories: allCategories.sort(),
+      comforts: ["STANDARD", "COMFORT", "LUXURY"],
+      capabilities: ["intercity", "multiDay", "groupTransport", "driverIncluded"],
+    },
+  });
+});
+
+const getOperatorBookings = asyncHandler(async (req, res) => {
+  const operatorQuery = { "operatorAccess.enabled": true, status: "Finalized" };
+  const trips = await Trip.find(operatorQuery).populate("user", "name email");
+
+  for (const trip of trips) {
+    await syncTripRequirements(trip);
+  }
+
+  const tripIds = trips.map(t => t._id);
+  const tripMap = new Map();
+  trips.forEach(t => tripMap.set(t._id.toString(), t));
+
+  const allBookings = await BookingRequirement.find({ tripId: { $in: tripIds } }).sort({ updatedAt: -1 });
+
+  const enrichedBookings = allBookings.map(b => {
+    const trip = tripMap.get(b.tripId.toString());
+    return {
+      ...b.toObject(),
+      trip: trip ? {
+        _id: trip._id,
+        source: trip.source,
+        destination: trip.destination,
+        startDate: trip.startDate,
+        endDate: trip.endDate,
+        duration: trip.duration,
+        travelers: trip.travelers,
+        tripCategory: trip.tripCategory,
+        organizationDetails: trip.organizationDetails,
+        campusTransportPlan: trip.campusTransportPlan,
+        localTransportPreference: trip.localTransportPreference,
+        staySegments: trip.staySegments,
+      } : null,
+    };
+  });
+
+  res.status(200).json({
+    success: true,
+    count: enrichedBookings.length,
+    bookings: enrichedBookings,
+  });
+});
+
+const getOperatorAllVendorRequests = asyncHandler(async (req, res) => {
+  const operatorQuery = { "operatorAccess.enabled": true, status: "Finalized" };
+  const trips = await Trip.find(operatorQuery).select("source destination startDate endDate duration travelers tripCategory organizationDetails");
+
+  const tripIds = trips.map(t => t._id);
+  const tripMap = new Map();
+  trips.forEach(t => tripMap.set(t._id.toString(), t));
+
+  const requests = await VendorRequest.find({ tripId: { $in: tripIds } })
+    .populate("vendorId", "name status fleet capabilities serviceStates")
+    .sort({ createdAt: -1 });
+
+  const enrichedRequests = requests.map(r => {
+    const trip = tripMap.get(r.tripId.toString());
+    return {
+      ...r.toObject(),
+      trip: trip ? {
+        _id: trip._id,
+        source: trip.source,
+        destination: trip.destination,
+        startDate: trip.startDate,
+        endDate: trip.endDate,
+        duration: trip.duration,
+        travelers: trip.travelers,
+        tripCategory: trip.tripCategory,
+        organizationDetails: trip.organizationDetails,
+      } : null,
+    };
+  });
+
+  res.status(200).json({
+    success: true,
+    count: enrichedRequests.length,
+    requests: enrichedRequests,
+  });
+});
+
+const getOperatorConversations = asyncHandler(async (req, res) => {
+  const operatorQuery = { "operatorAccess.enabled": true, status: "Finalized" };
+  const trips = await Trip.find(operatorQuery)
+    .populate("user", "name email role")
+    .populate("coordinatorId", "name email phone role")
+    .sort({ updatedAt: -1 });
+
+  const tripIds = trips.map(t => t._id);
+
+  // 1. Traveler conversations (TripMessage)
+  const allTripMessages = await TripMessage.find({ tripId: { $in: tripIds } }).sort({ createdAt: -1 });
+  
+  const travelers = trips.map(trip => {
+    const isCampus = trip.tripCategory === "CAMPUS";
+    const tripOwner = isCampus ? (trip.coordinatorId || trip.user) : trip.user;
+    const msgs = allTripMessages.filter(m => m.tripId.toString() === trip._id.toString());
+    const lastMsg = msgs[0] || null;
+    const unread = msgs.filter(m => m.senderRole !== "operator" && !m.readAt).length;
+
+    return {
+      type: "TRAVELER",
+      id: trip._id.toString(),
+      tripId: trip._id.toString(),
+      tripCategory: isCampus ? "CAMPUS" : "PERSONAL",
+      contactName: tripOwner?.name || (isCampus ? "Campus Coordinator" : "Traveler"),
+      contactRole: isCampus ? "Campus Coordinator" : "Traveler",
+      organizationName: isCampus ? (trip.organizationDetails?.name || "Campus Institution") : null,
+      route: `${trip.source} → ${trip.destination}`,
+      dates: `${new Date(trip.startDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${new Date(trip.endDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`,
+      lastMessage: lastMsg ? {
+        text: lastMsg.message,
+        timestamp: lastMsg.createdAt,
+        senderRole: lastMsg.senderRole,
+      } : null,
+      unreadCount: unread,
+    };
+  });
+
+  // 2. Vendor conversations (VendorRequestMessage)
+  const allVendorRequests = await VendorRequest.find({ tripId: { $in: tripIds } })
+    .populate("vendorId", "name status fleet")
+    .sort({ createdAt: -1 });
+
+  const vendorReqIds = allVendorRequests.map(r => r._id);
+  const allVendorMessages = await VendorRequestMessage.find({ vendorRequestId: { $in: vendorReqIds } }).sort({ createdAt: -1 });
+
+  const tripMap = new Map();
+  trips.forEach(t => tripMap.set(t._id.toString(), t));
+
+  const vendors = allVendorRequests.map(reqItem => {
+    const trip = tripMap.get(reqItem.tripId?.toString());
+    const msgs = allVendorMessages.filter(m => m.vendorRequestId.toString() === reqItem._id.toString());
+    const lastMsg = msgs[0] || null;
+
+    const fleetReq = reqItem.fleetRequirement || {};
+    const vehicleText = fleetReq.vehicleCount ? `${fleetReq.vehicleCount} × ${fleetReq.vehicleCategory || "Coach"}` : "Group Fleet";
+
+    return {
+      type: "VENDOR",
+      id: reqItem._id.toString(),
+      requestId: reqItem._id.toString(),
+      tripId: reqItem.tripId?.toString(),
+      vendorName: reqItem.vendorId?.name || "Connected Vendor",
+      route: trip ? `${trip.source} → ${trip.destination}` : `${reqItem.route?.originCity || "Origin"} → ${reqItem.route?.destinationCity || "Destination"}`,
+      dates: trip ? `${new Date(trip.startDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${new Date(trip.endDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}` : "",
+      operationalRequirement: vehicleText,
+      status: reqItem.status,
+      lastMessage: lastMsg ? {
+        text: lastMsg.message,
+        timestamp: lastMsg.createdAt,
+        senderRole: lastMsg.senderRole,
+      } : null,
+      unreadCount: 0,
+    };
+  });
+
+  res.status(200).json({
+    success: true,
+    conversations: {
+      travelers,
+      vendors,
+    },
+  });
+});
+
 module.exports = {
   getDashboardStats,
   getOperatorTrips,
@@ -891,4 +1518,15 @@ module.exports = {
   markMessagesRead,
   updateBookingStatus,
   updateTripOperationalStatus,
+  getFleetVendorsForTrip,
+  sendFleetVendorRequests,
+  getTripFleetVendorRequests,
+  selectFleetVendor,
+  requestFleetVendorConfirmation,
+  getAllVendorsDirectory,
+  getOperatorVendorRequestMessages,
+  sendOperatorVendorRequestMessage,
+  getOperatorBookings,
+  getOperatorAllVendorRequests,
+  getOperatorConversations,
 };

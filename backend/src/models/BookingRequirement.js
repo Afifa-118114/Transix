@@ -33,6 +33,10 @@ const bookingRequirementSchema = new mongoose.Schema(
     vendorName: {
       type: String,
     },
+    vendorId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Vendor",
+    },
     externalUrl: {
       type: String,
     },

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { getDashboardStats, getOperatorTrips } from "../../api/operatorApi";
+import { getDashboardStats, getOperatorTrips, getOperatorAllVendorRequests } from "../../api/operatorApi";
 import { formatDate } from "../../utils/formatTrip";
 import { useAuth } from "../../context/AuthContext";
 import OperatorSidebar from "../../components/operator/OperatorSidebar";
@@ -8,7 +8,7 @@ import {
   FiActivity, FiCalendar, FiClock, FiAlertCircle, FiCheckCircle, 
   FiArrowRight, FiShield, FiBriefcase, FiUsers,
   FiZap, FiMenu, FiX, FiCheck, FiUser,
-  FiAlertTriangle, FiCompass
+  FiAlertTriangle, FiCompass, FiSend
 } from "react-icons/fi";
 import { GraduationCap } from "lucide-react";
 
@@ -19,6 +19,7 @@ export default function OperatorDashboard() {
   const [actionItems, setActionItems] = useState([]);
   const [recentUpdates, setRecentUpdates] = useState([]);
   const [trips, setTrips] = useState([]);
+  const [vendorRequests, setVendorRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -26,9 +27,10 @@ export default function OperatorDashboard() {
     const fetchDashboardData = async () => {
       try {
         const token = localStorage.getItem("token");
-        const [statsData, tripsData] = await Promise.all([
+        const [statsData, tripsData, vendorRequestsData] = await Promise.all([
           getDashboardStats(token),
-          getOperatorTrips(token)
+          getOperatorTrips(token),
+          getOperatorAllVendorRequests(token).catch(() => null),
         ]);
         
         if (statsData?.success) {
@@ -39,13 +41,25 @@ export default function OperatorDashboard() {
         if (tripsData?.success) {
           setTrips(tripsData.trips || []);
         }
+        if (vendorRequestsData?.success) {
+          setVendorRequests(vendorRequestsData.requests || []);
+        }
       } catch (err) {
-        console.error("Failed to load operator dashboard data", err);
+        console.error("Failed to load Tour Operation Center data", err);
       } finally {
         setLoading(false);
       }
     };
     fetchDashboardData();
+
+    const interval = setInterval(fetchDashboardData, 10000);
+    const onFocus = () => fetchDashboardData();
+    window.addEventListener("focus", onFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
+    };
   }, []);
 
   // Time-of-day greeting
@@ -56,17 +70,47 @@ export default function OperatorDashboard() {
     return "Good evening";
   }, []);
 
-  // Real operator display name
+  // Operator display name
   const operatorDisplayName = user?.name ? user.name.split(" ")[0] : "Operator";
 
-  // Data-driven classification of trips
-  const activeTrips = useMemo(() => {
-    return trips.filter(t => t.timingStatus === "ACTIVE");
+  // Data-driven categorization of trips
+  const personalTrips = useMemo(() => {
+    return trips.filter(t => t.tripCategory !== "CAMPUS");
   }, [trips]);
 
-  const upcomingTrips = useMemo(() => {
-    return trips.filter(t => t.timingStatus === "UPCOMING");
+  const campusTrips = useMemo(() => {
+    return trips.filter(t => t.tripCategory === "CAMPUS");
   }, [trips]);
+
+  // Operational attention metrics (computed dynamically from existing data)
+  const tripsRequiringActionCount = useMemo(() => {
+    const flagTrips = trips.filter(
+      t => t.operationalStatus === "Action Required" || (t.bookingProgress && t.bookingProgress.actionRequired > 0)
+    );
+    return Math.max(flagTrips.length, actionItems.length);
+  }, [trips, actionItems]);
+
+  const vendorRequestsCount = useMemo(() => {
+    return vendorRequests.length;
+  }, [vendorRequests]);
+
+  const pendingConfirmationsCount = useMemo(() => {
+    const processingBookings = stats?.bookingReadiness?.processing || 0;
+    const confirmationReqs = vendorRequests.filter(r => r.status === "CONFIRMATION_REQUESTED").length;
+    return processingBookings + confirmationReqs;
+  }, [stats, vendorRequests]);
+
+  const activeDisruptionsCount = useMemo(() => {
+    return stats?.activeDisruptions || 0;
+  }, [stats]);
+
+  // Meaningful vendor activity (awaiting review, responses received, confirmations)
+  const activeVendorActivity = useMemo(() => {
+    const active = vendorRequests.filter(
+      r => r.status === "RESPONDED" || r.status === "CONFIRMATION_REQUESTED" || (r.response && r.response.availability)
+    );
+    return active.length > 0 ? active.slice(0, 6) : vendorRequests.slice(0, 4);
+  }, [vendorRequests]);
 
   const getRelativeTime = (timestamp) => {
     if (!timestamp) return "Just now";
@@ -83,9 +127,11 @@ export default function OperatorDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-400 gap-3">
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-400 gap-3 font-sans">
         <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-        <div className="text-xs font-bold uppercase tracking-wider text-slate-500">Connecting to Tour Operations Center...</div>
+        <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
+          Connecting to Tour Operation Center...
+        </div>
       </div>
     );
   }
@@ -123,7 +169,7 @@ export default function OperatorDashboard() {
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Header */}
+        {/* Header - TRANSIX Tour Operation Center */}
         <header className="bg-slate-900/95 backdrop-blur-md border-b border-slate-800 sticky top-0 z-20">
           <div className="flex items-center justify-between px-6 py-4">
             <div className="flex items-center gap-3">
@@ -135,13 +181,13 @@ export default function OperatorDashboard() {
               </button>
               <div>
                 <div className="text-[10px] font-black uppercase tracking-widest text-indigo-400 mb-0.5">
-                  Operator Dashboard
+                  TRANSIX
                 </div>
                 <h1 className="text-lg font-black text-white">
-                  {greeting}, {operatorDisplayName}
+                  Tour Operation Center
                 </h1>
                 <p className="text-xs text-slate-400">
-                  Here's what needs attention today.
+                  {greeting}, {operatorDisplayName} — What does Transix need to operate today?
                 </p>
               </div>
             </div>
@@ -149,7 +195,7 @@ export default function OperatorDashboard() {
             <div className="flex items-center gap-4">
               <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800/80 border border-slate-700/60 text-xs font-semibold text-slate-300">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                <span>System Operational</span>
+                <span>Operations Active</span>
               </div>
               <div className="h-9 w-9 rounded-xl bg-indigo-600 flex items-center justify-center text-xs font-black text-white shadow-md ring-2 ring-indigo-500/20">
                 {operatorDisplayName.slice(0, 2).toUpperCase()}
@@ -159,456 +205,431 @@ export default function OperatorDashboard() {
         </header>
 
         {/* Dashboard Body */}
-        <main className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
+        <main className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar">
           
-          {/* Top Operational Summary (4 compact cards) */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* 1. Personal Trips */}
-            <div className="bg-slate-900 p-4 rounded-xl border border-slate-800/80 shadow-xs flex items-center justify-between">
+          {/* ========================================================================= */}
+          {/* 1. TODAY'S OPERATIONS                                                    */}
+          {/* ========================================================================= */}
+          <section className="space-y-4">
+            <div className="flex items-center justify-between">
               <div>
-                <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">
-                  Personal Trips
-                </div>
-                <div className="text-2xl font-black text-white">{stats?.personalTrips || 0}</div>
-                <div className="text-[10px] font-semibold text-slate-500 mt-1">Shared with Operator</div>
-              </div>
-              <div className="p-3 rounded-xl bg-slate-800/60 text-indigo-400">
-                <FiCompass size={22} />
+                <h2 className="text-xs font-black uppercase tracking-wider text-slate-400">
+                  Today's Operations
+                </h2>
+                <p className="text-xs font-semibold text-white mt-0.5">
+                  Operational attention metrics requiring Transix action
+                </p>
               </div>
             </div>
 
-            {/* 2. Campus Trips */}
-            <div className="bg-slate-900 p-4 rounded-xl border border-slate-800/80 shadow-xs flex items-center justify-between">
-              <div>
-                <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">
-                  Campus Trips
+            {/* 4 Attention Metric Cards */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Metric 1: Trips Requiring Action */}
+              <div className="bg-slate-900 p-4 rounded-xl border border-slate-800 shadow-xs flex items-center justify-between">
+                <div>
+                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">
+                    Trips Requiring Action
+                  </div>
+                  <div className="text-2xl font-black text-amber-400">{tripsRequiringActionCount}</div>
+                  <div className="text-[10px] font-semibold text-slate-500 mt-1">
+                    Needing bookings or review
+                  </div>
                 </div>
-                <div className="text-2xl font-black text-white">{stats?.campusTrips || 0}</div>
-                <div className="text-[10px] font-semibold text-slate-500 mt-1">Educational & IV</div>
+                <div className="p-3 rounded-xl bg-amber-950/40 border border-amber-900/40 text-amber-400">
+                  <FiAlertCircle size={22} />
+                </div>
               </div>
-              <div className="p-3 rounded-xl bg-slate-800/60 text-indigo-400">
-                <GraduationCap size={22} />
+
+              {/* Metric 2: Vendor Requests */}
+              <div className="bg-slate-900 p-4 rounded-xl border border-slate-800 shadow-xs flex items-center justify-between">
+                <div>
+                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">
+                    Vendor Requests
+                  </div>
+                  <div className="text-2xl font-black text-white">{vendorRequestsCount}</div>
+                  <div className="text-[10px] font-semibold text-slate-500 mt-1">
+                    Dispatched to network
+                  </div>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-800/60 text-indigo-400">
+                  <FiSend size={22} />
+                </div>
+              </div>
+
+              {/* Metric 3: Pending Confirmations */}
+              <div className="bg-slate-900 p-4 rounded-xl border border-slate-800 shadow-xs flex items-center justify-between">
+                <div>
+                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">
+                    Pending Confirmations
+                  </div>
+                  <div className="text-2xl font-black text-blue-400">{pendingConfirmationsCount}</div>
+                  <div className="text-[10px] font-semibold text-slate-500 mt-1">
+                    In processing or review
+                  </div>
+                </div>
+                <div className="p-3 rounded-xl bg-blue-950/40 border border-blue-900/40 text-blue-400">
+                  <FiClock size={22} />
+                </div>
+              </div>
+
+              {/* Metric 4: Active Disruptions */}
+              <div className="bg-slate-900 p-4 rounded-xl border border-slate-800 shadow-xs flex items-center justify-between">
+                <div>
+                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">
+                    Active Disruptions
+                  </div>
+                  <div className="text-2xl font-black text-emerald-400">{activeDisruptionsCount}</div>
+                  <div className="text-[10px] font-semibold text-emerald-500 mt-1">
+                    Routes on schedule
+                  </div>
+                </div>
+                <div className="p-3 rounded-xl bg-emerald-950/40 border border-emerald-900/40 text-emerald-400">
+                  <FiCheckCircle size={22} />
+                </div>
               </div>
             </div>
 
-            {/* 3. Pending Bookings */}
-            <div className="bg-slate-900 p-4 rounded-xl border border-slate-800/80 shadow-xs flex items-center justify-between">
-              <div>
-                <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">
-                  Pending Bookings
+            {/* Action Items List (if any urgent operational work) */}
+            {actionItems.length > 0 && (
+              <div className="bg-slate-900 rounded-xl border border-slate-800 p-4 space-y-3">
+                <div className="flex items-center justify-between text-xs font-bold text-slate-400 border-b border-slate-800/80 pb-2">
+                  <span className="flex items-center gap-1.5 text-amber-400">
+                    <FiAlertCircle /> Action Items Needing Attention ({actionItems.length})
+                  </span>
                 </div>
-                <div className="text-2xl font-black text-amber-400">{stats?.pendingBookings || 0}</div>
-                <div className="text-[10px] font-semibold text-slate-500 mt-1">
-                  {stats?.bookingReadiness?.actionRequired || 0} action required
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {actionItems.map((item) => (
+                    <div 
+                      key={item.id} 
+                      className="p-3 bg-slate-950/70 border border-slate-800 hover:border-indigo-500/40 rounded-xl flex items-center justify-between gap-3 transition"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs font-bold text-slate-200 line-clamp-1">
+                          {item.title}
+                        </div>
+                        <div className="text-[10px] text-slate-400 mt-0.5 truncate">
+                          {item.subtitle}
+                        </div>
+                      </div>
+                      <Link
+                        to={`/operator/trips/${item.tripId}`}
+                        className="px-2.5 py-1 rounded-lg bg-indigo-600/20 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-500/30 text-[11px] font-bold transition shrink-0"
+                      >
+                        View
+                      </Link>
+                    </div>
+                  ))}
                 </div>
               </div>
-              <div className="p-3 rounded-xl bg-amber-950/40 border border-amber-900/40 text-amber-400">
-                <FiClock size={22} />
+            )}
+          </section>
+
+          {/* ========================================================================= */}
+          {/* 2. TRAVELER TRIPS (Personal Trips & Campus Trips)                         */}
+          {/* ========================================================================= */}
+          <section className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xs font-black uppercase tracking-wider text-slate-400">
+                  Traveler Trips
+                </h2>
+                <p className="text-xs font-semibold text-white mt-0.5">
+                  Operational journeys received and coordinated by Transix
+                </p>
               </div>
             </div>
 
-            {/* 4. Active Disruptions */}
-            <div className="bg-slate-900 p-4 rounded-xl border border-slate-800/80 shadow-xs flex items-center justify-between">
-              <div>
-                <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">
-                  Active Disruptions
-                </div>
-                <div className="text-2xl font-black text-emerald-400">{stats?.activeDisruptions || 0}</div>
-                <div className="text-[10px] font-semibold text-emerald-500 mt-1">Routes on schedule</div>
-              </div>
-              <div className="p-3 rounded-xl bg-emerald-950/40 border border-emerald-900/40 text-emerald-400">
-                <FiCheckCircle size={22} />
-              </div>
-            </div>
-          </div>
-
-          {/* Main 2-Column Operational Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            
-            {/* Left Column (2 Cols): Action Required + Active Trips + Upcoming Trips */}
-            <div className="lg:col-span-2 space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               
-              {/* 1. ACTION REQUIRED — MOST IMPORTANT */}
-              <section className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-sm">
-                <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/80">
-                  <div className="flex items-center gap-2.5">
-                    <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                      <FiAlertCircle size={16} />
+              {/* Personal Trips Column */}
+              <div className="bg-slate-900 rounded-2xl border border-slate-800 p-5 space-y-4 shadow-sm">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                      <FiCompass size={16} />
                     </div>
                     <div>
-                      <h2 className="text-xs font-black uppercase tracking-wider text-white">
-                        Action Required
-                      </h2>
-                      <p className="text-[11px] font-medium text-slate-400">
-                        Operational work needing immediate coordination or booking
+                      <h3 className="text-xs font-black uppercase tracking-wider text-white">
+                        Personal Trips
+                      </h3>
+                      <p className="text-[11px] text-slate-400">
+                        {personalTrips.length} journeys shared by travelers
                       </p>
                     </div>
                   </div>
-                  {actionItems.length > 0 && (
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-950 text-amber-400 border border-amber-800/60">
-                      {actionItems.length} Urgent
-                    </span>
-                  )}
-                </div>
-
-                <div className="p-4">
-                  {actionItems.length === 0 ? (
-                    <div className="py-6 text-center text-slate-400 text-xs font-medium">
-                      <FiCheckCircle className="mx-auto text-emerald-400 mb-2" size={24} />
-                      No operational work requires attention right now.
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {actionItems.map((item) => (
-                        <div 
-                          key={item.id} 
-                          className="p-3.5 bg-slate-950/70 border border-slate-800/90 hover:border-indigo-500/50 rounded-xl flex items-center justify-between gap-3 transition group"
-                        >
-                          <div className="min-w-0 flex-1">
-                            <div className="text-xs font-bold text-slate-200 group-hover:text-white line-clamp-1 transition">
-                              {item.title}
-                            </div>
-                            <div className="text-[11px] text-slate-400 mt-0.5 flex items-center gap-1.5">
-                              <span className="truncate">{item.subtitle}</span>
-                              {item.severity === "HIGH" && (
-                                <span className="px-1.5 py-0.2 text-[9px] font-black rounded bg-rose-950 text-rose-400 border border-rose-900/50 uppercase">
-                                  Urgent
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          <Link
-                            to={`/operator/trips/${item.tripId}`}
-                            className="px-3 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-500/30 text-xs font-bold transition shrink-0"
-                          >
-                            View
-                          </Link>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </section>
-
-              {/* 2. ACTIVE TRIPS (Data-Driven: current date between start and end date) */}
-              <section className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-sm">
-                <div className="flex items-center justify-between p-4 border-b border-slate-800 bg-slate-900/80">
-                  <div className="flex items-center gap-2.5">
-                    <span className="relative flex h-2.5 w-2.5">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-                    </span>
-                    <h2 className="text-xs font-black uppercase tracking-wider text-white">
-                      Active Trips ({activeTrips.length})
-                    </h2>
-                  </div>
-                  <span className="text-[11px] text-slate-400 font-medium">
-                    Currently executing in field
-                  </span>
-                </div>
-
-                <div className="divide-y divide-slate-800/60">
-                  {activeTrips.length === 0 ? (
-                    <div className="p-8 text-center text-slate-400 text-xs font-medium">
-                      No trips currently active in the field.
-                    </div>
-                  ) : (
-                    activeTrips.map(trip => (
-                      <div key={trip._id} className="p-5 hover:bg-slate-850/40 transition">
-                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                              <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border ${
-                                trip.tripCategory === 'CAMPUS'
-                                  ? 'bg-indigo-950/60 text-indigo-300 border-indigo-800/60'
-                                  : 'bg-slate-800 text-slate-300 border-slate-700'
-                              }`}>
-                                {trip.tripCategory === 'CAMPUS' ? 'Campus Trip' : 'Personal Trip'}
-                              </span>
-
-                              {trip.organizationDetails?.name && (
-                                <span className="text-xs font-bold text-slate-300 uppercase tracking-tight">
-                                  {trip.organizationDetails.name}
-                                </span>
-                              )}
-                              
-                              <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-emerald-950/60 text-emerald-400 border border-emerald-800/40 uppercase">
-                                ● In Progress
-                              </span>
-                            </div>
-
-                            <div className="text-sm font-black text-white flex items-center gap-2">
-                              <span>{trip.source}</span>
-                              <FiArrowRight className="text-indigo-400" />
-                              <span>{trip.destination}</span>
-                            </div>
-
-                            <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-medium text-slate-400">
-                              <span>{formatDate(trip.startDate)} – {formatDate(trip.endDate)}</span>
-                              <span>•</span>
-                              <span>
-                                {trip.travelers} {trip.tripCategory === 'CAMPUS' ? 'Students' : 'Travelers'}
-                              </span>
-                            </div>
-
-                            {/* Operational Readiness Breakdown */}
-                            <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-bold">
-                              <span className="px-2.5 py-1 rounded-lg bg-slate-950/80 border border-slate-800 text-slate-300">
-                                Accommodation: <span className="text-white font-black">{trip.readiness?.accommodation?.confirmed || 0}/{trip.readiness?.accommodation?.total || 0}</span>
-                              </span>
-                              <span className="px-2.5 py-1 rounded-lg bg-slate-950/80 border border-slate-800 text-slate-300">
-                                Transport: <span className="text-white font-black">{trip.readiness?.transport?.confirmed || 0}/{trip.readiness?.transport?.total || 0}</span>
-                              </span>
-                              <span className="px-2.5 py-1 rounded-lg bg-slate-950/80 border border-slate-800 text-slate-300">
-                                {trip.tripCategory === 'CAMPUS' ? 'Visits' : 'Activities'}: <span className="text-white font-black">{trip.readiness?.visits?.confirmed || 0}/{trip.readiness?.visits?.total || 0}</span>
-                              </span>
-                            </div>
-                          </div>
-
-                          <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-3 shrink-0">
-                            <div className="text-right">
-                              <span className="text-[10px] uppercase font-bold text-slate-400 block">Status</span>
-                              <span className={`text-xs font-bold ${
-                                trip.operationalStatus === "Action Required" ? "text-amber-400" :
-                                trip.operationalStatus === "Confirmed" ? "text-emerald-400" : "text-slate-300"
-                              }`}>
-                                {trip.operationalStatus}
-                              </span>
-                            </div>
-                            <Link 
-                              to={`/operator/trips/${trip._id}`}
-                              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition shadow-sm"
-                            >
-                              Open Trip
-                            </Link>
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </section>
-
-              {/* 3. UPCOMING TRIPS (Data-Driven: start date in future) */}
-              <section className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-sm">
-                <div className="flex items-center justify-between p-4 border-b border-slate-800 bg-slate-900/80">
-                  <div className="flex items-center gap-2">
-                    <FiCalendar className="text-indigo-400" />
-                    <h2 className="text-xs font-black uppercase tracking-wider text-white">
-                      Upcoming Trips ({upcomingTrips.length})
-                    </h2>
-                  </div>
-                  <Link to="/operator/trips" className="text-xs font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-1">
-                    All Trips <FiArrowRight />
+                  <Link
+                    to="/operator/trips?type=personal"
+                    className="text-xs font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
+                  >
+                    View All <FiArrowRight size={12} />
                   </Link>
                 </div>
 
-                <div className="divide-y divide-slate-800/60">
-                  {upcomingTrips.length === 0 ? (
-                    <div className="p-8 text-center text-slate-400 text-xs font-medium">
-                      No upcoming trips scheduled.
+                <div className="space-y-3">
+                  {personalTrips.length === 0 ? (
+                    <div className="p-6 text-center text-slate-500 text-xs">
+                      No personal trips shared with Transix.
                     </div>
                   ) : (
-                    upcomingTrips.map(trip => (
-                      <div key={trip._id} className="p-5 hover:bg-slate-850/40 transition">
-                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                              <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border ${
-                                trip.tripCategory === 'CAMPUS'
-                                  ? 'bg-indigo-950/60 text-indigo-300 border-indigo-800/60'
-                                  : 'bg-slate-800 text-slate-300 border-slate-700'
-                              }`}>
-                                {trip.tripCategory === 'CAMPUS' ? 'Campus Trip' : 'Personal Trip'}
-                              </span>
-
-                              {trip.organizationDetails?.name && (
-                                <span className="text-xs font-bold text-slate-300 uppercase tracking-tight">
-                                  {trip.organizationDetails.name}
-                                </span>
-                              )}
-                            </div>
-
-                            <div className="text-sm font-black text-white flex items-center gap-2">
-                              <span>{trip.source}</span>
-                              <FiArrowRight className="text-indigo-400" />
-                              <span>{trip.destination}</span>
-                            </div>
-
-                            <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-medium text-slate-400">
-                              <span>{formatDate(trip.startDate)} – {formatDate(trip.endDate)}</span>
-                              <span>•</span>
-                              <span>
-                                {trip.travelers} {trip.tripCategory === 'CAMPUS' ? 'Students' : 'Travelers'}
-                              </span>
-                            </div>
-
-                            {/* Operational Readiness Breakdown */}
-                            <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-bold">
-                              <span className="px-2.5 py-1 rounded-lg bg-slate-950/80 border border-slate-800 text-slate-300">
-                                Accommodation: <span className="text-white font-black">{trip.readiness?.accommodation?.confirmed || 0}/{trip.readiness?.accommodation?.total || 0}</span>
-                              </span>
-                              <span className="px-2.5 py-1 rounded-lg bg-slate-950/80 border border-slate-800 text-slate-300">
-                                Transport: <span className="text-white font-black">{trip.readiness?.transport?.confirmed || 0}/{trip.readiness?.transport?.total || 0}</span>
-                              </span>
-                              <span className="px-2.5 py-1 rounded-lg bg-slate-950/80 border border-slate-800 text-slate-300">
-                                {trip.tripCategory === 'CAMPUS' ? 'Visits' : 'Activities'}: <span className="text-white font-black">{trip.readiness?.visits?.confirmed || 0}/{trip.readiness?.visits?.total || 0}</span>
-                              </span>
-                            </div>
+                    personalTrips.map(trip => (
+                      <div 
+                        key={trip._id}
+                        className="p-4 bg-slate-950/70 border border-slate-800/90 rounded-xl flex items-center justify-between gap-4 hover:border-slate-700 transition"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-black text-white flex items-center gap-2">
+                            <span>{trip.source}</span>
+                            <FiArrowRight className="text-indigo-400" size={13} />
+                            <span>{trip.destination}</span>
                           </div>
-
-                          <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-3 shrink-0">
-                            <div className="text-right">
-                              <span className="text-[10px] uppercase font-bold text-slate-400 block">Status</span>
-                              <span className={`text-xs font-bold ${
-                                trip.operationalStatus === "Action Required" ? "text-amber-400" :
-                                trip.operationalStatus === "Confirmed" ? "text-emerald-400" : "text-slate-300"
-                              }`}>
-                                {trip.operationalStatus}
-                              </span>
-                            </div>
-                            <Link 
-                              to={`/operator/trips/${trip._id}`}
-                              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 hover:text-white text-slate-300 border border-slate-700 rounded-xl text-xs font-bold transition"
-                            >
-                              Open Trip
-                            </Link>
+                          <div className="text-[11px] font-medium text-slate-400 mt-1 flex flex-wrap items-center gap-2">
+                            <span className="text-slate-300">Shared by Traveler</span>
+                            <span>•</span>
+                            <span>{trip.duration || "Multi-day"}</span>
+                            <span>•</span>
+                            <span>{trip.travelers || 2} Travelers</span>
+                          </div>
+                          <div className="mt-2 flex items-center gap-2 text-[10px] font-bold">
+                            <span className={`px-2 py-0.5 rounded border ${
+                              trip.operationalStatus === "Confirmed" 
+                                ? "bg-emerald-950/60 text-emerald-400 border-emerald-800/40"
+                                : trip.operationalStatus === "Action Required"
+                                ? "bg-amber-950/60 text-amber-400 border-amber-800/40"
+                                : "bg-slate-800 text-slate-300 border-slate-700"
+                            }`}>
+                              {trip.operationalStatus || "Processing"}
+                            </span>
                           </div>
                         </div>
+
+                        <Link
+                          to={`/operator/trips/${trip._id}`}
+                          className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold transition shrink-0"
+                        >
+                          Open
+                        </Link>
                       </div>
                     ))
                   )}
                 </div>
-              </section>
+              </div>
 
-            </div>
-
-            {/* Right Column (1 Col): Disruptions + Booking Readiness + Recent Updates + SmartShift */}
-            <div className="space-y-6">
-              
-              {/* 1. ACTIVE DISRUPTIONS */}
-              <section className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-sm">
-                <div className="p-4 border-b border-slate-800 bg-slate-900/80 flex items-center justify-between">
+              {/* Campus Trips Column */}
+              <div className="bg-slate-900 rounded-2xl border border-slate-800 p-5 space-y-4 shadow-sm">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                   <div className="flex items-center gap-2">
-                    <FiAlertTriangle className={stats?.activeDisruptions > 0 ? "text-rose-400" : "text-emerald-400"} />
-                    <h2 className="text-xs font-black uppercase tracking-wider text-white">
-                      Active Disruptions
-                    </h2>
+                    <div className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                      <GraduationCap size={16} />
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-black uppercase tracking-wider text-white">
+                        Campus Trips
+                      </h3>
+                      <p className="text-[11px] text-slate-400">
+                        {campusTrips.length} institutional visits & IV tours
+                      </p>
+                    </div>
                   </div>
-                  <span className="text-[10px] font-bold text-slate-400">
-                    {stats?.activeDisruptions || 0} Active
-                  </span>
+                  <Link
+                    to="/operator/trips?type=campus"
+                    className="text-xs font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
+                  >
+                    View All <FiArrowRight size={12} />
+                  </Link>
                 </div>
-                
-                <div className="p-4">
-                  {stats?.activeDisruptions > 0 ? (
-                    <div className="p-3.5 bg-rose-950/20 border border-rose-900/50 rounded-xl space-y-2">
-                      <div className="text-xs font-black text-rose-400 uppercase tracking-wide">
-                        Disruption Reported
-                      </div>
-                      <div className="text-xs text-slate-300 font-semibold">
-                        Delay detected on corridor. Cascade impact calculations available.
-                      </div>
+
+                <div className="space-y-3">
+                  {campusTrips.length === 0 ? (
+                    <div className="p-6 text-center text-slate-500 text-xs">
+                      No campus trips shared with Transix.
                     </div>
                   ) : (
-                    <div className="p-4 bg-slate-950/60 border border-slate-800/80 rounded-xl flex items-center gap-3.5">
-                      <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-bold text-base border border-emerald-500/20 shrink-0">
-                        ✓
-                      </div>
-                      <div>
-                        <div className="text-xs font-bold text-slate-200">No active disruptions</div>
-                        <div className="text-[11px] text-slate-400 mt-0.5">
-                          All transit legs and stay schedules operating normally.
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </section>
-
-              {/* 2. BOOKING READINESS */}
-              <section className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-sm">
-                <div className="p-4 border-b border-slate-800 bg-slate-900/80">
-                  <h2 className="text-xs font-black uppercase tracking-wider text-white flex items-center gap-2">
-                    <FiCheckCircle className="text-emerald-400" /> Booking Readiness
-                  </h2>
-                </div>
-                <div className="p-4 space-y-3">
-                  <div className="flex justify-between items-center text-xs p-2.5 rounded-lg bg-slate-950/50 border border-slate-800/60">
-                    <span className="font-bold text-slate-300">Confirmed</span>
-                    <span className="font-black text-emerald-400">{stats?.bookingReadiness?.confirmed || 0}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-xs p-2.5 rounded-lg bg-slate-950/50 border border-slate-800/60">
-                    <span className="font-bold text-slate-300">Processing</span>
-                    <span className="font-black text-blue-400">{stats?.bookingReadiness?.processing || 0}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-xs p-2.5 rounded-lg bg-slate-950/50 border border-slate-800/60">
-                    <span className="font-bold text-slate-300">Not Booked</span>
-                    <span className="font-black text-slate-400">{stats?.bookingReadiness?.notBooked || 0}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-xs p-2.5 rounded-lg bg-amber-950/20 border border-amber-900/40">
-                    <span className="font-bold text-amber-300 flex items-center gap-1.5">
-                      <FiAlertCircle className="text-amber-400" /> Action Required
-                    </span>
-                    <span className="font-black text-amber-400">{stats?.bookingReadiness?.actionRequired || 0}</span>
-                  </div>
-                </div>
-              </section>
-
-              {/* 3. RECENT OPERATIONAL UPDATES (Persisted records only) */}
-              <section className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-sm">
-                <div className="p-4 border-b border-slate-800 bg-slate-900/80 flex items-center justify-between">
-                  <h2 className="text-xs font-black uppercase tracking-wider text-white flex items-center gap-2">
-                    <FiClock className="text-indigo-400" /> Recent Operational Updates
-                  </h2>
-                </div>
-                <div className="p-4">
-                  {recentUpdates.length === 0 ? (
-                    <div className="py-4 text-center text-slate-500 text-xs font-medium">
-                      No recent operational updates.
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {recentUpdates.map((update, idx) => (
-                        <div key={update.id || idx} className="flex items-start gap-3 text-xs">
-                          <span className="text-indigo-400 mt-0.5">•</span>
-                          <div className="flex-1 min-w-0">
-                            <div className="font-bold text-slate-200 capitalize truncate">
-                              {update.title}
-                            </div>
-                            <div className="text-[11px] text-slate-400 flex items-center justify-between mt-0.5">
-                              <span className="truncate">{update.subtitle}</span>
-                              <span className="shrink-0 text-slate-400 ml-2">{getRelativeTime(update.timestamp)}</span>
-                            </div>
+                    campusTrips.map(trip => (
+                      <div 
+                        key={trip._id}
+                        className="p-4 bg-slate-950/70 border border-slate-800/90 rounded-xl flex items-center justify-between gap-4 hover:border-slate-700 transition"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-black text-white flex items-center gap-2">
+                            <span>{trip.source}</span>
+                            <FiArrowRight className="text-indigo-400" size={13} />
+                            <span>{trip.destination}</span>
+                          </div>
+                          <div className="text-xs font-bold text-slate-300 mt-0.5">
+                            {trip.organizationDetails?.name || "Campus Institution"}
+                          </div>
+                          <div className="text-[11px] font-medium text-slate-400 mt-1 flex flex-wrap items-center gap-2">
+                            <span>{trip.duration || "Multi-day"}</span>
+                            <span>•</span>
+                            <span>{trip.travelers || 20} Students</span>
+                          </div>
+                          <div className="mt-2 flex items-center gap-2 text-[10px] font-bold">
+                            <span className={`px-2 py-0.5 rounded border ${
+                              trip.operationalStatus === "Confirmed" 
+                                ? "bg-emerald-950/60 text-emerald-400 border-emerald-800/40"
+                                : trip.operationalStatus === "Action Required"
+                                ? "bg-amber-950/60 text-amber-400 border-amber-800/40"
+                                : "bg-slate-800 text-slate-300 border-slate-700"
+                            }`}>
+                              {trip.operationalStatus || "Processing"}
+                            </span>
                           </div>
                         </div>
-                      ))}
-                    </div>
+
+                        <Link
+                          to={`/operator/trips/${trip._id}`}
+                          className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold transition shrink-0"
+                        >
+                          Open
+                        </Link>
+                      </div>
+                    ))
                   )}
                 </div>
-              </section>
+              </div>
 
-              {/* 4. SMARTSHIFT CENTER */}
-              <section className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-sm">
-                <div className="p-4 border-b border-slate-800 bg-slate-900/80">
-                  <h2 className="text-xs font-black uppercase tracking-wider text-white flex items-center gap-2">
-                    <FiZap className="text-amber-400" /> SmartShift Center
-                  </h2>
-                  <div className="text-[11px] font-medium text-slate-400 mt-0.5">
-                    Validated alternatives for itinerary disruptions.
+            </div>
+          </section>
+
+          {/* ========================================================================= */}
+          {/* 3. VENDOR ACTIVITY & 4. RECENT OPERATIONAL ACTIVITY (2 Columns)           */}
+          {/* ========================================================================= */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            {/* VENDOR ACTIVITY (2 Columns on large screens) */}
+            <div className="lg:col-span-2 bg-slate-900 rounded-2xl border border-slate-800 p-5 space-y-4 shadow-sm">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                    <FiBriefcase size={16} />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-black uppercase tracking-wider text-white">
+                      Vendor Activity
+                    </h3>
+                    <p className="text-[11px] text-slate-400">
+                      Meaningful vendor responses and requests requiring review
+                    </p>
                   </div>
                 </div>
-                <div className="p-5 text-center">
-                  <div className="w-10 h-10 rounded-xl bg-slate-800/80 text-amber-400 border border-slate-700 flex items-center justify-center mx-auto mb-3">
-                    <FiZap size={20} />
+                <Link
+                  to="/operator/vendor-requests"
+                  className="text-xs font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
+                >
+                  All Requests <FiArrowRight size={12} />
+                </Link>
+              </div>
+
+              <div className="space-y-3">
+                {activeVendorActivity.length === 0 ? (
+                  <div className="p-8 text-center text-slate-500 text-xs font-medium">
+                    <FiCheckCircle className="mx-auto text-emerald-400 mb-2" size={24} />
+                    No vendor activity currently awaiting review.
                   </div>
-                  <div className="text-xs font-bold text-white mb-1">SmartShift ready</div>
-                  <div className="text-[11px] text-slate-400 leading-relaxed max-w-xs mx-auto">
-                    Simulate a disruption from a trip to generate validated alternatives.
+                ) : (
+                  activeVendorActivity.map(req => {
+                    const vendorName = req.vendorId?.name || "Connected Vendor";
+                    const routeLabel = req.trip 
+                      ? `${req.trip.source} → ${req.trip.destination} · Group Fleet`
+                      : req.route
+                      ? `${req.route.originCity || "Origin"} → ${req.route.destinationCity || "Destination"} · Group Fleet`
+                      : "Campus Group Fleet";
+                    
+                    const isResponded = req.status === "RESPONDED" || Boolean(req.response?.availability);
+                    const isConfReq = req.status === "CONFIRMATION_REQUESTED";
+
+                    return (
+                      <div 
+                        key={req._id}
+                        className="p-4 bg-slate-950/70 border border-slate-800/90 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-slate-700 transition"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-black text-white flex items-center gap-2">
+                            <span>{vendorName}</span>
+                          </div>
+                          <div className="text-xs text-slate-400 mt-0.5">
+                            {routeLabel}
+                          </div>
+                          <div className="mt-1.5 flex items-center gap-2">
+                            {isResponded ? (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-black bg-emerald-950/60 text-emerald-400 border border-emerald-800/40 flex items-center gap-1">
+                                <FiCheck size={11} /> Response received
+                                {req.response?.quoteTotal ? ` (₹${Number(req.response.quoteTotal).toLocaleString()})` : ""}
+                              </span>
+                            ) : isConfReq ? (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-black bg-blue-950/60 text-blue-400 border border-blue-800/40">
+                                ◴ Confirmation requested
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-black bg-slate-800 text-slate-300 border border-slate-700">
+                                {req.status === "SENT" ? "Awaiting response" : req.status}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <Link
+                          to={`/operator/trips/${req.tripId}?tab=transport`}
+                          className="px-3.5 py-1.5 bg-indigo-600/20 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-500/30 rounded-lg text-xs font-bold transition text-center shrink-0"
+                        >
+                          Review
+                        </Link>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            {/* RECENT OPERATIONAL ACTIVITY (1 Column) */}
+            <div className="bg-slate-900 rounded-2xl border border-slate-800 p-5 space-y-4 shadow-sm">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                    <FiClock size={16} />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-black uppercase tracking-wider text-white">
+                      Recent Activity
+                    </h3>
+                    <p className="text-[11px] text-slate-400">
+                      Real-time operational events
+                    </p>
                   </div>
                 </div>
-              </section>
+              </div>
 
+              <div className="space-y-3">
+                {recentUpdates.length === 0 ? (
+                  <div className="p-6 text-center text-slate-500 text-xs">
+                    No recent operational activity.
+                  </div>
+                ) : (
+                  recentUpdates.slice(0, 6).map((update, idx) => {
+                    const isConfirmed = update.status === "CONFIRMED";
+                    const isActionReq = update.status === "ACTION_REQUIRED";
+                    
+                    return (
+                      <div key={update.id || idx} className="flex items-start gap-2.5 text-xs py-1 border-b border-slate-800/40 last:border-0">
+                        <span className={`mt-0.5 text-xs font-black shrink-0 ${
+                          isConfirmed ? "text-emerald-400" : isActionReq ? "text-amber-400" : "text-indigo-400"
+                        }`}>
+                          {isConfirmed ? "✓" : isActionReq ? "⚠" : "•"}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-bold text-slate-200 truncate capitalize">
+                            {update.title}
+                          </div>
+                          <div className="text-[10px] text-slate-400 flex items-center justify-between mt-0.5">
+                            <span className="truncate">{update.subtitle}</span>
+                            <span className="shrink-0 text-slate-500 ml-2">{getRelativeTime(update.timestamp)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
             </div>
 
           </div>
