@@ -38,55 +38,189 @@ const syncTripRequirements = async (trip) => {
     }
   }
 
-  // 2. Transport requirements from travelLegs or itinerary
-  if (Array.isArray(trip.travelLegs) && trip.travelLegs.length > 0) {
-    for (let idx = 0; idx < trip.travelLegs.length; idx++) {
-      const leg = trip.travelLegs[idx];
-      const itemId = leg._id ? leg._id.toString() : `leg-${idx}`;
+  // 2. Transport requirements from busRequirements, travelLegs, or itinerary
+  const { detectBusRequirements } = require("../utils/busRequirementDetector");
+  const busReqs = Array.isArray(trip.busRequirements) && trip.busRequirements.length > 0
+    ? trip.busRequirements
+    : detectBusRequirements(trip);
+
+  const isCampus = trip.tripCategory === "CAMPUS";
+  const campusPlan = trip.campusTransportPlan || (isCampus ? trip.campusConfig?.groupTransportPlan : null);
+
+  if (isCampus) {
+    // 1. For Campus trips, sync the master Group Transport Plan fleet requirement (ONE fleet arrangement)
+    if (campusPlan) {
       await BookingRequirement.findOneAndUpdate(
-        { tripId: trip._id, itemId, type: "TRANSPORT" },
+        { tripId: trip._id, itemId: "campus-group-fleet", type: "TRANSPORT" },
         {
           $setOnInsert: {
             travelerId,
-            status: "NOT_BOOKED",
+            status: campusPlan.status || "PENDING",
           },
           $set: {
-            title: `${leg.mode || "Transport"}: ${leg.from} → ${leg.to}`,
-            location: `${leg.from} → ${leg.to}`,
-            vendorName: leg.trainNumber || leg.flightNumber || leg.operator || leg.mode || "Transport Carrier",
-            notes: leg.date ? `${leg.date} · ${leg.startTime || ""} - ${leg.endTime || ""}` : "",
+            title: `Campus Fleet: ${campusPlan.vehiclesRequired}x ${campusPlan.comfort} ${campusPlan.vehicleType} (${campusPlan.totalTravelers} Travelers)`,
+            location: `${trip.source} → ${trip.destination} (Tour Fleet)`,
+            vendorName: "Pending Fleet Vendor Assignment",
+            notes: `${campusPlan.vehiclesRequired} vehicles required (${campusPlan.capacityPerVehicle} seats/coach) for ${campusPlan.totalTravelers} travelers (${campusPlan.studentsCount} students + ${campusPlan.teachersStaffCount} staff). Luggage: ${campusPlan.luggageCount} bags.${campusPlan.notes ? ` Notes: ${campusPlan.notes}` : ""}`,
+            transportDetails: {
+              mode: "BUS",
+              requirementType: "GROUP_TRANSPORT",
+              travelers: campusPlan.totalTravelers,
+              groupTransportPlan: campusPlan,
+              preferences: {
+                vehicleType: campusPlan.vehicleType,
+                comfort: campusPlan.comfort,
+                capacityPerVehicle: campusPlan.capacityPerVehicle,
+                vehiclesRequired: campusPlan.vehiclesRequired,
+                studentsCount: campusPlan.studentsCount,
+                teachersStaffCount: campusPlan.teachersStaffCount,
+                seatCount: campusPlan.totalTravelers,
+                luggageCount: campusPlan.luggageCount,
+                notes: campusPlan.notes,
+              },
+            },
           },
         },
         { upsert: true, setDefaultsOnInsert: true }
       );
     }
-  } else if (Array.isArray(trip.itinerary)) {
-    let tIdx = 0;
-    for (const day of trip.itinerary) {
-      if (!Array.isArray(day.plan)) continue;
-      for (const p of day.plan) {
-        const cat = String(p.category || "").toLowerCase();
-        const act = String(p.activity || p.name || "").toLowerCase();
-        const isTransport = cat.includes("transport") || cat.includes("travel") || act.includes("train") || act.includes("flight") || act.includes("bus") || act.includes("transfer");
-        if (isTransport) {
-          const itemId = p.id || p._id || `trans-${day.day}-${tIdx++}`;
-          await BookingRequirement.findOneAndUpdate(
-            { tripId: trip._id, itemId: String(itemId), type: "TRANSPORT" },
-            {
-              $setOnInsert: {
-                travelerId,
-                status: "NOT_BOOKED",
-              },
-              $set: {
-                title: p.activity || p.name || "Transport Arrangement",
-                location: p.location || trip.destination,
-                vendorName: "Transport Carrier",
-                notes: p.time ? `Day ${day.day} · ${p.time}` : `Day ${day.day}`,
+
+    // Individual movements belong under the one fleet arrangement and MUST NOT have separate BookingRequirements.
+    // Clean up any legacy or movement-level transport requirements
+    const movementItemIds = (busReqs || []).map((r) => String(r.itineraryItemId || r.id));
+    if (movementItemIds.length > 0) {
+      await BookingRequirement.deleteMany({
+        tripId: trip._id,
+        itemId: { $in: movementItemIds },
+        type: "TRANSPORT",
+      });
+    }
+
+    // 2. Sync EXACTLY TWO canonical intercity transit legs for Campus (Outbound & Return)
+    if (Array.isArray(trip.travelLegs) && trip.travelLegs.length > 0) {
+      const outboundLeg = trip.travelLegs.find(l => String(l.journeyDirection).toLowerCase() === "outbound") || trip.travelLegs[0];
+      const returnLeg = trip.travelLegs.find(l => String(l.journeyDirection).toLowerCase() === "return") || trip.travelLegs[trip.travelLegs.length - 1];
+
+      const campusLegs = [
+        outboundLeg ? { ...outboundLeg, directionLabel: "Outbound", dirKey: "outbound" } : null,
+        returnLeg && returnLeg !== outboundLeg ? { ...returnLeg, directionLabel: "Return", dirKey: "return" } : null,
+      ].filter(Boolean);
+
+      const validCampusLegItemIds = [];
+      for (let idx = 0; idx < campusLegs.length; idx++) {
+        const leg = campusLegs[idx];
+        const itemId = `campus-intercity-${leg.dirKey || (idx === 0 ? "outbound" : "return")}`;
+        validCampusLegItemIds.push(itemId);
+
+        await BookingRequirement.findOneAndUpdate(
+          { tripId: trip._id, itemId, type: "TRANSPORT" },
+          {
+            $setOnInsert: {
+              travelerId,
+              status: "NOT_BOOKED",
+            },
+            $set: {
+              title: `Intercity ${leg.mode || "Transit"}: ${leg.from} → ${leg.to} (${leg.directionLabel})`,
+              location: `${leg.from} → ${leg.to}`,
+              vendorName: leg.trainNumber || leg.flightNumber || leg.operator || leg.mode || "Transport Carrier",
+              notes: leg.date ? `${leg.date} · ${leg.startTime || ""} - ${leg.endTime || ""}` : "",
+              transportDetails: {
+                mode: leg.mode || "TRAIN",
+                requirementType: "INTERCITY_TRANSIT",
+                direction: leg.dirKey,
+                from: leg.from,
+                to: leg.to,
+                date: leg.date,
+                trainNumber: leg.trainNumber,
+                flightNumber: leg.flightNumber,
               },
             },
-            { upsert: true, setDefaultsOnInsert: true }
-          );
-        }
+          },
+          { upsert: true, setDefaultsOnInsert: true }
+        );
+      }
+    }
+  } else {
+    // PERSONAL TRIP TRANSPORT
+    const rawArr = trip.localTransportPreference?.arrangementType || trip.localTransportPreference?.arrangement;
+    const isSelfManaged = rawArr === "TRAVELER_MANAGED" || rawArr === "TRAVELER_ARRANGED";
+
+    if (!isSelfManaged && trip.localTransportPreference) {
+      // ONE private vehicle arrangement for the entire trip
+      const pPref = trip.localTransportPreference;
+      const vType = pPref.vehicleType || (rawArr === "PRIVATE_MINIBUS" ? "Mini Bus" : "Car");
+      const comfort = pPref.comfort || "AC";
+      const seats = pPref.seatCount || trip.travelers || 2;
+      const bags = pPref.luggageCount !== undefined ? pPref.luggageCount : seats;
+
+      await BookingRequirement.findOneAndUpdate(
+        { tripId: trip._id, itemId: "personal-private-vehicle", type: "TRANSPORT" },
+        {
+          $setOnInsert: {
+            travelerId,
+            status: "PENDING",
+          },
+          $set: {
+            title: `Private Vehicle: ${comfort} ${vType} (${seats} seats)`,
+            location: `${trip.source} → ${trip.destination} (Entire Trip)`,
+            vendorName: "Pending Operator Assignment",
+            notes: `${comfort} ${vType} · ${seats} seats · ${bags} bags · Entire trip (${busReqs.length} scheduled movements)${pPref.notes ? ` · Notes: ${pPref.notes}` : ""}`,
+            transportDetails: {
+              mode: "PRIVATE_VEHICLE",
+              requirementType: "LOCAL_TRANSPORT",
+              arrangement: rawArr || "PRIVATE_CAR",
+              travelers: seats,
+              preferences: {
+                arrangementType: rawArr || "PRIVATE_CAR",
+                vehicleType: vType,
+                comfort,
+                seatCount: seats,
+                luggageCount: bags,
+                notes: pPref.notes || "",
+              },
+            },
+          },
+        },
+        { upsert: true, setDefaultsOnInsert: true }
+      );
+    } else {
+      // Traveler managed or no transport preference: remove booking requirement
+      await BookingRequirement.deleteOne({ tripId: trip._id, itemId: "personal-private-vehicle", type: "TRANSPORT" });
+    }
+
+    // Prune individual movement-level requirements (movements are operational descriptions under the arrangement)
+    const movementItemIds = (busReqs || []).map((r) => String(r.itineraryItemId || r.id));
+    if (movementItemIds.length > 0) {
+      await BookingRequirement.deleteMany({
+        tripId: trip._id,
+        itemId: { $in: movementItemIds },
+        type: "TRANSPORT",
+      });
+    }
+
+    // Sync non-bus intercity travelLegs for Personal Trip (door-to-door structure retained)
+    if (Array.isArray(trip.travelLegs) && trip.travelLegs.length > 0) {
+      for (let idx = 0; idx < trip.travelLegs.length; idx++) {
+        const leg = trip.travelLegs[idx];
+        const legMode = String(leg.mode || "").toUpperCase();
+        if (legMode === "BUS" || legMode === "ROAD") continue;
+        const itemId = leg._id ? leg._id.toString() : (leg.id ? String(leg.id) : `leg-${idx}`);
+        await BookingRequirement.findOneAndUpdate(
+          { tripId: trip._id, itemId, type: "TRANSPORT" },
+          {
+            $setOnInsert: {
+              travelerId,
+              status: "NOT_BOOKED",
+            },
+            $set: {
+              title: `${leg.mode || "Transport"}: ${leg.from} → ${leg.to}`,
+              location: `${leg.from} → ${leg.to}`,
+              vendorName: leg.trainNumber || leg.flightNumber || leg.operator || leg.mode || "Transport Carrier",
+              notes: leg.date ? `${leg.date} · ${leg.startTime || ""} - ${leg.endTime || ""}` : "",
+            },
+          },
+          { upsert: true, setDefaultsOnInsert: true }
+        );
       }
     }
   }

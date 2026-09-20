@@ -235,6 +235,21 @@ const tripSchema = new mongoose.Schema(
       default: [],
     },
 
+    busRequirements: {
+      type: Array,
+      default: [],
+    },
+
+    campusTransportPlan: {
+      type: Object,
+      default: null,
+    },
+
+    localTransportPreference: {
+      type: Object,
+      default: null,
+    },
+
     validation: {
       type: Object,
       default: null,

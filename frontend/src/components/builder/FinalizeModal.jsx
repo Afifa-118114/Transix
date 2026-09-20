@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   FiCheckCircle,
@@ -13,25 +13,29 @@ import {
 } from "react-icons/fi";
 import { useTripBuilder } from "../../context/TripBuilderContext";
 import { updateOperatorAccess } from "../../api/tripApi";
+import BusPreferenceSection from "./BusPreferenceSection";
 import toast from "react-hot-toast";
 
 export default function FinalizeModal() {
   const navigate = useNavigate();
   const {
     trip,
-    budgetStats,
-    validationStats,
+    budgetStats = {},
+    validationStats = {},
     isFinalizeModalOpen,
     setIsFinalizeModalOpen,
     saveItinerary,
+    busRequirements = [],
+    saveBusPreferences,
   } = useTripBuilder();
 
-  const [step, setStep] = useState("checklist"); // 'checklist' | 'consent' | 'confirmed'
+  // All React Hooks MUST be called unconditionally at the very top of the component
+  const [step, setStep] = useState("checklist"); // 'checklist' | 'bus_preferences' | 'consent' | 'confirmed'
   const [isProcessing, setIsProcessing] = useState(false);
+  const [busPreferencesSaved, setBusPreferencesSaved] = useState(false);
+  const [savedLocalPlan, setSavedLocalPlan] = useState(null);
 
-  if (!isFinalizeModalOpen) return null;
-
-  const hasTransport = trip.itinerary.some((d) =>
+  const hasTransport = (trip?.itinerary || []).some((d) =>
     (d.plan || []).some((item) => {
       const cat = (item.category || "").toLowerCase();
       return (
@@ -43,7 +47,7 @@ export default function FinalizeModal() {
     })
   );
 
-  const hasStay = trip.itinerary.some((d) =>
+  const hasStay = (trip?.itinerary || []).some((d) =>
     (d.plan || []).some((item) => {
       const cat = (item.category || "").toLowerCase();
       return cat.includes("hotel") || cat.includes("stay");
@@ -51,12 +55,109 @@ export default function FinalizeModal() {
   );
 
   // Authoritative finalization gating
-  const isCampus = trip.tripCategory === 'CAMPUS';
-  const campusTotalBudget = isCampus ? ((trip.campusConfig?.budgetPerStudent || 0) * (trip.campusConfig?.expectedParticipants || 1)) : 0;
-  const actualBudgetLimit = isCampus ? campusTotalBudget : budgetStats.totalBudget;
-  const isBudgetValid = budgetStats.totalSpent <= actualBudgetLimit;
-  const isFeasible = validationStats.isFeasible && validationStats.conflictsCount === 0;
-  const canFinalize = isBudgetValid && isFeasible && (trip.itinerary?.length > 0);
+  const isCampus = trip?.tripCategory === 'CAMPUS';
+  const hasRoadMovements = (busRequirements || []).length > 0;
+
+  const isValidGroupTransportPlan = (p) => {
+    if (!p || typeof p !== "object") return false;
+    const travelers = Number(
+      p.totalTravelers ||
+      (Number(p.studentsCount || 0) + Number(p.teachersStaffCount || 0))
+    );
+    const capacity = Number(p.capacityPerVehicle || 0);
+    const vehicles = Number(
+      p.vehiclesRequired || (travelers > 0 && capacity > 0 ? Math.ceil(travelers / capacity) : 0)
+    );
+    return travelers > 0 && capacity > 0 && vehicles > 0;
+  };
+
+  const effectiveCampusPlan = useMemo(() => {
+    if (!isCampus) return null;
+    if (savedLocalPlan && isValidGroupTransportPlan(savedLocalPlan)) {
+      return savedLocalPlan;
+    }
+    if (trip?.campusTransportPlan && isValidGroupTransportPlan(trip.campusTransportPlan)) {
+      return trip.campusTransportPlan;
+    }
+    if (trip?.campusConfig?.groupTransportPlan && isValidGroupTransportPlan(trip.campusConfig.groupTransportPlan)) {
+      return trip.campusConfig.groupTransportPlan;
+    }
+    if (busRequirements.length > 0 && busRequirements[0]?.groupTransportPlan && isValidGroupTransportPlan(busRequirements[0].groupTransportPlan)) {
+      return busRequirements[0].groupTransportPlan;
+    }
+    // Check if existing bus requirements have saved group preferences
+    const reqWithPrefs = (busRequirements || []).find(
+      (r) => r.preferences && (r.preferences.vehiclesRequired || r.preferences.capacityPerVehicle)
+    );
+    if (reqWithPrefs) {
+      const p = reqWithPrefs.preferences;
+      const students = Number(p.studentsCount || trip?.campusConfig?.expectedParticipants || trip?.travelers || 200);
+      const staff = Number(p.teachersStaffCount !== undefined ? p.teachersStaffCount : 10);
+      const total = Number(p.seatCount || p.totalTravelers || (students + staff));
+      const cap = Number(p.capacityPerVehicle || 25);
+      const veh = Number(p.vehiclesRequired || (total > 0 && cap > 0 ? Math.ceil(total / cap) : 9));
+      return {
+        studentsCount: students,
+        teachersStaffCount: staff,
+        totalTravelers: total,
+        vehicleType: p.vehicleType || "Luxury Coach",
+        comfort: p.comfort || "AC",
+        capacityPerVehicle: cap,
+        vehiclesRequired: veh,
+        luggageCount: p.luggageCount !== undefined ? p.luggageCount : total,
+        notes: p.notes || "",
+        status: "PENDING",
+      };
+    }
+    return null;
+  }, [trip, isCampus, busRequirements, savedLocalPlan]);
+
+  const defaultStudents = Number(
+    effectiveCampusPlan?.studentsCount ||
+    trip?.campusConfig?.expectedParticipants ||
+    trip?.travelers ||
+    200
+  );
+  const defaultTeachers = Number(
+    effectiveCampusPlan?.teachersStaffCount !== undefined
+      ? effectiveCampusPlan.teachersStaffCount
+      : 10
+  );
+  const defaultTravelersCount = defaultStudents + defaultTeachers;
+
+  // 1. Does the Campus Trip require group road transport?
+  const requiresRoadTransport = isCampus && hasRoadMovements;
+
+  // 2. If yes, does one valid Campus Group Transport Plan exist?
+  // 3. Is the plan complete enough to support the required fleet calculation?
+  const hasValidGroupPlan = !requiresRoadTransport || Boolean(effectiveCampusPlan);
+
+  const formatFleetSummary = (plan) => {
+    if (!plan) return "";
+    const count = plan.vehiclesRequired;
+    const type = plan.vehicleType || "Coach";
+    const comfort = plan.comfort || "AC";
+
+    if (type === "Luxury Coach" && comfort === "AC") {
+      return `${count} Luxury AC Coaches`;
+    }
+    if (type.toLowerCase().includes("coach")) {
+      const base = type.endsWith("es") ? type : (type.endsWith("h") ? `${type}es` : `${type}s`);
+      if (comfort && !base.includes(comfort)) {
+        return `${count} ${comfort} ${base}`;
+      }
+      return `${count} ${base}`;
+    }
+    return `${count} ${comfort ? `${comfort} ` : ""}${type}s`;
+  };
+
+  const campusTotalBudget = isCampus ? ((trip?.campusConfig?.budgetPerStudent || 0) * (trip?.campusConfig?.expectedParticipants || 1)) : 0;
+  const actualBudgetLimit = isCampus ? campusTotalBudget : (budgetStats.totalBudget || 0);
+  const isBudgetValid = (budgetStats.totalSpent || 0) <= actualBudgetLimit;
+  const isFeasible = Boolean(validationStats.isFeasible) && (validationStats.conflictsCount || 0) === 0;
+
+  // If yes -> Group Transport Fleet validation passes
+  const canFinalize = isBudgetValid && isFeasible && ((trip?.itinerary?.length || 0) > 0) && hasValidGroupPlan;
 
   const checklistItems = [
     {
@@ -64,8 +165,8 @@ export default function FinalizeModal() {
       status: isBudgetValid,
       isBlocking: true,
       desc: isBudgetValid
-        ? `Within limit (₹${(actualBudgetLimit - budgetStats.totalSpent).toLocaleString()} remaining)`
-        : `BLOCKED: Over budget by ₹${(budgetStats.totalSpent - actualBudgetLimit).toLocaleString()} (Limit: ₹${actualBudgetLimit.toLocaleString()})`,
+        ? `Within limit (₹${(actualBudgetLimit - (budgetStats.totalSpent || 0)).toLocaleString()} remaining)`
+        : `BLOCKED: Over budget by ₹${((budgetStats.totalSpent || 0) - actualBudgetLimit).toLocaleString()} (Limit: ₹${actualBudgetLimit.toLocaleString()})`,
     },
     {
       title: "Schedule feasibility",
@@ -73,21 +174,71 @@ export default function FinalizeModal() {
       isBlocking: true,
       desc: isFeasible
         ? "0 schedule conflicts • All activities properly buffered"
-        : `BLOCKED: ${validationStats.conflictsCount} schedule conflict(s) detected`,
+        : `BLOCKED: ${validationStats.conflictsCount || 0} schedule conflict(s) detected`,
     },
     {
       title: "Activities density",
-      status: validationStats.totalActivities >= trip.itinerary.length,
+      status: (validationStats.totalActivities || 0) >= (trip?.itinerary?.length || 0),
       isBlocking: false,
-      desc: `${validationStats.totalActivities} activities scheduled across ${trip.itinerary.length} days`,
+      desc: `${validationStats.totalActivities || 0} activities scheduled across ${trip?.itinerary?.length || 0} days`,
     },
     {
-      title: "Transport status",
-      status: hasTransport,
-      isBlocking: false,
-      desc: hasTransport
+      title: isCampus && hasRoadMovements
+        ? hasValidGroupPlan
+          ? "Group fleet preferences saved"
+          : "Group fleet preferences required"
+        : hasRoadMovements
+        ? (trip?.localTransportPreference?.arrangementType === "TRAVELER_MANAGED" || trip?.localTransportPreference?.arrangement === "TRAVELER_ARRANGED")
+          ? "Local transport: Traveler managed"
+          : (busPreferencesSaved || trip?.localTransportPreference)
+          ? `Local transport: ${trip?.localTransportPreference?.arrangementType === "PRIVATE_MINIBUS" ? "Private Mini Bus" : "Private Car"}`
+          : "Local transport options"
+        : "Transport status",
+      status: isCampus && hasRoadMovements
+        ? hasValidGroupPlan
+        : true, // Local transport is optional for Personal Trips
+      isBlocking: isCampus && hasRoadMovements && !hasValidGroupPlan,
+      desc: isCampus && hasRoadMovements
+        ? hasValidGroupPlan
+          ? `${effectiveCampusPlan.totalTravelers} travelers • ${effectiveCampusPlan.vehiclesRequired} coaches • ${busRequirements.length} road movements`
+          : `${defaultTravelersCount} travelers • ${busRequirements.length} road movements identified`
+        : hasRoadMovements
+        ? (trip?.localTransportPreference?.arrangementType === "TRAVELER_MANAGED" || trip?.localTransportPreference?.arrangement === "TRAVELER_ARRANGED")
+          ? `Traveler managed · ${busRequirements.length} scheduled local movement(s)`
+          : (busPreferencesSaved || trip?.localTransportPreference)
+          ? `${trip?.localTransportPreference?.arrangementType === "PRIVATE_MINIBUS" ? "Private Mini Bus" : "Private Car"} · ${busRequirements.length} movement(s) (${trip?.localTransportPreference?.vehicleType || "Vehicle"} · ${trip?.localTransportPreference?.comfort || "AC"})`
+          : `${busRequirements.length} scheduled local movement(s) · Optional private vehicle coordination`
+        : hasTransport
         ? "Transit legs configured"
         : "Optional: Local transport can be booked later",
+      action: isCampus && hasRoadMovements ? (
+        hasValidGroupPlan ? (
+          <button
+            type="button"
+            onClick={() => setStep("bus_preferences")}
+            className="px-2.5 py-1 text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/60 transition cursor-pointer border border-indigo-200/60 dark:border-indigo-800/60"
+          >
+            Edit
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setStep("bus_preferences")}
+            className="px-3 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 active:scale-98 rounded-xl transition shadow-xs flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+          >
+            <span>Set Group Fleet Preferences</span>
+            <FiArrowRight className="text-xs" />
+          </button>
+        )
+      ) : hasRoadMovements ? (
+        <button
+          type="button"
+          onClick={() => setStep("bus_preferences")}
+          className="px-2.5 py-1 text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/60 transition cursor-pointer border border-indigo-200/60 dark:border-indigo-800/60"
+        >
+          {trip?.localTransportPreference || busPreferencesSaved ? "Edit" : "Configure"}
+        </button>
+      ) : null,
     },
     {
       title: "Stays & Accommodations",
@@ -97,6 +248,41 @@ export default function FinalizeModal() {
     },
   ];
 
+  const handleSaveBusPreferences = (updatedReqs, campusPlanData, localTransportPref) => {
+    saveBusPreferences(updatedReqs, campusPlanData, localTransportPref);
+    if (campusPlanData) {
+      setSavedLocalPlan(campusPlanData);
+    }
+    setBusPreferencesSaved(true);
+    toast.success(
+      isCampus
+        ? "Group transport preferences saved"
+        : (localTransportPref?.arrangementType === "TRAVELER_MANAGED" || localTransportPref?.arrangement === "TRAVELER_MANAGED" || localTransportPref?.arrangement === "TRAVELER_ARRANGED")
+        ? "Local transport set to traveler managed"
+        : "Local transport preferences saved",
+      { icon: isCampus ? "🚌" : "🚗" }
+    );
+  };
+
+  const handleChecklistProceed = () => {
+    if (!isFeasible) {
+      toast.error(`Cannot confirm: Please resolve ${validationStats.conflictsCount} schedule conflict(s) first.`, { icon: "⚠️" });
+      return;
+    }
+    if (!isBudgetValid) {
+      toast.error(`Cannot confirm: Total cost (₹${budgetStats.totalSpent.toLocaleString()}) exceeds budget (₹${actualBudgetLimit.toLocaleString()}).`, { icon: "⚠️" });
+      return;
+    }
+
+    if (isCampus && hasRoadMovements && !hasValidGroupPlan) {
+      setStep("bus_preferences");
+      return;
+    }
+
+    // For Personal Trips, local transport is OPTIONAL and NEVER blocks finalization
+    handleFinalize();
+  };
+
   const handleFinalize = async () => {
     // Strict programmatic rejection if criteria not met
     if (!canFinalize) {
@@ -104,6 +290,9 @@ export default function FinalizeModal() {
         toast.error(`Cannot confirm: Please resolve ${validationStats.conflictsCount} schedule conflict(s) first.`, { icon: "⚠️" });
       } else if (!isBudgetValid) {
         toast.error(`Cannot confirm: Total cost (₹${budgetStats.totalSpent.toLocaleString()}) exceeds budget (₹${actualBudgetLimit.toLocaleString()}).`, { icon: "⚠️" });
+      } else if (isCampus && !hasValidGroupPlan) {
+        toast.error("Please configure group transport preferences before finalizing.", { icon: "🚌" });
+        setStep("bus_preferences");
       }
       return;
     }
@@ -157,9 +346,12 @@ export default function FinalizeModal() {
     setStep("checklist");
   };
 
+  // Safe early exit AFTER all hooks and derivations have executed unconditionally
+  if (!isFinalizeModalOpen || !trip) return null;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs">
-      <div className="relative w-full max-w-lg overflow-hidden rounded-2xl bg-white dark:bg-[#131b2e] shadow-2xl transition-all border border-slate-200 dark:border-slate-800/80">
+      <div className="relative w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white dark:bg-[#131b2e] shadow-2xl transition-all border border-slate-200 dark:border-slate-800/80 custom-scrollbar">
         {/* Close Button */}
         <button
           onClick={handleClose}
@@ -200,6 +392,11 @@ export default function FinalizeModal() {
                     • Total spent (₹{budgetStats.totalSpent.toLocaleString()}) exceeds budget (₹{actualBudgetLimit.toLocaleString()}) by ₹{(budgetStats.totalSpent - actualBudgetLimit).toLocaleString()}.
                   </p>
                 )}
+                {isCampus && hasRoadMovements && !hasValidGroupPlan && (
+                  <p className="text-[11px] text-rose-700 dark:text-rose-400">
+                    • Group fleet preferences required: Please configure the bus fleet for {defaultTravelersCount} travelers across {busRequirements.length} road movements.
+                  </p>
+                )}
               </div>
             )}
 
@@ -208,7 +405,7 @@ export default function FinalizeModal() {
               {checklistItems.map((item, idx) => (
                 <div
                   key={idx}
-                  className={`flex items-start gap-2.5 rounded-xl border p-2.5 text-xs transition ${
+                  className={`flex items-center justify-between gap-3 rounded-xl border p-2.5 text-xs transition ${
                     item.status
                       ? "border-emerald-200 dark:border-emerald-700/50 bg-emerald-50/40 dark:bg-emerald-950/20"
                       : item.isBlocking
@@ -216,21 +413,28 @@ export default function FinalizeModal() {
                       : "border-amber-200 dark:border-amber-700/50 bg-amber-50/40 dark:bg-amber-950/20"
                   }`}
                 >
-                  <div className="mt-0.5 shrink-0">
-                    {item.status ? (
-                      <FiCheckCircle className="text-emerald-600 dark:text-emerald-400 text-sm" />
-                    ) : item.isBlocking ? (
-                      <FiAlertTriangle className="text-rose-600 dark:text-rose-400 text-sm" />
-                    ) : (
-                      <FiAlertCircle className="text-amber-600 dark:text-amber-400 text-sm" />
-                    )}
+                  <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                    <div className="mt-0.5 shrink-0">
+                      {item.status ? (
+                        <FiCheckCircle className="text-emerald-600 dark:text-emerald-400 text-sm" />
+                      ) : item.isBlocking ? (
+                        <FiAlertTriangle className="text-rose-600 dark:text-rose-400 text-sm" />
+                      ) : (
+                        <FiAlertCircle className="text-amber-600 dark:text-amber-400 text-sm" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-bold text-slate-900 dark:text-white truncate">{item.title}</h4>
+                      <p className={`text-[11px] ${item.status ? "text-slate-600 dark:text-slate-400" : item.isBlocking ? "text-rose-700 dark:text-rose-300 font-medium" : "text-amber-700 dark:text-amber-300"}`}>
+                        {item.desc}
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex-1">
-                    <h4 className="font-bold text-slate-900 dark:text-white">{item.title}</h4>
-                    <p className={`text-[11px] ${item.status ? "text-slate-600 dark:text-slate-400" : item.isBlocking ? "text-rose-700 dark:text-rose-300 font-medium" : "text-amber-700 dark:text-amber-300"}`}>
-                      {item.desc}
-                    </p>
-                  </div>
+                  {item.action && (
+                    <div className="shrink-0">
+                      {item.action}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -257,29 +461,128 @@ export default function FinalizeModal() {
               </span>
             </div>
 
+            {/* Campus Group Transport Summary Pill if configured */}
+            {isCampus && hasRoadMovements && effectiveCampusPlan && (
+              <div className="mt-2.5 rounded-xl bg-indigo-50/70 dark:bg-indigo-950/40 p-3.5 border border-indigo-200 dark:border-indigo-800/60 text-xs text-left">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-indigo-700 dark:text-indigo-300">
+                    Group Transport
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setStep("bus_preferences")}
+                    className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+                  >
+                    Edit Preferences
+                  </button>
+                </div>
+                <div className="mt-1 flex items-baseline justify-between">
+                  <span className="text-sm font-extrabold text-slate-900 dark:text-white">
+                    {effectiveCampusPlan.totalTravelers} travelers
+                  </span>
+                  <span className="text-xs font-black text-indigo-600 dark:text-indigo-400">
+                    {formatFleetSummary(effectiveCampusPlan)}
+                  </span>
+                </div>
+                <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">
+                  {effectiveCampusPlan.capacityPerVehicle} seats/coach
+                </div>
+              </div>
+            )}
+
             {/* Action Buttons */}
             <div className="mt-5 flex gap-2.5">
               <button
                 onClick={handleClose}
-                className="flex-1 rounded-xl border border-slate-200 dark:border-slate-700 py-2.5 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+                className="flex-1 rounded-xl border border-slate-200 dark:border-slate-700 py-2.5 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
               >
                 Back to Editing
               </button>
               <button
-                onClick={handleFinalize}
-                disabled={isProcessing || !canFinalize}
-                title={!canFinalize ? "Resolve conflicts and budget limit to finalize" : "Confirm and save itinerary"}
+                onClick={handleChecklistProceed}
+                disabled={isProcessing || !isBudgetValid || !isFeasible}
+                title={
+                  !isFeasible
+                    ? "Resolve conflicts to finalize"
+                    : !isBudgetValid
+                    ? "Adjust budget to finalize"
+                    : !hasValidGroupPlan
+                    ? "Configure group fleet preferences"
+                    : "Confirm and save itinerary"
+                }
                 className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-bold text-white shadow-xs transition ${
-                  canFinalize
-                    ? "bg-indigo-600 hover:bg-indigo-700 active:scale-98 cursor-pointer"
-                    : "bg-slate-300 dark:bg-slate-700 text-slate-500 dark:text-slate-400 cursor-not-allowed opacity-60"
+                  !isBudgetValid || !isFeasible
+                    ? "bg-slate-300 dark:bg-slate-700 text-slate-500 dark:text-slate-400 cursor-not-allowed opacity-60"
+                    : "bg-indigo-600 hover:bg-indigo-700 active:scale-98 cursor-pointer"
                 }`}
               >
                 {isProcessing ? (
                   <span>Saving Itinerary...</span>
+                ) : isCampus && hasRoadMovements && !hasValidGroupPlan ? (
+                  <>
+                    <span>Set Group Fleet Preferences</span>
+                    <FiArrowRight className="text-xs" />
+                  </>
                 ) : (
                   <>
                     <span>Confirm Itinerary</span>
+                    <FiArrowRight className="text-xs" />
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        ) : step === "bus_preferences" ? (
+          /* ================= STEP: BUS TRANSPORT PREFERENCES ================= */
+          <div className="p-6 space-y-4">
+            <BusPreferenceSection
+              requirements={busRequirements}
+              trip={trip}
+              onSavePreferences={handleSaveBusPreferences}
+              isSaved={
+                isCampus
+                  ? busPreferencesSaved || Boolean(effectiveCampusPlan)
+                  : busPreferencesSaved || Boolean(trip?.localTransportPreference)
+              }
+            />
+
+            {/* Campus Group Transport Summary before confirming */}
+            {isCampus && effectiveCampusPlan && (
+              <div className="rounded-xl border border-indigo-200 dark:border-indigo-800/80 bg-indigo-50/70 dark:bg-indigo-950/40 p-3.5 text-xs text-left">
+                <div className="text-[10px] font-black uppercase tracking-wider text-indigo-700 dark:text-indigo-300 mb-1">
+                  Group Transport
+                </div>
+                <div className="text-sm font-extrabold text-slate-900 dark:text-white">
+                  {effectiveCampusPlan.totalTravelers} travelers
+                </div>
+                <div className="text-xs font-black text-indigo-800 dark:text-indigo-200 mt-0.5">
+                  {formatFleetSummary(effectiveCampusPlan)}
+                </div>
+                <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                  {effectiveCampusPlan.capacityPerVehicle} seats/coach
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setStep("checklist")}
+                className="flex-1 rounded-xl border border-slate-200 dark:border-slate-700 py-2.5 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+              >
+                Back to Checklist
+              </button>
+              <button
+                type="button"
+                onClick={handleFinalize}
+                disabled={isProcessing}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 py-2.5 text-xs font-bold text-white shadow-xs transition active:scale-98"
+              >
+                {isProcessing ? (
+                  <span>Finalizing Trip...</span>
+                ) : (
+                  <>
+                    <span>Confirm & Finalize Trip</span>
                     <FiArrowRight className="text-xs" />
                   </>
                 )}
@@ -369,6 +672,48 @@ export default function FinalizeModal() {
                 Your custom itinerary and day plan have been saved.
               </p>
             </div>
+
+            {/* Campus Group Transport Finalization Summary */}
+            {isCampus && effectiveCampusPlan && (
+              <div className="my-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 p-3.5 border border-slate-200 dark:border-slate-700 text-left text-xs">
+                <div className="text-[10px] font-black uppercase tracking-wider text-indigo-700 dark:text-indigo-300 mb-1">
+                  Group Transport
+                </div>
+                <div className="text-sm font-extrabold text-slate-900 dark:text-white">
+                  {effectiveCampusPlan.totalTravelers} travelers
+                </div>
+                <div className="text-xs font-black text-slate-800 dark:text-slate-200 mt-0.5">
+                  {formatFleetSummary(effectiveCampusPlan)}
+                </div>
+                <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                  {effectiveCampusPlan.capacityPerVehicle} seats/coach
+                </div>
+              </div>
+            )}
+
+            {/* Personal Trip Local Transport Finalization Summary */}
+            {!isCampus && trip?.localTransportPreference && (
+              <div className="my-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 p-3.5 border border-slate-200 dark:border-slate-700 text-left text-xs">
+                <div className="text-[10px] font-black uppercase tracking-wider text-indigo-700 dark:text-indigo-300 mb-1">
+                  Local Transport
+                </div>
+                {(trip.localTransportPreference.arrangementType === "TRAVELER_MANAGED" ||
+                  trip.localTransportPreference.arrangement === "TRAVELER_ARRANGED") ? (
+                  <div className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    Traveler managed (Ola / Uber / auto / taxi / self-drive)
+                  </div>
+                ) : (
+                  <div>
+                    <div className="text-sm font-extrabold text-slate-900 dark:text-white">
+                      {trip.localTransportPreference.arrangementType === "PRIVATE_MINIBUS" ? "Private Mini Bus" : "Private Car"} · {trip.localTransportPreference.vehicleType || "Private Vehicle"}
+                    </div>
+                    <div className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-0.5">
+                      {trip.localTransportPreference.comfort || "AC"} · {trip.localTransportPreference.seatCount || trip.travelers || 2} seats · {trip.localTransportPreference.luggageCount || trip.travelers || 2} bags · Entire trip
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Next Steps CTA Buttons */}
             <div className="flex gap-2">

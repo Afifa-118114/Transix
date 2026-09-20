@@ -21,6 +21,8 @@ import {
   FiMessageSquare, FiSend, FiHome, FiStar
 } from "react-icons/fi";
 import { GraduationCap } from "lucide-react";
+import { findExistingTransportRecord } from "../../utils/schedulingEngine";
+import { detectBusRequirements, resolveLocalTransportArrangement, calculateDayDate } from "../../utils/busRequirementDetector";
 
 export default function OperatorTripDetails() {
   const { tripId } = useParams();
@@ -248,6 +250,81 @@ export default function OperatorTripDetails() {
     });
     return accs;
   }, [trip, selectedDayIndex]);
+
+  // For Campus Trips: Consolidate outbound & return into EXACTLY TWO intercity cards
+  const campusIntercityCards = useMemo(() => {
+    if (!isCampus || !trip) return [];
+    const out = findExistingTransportRecord(trip, "outbound");
+    const ret = findExistingTransportRecord(trip, "return");
+    const totalDays = Array.isArray(trip.itinerary) ? trip.itinerary.length : 10;
+    
+    return [
+      {
+        direction: "OUTBOUND",
+        date: out?.rawLeg?.date || (trip.startDate ? formatDate(trip.startDate) : "Day 1"),
+        from: out?.source || out?.rawLeg?.from || trip.source || "Origin",
+        to: out?.destination || out?.rawLeg?.to || trip.destination || "Destination",
+        mode: (out?.mode === "flight" || out?.rawLeg?.mode === "flight") ? "Flight" : "Train",
+        carrierInfo: out?.mode === "flight"
+          ? (out.flightNumber ? `${out.airline || "Flight"} #${out.flightNumber}` : (out.airline || "Scheduled Flight"))
+          : (out?.trainNumber ? `${out.trainName || "Train"} #${out.trainNumber}` : (out?.trainName || "Scheduled Train")),
+        departureTime: out?.departure || out?.rawLeg?.startTime || "Departure",
+        arrivalTime: out?.arrival || out?.rawLeg?.endTime || "Arrival",
+      },
+      {
+        direction: "RETURN",
+        date: ret?.rawLeg?.date || (trip.endDate ? formatDate(trip.endDate) : (trip.startDate ? `Day ${totalDays}` : "Return")),
+        from: ret?.source || ret?.rawLeg?.from || trip.destination || "Destination",
+        to: ret?.destination || ret?.rawLeg?.to || trip.source || "Origin",
+        mode: (ret?.mode === "flight" || ret?.rawLeg?.mode === "flight") ? "Flight" : "Train",
+        carrierInfo: ret?.mode === "flight"
+          ? (ret.flightNumber ? `${ret.airline || "Flight"} #${ret.flightNumber}` : (ret.airline || "Scheduled Flight"))
+          : (ret?.trainNumber ? `${ret.trainName || "Train"} #${ret.trainNumber}` : (ret?.trainName || "Scheduled Train")),
+        departureTime: ret?.departure || ret?.rawLeg?.startTime || "Departure",
+        arrivalTime: ret?.arrival || ret?.rawLeg?.endTime || "Arrival",
+      }
+    ];
+  }, [trip, isCampus]);
+
+  // Operational road movements across the entire trip
+  const scheduledRoadMovements = useMemo(() => {
+    if (!trip) return [];
+    return detectBusRequirements(trip);
+  }, [trip]);
+
+  // Personal trip local transport resolution
+  const personalTransportArrangement = useMemo(() => {
+    if (!trip || isCampus) return null;
+    return resolveLocalTransportArrangement(trip);
+  }, [trip, isCampus]);
+
+  // Operational Group Fleet plan for Campus trips
+  const campusFleetPlan = useMemo(() => {
+    if (!isCampus || !trip) return null;
+    return trip.campusTransportPlan || {
+      vehiclesRequired: Math.ceil((trip.travelers || 20) / 25),
+      vehicleType: "Coach",
+      comfort: "AC",
+      capacityPerVehicle: 25,
+      totalTravelers: trip.travelers || 20,
+      studentsCount: trip.travelers || 20,
+      teachersStaffCount: 0,
+      luggageCount: trip.travelers || 20,
+      notes: "",
+    };
+  }, [trip, isCampus]);
+
+  // Operational Group Fleet Booking (Single Requirement)
+  const campusFleetBooking = useMemo(() => {
+    if (!isCampus) return null;
+    return transportBookings.find(b => b.itemId === "campus-group-fleet") || transportBookings[0] || null;
+  }, [transportBookings, isCampus]);
+
+  // Operational Personal Private Vehicle Booking (Single Requirement)
+  const personalVehicleBooking = useMemo(() => {
+    if (isCampus) return null;
+    return transportBookings.find(b => b.itemId === "personal-private-vehicle") || transportBookings[0] || null;
+  }, [transportBookings, isCampus]);
 
   if (loading) {
     return (
@@ -580,7 +657,7 @@ export default function OperatorTripDetails() {
               }`}
             >
               <FiArrowRight size={13} />
-              <span>Transport Legs ({transportBookings.length || trip.travelLegs?.length || 0})</span>
+              <span>{isCampus ? "Transport & Fleet" : "Transport Legs"} ({isCampus ? 2 : (transportBookings.length || trip.travelLegs?.length || 0)})</span>
             </button>
           </div>
 
@@ -974,70 +1051,419 @@ export default function OperatorTripDetails() {
                 </p>
               </div>
 
-              {Array.isArray(trip.travelLegs) && trip.travelLegs.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {trip.travelLegs.map((leg, i) => (
-                    <div key={i} className="bg-slate-900 p-5 rounded-2xl border border-slate-800 shadow-xs flex flex-col justify-between gap-4">
-                      <div>
-                        <div className="flex items-center justify-between gap-2 mb-2">
-                          <span className="px-2 py-0.5 bg-indigo-950/70 text-indigo-300 text-[10px] font-black rounded uppercase tracking-wider border border-indigo-800/60">
-                            {leg.mode || "Transit"}
-                          </span>
-                          <span className="text-xs font-bold text-slate-400">
-                            Leg #{i + 1}
-                          </span>
-                        </div>
-
-                        <div className="font-bold text-white text-sm flex items-center gap-2">
-                          <span>{leg.from}</span>
-                          <FiArrowRight className="text-indigo-400 shrink-0" />
-                          <span>{leg.to}</span>
-                        </div>
-
-                        <div className="text-xs text-slate-400 mt-2 font-medium space-y-0.5">
-                          {leg.date && <div>Date: <span className="text-slate-300">{leg.date}</span></div>}
-                          {(leg.startTime || leg.endTime) && (
-                            <div>Time: <span className="text-slate-300">{leg.startTime} – {leg.endTime}</span></div>
-                          )}
-                          {leg.trainNumber && <div>Train/Flight: <span className="text-slate-300 font-mono">{leg.trainNumber}</span></div>}
-                        </div>
-                      </div>
-
-                      <div className="pt-3 border-t border-slate-800 flex items-center justify-between text-xs">
-                        <span className="text-slate-500 font-medium">Canonical Itinerary Leg</span>
-                        <span className="text-emerald-400 font-bold flex items-center gap-1">
-                          <FiCheck size={12} /> Scheduled
-                        </span>
-                      </div>
+              {/* 1. Intercity Transit (Trains/Flights) */}
+              {isCampus ? (
+                /* Campus Trip: EXACTLY TWO intercity cards (OUTBOUND and RETURN) regardless of mode combination */
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                      INTERCITY TRANSIT (CAMPUS OUTBOUND & RETURN)
                     </div>
-                  ))}
-                </div>
-              ) : transportBookings.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {transportBookings.map((b) => (
-                    <div key={b._id} className="bg-slate-900 p-5 rounded-2xl border border-slate-800 shadow-xs space-y-3">
-                      <div className="flex items-start justify-between gap-3">
-                        <h4 className="text-sm font-bold text-white">{b.title}</h4>
-                        <span className={`px-2 py-0.5 text-[9px] uppercase font-black tracking-wider rounded border ${getStatusBadge(b.status)}`}>
-                          {b.status}
-                        </span>
+                    <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">
+                      2 Canonical Cards
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {campusIntercityCards.map((card) => (
+                      <div key={card.direction} className="bg-slate-900 p-5 rounded-2xl border border-slate-800 shadow-xs flex flex-col justify-between gap-4">
+                        <div>
+                          <div className="flex items-center justify-between gap-2 mb-2">
+                            <span className={`px-2 py-0.5 text-[10px] font-black rounded uppercase tracking-wider border ${
+                              card.direction === "OUTBOUND"
+                                ? "bg-indigo-950/70 text-indigo-300 border-indigo-800/60"
+                                : "bg-purple-950/70 text-purple-300 border-purple-800/60"
+                            }`}>
+                              {card.direction}
+                            </span>
+                            <span className="px-2 py-0.5 bg-slate-800 text-slate-300 text-[10px] font-bold rounded uppercase tracking-wider border border-slate-700">
+                              {card.mode}
+                            </span>
+                          </div>
+
+                          <div className="font-bold text-white text-base flex items-center gap-2 mt-1">
+                            <span>{card.from}</span>
+                            <FiArrowRight className="text-indigo-400 shrink-0" />
+                            <span>{card.to}</span>
+                          </div>
+
+                          <div className="text-xs text-slate-400 mt-2.5 font-medium space-y-1 bg-slate-950/50 p-2.5 rounded-xl border border-slate-800/60">
+                            <div>Date: <span className="text-slate-300 font-semibold">{card.date}</span></div>
+                            <div>Timing: <span className="text-slate-300 font-semibold">{card.departureTime} – {card.arrivalTime}</span></div>
+                            <div>Carrier: <span className="text-slate-300 font-mono font-semibold">{card.carrierInfo}</span></div>
+                          </div>
+                        </div>
+
+                        <div className="pt-3 border-t border-slate-800 flex items-center justify-between text-xs">
+                          <span className="text-slate-500 font-medium">Canonical Intercity Leg</span>
+                          <span className="text-emerald-400 font-bold flex items-center gap-1">
+                            <FiCheck size={12} /> Scheduled
+                          </span>
+                        </div>
                       </div>
-                      <div className="text-xs text-slate-400">{b.location}</div>
-                      <div className="pt-3 border-t border-slate-800 flex justify-end">
-                        <StatusDropdown
-                          currentStatus={b.status}
-                          disabled={statusUpdating[b._id]}
-                          validTransitions={validTransitions}
-                          onStatusChange={(newStatus) => handleStatusChange(b._id, newStatus)}
-                          compact
-                        />
-                      </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               ) : (
+                /* Personal Trip: Retain existing 4-card door-to-door transit structure */
+                Array.isArray(trip.travelLegs) && trip.travelLegs.length > 0 && (
+                  <div className="space-y-3">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                      DOOR-TO-DOOR TRANSIT LEGS (PERSONAL)
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {trip.travelLegs.map((leg, i) => (
+                        <div key={i} className="bg-slate-900 p-5 rounded-2xl border border-slate-800 shadow-xs flex flex-col justify-between gap-4">
+                          <div>
+                            <div className="flex items-center justify-between gap-2 mb-2">
+                              <span className="px-2 py-0.5 bg-indigo-950/70 text-indigo-300 text-[10px] font-black rounded uppercase tracking-wider border border-indigo-800/60">
+                                {leg.mode || "Transit"}
+                              </span>
+                              <span className="text-xs font-bold text-slate-400">
+                                Leg #{i + 1}
+                              </span>
+                            </div>
+
+                            <div className="font-bold text-white text-sm flex items-center gap-2">
+                              <span>{leg.from}</span>
+                              <FiArrowRight className="text-indigo-400 shrink-0" />
+                              <span>{leg.to}</span>
+                            </div>
+
+                            <div className="text-xs text-slate-400 mt-2 font-medium space-y-0.5">
+                              {leg.date && <div>Date: <span className="text-slate-300">{leg.date}</span></div>}
+                              {(leg.startTime || leg.endTime) && (
+                                <div>Time: <span className="text-slate-300">{leg.startTime} – {leg.endTime}</span></div>
+                              )}
+                              {leg.trainNumber && <div>Train/Flight: <span className="text-slate-300 font-mono">{leg.trainNumber}</span></div>}
+                            </div>
+                          </div>
+
+                          <div className="pt-3 border-t border-slate-800 flex items-center justify-between text-xs">
+                            <span className="text-slate-500 font-medium">Canonical Itinerary Leg</span>
+                            <span className="text-emerald-400 font-bold flex items-center gap-1">
+                              <FiCheck size={12} /> Scheduled
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              )}
+
+              {/* 2. Operational Road Transport & Fleet Movements */}
+              {isCampus ? (
+                /* Campus Group Road Transport: ONE operational Group Fleet Card + Movements List */
+                <div className="space-y-4 pt-2">
+                  <div className="text-[10px] font-black uppercase tracking-widest text-indigo-400 flex items-center gap-1.5">
+                    <span>CAMPUS GROUP FLEET & ROAD MOVEMENTS</span>
+                    <span className="px-1.5 py-0.5 rounded bg-indigo-950 text-[9px] font-bold text-indigo-300 border border-indigo-800/60">
+                      ONE TRIP FLEET ARRANGEMENT
+                    </span>
+                  </div>
+
+                  {/* ONE Group Transport / Fleet Card */}
+                  {campusFleetPlan && (
+                    <div className="bg-indigo-950/40 border border-indigo-800/80 rounded-2xl p-5 shadow-xs space-y-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-indigo-800/60">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="px-2 py-0.5 bg-indigo-900 text-indigo-200 text-[10px] font-black rounded uppercase tracking-wider border border-indigo-700">
+                              GROUP TRANSPORT
+                            </span>
+                            <span className="text-xs font-bold text-slate-300">
+                              Single Group Fleet Arrangement
+                            </span>
+                          </div>
+                          <div className="text-lg font-black text-white mt-1">
+                            {campusFleetPlan.vehiclesRequired}x {campusFleetPlan.comfort} {campusFleetPlan.vehicleType}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          <div className="text-left sm:text-right">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-300">
+                              Total Travelers
+                            </span>
+                            <div className="text-sm font-extrabold text-white">
+                              {campusFleetPlan.totalTravelers} ({campusFleetPlan.studentsCount || 0} Students + {campusFleetPlan.teachersStaffCount || 0} Staff)
+                            </div>
+                          </div>
+
+                          <span className={`px-2.5 py-1 text-[10px] uppercase font-black tracking-wider rounded-lg border ${getStatusBadge(campusFleetBooking?.status || "PENDING")}`}>
+                            {(campusFleetBooking?.status || "PENDING").replace("_", " ")}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                        <div className="bg-slate-900/80 p-3 rounded-xl border border-indigo-900/60">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase block">Vehicle Type</span>
+                          <span className="font-extrabold text-white">{campusFleetPlan.vehicleType}</span>
+                        </div>
+                        <div className="bg-slate-900/80 p-3 rounded-xl border border-indigo-900/60">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase block">Capacity</span>
+                          <span className="font-extrabold text-white">{campusFleetPlan.capacityPerVehicle} seats / vehicle</span>
+                        </div>
+                        <div className="bg-slate-900/80 p-3 rounded-xl border border-indigo-900/60">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase block">Vehicles Required</span>
+                          <span className="font-extrabold text-emerald-400">{campusFleetPlan.vehiclesRequired} coaches required</span>
+                        </div>
+                        <div className="bg-slate-900/80 p-3 rounded-xl border border-indigo-900/60">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase block">Luggage</span>
+                          <span className="font-extrabold text-white">{campusFleetPlan.luggageCount} bags</span>
+                        </div>
+                      </div>
+
+                      {campusFleetPlan.notes && (
+                        <div className="text-xs text-indigo-200/90 italic bg-indigo-950/60 p-2.5 rounded-xl border border-indigo-800/40">
+                          Notes: "{campusFleetPlan.notes}"
+                        </div>
+                      )}
+
+                      {/* Operator Status Management for the ONE Fleet */}
+                      {campusFleetBooking && (
+                        <div className="pt-3 border-t border-indigo-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                          <div className="text-slate-300 font-medium flex items-center gap-1.5">
+                            <span>Manage Fleet Booking Status:</span>
+                            <span className="text-slate-400 text-[11px]">(Applies to the entire group transport plan)</span>
+                          </div>
+                          <StatusDropdown
+                            currentStatus={campusFleetBooking.status}
+                            disabled={statusUpdating[campusFleetBooking._id]}
+                            validTransitions={validTransitions}
+                            onStatusChange={(newStatus) => handleStatusChange(campusFleetBooking._id, newStatus)}
+                            compact
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Underneath: TRIP TRANSPORT MOVEMENTS List (No independent booking statuses) */}
+                  <div className="space-y-3 pt-2">
+                    <div className="flex items-center justify-between">
+                      <div className="text-[10px] font-black uppercase tracking-widest text-slate-300">
+                        TRIP TRANSPORT MOVEMENTS ({scheduledRoadMovements.length})
+                      </div>
+                      <span className="text-[10px] text-slate-400 font-medium">
+                        Operational requirements under group fleet • No separate booking statuses
+                      </span>
+                    </div>
+
+                    {scheduledRoadMovements.length === 0 ? (
+                      <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-4 text-xs text-slate-400 text-center">
+                        No road transport movements detected for this itinerary.
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {scheduledRoadMovements.map((movement, mIdx) => {
+                          const dateStr = movement.date || (movement.dayNumber && trip.startDate ? calculateDayDate(trip.startDate, movement.dayNumber) : `Day ${movement.dayNumber || mIdx + 1}`);
+                          const timeStr = movement.requiredDepartureTime || (movement.timing ? movement.timing.split("-")[0].trim() : "Scheduled Timing");
+                          const activityDesc = movement.relatedActivity || (movement.type === "TRANSFER" ? "Arrival / hotel transfer" : "Scheduled activity transport");
+
+                          return (
+                            <div key={movement.id || mIdx} className="bg-slate-900/90 p-4 rounded-xl border border-slate-800 flex flex-col justify-between gap-2 shadow-xs">
+                              <div>
+                                <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
+                                  <span className="font-bold text-slate-300">{dateStr}</span>
+                                  <span className="text-[11px] font-mono text-indigo-400 font-bold">{timeStr}</span>
+                                </div>
+                                <div className="font-bold text-white text-sm flex items-center gap-1.5">
+                                  <span>{movement.from}</span>
+                                  <FiArrowRight className="text-indigo-400 shrink-0" size={13} />
+                                  <span>{movement.to}</span>
+                                </div>
+                                <div className="text-xs text-slate-400 mt-1">
+                                  {activityDesc}
+                                </div>
+                              </div>
+                              <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-500">
+                                <span>Assigned to Group Fleet</span>
+                                <span className="text-indigo-300 font-semibold">Operational Requirement</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                /* Personal Trip: ONE Private Vehicle Arrangement OR Traveler Managed + Movements */
+                <div className="space-y-4 pt-2">
+                  <div className="text-[10px] font-black uppercase tracking-widest text-indigo-400 flex items-center gap-1.5">
+                    <span>PERSONAL LOCAL TRANSPORT</span>
+                    <span className="px-1.5 py-0.5 rounded bg-indigo-950 text-[9px] font-bold text-indigo-300 border border-indigo-800/60">
+                      {personalTransportArrangement?.isTravelerManaged ? "TRAVELER MANAGED" : "ONE TRIP ARRANGEMENT"}
+                    </span>
+                  </div>
+
+                  {personalTransportArrangement?.isTravelerManaged ? (
+                    /* Traveler Managed Banner */
+                    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xs space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="px-2 py-0.5 bg-slate-800 text-slate-300 text-[10px] font-black rounded uppercase tracking-wider border border-slate-700">
+                            TRAVELER MANAGED
+                          </span>
+                          <span className="text-xs font-bold text-slate-400">
+                            Entire Trip Scope
+                          </span>
+                        </div>
+                        <span className="px-2.5 py-0.5 rounded bg-emerald-950/60 text-emerald-400 border border-emerald-800/60 text-[10px] font-bold">
+                          No Transix Booking Required
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-300">
+                        The traveler selected <strong>"I'll manage local transport myself"</strong>. They will arrange local transit independently (Ola / Uber / Auto / Taxi / Rental / Public Transport).
+                      </p>
+                    </div>
+                  ) : personalTransportArrangement?.isTransixCoordinated ? (
+                    /* ONE Private Vehicle Arrangement Card */
+                    <div className="bg-indigo-950/40 border border-indigo-800/80 rounded-2xl p-5 shadow-xs space-y-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-indigo-800/60">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="px-2 py-0.5 bg-indigo-900 text-indigo-200 text-[10px] font-black rounded uppercase tracking-wider border border-indigo-700">
+                              PRIVATE VEHICLE
+                            </span>
+                            <span className="text-xs font-bold text-slate-300">
+                              Entire Trip Scope
+                            </span>
+                          </div>
+                          <div className="text-lg font-black text-white mt-1">
+                            {personalTransportArrangement.preferences?.vehicleType || (personalTransportArrangement.isPrivateMinibus ? "Private Mini Bus" : "Private Car")} • {personalTransportArrangement.preferences?.comfort || "AC"}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          <div className="text-left sm:text-right">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-300">
+                              Travelers
+                            </span>
+                            <div className="text-sm font-extrabold text-white">
+                              {personalTransportArrangement.preferences?.travelerCount || trip.travelers} travelers
+                            </div>
+                          </div>
+
+                          <span className={`px-2.5 py-1 text-[10px] uppercase font-black tracking-wider rounded-lg border ${getStatusBadge(personalVehicleBooking?.status || "PENDING")}`}>
+                            {(personalVehicleBooking?.status || "PENDING").replace("_", " ")}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                        <div className="bg-slate-900/80 p-3 rounded-xl border border-indigo-900/60">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase block">Vehicle Type</span>
+                          <span className="font-extrabold text-white">{personalTransportArrangement.preferences?.vehicleType || (personalTransportArrangement.isPrivateMinibus ? "Private Mini Bus" : "Private Car")}</span>
+                        </div>
+                        <div className="bg-slate-900/80 p-3 rounded-xl border border-indigo-900/60">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase block">Comfort</span>
+                          <span className="font-extrabold text-white">{personalTransportArrangement.preferences?.comfort || "AC"}</span>
+                        </div>
+                        <div className="bg-slate-900/80 p-3 rounded-xl border border-indigo-900/60">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase block">Capacity</span>
+                          <span className="font-extrabold text-white">{personalTransportArrangement.preferences?.seatCount || personalTransportArrangement.preferences?.travelerCount || trip.travelers} seats</span>
+                        </div>
+                        <div className="bg-slate-900/80 p-3 rounded-xl border border-indigo-900/60">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase block">Luggage</span>
+                          <span className="font-extrabold text-white">{personalTransportArrangement.preferences?.luggageCount !== undefined ? `${personalTransportArrangement.preferences.luggageCount} bags` : "Standard"}</span>
+                        </div>
+                      </div>
+
+                      {personalTransportArrangement.preferences?.notes && (
+                        <div className="text-xs text-indigo-200/90 italic bg-indigo-950/60 p-2.5 rounded-xl border border-indigo-800/40">
+                          Preferences: "{personalTransportArrangement.preferences.notes}"
+                        </div>
+                      )}
+
+                      {personalVehicleBooking && (
+                        <div className="pt-3 border-t border-indigo-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                          <div className="text-slate-300 font-medium flex items-center gap-1.5">
+                            <span>Update Private Vehicle Status:</span>
+                            <span className="text-slate-400 text-[11px]">(Applies to all scheduled movements)</span>
+                          </div>
+                          <StatusDropdown
+                            currentStatus={personalVehicleBooking.status}
+                            disabled={statusUpdating[personalVehicleBooking._id]}
+                            validTransitions={validTransitions}
+                            onStatusChange={(newStatus) => handleStatusChange(personalVehicleBooking._id, newStatus)}
+                            compact
+                          />
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xs text-xs text-slate-400">
+                      No private local vehicle has been coordinated for this trip. Local transport is traveler-managed by default.
+                    </div>
+                  )}
+
+                  {/* Underneath: SCHEDULED MOVEMENTS list under the one arrangement */}
+                  <div className="space-y-3 pt-2">
+                    <div className="flex items-center justify-between">
+                      <div className="text-[10px] font-black uppercase tracking-widest text-slate-300">
+                        SCHEDULED MOVEMENTS ({scheduledRoadMovements.length})
+                      </div>
+                      <span className="text-[10px] text-slate-400 font-medium">
+                        {personalTransportArrangement?.isTravelerManaged ? "Traveler managed movements" : "Operational requirements under assigned private vehicle"}
+                      </span>
+                    </div>
+
+                    {scheduledRoadMovements.length === 0 ? (
+                      <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-4 text-xs text-slate-400 text-center">
+                        No local movements detected for this itinerary.
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {scheduledRoadMovements.map((movement, mIdx) => {
+                          const dateStr = movement.date || (movement.dayNumber && trip.startDate ? calculateDayDate(trip.startDate, movement.dayNumber) : `Day ${movement.dayNumber || mIdx + 1}`);
+                          const timeStr = movement.requiredDepartureTime || (movement.timing ? movement.timing.split("-")[0].trim() : "Scheduled Timing");
+                          const activityDesc = movement.relatedActivity || (movement.type === "TRANSFER" ? "Hotel / station transfer" : "Scheduled activity transport");
+
+                          return (
+                            <div key={movement.id || mIdx} className="bg-slate-900/90 p-4 rounded-xl border border-slate-800 flex flex-col justify-between gap-2 shadow-xs">
+                              <div>
+                                <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
+                                  <span className="font-bold text-slate-300">{dateStr}</span>
+                                  <span className="text-[11px] font-mono text-indigo-400 font-bold">{timeStr}</span>
+                                </div>
+                                <div className="font-bold text-white text-sm flex items-center gap-1.5">
+                                  <span>{movement.from}</span>
+                                  <FiArrowRight className="text-indigo-400 shrink-0" size={13} />
+                                  <span>{movement.to}</span>
+                                </div>
+                                <div className="text-xs text-slate-400 mt-1">
+                                  {activityDesc}
+                                </div>
+                              </div>
+                              <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-500">
+                                {personalTransportArrangement?.isTravelerManaged ? (
+                                  <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 font-semibold">
+                                    Traveler managed
+                                  </span>
+                                ) : (
+                                  <span>Assigned Private Vehicle</span>
+                                )}
+                                <span className="text-indigo-300 font-semibold">Operational Requirement</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Empty state if neither transit nor road movements exist */}
+              {(!trip.travelLegs || trip.travelLegs.length === 0) &&
+               (!isCampus || campusIntercityCards.length === 0) &&
+               scheduledRoadMovements.length === 0 && (
                 <div className="bg-slate-900 rounded-2xl border border-slate-800 p-8 text-center text-slate-400 text-xs">
-                  No travel legs mapped for this trip.
+                  No travel legs or road movements mapped for this trip.
                 </div>
               )}
             </div>

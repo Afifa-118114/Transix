@@ -41,11 +41,38 @@ const bookingRequirementSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["NOT_BOOKED", "PROCESSING", "ACTION_REQUIRED", "CONFIRMED", "CANCELLED"],
+      enum: ["NOT_BOOKED", "PROCESSING", "ACTION_REQUIRED", "CONFIRMED", "CANCELLED", "PENDING"],
       default: "NOT_BOOKED",
     },
     notes: {
       type: String,
+    },
+    transportDetails: {
+      mode: { type: String, default: "BUS" },
+      requirementType: {
+        type: String,
+        enum: ["LOCAL_TRANSPORT", "OUTSTATION_TRANSPORT", "GROUP_TRANSPORT"],
+        default: "LOCAL_TRANSPORT",
+      },
+      arrangement: {
+        type: String,
+        enum: ["TRANSIX_COORDINATED", "TRAVELER_ARRANGED"],
+        default: "TRANSIX_COORDINATED",
+      },
+      from: String,
+      to: String,
+      date: String,
+      requiredDepartureTime: String,
+      pickupTime: String,
+      requiredArrivalTime: String,
+      travelers: Number,
+      preferences: {
+        vehicleType: String,
+        comfort: String,
+        seatCount: Number,
+        luggageCount: Number,
+        notes: String,
+      },
     },
     statusHistory: [
       {

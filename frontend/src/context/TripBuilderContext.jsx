@@ -19,6 +19,7 @@ import { normalizeTrip, getDuration, timeToMinutes, minutesToTimeStr, parsePrice
 import { normalizeInventoryItem } from "../utils/normalizeInventoryItem";
 import { updateTrip } from "../api/tripApi";
 import { calculateTripBudgetAnalysis, calculateStayAccommodation } from "../utils/campusBudgetUtils";
+import { detectBusRequirements } from "../utils/busRequirementDetector";
 
 export const TripBuilderContext = createContext();
 
@@ -722,6 +723,35 @@ export function TripBuilderProvider({ children }) {
     };
   }, [trip, budgetStats]);
 
+  // Bus Transport Requirements & Preferences
+  const busRequirements = useMemo(() => {
+    return detectBusRequirements(trip);
+  }, [trip]);
+
+  const saveBusPreferences = useCallback((updatedReqs, campusPlan, localTransportPref) => {
+    setTrip((prevTrip) => {
+      if (!prevTrip) return prevTrip;
+      return {
+        ...prevTrip,
+        busRequirements: updatedReqs,
+        ...(campusPlan ? { campusTransportPlan: campusPlan } : {}),
+        ...(localTransportPref !== undefined ? { localTransportPreference: localTransportPref } : {}),
+      };
+    });
+    setIsSaved(false);
+  }, [setTrip]);
+
+  const saveCampusTransportPlan = useCallback((campusPlan) => {
+    setTrip((prevTrip) => {
+      if (!prevTrip) return prevTrip;
+      return {
+        ...prevTrip,
+        campusTransportPlan: campusPlan,
+      };
+    });
+    setIsSaved(false);
+  }, [setTrip]);
+
   // Save Itinerary
   const saveItinerary = async () => {
     try {
@@ -735,6 +765,11 @@ export function TripBuilderProvider({ children }) {
             trip._id,
             {
               itinerary: trip.itinerary,
+              travelLegs: trip.travelLegs,
+              staySegments: trip.staySegments,
+              busRequirements: trip.busRequirements || busRequirements,
+              campusTransportPlan: trip.campusTransportPlan,
+              localTransportPreference: trip.localTransportPreference,
               budget: trip.budget,
               travelers: trip.travelers,
             },
@@ -1026,6 +1061,9 @@ export function TripBuilderProvider({ children }) {
         applyApprovedTransportChanges,
         schedulingConflicts,
         applySuggestion,
+        busRequirements,
+        saveBusPreferences,
+        saveCampusTransportPlan,
       }}
     >
       {children}
