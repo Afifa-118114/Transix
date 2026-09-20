@@ -1,25 +1,73 @@
-import { useLocation, Navigate } from "react-router-dom";
+import { useLocation, useParams, Navigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useTripBuilder } from "../context/TripBuilderContext";
 import { useAuth } from "../context/AuthContext";
 
 import ItineraryHero from "../components/itinerary/ItineraryHero";
 import StayPlan from "../components/itinerary/StayPlan";
+import TransportDetails from "../components/itinerary/TransportDetails";
 import DayTabs from "../components/itinerary/DayTabs";
 import Timeline from "../components/itinerary/Timeline";
 import BottomNav from "../components/itinerary/BottomNav";
 
 import { regenerateDay } from "../api/tripApi";
+import { generateTripItineraryPdf } from "../utils/itineraryPdfGenerator";
 
 export default function DetailedItinerary() {
+  const { tripId } = useParams();
   const { state } = useLocation();
   const { trip: contextTrip, schedulingConflicts, applySuggestion } = useTripBuilder();
   const { user } = useAuth();
 
-  // Prepare values before hooks (prefer live context trip over stale navigation state)
-  const trip = contextTrip || state?.trip;
+  // Prefer trip matching the URL tripId from state or context
+  const initialTrip = (tripId && state?.trip?._id === tripId)
+    ? state.trip
+    : ((tripId && contextTrip?._id === tripId) ? contextTrip : (state?.trip || contextTrip));
+
+  const [fetchedTrip, setFetchedTrip] = useState(null);
+  const [fetchingTrip, setFetchingTrip] = useState(!initialTrip && Boolean(tripId));
+
+  const trip = fetchedTrip || initialTrip;
   const initialDay = state?.dayIndex ?? 0;
   const viewOnly = state?.viewOnly === true;
+
+  // Fallback direct trip fetch if landing directly or reloading without context/state
+  useEffect(() => {
+    if (!initialTrip && tripId) {
+      let isMounted = true;
+      setFetchingTrip(true);
+      const token = localStorage.getItem("token");
+      const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
+      fetch(`${API}/api/campus-trips/${tripId}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (isMounted && data?.success && data?.trip) {
+            setFetchedTrip(data.trip);
+            setFetchingTrip(false);
+          } else {
+            return fetch(`${API}/api/trips/${tripId}`, {
+              headers: token ? { Authorization: `Bearer ${token}` } : {},
+            }).then((res) => res.json()).then((pData) => {
+              if (isMounted && pData?.success && pData?.trip) {
+                setFetchedTrip(pData.trip);
+              }
+              if (isMounted) setFetchingTrip(false);
+            });
+          }
+        })
+        .catch((err) => {
+          console.error("Failed to load trip directly:", err);
+          if (isMounted) setFetchingTrip(false);
+        });
+
+      return () => {
+        isMounted = false;
+      };
+    }
+  }, [initialTrip, tripId]);
 
   // Hooks (must always be called)
   const [selectedDay, setSelectedDay] = useState(initialDay);
@@ -33,7 +81,15 @@ export default function DetailedItinerary() {
     }
   }, [trip?.itinerary]);
 
-  // Redirect only if absolutely no trip exists in context or storage
+  if (fetchingTrip) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#f8faff] dark:bg-[#0b0f19]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
+
+  // Redirect only if absolutely no trip exists in context, state, or direct fetch
   if (!trip) {
     return <Navigate to="/planner" replace />;
   }
@@ -65,12 +121,8 @@ export default function DetailedItinerary() {
     currentUser?.role === "coordinator"
   );
 
-  // Role-based visibility for full Stay Plan:
-  // - Campus Coordinator: can view Stay Plan section and navigate to full Stay Plan page
-  // - Campus Student/Participant: hidden (cannot view or navigate to full Stay Plan)
-  // - Operator: hidden (cannot view or navigate to full Stay Plan)
-  // - Personal Trip: visible for travelers (hidden for operator)
-  const canViewStayPlan = isCampus ? isCoordinator : !isOperator;
+  // Stay Plan is visible to Coordinators, Students, and Personal travelers (read-only for students/travelers)
+  const canViewStayPlan = !isOperator || isCoordinator;
 
   const currentDay = itinerary[selectedDay];
 
@@ -128,11 +180,29 @@ export default function DetailedItinerary() {
     }
   };
 
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+
+  const handleDownloadPdf = async () => {
+    try {
+      setIsGeneratingPdf(true);
+      await generateTripItineraryPdf(trip);
+    } catch (err) {
+      console.error("Failed to generate PDF:", err);
+      alert("Could not generate PDF. Please try again.");
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#f8faff] dark:bg-[#0b0f19] transition-colors duration-200">
       <div className="mx-auto flex max-w-6xl flex-col items-center px-6 py-8 gap-6">
-        {/* 1. Trip Summary (Preserved existing design) */}
-        <ItineraryHero trip={trip} />
+        {/* 1. Trip Summary (Preserved existing design with Download Itinerary action) */}
+        <ItineraryHero 
+          trip={trip} 
+          onDownloadPdf={handleDownloadPdf} 
+          isGeneratingPdf={isGeneratingPdf} 
+        />
 
         {/* 2. Conflict Section — ONLY when 1+ conflicts exist, compact and matching content card width (max-w-3xl) */}
         {schedulingConflicts?.length > 0 && (
@@ -209,12 +279,15 @@ export default function DetailedItinerary() {
         {/* 4. Day-wise Itinerary (Timeline with hotels, activities, and transport) */}
         <Timeline plan={currentDay?.plan} destination={trip.destination} accommodations={accommodationsToday} viewOnly={viewOnly} />
 
-        {/* 5. Stay Plan (Role-based: Coordinator only for Campus, Personal Trip travelers; hidden for Student & Operator) */}
+        {/* 5. Stay Plan (Read-only for Students & Personal travelers, full navigation for Coordinator) */}
         {canViewStayPlan && (
-          <StayPlan trip={trip} staySegments={trip.staySegments} />
+          <StayPlan trip={trip} staySegments={trip.staySegments} viewOnly={viewOnly} />
         )}
 
-        {/* 6. Bottom Actions */}
+        {/* 6. Transport Details (Read-only overview) */}
+        <TransportDetails trip={trip} />
+
+        {/* 7. Bottom Actions */}
         {!viewOnly && (
           <BottomNav
             selectedDay={selectedDay}

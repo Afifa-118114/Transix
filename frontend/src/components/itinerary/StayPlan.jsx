@@ -3,7 +3,7 @@ import { FiMapPin, FiMoon, FiCalendar, FiArrowRight } from "react-icons/fi";
 import { Link } from "react-router-dom";
 import { formatDate } from "../../utils/formatTrip";
 
-export default function StayPlan({ trip, staySegments }) {
+export default function StayPlan({ trip, staySegments, viewOnly = false }) {
   if (!staySegments || staySegments.length === 0) {
     return null;
   }
@@ -71,6 +71,7 @@ export default function StayPlan({ trip, staySegments }) {
       <div className="mt-6 flex justify-center border-t border-slate-100 dark:border-slate-800 pt-5">
         <Link 
           to={`/itinerary/${trip?._id || 'draft'}/stays`}
+          state={{ viewOnly, trip }}
           className="rounded-xl bg-indigo-600 px-6 py-2.5 text-sm font-bold text-white shadow-xs transition hover:bg-indigo-700"
         >
           View Full Stay Plan

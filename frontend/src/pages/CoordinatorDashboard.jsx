@@ -4,12 +4,14 @@ import {
   FiUsers, FiCheckCircle, FiFileText, FiDollarSign, FiCopy, FiShare2, 
   FiBell, FiCalendar, FiClock, FiSettings, FiCheck, FiX, FiInfo,
   FiMapPin, FiEye, FiEdit3, FiPieChart, FiAlertCircle, FiSearch, FiFilter,
-  FiSend, FiMessageSquare, FiPlus
+  FiSend, FiMessageSquare, FiPlus, FiDownload
 } from "react-icons/fi";
+import toast from "react-hot-toast";
 import DashboardLayout from "../layouts/DashboardLayout";
 import CampusSettingsModal from "../components/campus/CampusSettingsModal";
 import TripChatModal from "../components/chat/TripChatModal";
 import { getUnreadMessageCount } from "../api/tripApi";
+import { generateTripItineraryPdf } from "../utils/itineraryPdfGenerator";
 
 export default function CoordinatorDashboard() {
   const { id } = useParams();
@@ -35,6 +37,60 @@ export default function CoordinatorDashboard() {
   // 1-to-1 Trip Chat with Operator State
   const [isChatModalOpen, setIsChatModalOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+
+  // IV Code Copy & Itinerary PDF Download State
+  const [copiedIvCode, setCopiedIvCode] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+
+  const handleCopyIvCode = () => {
+    if (!trip?.joinCode) return;
+    const code = trip.joinCode;
+
+    const onCopied = () => {
+      setCopiedIvCode(true);
+      toast.success("IV Code copied", { id: "copy-iv-code", duration: 2500 });
+      setTimeout(() => setCopiedIvCode(false), 2500);
+    };
+
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(code).then(onCopied).catch(() => {
+        fallbackCopyText(code, onCopied);
+      });
+    } else {
+      fallbackCopyText(code, onCopied);
+    }
+  };
+
+  const fallbackCopyText = (text, callback) => {
+    try {
+      const el = document.createElement("textarea");
+      el.value = text;
+      el.setAttribute("readonly", "");
+      el.style.position = "absolute";
+      el.style.left = "-9999px";
+      document.body.appendChild(el);
+      el.select();
+      const successful = document.execCommand("copy");
+      document.body.removeChild(el);
+      if (successful) callback();
+    } catch (err) {
+      console.error("Copy fallback failed:", err);
+    }
+  };
+
+  const handleDownloadItinerary = () => {
+    if (!trip) return;
+    try {
+      setDownloadingPdf(true);
+      generateTripItineraryPdf(trip);
+      toast.success("Itinerary downloaded", { id: "download-itinerary", duration: 3000 });
+    } catch (err) {
+      console.error("Itinerary download error:", err);
+      toast.error("Failed to generate itinerary PDF. Please try again.");
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
 
   // Document Preview Modal State
   const [previewModal, setPreviewModal] = useState({
@@ -465,16 +521,30 @@ export default function CoordinatorDashboard() {
                     )}
                     <div className="flex flex-wrap items-center gap-2">
                       {trip.joinCode && (
-                        <button onClick={() => navigator.clipboard.writeText(trip.joinCode)} className="p-2 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 transition" title="Copy IV Code">
-                          <FiCopy className="text-slate-300" />
+                        <button 
+                          onClick={handleCopyIvCode} 
+                          className="flex items-center gap-1.5 p-2 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 transition cursor-pointer" 
+                          title={copiedIvCode ? "Copied!" : "Copy IV Code"}
+                        >
+                          {copiedIvCode ? (
+                            <>
+                              <FiCheck className="text-emerald-400" />
+                              <span className="text-[10px] font-bold text-emerald-400">Copied!</span>
+                            </>
+                          ) : (
+                            <FiCopy className="text-slate-300" />
+                          )}
                         </button>
                       )}
-                      {trip.joinCode && (
-                        <button className="flex items-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition shadow-md shadow-indigo-900/50">
-                          <FiShare2 />
-                          <span>Share with Students</span>
-                        </button>
-                      )}
+                      <button 
+                        onClick={handleDownloadItinerary}
+                        disabled={downloadingPdf}
+                        className="flex items-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition shadow-md shadow-indigo-900/50 cursor-pointer disabled:opacity-60"
+                        title="Download official finalized trip itinerary PDF"
+                      >
+                        <FiDownload size={14} />
+                        <span>{downloadingPdf ? "Generating..." : "Download Itinerary"}</span>
+                      </button>
                       <button
                         onClick={() => {
                           setIsChatModalOpen(true);

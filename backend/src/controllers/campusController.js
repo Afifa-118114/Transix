@@ -14,6 +14,7 @@ const axios = require("axios");
 const Razorpay = require("razorpay");
 const { generateTripPlan } = require("../services/aiService");
 const { getDestinationImage } = require("../services/imageService");
+const { resolveCityToState } = require("../services/locationService");
 
 // 1. Create a new Campus Trip
 exports.createCampusTrip = async (req, res) => {
@@ -194,6 +195,39 @@ exports.getCampusTripById = async (req, res) => {
       if (reg) {
         relationship = "PARTICIPANT";
         registration = reg;
+      }
+    }
+
+    // Ensure campusTransportPlan is populated with resolved operational route
+    if (!trip.campusTransportPlan || !trip.campusTransportPlan.route) {
+      const isCampus = trip.tripCategory === "CAMPUS" || Boolean(trip.campusConfig?.expectedParticipants);
+      if (isCampus) {
+        const originRes = await resolveCityToState(trip.source);
+        const destRes = await resolveCityToState(trip.destination);
+        const total = trip.campusConfig?.expectedParticipants || trip.travelers || 200;
+        const cap = Number(trip.campusTransportPlan?.capacityPerVehicle || 25);
+        const veh = Number(trip.campusTransportPlan?.vehiclesRequired || Math.ceil(total / cap));
+
+        const updatedPlan = {
+          ...(trip.campusTransportPlan || {}),
+          vehiclesRequired: veh,
+          vehicleType: trip.campusTransportPlan?.vehicleType || "Coach",
+          comfort: trip.campusTransportPlan?.comfort || "AC",
+          capacityPerVehicle: cap,
+          totalTravelers: total,
+          studentsCount: trip.campusTransportPlan?.studentsCount ?? total,
+          teachersStaffCount: trip.campusTransportPlan?.teachersStaffCount ?? 0,
+          luggageCount: trip.campusTransportPlan?.luggageCount ?? total,
+          status: trip.campusTransportPlan?.status || (trip.status === "Finalized" ? "CONFIRMED" : "PENDING"),
+          route: {
+            originCity: originRes?.city || trip.source,
+            originState: originRes?.state || "",
+            destinationCity: destRes?.city || trip.destination,
+            destinationState: destRes?.state || "",
+          },
+        };
+        trip.campusTransportPlan = updatedPlan;
+        await Trip.updateOne({ _id: trip._id }, { $set: { campusTransportPlan: updatedPlan } });
       }
     }
 
