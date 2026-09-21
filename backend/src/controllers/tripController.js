@@ -267,6 +267,7 @@ const updateTrip = asyncHandler(async (req, res, next) => {
     "budgetBreakdown",
     "tips",
     "operatorAccess",
+    "guideRequirement",
   ];
 
   const updateData = {};
@@ -521,6 +522,10 @@ const finalizeTrip = asyncHandler(async (req, res, next) => {
 
   if (!trip.itinerary || trip.itinerary.length === 0) {
     throw new AppError("Cannot finalize: Itinerary is incomplete.", 400);
+  }
+
+  if (req.body.guideRequirement) {
+    trip.guideRequirement = req.body.guideRequirement;
   }
 
   trip.status = "Finalized";

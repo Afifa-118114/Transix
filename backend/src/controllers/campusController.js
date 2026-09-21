@@ -267,6 +267,10 @@ exports.finalizeCampusTrip = async (req, res) => {
       return res.status(400).json({ success: false, message: "Cannot finalize: Itinerary has validation errors." });
     }
 
+    if (req.body.guideRequirement) {
+      trip.guideRequirement = req.body.guideRequirement;
+    }
+
     trip.status = "Finalized";
     await trip.save();
 

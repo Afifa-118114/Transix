@@ -49,6 +49,7 @@ app.use("/api/campus-trips", campusRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/vendor", vendorRoutes);
 app.use("/api/guide", guideRoutes);
+app.use("/api/guides", guideRoutes);
 app.use(errorHandler);
 
 module.exports = app;

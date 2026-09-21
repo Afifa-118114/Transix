@@ -35,6 +35,7 @@ import LandingPage from "../pages/public/LandingPage";
 import SampleItineraryPage from "../pages/public/SampleItineraryPage";
 import JoinAsGuidePage from "../pages/public/JoinAsGuidePage";
 import GuideVerificationStatusPage from "../pages/public/GuideVerificationStatusPage";
+import GuidePortalPage from "../pages/guide/GuidePortalPage";
 
 function AppRoutes() {
   return (
@@ -177,6 +178,10 @@ function AppRoutes() {
 
       {/* Demo Vendor Portal Route */}
       <Route path="/vendor/requests" element={<DemoVendorPortal />} />
+
+      {/* Guide Portal Routes */}
+      <Route path="/guide/portal" element={<GuidePortalPage />} />
+      <Route path="/guide-portal" element={<GuidePortalPage />} />
     </Routes>
   );
 }

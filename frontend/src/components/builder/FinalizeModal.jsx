@@ -10,9 +10,11 @@ import {
   FiEye,
   FiCheck,
   FiAlertTriangle,
+  FiCompass,
 } from "react-icons/fi";
+import { FaWandMagicSparkles } from "react-icons/fa6";
 import { useTripBuilder } from "../../context/TripBuilderContext";
-import { updateOperatorAccess, finalizeTrip } from "../../api/tripApi";
+import { updateOperatorAccess, finalizeTrip, updateTrip } from "../../api/tripApi";
 import BusPreferenceSection from "./BusPreferenceSection";
 import toast from "react-hot-toast";
 
@@ -31,10 +33,19 @@ export default function FinalizeModal() {
   } = useTripBuilder();
 
   // All React Hooks MUST be called unconditionally at the very top of the component
-  const [step, setStep] = useState("checklist"); // 'checklist' | 'bus_preferences' | 'consent' | 'confirmed'
+  const [step, setStep] = useState("checklist"); // 'checklist' | 'bus_preferences' | 'guide_prompt' | 'consent' | 'confirmed'
   const [isProcessing, setIsProcessing] = useState(false);
   const [busPreferencesSaved, setBusPreferencesSaved] = useState(false);
   const [savedLocalPlan, setSavedLocalPlan] = useState(null);
+
+  // Traveler Guide Requirement state
+  const [guideRequiredChoice, setGuideRequiredChoice] = useState(null); // null | false | true
+  const [guideForm, setGuideForm] = useState({
+    numberOfGuides: "1",
+    genderPreference: "Either",
+    preferredLanguages: ["English", "Hindi"],
+    specialNotes: "",
+  });
 
   const hasTransport = (trip?.itinerary || []).some((d) =>
     (d.plan || []).some((item) => {
@@ -280,36 +291,30 @@ export default function FinalizeModal() {
       return;
     }
 
-    // For Personal Trips, local transport is OPTIONAL and NEVER blocks finalization
-    handleFinalize();
+    // Advance to Guide Requirement Prompt before finalization
+    setStep("guide_prompt");
   };
 
-  const handleFinalize = async () => {
-    // Strict programmatic rejection if criteria not met
-    if (!canFinalize) {
-      if (!isFeasible) {
-        toast.error(`Cannot confirm: Please resolve ${validationStats.conflictsCount} schedule conflict(s) first.`, { icon: "⚠️" });
-      } else if (!isBudgetValid) {
-        toast.error(`Cannot confirm: Total cost (₹${budgetStats.totalSpent.toLocaleString()}) exceeds budget (₹${actualBudgetLimit.toLocaleString()}).`, { icon: "⚠️" });
-      } else if (isCampus && !hasValidGroupPlan) {
-        toast.error("Please configure group transport preferences before finalizing.", { icon: "🚌" });
-        setStep("bus_preferences");
-      }
-      return;
-    }
-
+  const handleFinalizeWithGuide = async (guideReqData) => {
     setIsProcessing(true);
     try {
       await saveItinerary();
 
       const token = localStorage.getItem("token");
+
+      // Persist guide requirement directly to the trip
+      if (token && trip?._id) {
+        await updateTrip(trip._id, { guideRequirement: guideReqData }, token).catch(() => null);
+      }
+
       if (isCampus) {
         const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/campus-trips/${trip._id}/finalize`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`
-          }
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ guideRequirement: guideReqData }),
         });
         
         if (!res.ok) {
@@ -317,12 +322,18 @@ export default function FinalizeModal() {
         }
         const data = await res.json();
         if (data?.trip && setTrip) {
-          setTrip(data.trip);
+          setTrip({
+            ...data.trip,
+            guideRequirement: guideReqData,
+          });
         }
       } else {
         const data = await finalizeTrip(trip._id, token);
         if (data?.trip && setTrip) {
-          setTrip(data.trip);
+          setTrip({
+            ...data.trip,
+            guideRequirement: guideReqData,
+          });
         }
       }
 
@@ -368,7 +379,7 @@ export default function FinalizeModal() {
         {/* Close Button */}
         <button
           onClick={handleClose}
-          className="absolute right-4 top-4 z-10 flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition"
+          className="absolute right-4 top-4 z-10 flex h-8 w-8 items-center justify-center rounded-lg bg-[#fafaf9] border border-[#e7e5e4] text-[#777169] hover:bg-[#f5f5f4] hover:text-[#0c0a09] transition"
         >
           <FiX className="text-sm" />
         </button>
@@ -377,26 +388,26 @@ export default function FinalizeModal() {
           /* ================= STEP 1: PRE-FINALIZATION CHECKLIST ================= */
           <div className="p-6">
             <div className="text-center">
-              <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-xl text-indigo-600 dark:text-indigo-400">
-                ✨
+              <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-[#034F46]/10 text-[#034F46]">
+                <FaWandMagicSparkles className="text-lg" />
               </div>
-              <h2 className="mt-2.5 text-lg font-bold text-slate-900 dark:text-white">
+              <h2 className="mt-2.5 text-lg font-bold text-[#0c0a09]">
                 Finalize Your Tour Plan
               </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+              <p className="text-xs text-[#777169]">
                 Review automated validation checks before confirming
               </p>
             </div>
 
             {/* Blocking Alerts if any criteria fails */}
             {!canFinalize && (
-              <div className="mt-3.5 space-y-1.5 rounded-xl border border-rose-200 dark:border-rose-800/60 bg-rose-50/80 dark:bg-rose-950/40 p-3 text-xs text-rose-800 dark:text-rose-300">
+              <div className="mt-3.5 space-y-1.5 rounded-xl border border-rose-200 bg-rose-50/80 p-3 text-xs text-rose-800">
                 <div className="flex items-center gap-1.5 font-bold">
-                  <FiAlertTriangle className="text-rose-600 dark:text-rose-400 text-sm shrink-0" />
+                  <FiAlertTriangle className="text-rose-600 text-sm shrink-0" />
                   <span>Finalization Blocked</span>
                 </div>
                 {!isFeasible && (
-                  <p className="text-[11px] text-rose-700 dark:text-rose-400">
+                  <p className="text-[11px] text-rose-700">
                     • Schedule has {validationStats.conflictsCount} conflict(s). Adjust overlapping activity timings to proceed.
                   </p>
                 )}
@@ -420,10 +431,10 @@ export default function FinalizeModal() {
                   key={idx}
                   className={`flex items-center justify-between gap-3 rounded-xl border p-2.5 text-xs transition ${
                     item.status
-                      ? "border-emerald-200 dark:border-emerald-700/50 bg-emerald-50/40 dark:bg-emerald-950/20"
+                      ? "border-emerald-200 bg-emerald-50/40"
                       : item.isBlocking
-                      ? "border-rose-200 dark:border-rose-700/50 bg-rose-50/40 dark:bg-rose-950/20"
-                      : "border-amber-200 dark:border-amber-700/50 bg-amber-50/40 dark:bg-amber-950/20"
+                      ? "border-rose-200 bg-rose-50/40"
+                      : "border-amber-200 bg-amber-50/40"
                   }`}
                 >
                   <div className="flex items-start gap-2.5 min-w-0 flex-1">
@@ -467,7 +478,7 @@ export default function FinalizeModal() {
             )}
 
             {/* Trip Stats Pill */}
-            <div className="mt-4 flex items-center justify-between rounded-xl bg-slate-50 dark:bg-slate-800/60 p-3 border border-slate-200 dark:border-slate-700/60 text-xs font-semibold text-slate-700 dark:text-slate-300">
+            <div className="mt-4 flex items-center justify-between rounded-xl bg-[#fafaf9] p-3 border border-[#e7e5e4] text-xs font-semibold text-[#57534e]">
               <span>Total Estimated Cost:</span>
               <span className={`text-sm font-extrabold ${isBudgetValid ? "text-indigo-600 dark:text-indigo-400" : "text-rose-600 dark:text-rose-400"}`}>
                 ₹{budgetStats.totalSpent.toLocaleString()} / ₹{actualBudgetLimit.toLocaleString()}
@@ -587,20 +598,233 @@ export default function FinalizeModal() {
               </button>
               <button
                 type="button"
-                onClick={handleFinalize}
-                disabled={isProcessing}
+                onClick={() => setStep("guide_prompt")}
                 className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 py-2.5 text-xs font-bold text-white shadow-xs transition active:scale-98"
               >
-                {isProcessing ? (
-                  <span>Finalizing Trip...</span>
-                ) : (
-                  <>
-                    <span>Confirm & Finalize Trip</span>
-                    <FiArrowRight className="text-xs" />
-                  </>
-                )}
+                <span>Continue to Guide Requirement</span>
+                <FiArrowRight className="text-xs" />
               </button>
             </div>
+          </div>
+        ) : step === "guide_prompt" ? (
+          /* ================= STEP: GUIDE REQUIREMENT PROMPT & FORM ================= */
+          <div className="p-6 text-left">
+            {guideRequiredChoice === null ? (
+              <div>
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-teal-50 dark:bg-teal-950/40 text-2xl text-teal-600 dark:text-teal-400 border border-teal-200 dark:border-teal-700/50 mb-3">
+                  <FiCompass size={24} />
+                </div>
+                <h2 className="text-lg font-black text-slate-900 dark:text-white text-center">
+                  Do you need a guide for this trip?
+                </h2>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 text-center leading-relaxed max-w-sm mx-auto">
+                  A certified local Transix guide can lead historical walks, manage logistics, and provide cultural insights for your group.
+                </p>
+
+                <div className="mt-6 flex flex-col gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setGuideRequiredChoice(true)}
+                    className="w-full py-3.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black tracking-wide transition shadow-sm flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+                  >
+                    <span>YES, I NEED A GUIDE</span>
+                    <FiArrowRight />
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={isProcessing}
+                    onClick={() => {
+                      setGuideRequiredChoice(false);
+                      handleFinalizeWithGuide({
+                        required: false,
+                        numberOfGuides: "0",
+                        genderPreference: "Either",
+                        preferredLanguages: [],
+                        specialNotes: "Traveler opted for no guide.",
+                        status: "none",
+                      });
+                    }}
+                    className="w-full py-3.5 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold transition cursor-pointer"
+                  >
+                    {isProcessing ? "Finalizing Trip..." : "NO, I DON'T NEED A GUIDE"}
+                  </button>
+                </div>
+
+                <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 flex justify-center">
+                  <button
+                    type="button"
+                    onClick={() => setStep(isCampus && hasRoadMovements ? "bus_preferences" : "checklist")}
+                    className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-bold"
+                  >
+                    Back to previous step
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* Traveler's Guide Requirement Form */
+              <div>
+                <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-teal-500/10 border border-teal-500/20 text-teal-400 flex items-center justify-center">
+                      <FiCompass size={15} />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">
+                        Traveler Guide Requirement
+                      </h3>
+                      <p className="text-[10px] text-slate-400">Specify preferences for your trip's matched guides</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setGuideRequiredChoice(null)}
+                    className="text-[11px] font-bold text-slate-400 hover:text-slate-200"
+                  >
+                    Change
+                  </button>
+                </div>
+
+                <div className="space-y-4 text-xs font-medium">
+                  {/* Field 1: How many guides */}
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1.5">
+                      1. How many guides do you need? *
+                    </label>
+                    <div className="grid grid-cols-5 gap-2">
+                      {["1", "2", "3", "4", "5+"].map((num) => (
+                        <button
+                          key={num}
+                          type="button"
+                          onClick={() => setGuideForm((prev) => ({ ...prev, numberOfGuides: num }))}
+                          className={`py-2 rounded-xl text-xs font-bold border transition ${
+                            guideForm.numberOfGuides === num
+                              ? "bg-indigo-600 text-white border-indigo-600 shadow-xs"
+                              : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-slate-400"
+                          }`}
+                        >
+                          {num}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Field 2: Gender Preference */}
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1.5">
+                      2. Guide Gender Preference *
+                    </label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {["Either", "Male", "Female"].map((gender) => (
+                        <button
+                          key={gender}
+                          type="button"
+                          onClick={() => setGuideForm((prev) => ({ ...prev, genderPreference: gender }))}
+                          className={`py-2 rounded-xl text-xs font-bold border transition ${
+                            guideForm.genderPreference === gender
+                              ? "bg-indigo-600 text-white border-indigo-600 shadow-xs"
+                              : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-slate-400"
+                          }`}
+                        >
+                          {gender}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Field 3: Preferred Guide Language */}
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1.5">
+                      3. Preferred Guide Languages (Optional)
+                    </label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {[
+                        "English",
+                        "Hindi",
+                        "Malayalam",
+                        "Tamil",
+                        "Marathi",
+                        "Kannada",
+                        "Gujarati",
+                        "Bengali",
+                        "Telugu",
+                        "French",
+                        "German",
+                        "Spanish",
+                      ].map((lang) => {
+                        const isSelected = guideForm.preferredLanguages.includes(lang);
+                        return (
+                          <button
+                            key={lang}
+                            type="button"
+                            onClick={() => {
+                              setGuideForm((prev) => {
+                                const exists = prev.preferredLanguages.includes(lang);
+                                return {
+                                  ...prev,
+                                  preferredLanguages: exists
+                                    ? prev.preferredLanguages.filter((l) => l !== lang)
+                                    : [...prev.preferredLanguages, lang],
+                                };
+                              });
+                            }}
+                            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition ${
+                              isSelected
+                                ? "bg-teal-600/20 text-teal-300 border-teal-500/50"
+                                : "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400 hover:text-slate-200"
+                            }`}
+                          >
+                            {isSelected ? `✓ ${lang}` : `+ ${lang}`}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Field 4: Special Notes / Requirements */}
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1.5">
+                      4. Special Notes / Requirements
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={guideForm.specialNotes}
+                      onChange={(e) => setGuideForm((prev) => ({ ...prev, specialNotes: e.target.value }))}
+                      placeholder="Add any preferences, accessibility requirements, language needs, group considerations, locations, or other notes for the guide."
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-5 flex gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => setGuideRequiredChoice(null)}
+                    className="flex-1 rounded-xl border border-slate-200 dark:border-slate-700 py-2.5 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+                  >
+                    Back
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isProcessing}
+                    onClick={() => {
+                      handleFinalizeWithGuide({
+                        required: true,
+                        numberOfGuides: guideForm.numberOfGuides,
+                        genderPreference: guideForm.genderPreference,
+                        preferredLanguages: guideForm.preferredLanguages,
+                        specialNotes: guideForm.specialNotes,
+                        status: "pending",
+                      });
+                    }}
+                    className="flex-[2] flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 py-2.5 text-xs font-bold text-white shadow-xs transition active:scale-98 cursor-pointer"
+                  >
+                    {isProcessing ? "Finalizing Trip..." : "Save Requirement & Finalize Trip"}
+                    <FiArrowRight className="text-xs" />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         ) : step === "consent" ? (
           /* ================= STEP 2: OPERATOR CONSENT ================= */
@@ -649,39 +873,39 @@ export default function FinalizeModal() {
         ) : (
           /* ================= STEP 3: CONFIRMATION SCREEN ================= */
           <div className="p-6 text-center">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-2xl text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-700/50">
-              🎉
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700 border border-emerald-200">
+              <FiCheckCircle className="text-2xl" />
             </div>
 
-            <h2 className="mt-3 text-xl font-black text-slate-900 dark:text-white">
+            <h2 className="mt-3 text-xl font-black text-[#0c0a09]">
               YOUR TRIP IS READY!
             </h2>
 
-            <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">
+            <p className="text-xs font-semibold text-[#034F46]">
               {trip.destination || "Custom Tour"}
             </p>
 
-            <div className="mt-2 flex items-center justify-center gap-3 text-xs font-semibold text-slate-500 dark:text-slate-400">
+            <div className="mt-2 flex items-center justify-center gap-3 text-xs font-semibold text-[#777169]">
               <span className="flex items-center gap-1">
-                <FiCalendar className="text-indigo-600 dark:text-indigo-400 text-xs" />
+                <FiCalendar className="text-[#034F46] text-xs" />
                 {trip.itinerary.length} Days
               </span>
               <span>•</span>
               <span className="flex items-center gap-1">
-                <FiUsers className="text-indigo-600 dark:text-indigo-400 text-xs" />
+                <FiUsers className="text-[#034F46] text-xs" />
                 {trip.travelers || 2} Travelers
               </span>
             </div>
 
             {/* Price Box */}
-            <div className="my-4 rounded-xl bg-indigo-50/70 dark:bg-indigo-950/30 p-4 border border-indigo-100 dark:border-indigo-800/60">
-              <p className="text-[10px] font-bold uppercase text-indigo-700 dark:text-indigo-300">
+            <div className="my-4 rounded-xl bg-[#fafaf9] p-4 border border-[#e7e5e4]">
+              <p className="text-[10px] font-bold uppercase text-[#777169]">
                 Total Tour Cost
               </p>
-              <p className="mt-0.5 text-2xl font-black text-indigo-900 dark:text-indigo-200">
+              <p className="mt-0.5 text-2xl font-black text-[#034F46]">
                 ₹{budgetStats.totalSpent.toLocaleString()}
               </p>
-              <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+              <p className="mt-1 text-[11px] text-[#777169]">
                 Your custom itinerary and day plan have been saved.
               </p>
             </div>
@@ -741,7 +965,7 @@ export default function FinalizeModal() {
                     });
                   }
                 }}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition"
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-full border border-[#e7e5e4] bg-white py-2.5 text-xs font-bold text-[#57534e] hover:bg-[#fafaf9] hover:text-[#0c0a09] transition"
               >
                 <FiEye className="text-xs" />
                 <span>View Timeline</span>
@@ -756,7 +980,7 @@ export default function FinalizeModal() {
                     navigate("/home");
                   }
                 }}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-indigo-600 py-2.5 text-xs font-bold text-white hover:bg-indigo-700 active:scale-98 transition"
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-[#0c0a09] py-2.5 text-xs font-bold text-white hover:bg-[#292524] active:scale-98 transition"
               >
                 <FiCheck className="text-xs" />
                 <span>Go to Dashboard</span>

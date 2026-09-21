@@ -262,6 +262,34 @@ const tripSchema = new mongoose.Schema(
     tips: {
       type: [String],
     },
+
+    guideRequirement: {
+      required: { type: Boolean, default: false },
+      numberOfGuides: { type: String, default: "1" },
+      genderPreference: {
+        type: String,
+        enum: ["Male", "Female", "Either"],
+        default: "Either",
+      },
+      preferredLanguages: [{ type: String }],
+      specialNotes: { type: String, default: "" },
+      status: {
+        type: String,
+        enum: ["none", "pending", "guide_selected", "confirmed"],
+        default: "none",
+      },
+      selectedGuides: [{ type: String }],
+      finalizedGuides: [
+        {
+          guideId: String,
+          fullName: String,
+          price: Number,
+          currency: { type: String, default: "INR" },
+          availability: String,
+          status: { type: String, default: "Confirmed" },
+        },
+      ],
+    },
   },
   {
     timestamps: true,

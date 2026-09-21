@@ -16,6 +16,13 @@ import {
   sendOperatorVendorRequestMessage,
   searchConnectedVendors,
 } from "../../api/operatorApi";
+import {
+  getMatchedGuidesForTrip,
+  createGuideRequest,
+  getTripGuideRequests,
+  selectGuidesForTrip,
+  finalizeTripGuides,
+} from "../../api/guideWorkflowApi";
 import { formatDate } from "../../utils/formatTrip";
 import OperatorSidebar from "../../components/operator/OperatorSidebar";
 import StatusDropdown, { DEFAULT_VALID_TRANSITIONS } from "../../components/operator/StatusDropdown";
@@ -93,6 +100,122 @@ export default function OperatorTripDetails() {
   const [chatMessageInput, setChatMessageInput] = useState("");
   const [sendingChatMessage, setSendingChatMessage] = useState(false);
   const [viewResponseModal, setViewResponseModal] = useState(null);
+
+  // Guide Workflow State
+  const [matchedGuidesData, setMatchedGuidesData] = useState({ tripStates: [], guides: [], count: 0 });
+  const [loadingMatchedGuides, setLoadingMatchedGuides] = useState(false);
+  const [tripGuideRequests, setTripGuideRequests] = useState([]);
+  const [loadingTripGuideRequests, setLoadingTripGuideRequests] = useState(false);
+  const [requestingGuideId, setRequestingGuideId] = useState(null);
+  const [selectedGuideIds, setSelectedGuideIds] = useState([]);
+  const [selectingGuide, setSelectingGuide] = useState(false);
+  const [finalizingGuides, setFinalizingGuides] = useState(false);
+
+  useEffect(() => {
+    if (trip?.guideRequirement?.selectedGuides) {
+      setSelectedGuideIds(trip.guideRequirement.selectedGuides);
+    }
+  }, [trip]);
+
+  const fetchGuideData = async () => {
+    if (!tripId) return;
+    const token = localStorage.getItem("token");
+    setLoadingMatchedGuides(true);
+    setLoadingTripGuideRequests(true);
+    try {
+      const [matchedRes, reqsRes] = await Promise.all([
+        getMatchedGuidesForTrip(tripId, token).catch(() => null),
+        getTripGuideRequests(tripId, token).catch(() => null),
+      ]);
+      if (matchedRes?.success) {
+        setMatchedGuidesData({
+          tripStates: matchedRes.tripStates || [],
+          guides: matchedRes.guides || [],
+          count: matchedRes.count || 0,
+          routeDisplayText: matchedRes.routeDisplayText || "",
+          destinationName: matchedRes.destinationName || "",
+        });
+      }
+      if (reqsRes?.success) {
+        setTripGuideRequests(reqsRes.requests || []);
+      }
+    } catch (e) {
+      console.error("Failed to fetch guide data", e);
+    } finally {
+      setLoadingMatchedGuides(false);
+      setLoadingTripGuideRequests(false);
+    }
+  };
+
+  useEffect(() => {
+    if (tripId && (activeTab === "guide" || trip?.guideRequirement?.required)) {
+      fetchGuideData();
+    }
+  }, [tripId, activeTab, trip?.guideRequirement?.required]);
+
+  const handleSendGuideRequest = async (guideId) => {
+    const token = localStorage.getItem("token");
+    setRequestingGuideId(guideId);
+    try {
+      const res = await createGuideRequest(tripId, guideId, trip?.guideRequirement, token);
+      if (res?.success) {
+        toast.success(res.message || "Guide request dispatched!");
+        fetchGuideData();
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to send guide request");
+    } finally {
+      setRequestingGuideId(null);
+    }
+  };
+
+  const handleToggleSelectGuide = async (guideId) => {
+    const token = localStorage.getItem("token");
+    const newSelected = selectedGuideIds.includes(guideId)
+      ? selectedGuideIds.filter(id => id !== guideId)
+      : [...selectedGuideIds, guideId];
+
+    if (newSelected.length === 0) {
+      toast.error("Please keep at least one guide selected");
+      return;
+    }
+
+    setSelectedGuideIds(newSelected);
+    setSelectingGuide(true);
+    try {
+      const res = await selectGuidesForTrip(tripId, newSelected, token);
+      if (res?.success) {
+        toast.success(res.message || "Selection updated");
+        if (res.guideRequirement && trip) {
+          setTrip(prev => ({ ...prev, guideRequirement: res.guideRequirement }));
+        }
+        fetchGuideData();
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to update guide selection");
+    } finally {
+      setSelectingGuide(false);
+    }
+  };
+
+  const handleFinalizeGuideArrangement = async () => {
+    const token = localStorage.getItem("token");
+    setFinalizingGuides(true);
+    try {
+      const res = await finalizeTripGuides(tripId, token);
+      if (res?.success) {
+        toast.success("Guide arrangement confirmed!");
+        if (res.guideRequirement && trip) {
+          setTrip(prev => ({ ...prev, guideRequirement: res.guideRequirement }));
+        }
+        fetchGuideData();
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to finalize guide arrangement");
+    } finally {
+      setFinalizingGuides(false);
+    }
+  };
 
   useEffect(() => {
     const fetchTrip = async () => {
@@ -910,6 +1033,21 @@ export default function OperatorTripDetails() {
             >
               <FiCompass size={13} />
               <span>Activities ({activityBookings.length})</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab("guide")}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
+                activeTab === "guide"
+                  ? "bg-indigo-600 text-white shadow-xs"
+                  : "text-slate-400 hover:text-white bg-slate-900 hover:bg-slate-800"
+              }`}
+            >
+              <FiCompass size={13} className={trip?.guideRequirement?.required ? "text-teal-400" : ""} />
+              <span>
+                Guide
+                {trip?.guideRequirement?.required ? " (Requested)" : trip?.guideRequirement?.required === false ? " (Not Needed)" : ""}
+              </span>
             </button>
           </div>
 
@@ -2251,6 +2389,392 @@ export default function OperatorTripDetails() {
                       </div>
                     );
                   })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 6: GUIDE WORKFLOW (Matching, Requests, Selection & Responses) */}
+          {activeTab === "guide" && (
+            <div className="space-y-6">
+              {/* If Traveler chose NOT to request a guide */}
+              {(!trip.guideRequirement || trip.guideRequirement.required === false) ? (
+                <div className="bg-slate-900 rounded-2xl border border-slate-800 p-12 text-center space-y-3">
+                  <div className="w-14 h-14 rounded-2xl bg-slate-800 text-slate-400 flex items-center justify-center mx-auto mb-2 border border-slate-700">
+                    <FiCompass size={28} />
+                  </div>
+                  <h3 className="text-base font-black text-white uppercase tracking-tight">Guide Not Required</h3>
+                  <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
+                    This traveler has chosen not to request a guide for this trip.
+                  </p>
+                  <div className="pt-2">
+                    <span className="px-3 py-1 rounded-lg bg-slate-800 text-slate-400 text-[11px] font-bold border border-slate-700">
+                      Requirement: No guide required
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                /* Traveler Requested a Guide: Show Requirement + Geographic Matches + Requests + Selection */
+                <div className="space-y-6">
+                  {/* Top Bar: Requirement Summary */}
+                  <div className="bg-slate-900 rounded-2xl border border-slate-800 p-5 shadow-sm space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-sm font-black uppercase tracking-wider text-white">
+                            Guide Requirement
+                          </h3>
+                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${
+                            trip.guideRequirement.status === "confirmed"
+                              ? "bg-emerald-950 text-emerald-300 border-emerald-700"
+                              : trip.guideRequirement.status === "guide_selected"
+                              ? "bg-indigo-950 text-indigo-300 border-indigo-700"
+                              : "bg-amber-950 text-amber-300 border-amber-700"
+                          }`}>
+                            {trip.guideRequirement.status?.replace("_", " ") || "Pending"}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          Traveler requested professional guide coordination for this itinerary.
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={fetchGuideData}
+                        disabled={loadingMatchedGuides}
+                        className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition flex items-center gap-1.5 self-start sm:self-auto"
+                      >
+                        <FiRefreshCw size={12} className={loadingMatchedGuides ? "animate-spin" : ""} />
+                        <span>Refresh Matches</span>
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs bg-slate-950/70 p-4 rounded-xl border border-slate-800/80">
+                      <div>
+                        <span className="text-slate-500 font-medium block text-[10px] uppercase tracking-wider">Number of Guides</span>
+                        <span className="font-extrabold text-white text-sm">
+                          {trip.guideRequirement.numberOfGuides || "1"} {Number(trip.guideRequirement.numberOfGuides) === 1 ? "Guide" : "Guides"}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 font-medium block text-[10px] uppercase tracking-wider">Gender Preference</span>
+                        <span className="font-extrabold text-white text-sm">
+                          {trip.guideRequirement.genderPreference || "Either"}
+                        </span>
+                      </div>
+                      <div className="sm:col-span-2">
+                        <span className="text-slate-500 font-medium block text-[10px] uppercase tracking-wider">Preferred Languages</span>
+                        <span className="font-semibold text-slate-200">
+                          {(trip.guideRequirement.preferredLanguages || []).join(", ") || "English, Hindi"}
+                        </span>
+                      </div>
+                      {trip.guideRequirement.specialNotes && (
+                        <div className="col-span-2 sm:col-span-4 pt-2 border-t border-slate-800/60">
+                          <span className="text-slate-500 font-medium block text-[10px] uppercase tracking-wider">Special Notes / Requirements</span>
+                          <p className="text-slate-300 italic mt-0.5">"{trip.guideRequirement.specialNotes}"</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Confirmed Guides Banner (if already finalized) */}
+                  {trip.guideRequirement?.finalizedGuides && trip.guideRequirement.finalizedGuides.length > 0 && (
+                    <div className="bg-emerald-950/40 border border-emerald-800/60 rounded-2xl p-5 space-y-3">
+                      <div className="flex items-center gap-2 text-emerald-400 font-black text-sm uppercase tracking-wider">
+                        <FiCheckCircle size={18} />
+                        <span>Confirmed Guide Arrangement ({trip.guideRequirement.finalizedGuides.length})</span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                        {trip.guideRequirement.finalizedGuides.map((g) => (
+                          <div key={g.guideId} className="bg-slate-900/90 border border-emerald-700/50 p-3.5 rounded-xl space-y-1">
+                            <div className="font-bold text-white text-sm">{g.fullName}</div>
+                            <div className="text-xs text-emerald-300 font-mono font-bold">
+                              ₹{g.price?.toLocaleString()} ({g.status})
+                            </div>
+                            <div className="text-[10px] text-slate-400 font-mono">{g.guideId}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* SECTION A: GUIDE RESPONSES (Responses received from contacted guides) */}
+                  {tripGuideRequests.length > 0 && (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-xs font-black uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                          <span>Guide Requests & Responses ({tripGuideRequests.length})</span>
+                        </h4>
+                        {selectedGuideIds.length > 0 && trip.guideRequirement?.status !== "confirmed" && (
+                          <button
+                            type="button"
+                            onClick={handleFinalizeGuideArrangement}
+                            disabled={finalizingGuides}
+                            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-lg transition flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <FiCheckCircle size={14} />
+                            <span>{finalizingGuides ? "Finalizing..." : `Finalize Selection (${selectedGuideIds.length})`}</span>
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {tripGuideRequests.map((reqItem) => {
+                          const isAccepted = reqItem.status === "ACCEPTED" || reqItem.status === "OPERATOR_SELECTED" || reqItem.status === "CONFIRMED";
+                          const isRejected = reqItem.status === "REJECTED";
+                          const isSelected = selectedGuideIds.includes(reqItem.guideId);
+
+                          return (
+                            <div
+                              key={reqItem._id}
+                              className={`bg-slate-900 rounded-2xl border p-4 space-y-3 transition ${
+                                isSelected
+                                  ? "border-emerald-500 ring-2 ring-emerald-500/30 bg-emerald-950/10"
+                                  : isAccepted
+                                  ? "border-indigo-800/80 hover:border-indigo-700"
+                                  : isRejected
+                                  ? "border-rose-900/60 opacity-80"
+                                  : "border-slate-800"
+                              }`}
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <h5 className="font-extrabold text-white text-sm">
+                                      {reqItem.guide?.fullName || reqItem.guideId}
+                                    </h5>
+                                    <span className="text-[10px] text-slate-500 font-mono">({reqItem.guideId})</span>
+                                  </div>
+                                  <div className="text-[11px] text-slate-400 mt-0.5">
+                                    {reqItem.guide?.primaryRegion} • {reqItem.guide?.guidingExperience}
+                                  </div>
+                                </div>
+
+                                <span className={`px-2.5 py-0.5 text-[10px] uppercase font-black tracking-wider rounded-lg border ${
+                                  isAccepted
+                                    ? "bg-emerald-950 text-emerald-300 border-emerald-800"
+                                    : isRejected
+                                    ? "bg-rose-950 text-rose-300 border-rose-800"
+                                    : "bg-amber-950 text-amber-300 border-amber-800"
+                                }`}>
+                                  {reqItem.status?.replace("_", " ")}
+                                </span>
+                              </div>
+
+                              {/* Response Details (if accepted) */}
+                              {isAccepted && (
+                                <div className="bg-slate-950/70 p-3 rounded-xl border border-slate-800/80 space-y-2 text-xs">
+                                  <div className="flex items-baseline justify-between">
+                                    <span className="text-slate-400 text-[11px]">Price Quote:</span>
+                                    <span className="text-emerald-400 font-black text-sm font-mono">
+                                      ₹{reqItem.price?.amount?.toLocaleString() || 0}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center justify-between text-[11px]">
+                                    <span className="text-slate-400">Availability:</span>
+                                    <span className="text-slate-200 font-semibold">{reqItem.availability}</span>
+                                  </div>
+                                  {reqItem.guideResponseNotes && (
+                                    <p className="text-[11px] text-slate-300 italic pt-1 border-t border-slate-800/60">
+                                      "{reqItem.guideResponseNotes}"
+                                    </p>
+                                  )}
+                                </div>
+                              )}
+
+                              {/* Rejection Details */}
+                              {isRejected && (
+                                <div className="bg-rose-950/20 p-3 rounded-xl border border-rose-900/40 text-xs space-y-1">
+                                  <div className="text-rose-400 font-bold text-[11px]">Request Rejected</div>
+                                  <div className="text-slate-300 text-[11px]">
+                                    Reason: {reqItem.rejectionReason || "Not available on requested dates"}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Pending Details */}
+                              {reqItem.status === "SENT" && (
+                                <div className="bg-amber-950/20 p-2.5 rounded-xl border border-amber-900/40 text-[11px] text-amber-300 flex items-center gap-1.5">
+                                  <FiClock size={12} />
+                                  <span>Request sent to Guide Portal. Awaiting response...</span>
+                                </div>
+                              )}
+
+                              {/* Action: Select / Deselect Guide */}
+                              {isAccepted && trip.guideRequirement?.status !== "confirmed" && (
+                                <div className="pt-2 flex justify-end">
+                                  <button
+                                    type="button"
+                                    disabled={selectingGuide}
+                                    onClick={() => handleToggleSelectGuide(reqItem.guideId)}
+                                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                                      isSelected
+                                        ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                                        : "bg-slate-800 hover:bg-indigo-600 text-slate-200 hover:text-white"
+                                    }`}
+                                  >
+                                    {isSelected ? <FiCheck size={13} /> : null}
+                                    <span>{isSelected ? "Selected ✓" : "Select Guide"}</span>
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* SECTION B: GEOGRAPHIC MATCHING ENGINE (4 to 10 Profiles from MongoDB) */}
+                  <div className="space-y-4 pt-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <h4 className="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2">
+                          <FiCompass className="text-teal-400" />
+                          <span>Matched Guides ({matchedGuidesData.count})</span>
+                        </h4>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          {matchedGuidesData.routeDisplayText ? (
+                            <span>{matchedGuidesData.routeDisplayText}</span>
+                          ) : matchedGuidesData.tripStates?.length === 1 && trip?.destination && trip.destination.toLowerCase() !== matchedGuidesData.tripStates[0].toLowerCase() ? (
+                            <span>
+                              Geographically matched based on trip route:{" "}
+                              <span className="text-indigo-400 font-bold">
+                                {trip.destination} → {matchedGuidesData.tripStates[0]}
+                              </span>
+                            </span>
+                          ) : (
+                            <span>
+                              Geographically matched based on trip route states:{" "}
+                              <span className="text-indigo-400 font-bold">
+                                {(matchedGuidesData.tripStates || []).join(", ") || trip?.destination}
+                              </span>
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                      <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                        Ranked by Geographic Overlap & Experience
+                      </span>
+                    </div>
+
+                    {loadingMatchedGuides ? (
+                      <div className="bg-slate-900 rounded-2xl border border-slate-800 p-12 text-center text-slate-400 text-xs">
+                        <FiRefreshCw className="animate-spin mx-auto text-indigo-500 mb-2" size={24} />
+                        <span>Searching 100 Guide Profiles in MongoDB...</span>
+                      </div>
+                    ) : matchedGuidesData.guides.length === 0 ? (
+                      <div className="bg-slate-900 rounded-2xl border border-slate-800 p-8 text-center text-slate-400 text-xs">
+                        No guides found matching this specific geographic route.
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {matchedGuidesData.guides.map((guide) => {
+                          const existingReq = tripGuideRequests.find((r) => r.guideId === guide.guideId);
+                          const isAlreadyRequested = Boolean(existingReq);
+
+                          return (
+                            <div
+                              key={guide.guideId}
+                              className="bg-slate-900 rounded-2xl border border-slate-800 hover:border-slate-750 p-5 space-y-4 shadow-sm transition flex flex-col justify-between"
+                            >
+                              <div className="space-y-3">
+                                {/* Guide Header */}
+                                <div className="flex items-start justify-between gap-3">
+                                  <div>
+                                    <div className="flex items-center gap-2">
+                                      <h5 className="text-base font-black text-white">{guide.fullName}</h5>
+                                      <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-teal-950/80 text-teal-300 border border-teal-800/80">
+                                        Verified ✓
+                                      </span>
+                                    </div>
+                                    <div className="text-xs text-slate-400 mt-0.5 flex items-center gap-2">
+                                      <span className="text-indigo-400 font-bold">{guide.primaryRegion}</span>
+                                      <span>•</span>
+                                      <span className="font-mono text-slate-500">{guide.guideId}</span>
+                                    </div>
+                                  </div>
+
+                                  <div className="text-right">
+                                    <span className="text-[10px] font-bold text-slate-400 block">Experience</span>
+                                    <span className="text-xs font-extrabold text-slate-200">{guide.guidingExperience}</span>
+                                  </div>
+                                </div>
+
+                                {/* Geographic States Coverage */}
+                                <div className="flex flex-wrap items-center gap-1 text-[10px]">
+                                  <span className="text-slate-500 font-semibold mr-1">States:</span>
+                                  {(guide.geographicalKnowledge?.states || []).map((st) => {
+                                    const isMatch = (matchedGuidesData.tripStates || []).includes(st);
+                                    return (
+                                      <span
+                                        key={st}
+                                        className={`px-2 py-0.5 rounded font-bold ${
+                                          isMatch
+                                            ? "bg-indigo-950 text-indigo-300 border border-indigo-800/80"
+                                            : "bg-slate-800 text-slate-400"
+                                        }`}
+                                      >
+                                        {st}
+                                      </span>
+                                    );
+                                  })}
+                                </div>
+
+                                {/* Languages & Availability */}
+                                <div className="grid grid-cols-2 gap-2 text-xs bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/70">
+                                  <div>
+                                    <span className="text-slate-500 text-[10px] block font-medium">Languages</span>
+                                    <span className="font-semibold text-slate-300 truncate block">
+                                      {(guide.languages || []).join(", ")}
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <span className="text-slate-500 text-[10px] block font-medium">Group Size</span>
+                                    <span className="font-semibold text-slate-300 truncate block">
+                                      {guide.preferredGroupSize || "Any"}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {/* Bio snippet */}
+                                {guide.bio && (
+                                  <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed italic">
+                                    "{guide.bio}"
+                                  </p>
+                                )}
+                              </div>
+
+                              {/* Request Button */}
+                              <div className="pt-3 border-t border-slate-800 flex items-center justify-between">
+                                <span className="text-[11px] text-slate-500 font-medium">
+                                  Availability: <span className="text-slate-300 font-bold">{guide.availability}</span>
+                                </span>
+
+                                {isAlreadyRequested ? (
+                                  <span className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-slate-800 text-emerald-400 border border-slate-700 flex items-center gap-1.5">
+                                    <FiCheck size={13} />
+                                    <span>Request Sent</span>
+                                  </span>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    disabled={requestingGuideId === guide.guideId}
+                                    onClick={() => handleSendGuideRequest(guide.guideId)}
+                                    className="px-4 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 text-white transition flex items-center gap-1.5 cursor-pointer active:scale-98 shadow-sm"
+                                  >
+                                    <FiSend size={12} className={requestingGuideId === guide.guideId ? "animate-spin" : ""} />
+                                    <span>{requestingGuideId === guide.guideId ? "Sending..." : "Request Guide"}</span>
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>

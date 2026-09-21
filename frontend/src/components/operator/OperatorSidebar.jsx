@@ -153,6 +153,31 @@ export default function OperatorSidebar({ personalCount, campusCount, pendingCou
           </div>
         </div>
 
+        {/* GUIDES */}
+        <div>
+          <div className="px-3 mb-2 text-[10px] font-black tracking-widest text-slate-500 uppercase">
+            Guides
+          </div>
+          <div className="space-y-1 text-xs font-bold">
+            <Link
+              to="/guide/portal"
+              className={`flex items-center justify-between px-3 py-2 rounded-lg transition ${
+                pathname === "/guide/portal" || pathname.startsWith("/guide/")
+                  ? "text-white bg-indigo-600/20 border border-indigo-500/30 font-black"
+                  : "text-slate-400 hover:text-white hover:bg-slate-800/50"
+              }`}
+            >
+              <span className="flex items-center gap-3">
+                <FiCompass className={pathname === "/guide/portal" ? "text-indigo-400" : "text-teal-400"} />
+                <span>Guide Portal</span>
+              </span>
+              <span className="text-[9px] bg-teal-500/20 text-teal-300 border border-teal-500/30 px-1.5 py-0.5 rounded font-mono font-bold">
+                100 Guides
+              </span>
+            </Link>
+          </div>
+        </div>
+
         {/* OPERATIONS */}
         <div>
           <div className="px-3 mb-2 text-[10px] font-black tracking-widest text-slate-500 uppercase">

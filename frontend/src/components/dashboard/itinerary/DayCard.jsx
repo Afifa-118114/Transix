@@ -53,9 +53,9 @@ export default function DayCard({ day, trip }) {
           },
         })
       }
-      className="group w-48 shrink-0 cursor-pointer overflow-hidden rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-[#131b2e] shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-indigo-300 dark:hover:border-indigo-600/50 hover:shadow-md"
+      className="group w-52 shrink-0 cursor-pointer overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-[0_4px_16px_rgba(0,0,0,0.04)] transition-all duration-200 hover:-translate-y-1 hover:border-indigo-300 hover:shadow-xl"
     >
-      <div className="relative h-28 w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
+      <div className="relative h-28 w-full overflow-hidden bg-slate-100">
         {image ? (
           <img
             src={image}
@@ -63,27 +63,27 @@ export default function DayCard({ day, trip }) {
             className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
           />
         ) : (
-          <div className="h-full w-full animate-pulse bg-slate-200 dark:bg-slate-700" />
+          <div className="h-full w-full animate-pulse bg-slate-200" />
         )}
-        <span className="absolute left-2.5 top-2.5 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur-xs">
+        <span className="absolute left-2.5 top-2.5 rounded-full bg-indigo-600 px-2.5 py-0.5 text-[10px] font-bold text-white shadow-xs">
           Day {day.day}
         </span>
       </div>
 
-      <div className="p-3">
-        <h4 className="text-xs font-bold text-slate-800 dark:text-white line-clamp-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition">
+      <div className="p-3.5">
+        <h4 className="text-xs font-bold text-slate-900 line-clamp-1 group-hover:text-indigo-600 transition">
           {day.title || `Day ${day.day} Exploration`}
         </h4>
 
-        <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400 font-medium line-clamp-1">
+        <p className="mt-1 text-[11px] text-slate-500 font-medium line-clamp-1">
           {highlights.length > 0
             ? highlights.join(" • ")
             : "Sightseeing • Dining"}
         </p>
 
-        <div className="mt-2 flex items-center justify-between border-t border-slate-100 dark:border-slate-800 pt-2 text-[10px] text-slate-400 dark:text-slate-500 font-semibold">
+        <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2 text-[10px] text-slate-500 font-medium">
           <span>{day.plan?.length || 0} Activities</span>
-          <span className="text-indigo-600 dark:text-indigo-400 group-hover:underline">View Timeline →</span>
+          <span className="text-indigo-600 font-bold group-hover:underline">Timeline →</span>
         </div>
       </div>
     </div>

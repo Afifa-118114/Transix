@@ -1,429 +1,306 @@
-const axios = require("axios");
-const { cloudinary } = require("../middleware/uploadMiddleware");
-const GuideApplication = require("../models/GuideApplication");
-
-const extractDocMeta = (file) => {
-  if (!file) return null;
-  const url = file.path || file.secure_url || file.url || "";
-  const publicId = file.filename || file.public_id || "";
-  const mimeType = file.mimetype || file.fileType || "";
-  const isPdf = mimeType === "application/pdf" || url.toLowerCase().endsWith(".pdf");
-
-  let signedUrl = "";
-  if (publicId) {
-    try {
-      signedUrl = cloudinary.utils.private_download_url(publicId, "", {
-        resource_type: isPdf ? "raw" : "image",
-        type: "upload",
-        expires_at: Math.floor(Date.now() / 1000) + 86400, // 24 hours
-      });
-    } catch (e) {
-      // ignore
-    }
-  }
-
-  return {
-    url,
-    signedUrl: signedUrl || url,
-    publicId,
-    fileName: file.originalname || file.fileName || "",
-    fileType: mimeType,
-    size: file.size || 0,
-  };
-};
+const asyncHandler = require("../middleware/asyncHandler");
+const AppError = require("../utils/AppError");
+const Trip = require("../models/Trip");
+const GuideProfile = require("../models/GuideProfile");
+const GuideRequest = require("../models/GuideRequest");
+const { matchGuidesForTrip, extractTripStates } = require("../services/guideMatchingEngine");
 
 /**
- * POST /api/guide/upload-document
- * Uploads a document to Cloudinary and returns metadata & secure URL for preview
+ * Get geographically matched guides for a trip
+ * GET /api/guides/match/:tripId
  */
-exports.uploadDocument = async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        message: "No document file provided for upload.",
-      });
-    }
+const getMatchedGuides = asyncHandler(async (req, res) => {
+  const { tripId } = req.params;
+  const trip = await Trip.findById(tripId);
 
-    const document = extractDocMeta(req.file);
+  if (!trip) {
+    throw new AppError("Trip not found", 404);
+  }
 
-    res.status(200).json({
+  const matchingResult = await matchGuidesForTrip(trip);
+
+  res.status(200).json({
+    success: true,
+    tripId: trip._id,
+    tripStates: matchingResult.tripStates,
+    destinationName: matchingResult.destinationName,
+    routeDisplayText: matchingResult.routeDisplayText,
+    resolvedLocations: matchingResult.resolvedLocations,
+    guideRequirement: trip.guideRequirement || { required: false },
+    count: matchingResult.matchedGuides.length,
+    guides: matchingResult.matchedGuides,
+  });
+});
+
+/**
+ * Send Guide Request from Operator to a Guide
+ * POST /api/guides/requests
+ */
+const createGuideRequest = asyncHandler(async (req, res) => {
+  const { tripId, guideId, requirementOverride } = req.body;
+
+  if (!tripId || !guideId) {
+    throw new AppError("Trip ID and Guide ID are required", 400);
+  }
+
+  const trip = await Trip.findById(tripId);
+  if (!trip) {
+    throw new AppError("Trip not found", 404);
+  }
+
+  const guide = await GuideProfile.findOne({ guideId }).select("-documents");
+  if (!guide) {
+    throw new AppError("Guide profile not found", 404);
+  }
+
+  const states = await extractTripStates(trip);
+
+  // Check if a request already exists for this trip + guide
+  let existingRequest = await GuideRequest.findOne({ tripId: trip._id, guideId });
+  if (existingRequest) {
+    return res.status(200).json({
       success: true,
-      message: "Document uploaded successfully.",
-      document,
-    });
-  } catch (error) {
-    console.error("Guide Document Upload Error:", error);
-    res.status(500).json({
-      success: false,
-      message: error.message || "Failed to upload document.",
+      message: "Guide request already exists for this trip",
+      request: existingRequest,
     });
   }
-};
+
+  const reqData = requirementOverride || trip.guideRequirement || {};
+
+  const guideRequest = await GuideRequest.create({
+    tripId: trip._id,
+    operatorId: req.user?._id || null,
+    guideId: guide.guideId,
+    tripType: trip.tripCategory === "CAMPUS" ? "Campus" : "Personal",
+    tripSummary: {
+      title: `${trip.source} to ${trip.destination} (${trip.duration || "Trip"})`,
+      source: trip.source,
+      destination: trip.destination,
+      startDate: trip.startDate,
+      endDate: trip.endDate,
+      duration: trip.duration,
+      travelers: trip.travelers || 1,
+      route: [trip.source, trip.destination],
+      states: states,
+    },
+    requirement: {
+      numberOfGuides: reqData.numberOfGuides || "1",
+      genderPreference: reqData.genderPreference || "Either",
+      preferredLanguages: reqData.preferredLanguages || [],
+      specialNotes: reqData.specialNotes || "",
+    },
+    status: "SENT",
+    sentAt: new Date(),
+  });
+
+  // Update trip guide requirement status
+  if (trip.guideRequirement) {
+    trip.guideRequirement.status = "pending";
+    await trip.save();
+  }
+
+  res.status(201).json({
+    success: true,
+    message: `Guide request dispatched to ${guide.fullName}`,
+    request: guideRequest,
+  });
+});
 
 /**
- * POST /api/guide/apply
- * Submits a new Guide Application for verification
+ * Get all guide requests and responses for a trip
+ * GET /api/guides/requests/trip/:tripId
  */
-exports.applyGuide = async (req, res) => {
-  try {
-    const {
-      fullName,
-      email,
-      phone,
-      dateOfBirth,
-      primaryRegion,
-      city,
-      availability,
-      preferredGroupSize,
-      guidingExperience,
-      experienceYears,
-      languages,
-      customLanguages,
-      otherLanguages,
-      bio,
-      geographicalKnowledge,
-      documents,
-      tourismLicenseNumber,
-      guideLicenseDocument,
-      professionalExperience,
-      references,
-      declarationAgreed,
-    } = req.body;
+const getTripGuideRequests = asyncHandler(async (req, res) => {
+  const { tripId } = req.params;
 
-    const resolvedRegion = (primaryRegion || city || "").trim();
-    const resolvedGuidingExp = guidingExperience || experienceYears || "";
-    const resolvedCustomLang = (customLanguages || otherLanguages || "").trim();
+  const requests = await GuideRequest.find({ tripId }).sort({ createdAt: -1 });
 
-    // Required Field Validations
-    if (!fullName || !fullName.trim()) {
-      return res.status(400).json({ success: false, message: "Full Name is required." });
-    }
+  // Attach guide profile summary to each request
+  const enrichedRequests = await Promise.all(
+    requests.map(async (r) => {
+      const guide = await GuideProfile.findOne({ guideId: r.guideId })
+        .select("guideId fullName email phone primaryRegion languages guidingExperience verificationStatus bio geographicalKnowledge")
+        .lean();
+      return {
+        ...r.toObject(),
+        guide: guide || null,
+      };
+    })
+  );
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!email || !emailRegex.test(email.trim())) {
-      return res.status(400).json({ success: false, message: "A valid Email Address is required." });
-    }
+  res.status(200).json({
+    success: true,
+    count: enrichedRequests.length,
+    requests: enrichedRequests,
+  });
+});
 
-    const phoneRegex = /^[+]?[\d\s-]{7,18}$/;
-    if (!phone || !phoneRegex.test(phone.trim())) {
-      return res.status(400).json({ success: false, message: "A valid Phone Number is required." });
-    }
+/**
+ * Operator selects a guide (or multiple guides)
+ * POST /api/guides/select
+ */
+const selectGuideForTrip = asyncHandler(async (req, res) => {
+  const { tripId, guideId, guideIds } = req.body;
 
-    if (!dateOfBirth) {
-      return res.status(400).json({ success: false, message: "Date of Birth is required." });
-    }
+  if (!tripId) {
+    throw new AppError("Trip ID is required", 400);
+  }
 
-    if (!resolvedRegion) {
-      return res.status(400).json({ success: false, message: "Primary Region / City is required." });
-    }
+  const trip = await Trip.findById(tripId);
+  if (!trip) {
+    throw new AppError("Trip not found", 404);
+  }
 
-    const validAvailability = ["Full-time", "Part-time", "Weekends", "On Request"];
-    if (!availability || !validAvailability.includes(availability)) {
-      return res.status(400).json({ success: false, message: "Please select a valid guide availability." });
-    }
+  const targetGuideIds = guideIds && Array.isArray(guideIds) && guideIds.length > 0
+    ? guideIds
+    : guideId ? [guideId] : [];
 
-    const validGroupSizes = ["1–5 people", "6–10 people", "11–20 people", "20+ people", "Campus Trips"];
-    if (!preferredGroupSize || !validGroupSizes.includes(preferredGroupSize)) {
-      return res.status(400).json({ success: false, message: "Please select a preferred group size." });
-    }
+  if (targetGuideIds.length === 0) {
+    throw new AppError("At least one Guide ID must be selected", 400);
+  }
 
-    const validExpYears = [
-      "Less than 1 year",
-      "1–2 years",
-      "3–5 years",
-      "6–10 years",
-      "10+ years — Senior Leader",
+  // Update requests to OPERATOR_SELECTED
+  await GuideRequest.updateMany(
+    { tripId: trip._id, guideId: { $in: targetGuideIds } },
+    { $set: { status: "OPERATOR_SELECTED", selectedAt: new Date() } }
+  );
+
+  // Update trip.guideRequirement
+  if (!trip.guideRequirement) {
+    trip.guideRequirement = { required: true };
+  }
+  trip.guideRequirement.selectedGuides = targetGuideIds;
+  trip.guideRequirement.status = "guide_selected";
+  await trip.save();
+
+  res.status(200).json({
+    success: true,
+    message: `Selected ${targetGuideIds.length} guide(s) for the trip`,
+    selectedGuides: targetGuideIds,
+    guideRequirement: trip.guideRequirement,
+  });
+});
+
+/**
+ * Finalize Guide Arrangement on the trip
+ * POST /api/guides/finalize
+ */
+const finalizeTripGuides = asyncHandler(async (req, res) => {
+  const { tripId } = req.body;
+
+  if (!tripId) {
+    throw new AppError("Trip ID is required", 400);
+  }
+
+  const trip = await Trip.findById(tripId);
+  if (!trip) {
+    throw new AppError("Trip not found", 404);
+  }
+
+  const selectedGuideIds = trip.guideRequirement?.selectedGuides || [];
+  if (selectedGuideIds.length === 0) {
+    throw new AppError("No guides currently selected to finalize", 400);
+  }
+
+  // Find the accepted requests for these guides to extract price and details
+  const acceptedRequests = await GuideRequest.find({
+    tripId: trip._id,
+    guideId: { $in: selectedGuideIds },
+  });
+
+  const finalizedGuides = await Promise.all(
+    selectedGuideIds.map(async (gId) => {
+      const guide = await GuideProfile.findOne({ guideId: gId }).select("fullName phone email").lean();
+      const reqItem = acceptedRequests.find((r) => r.guideId === gId);
+      return {
+        guideId: gId,
+        fullName: guide?.fullName || gId,
+        price: reqItem?.price?.amount || 0,
+        currency: reqItem?.price?.currency || "INR",
+        availability: reqItem?.availability || "AVAILABLE",
+        status: "Confirmed",
+      };
+    })
+  );
+
+  // Update Guide Requests to CONFIRMED
+  await GuideRequest.updateMany(
+    { tripId: trip._id, guideId: { $in: selectedGuideIds } },
+    { $set: { status: "CONFIRMED", confirmedAt: new Date() } }
+  );
+
+  // Save finalized guides on the trip
+  trip.guideRequirement.finalizedGuides = finalizedGuides;
+  trip.guideRequirement.status = "confirmed";
+  await trip.save();
+
+  res.status(200).json({
+    success: true,
+    message: "Guide arrangement finalized successfully",
+    finalizedGuides,
+    guideRequirement: trip.guideRequirement,
+  });
+});
+
+/**
+ * Search Guide Profiles (Excluding sensitive documents)
+ * GET /api/guides/search
+ */
+const searchGuides = asyncHandler(async (req, res) => {
+  const { q, region, state, language, availability, experience } = req.query;
+
+  const filter = { verificationStatus: "approved" };
+
+  if (q && q.trim()) {
+    const term = q.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    filter.$or = [
+      { fullName: { $regex: term, $options: "i" } },
+      { guideId: { $regex: term, $options: "i" } },
+      { primaryRegion: { $regex: term, $options: "i" } },
+      { "geographicalKnowledge.states": { $regex: term, $options: "i" } },
+      { languages: { $regex: term, $options: "i" } },
+      { bio: { $regex: term, $options: "i" } },
     ];
-    if (!resolvedGuidingExp || !validExpYears.includes(resolvedGuidingExp)) {
-      return res.status(400).json({ success: false, message: "Please select your guiding experience." });
-    }
-
-    // Languages validation
-    const parsedLanguages = Array.isArray(languages) ? languages : [];
-    if (parsedLanguages.length === 0) {
-      return res.status(400).json({ success: false, message: "Please select at least one language." });
-    }
-
-    if (parsedLanguages.includes("Other") && !resolvedCustomLang) {
-      return res.status(400).json({
-        success: false,
-        message: "Please specify the other language(s) you speak.",
-      });
-    }
-
-    // Geographical Knowledge validation (Mandatory at least 1 Indian state)
-    const states = geographicalKnowledge?.states || [];
-    if (!Array.isArray(states) || states.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Please select at least one Indian state in Geographical Knowledge.",
-      });
-    }
-
-    if (!bio || !bio.trim()) {
-      return res.status(400).json({ success: false, message: "Brief Bio & Tour Highlights is required." });
-    }
-
-    // Identity Documents Validation
-    if (!documents || !documents.aadhaar || !documents.aadhaar.url) {
-      return res.status(400).json({
-        success: false,
-        message: "Aadhaar Card document upload is mandatory.",
-      });
-    }
-
-    if (!documents.drivingLicense || !documents.drivingLicense.url) {
-      return res.status(400).json({
-        success: false,
-        message: "Driving License document upload is mandatory.",
-      });
-    }
-
-    // Professional Experience Validation
-    const workedWith = professionalExperience?.workedWith || [];
-    if (!Array.isArray(workedWith) || workedWith.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Please select at least one professional experience option.",
-      });
-    }
-
-    if (workedWith.includes("Other") && !professionalExperience?.workedWithOther?.trim()) {
-      return res.status(400).json({
-        success: false,
-        message: "Please specify your other professional experience details.",
-      });
-    }
-
-    // Declaration Validation
-    const agreed = declarationAgreed === true || declarationAgreed === "true";
-    if (!agreed) {
-      return res.status(400).json({
-        success: false,
-        message: "You must confirm the accuracy of information and agree to the verification declaration.",
-      });
-    }
-
-    // Generate unique application tracking number
-    const rand = Math.floor(100000 + Math.random() * 900000);
-    const applicationNumber = `TG-${new Date().getFullYear()}-${rand}`;
-
-    // Initialize clean verification timeline
-    const timeline = [
-      {
-        key: "APPLICATION_SUBMITTED",
-        label: "Application Submitted",
-        status: "COMPLETED",
-        completedAt: new Date(),
-        note: "Your application has been received and registered in the Transix Guide Network registry.",
-      },
-      {
-        key: "DOCUMENT_REVIEW",
-        label: "Document Review",
-        status: "IN_PROGRESS",
-        completedAt: null,
-        note: "Transix verification team is reviewing your Aadhaar, driving license, and credentials.",
-      },
-      {
-        key: "INTERVIEW",
-        label: "Interview",
-        status: "PENDING",
-        completedAt: null,
-        note: "A coordinator will reach out to schedule your professional interaction session after document review.",
-      },
-      {
-        key: "REFERENCE_VERIFICATION",
-        label: "Experience / Reference Verification",
-        status: "PENDING",
-        completedAt: null,
-        note: "Past tour leadership, operator engagements, and reference details verification.",
-      },
-      {
-        key: "FINAL_REVIEW",
-        label: "Final Review",
-        status: "PENDING",
-        completedAt: null,
-        note: "Final compliance signoff by Transix Head of Guide Operations.",
-      },
-      {
-        key: "APPROVED",
-        label: "Guide Profile Approved",
-        status: "PENDING",
-        completedAt: null,
-        note: "Guide profile badge activation and assignment dispatch eligibility.",
-      },
-    ];
-
-    const application = new GuideApplication({
-      applicationNumber,
-      fullName: fullName.trim(),
-      email: email.trim().toLowerCase(),
-      phone: phone.trim(),
-      dateOfBirth,
-      primaryRegion: resolvedRegion,
-      availability,
-      preferredGroupSize,
-      guidingExperience: resolvedGuidingExp,
-      languages: parsedLanguages,
-      customLanguages: resolvedCustomLang,
-      bio: bio.trim(),
-      geographicalKnowledge: { states },
-      documents: {
-        aadhaar: documents.aadhaar,
-        drivingLicense: documents.drivingLicense,
-        passport: documents.passport || null,
-      },
-      tourismLicenseNumber: tourismLicenseNumber ? tourismLicenseNumber.trim() : "",
-      guideLicenseDocument: guideLicenseDocument || null,
-      professionalExperience: {
-        workedWith,
-        workedWithOther: professionalExperience.workedWithOther ? professionalExperience.workedWithOther.trim() : "",
-        organizations: professionalExperience.organizations ? professionalExperience.organizations.trim() : "",
-        experienceDetails: professionalExperience.experienceDetails ? professionalExperience.experienceDetails.trim() : "",
-        experienceProof: professionalExperience.experienceProof || null,
-      },
-      references: {
-        name: references?.name ? references.name.trim() : "",
-        contact: references?.contact ? references.contact.trim() : "",
-        relationship: references?.relationship || "",
-      },
-      declarationAgreed: true,
-      declarationAgreedAt: new Date(),
-      verificationStatus: "pending",
-      timeline,
-    });
-
-    await application.save();
-
-    res.status(201).json({
-      success: true,
-      message: "Guide application submitted successfully for verification.",
-      application: {
-        _id: application._id,
-        applicationNumber: application.applicationNumber,
-        fullName: application.fullName,
-        email: application.email,
-        phone: application.phone,
-        primaryRegion: application.primaryRegion,
-        verificationStatus: application.verificationStatus,
-        createdAt: application.createdAt,
-        timeline: application.timeline,
-      },
-    });
-  } catch (error) {
-    console.error("Guide Application Error:", error);
-    res.status(500).json({
-      success: false,
-      message: error.message || "Failed to submit guide application",
-    });
   }
-};
 
-/**
- * GET /api/guide/status/:id
- * Retrieves verification status and timeline for a guide application
- */
-exports.getGuideStatus = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    let query = {};
-    if (id.startsWith("TG-")) {
-      query = { applicationNumber: id };
-    } else if (id.match(/^[0-9a-fA-F]{24}$/)) {
-      query = { _id: id };
-    } else {
-      return res.status(404).json({
-        success: false,
-        message: "Guide application not found.",
-      });
-    }
-
-    // Exclude publicId or internal security fields
-    const application = await GuideApplication.findOne(query).select(
-      "-documents.aadhaar.publicId -documents.drivingLicense.publicId -documents.passport.publicId -guideLicenseDocument.publicId -professionalExperience.experienceProof.publicId"
-    );
-
-    if (!application) {
-      return res.status(404).json({
-        success: false,
-        message: "Guide application not found.",
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      application,
-    });
-  } catch (error) {
-    console.error("Get Guide Status Error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to retrieve guide application status",
-    });
+  if (region && region.trim()) {
+    filter.primaryRegion = { $regex: region.trim(), $options: "i" };
   }
-};
 
-/**
- * GET /api/guide/documents/preview
- * Streams document preview with Content-Type and inline disposition for PDFs and images
- */
-exports.previewDocument = async (req, res) => {
-  try {
-    const { publicId, url } = req.query;
-
-    let targetPublicId = publicId;
-    let resourceType = "raw";
-
-    if (!targetPublicId && url) {
-      const match = url.match(/\/(image|raw|video)\/upload\/(?:v\d+\/)?(.+)$/);
-      if (match) {
-        resourceType = match[1];
-        targetPublicId = match[2];
-      }
-    }
-
-    if (!targetPublicId) {
-      return res.status(400).json({ success: false, message: "Document identifier missing." });
-    }
-
-    const isPdf = targetPublicId.toLowerCase().endsWith(".pdf") || url?.toLowerCase().endsWith(".pdf");
-    if (!resourceType || resourceType === "auto") {
-      resourceType = isPdf ? "raw" : "image";
-    }
-
-    let downloadUrl = "";
-    if (url && (resourceType === "image" || url.includes("/image/upload/"))) {
-      downloadUrl = url;
-    } else if (resourceType === "raw" || isPdf) {
-      downloadUrl = cloudinary.utils.private_download_url(targetPublicId, "", {
-        resource_type: "raw",
-        type: "upload",
-        expires_at: Math.floor(Date.now() / 1000) + 7200,
-      });
-    } else {
-      downloadUrl = url || cloudinary.url(targetPublicId, { resource_type: "image", secure: true });
-    }
-
-    const cloudinaryRes = await axios.get(downloadUrl, { responseType: "stream" });
-    let contentType = cloudinaryRes.headers["content-type"];
-    if (!contentType || contentType === "application/octet-stream" || contentType === "text/plain") {
-      if (isPdf) {
-        contentType = "application/pdf";
-      } else if (targetPublicId.toLowerCase().endsWith(".png")) {
-        contentType = "image/png";
-      } else if (targetPublicId.toLowerCase().endsWith(".jpg") || targetPublicId.toLowerCase().endsWith(".jpeg")) {
-        contentType = "image/jpeg";
-      }
-    }
-
-    res.setHeader("Content-Type", contentType || (isPdf ? "application/pdf" : "image/jpeg"));
-    res.setHeader("Content-Disposition", "inline");
-    cloudinaryRes.data.pipe(res);
-  } catch (error) {
-    console.error("Guide Preview Document Error:", error.message || error);
-    res.status(500).json({ success: false, message: "Failed to load document preview" });
+  if (state && state.trim()) {
+    filter["geographicalKnowledge.states"] = { $regex: state.trim(), $options: "i" };
   }
-};
 
+  if (language && language.trim()) {
+    filter.languages = { $regex: language.trim(), $options: "i" };
+  }
+
+  if (availability && availability.trim()) {
+    filter.availability = availability.trim();
+  }
+
+  if (experience && experience.trim()) {
+    filter.guidingExperience = { $regex: experience.trim(), $options: "i" };
+  }
+
+  // Strict projection: documents are NOT exposed
+  const guides = await GuideProfile.find(filter)
+    .select("-documents")
+    .limit(50)
+    .sort({ fullName: 1 });
+
+  res.status(200).json({
+    success: true,
+    count: guides.length,
+    guides,
+  });
+});
+
+module.exports = {
+  getMatchedGuides,
+  createGuideRequest,
+  getTripGuideRequests,
+  selectGuideForTrip,
+  finalizeTripGuides,
+  searchGuides,
+};
