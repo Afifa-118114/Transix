@@ -84,7 +84,7 @@ export default function JourneyWorkflowSection() {
 
     const interval = setInterval(() => {
       setActiveStep((prev) => (prev + 1) % WORKFLOW_STEPS.length);
-    }, 3200);
+    }, 1500);
 
     return () => clearInterval(interval);
   }, [isVisible]);
@@ -131,13 +131,12 @@ export default function JourneyWorkflowSection() {
                       onClick={() => {
                         if (isWorkflowStep) setActiveStep(stepIdx);
                       }}
-                      className={`text-xs font-bold px-2.5 py-1 rounded-lg transition-all duration-300 cursor-pointer ${
-                        isCurrentActive
-                          ? "bg-indigo-600 text-white shadow-sm shadow-indigo-600/30 scale-105"
-                          : isWorkflowStep
+                      className={`text-xs font-bold px-2.5 py-1 rounded-lg transition-all duration-300 cursor-pointer ${isCurrentActive
+                        ? "bg-indigo-600 text-white shadow-sm shadow-indigo-600/30 scale-105"
+                        : isWorkflowStep
                           ? "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-indigo-50 dark:hover:bg-indigo-950"
                           : "bg-transparent text-slate-400 dark:text-slate-400 border border-dashed border-slate-200 dark:border-slate-700"
-                      }`}
+                        }`}
                     >
                       {stage}
                     </button>
@@ -156,9 +155,8 @@ export default function JourneyWorkflowSection() {
           <div className="relative flex items-center justify-center w-full max-w-lg mx-auto">
             {/* Ambient Aura */}
             <div
-              className={`absolute inset-0 rounded-full bg-gradient-to-tr from-indigo-500/20 via-purple-500/20 to-cyan-400/20 blur-3xl scale-110 pointer-events-none transition-opacity duration-1000 ${
-                isVisible ? "opacity-100" : "opacity-0"
-              }`}
+              className={`absolute inset-0 rounded-full bg-gradient-to-tr from-indigo-500/20 via-purple-500/20 to-cyan-400/20 blur-3xl scale-110 pointer-events-none transition-opacity duration-1000 ${isVisible ? "opacity-100" : "opacity-0"
+                }`}
             />
 
             {/* Connecting SVG Orbit Path */}
@@ -180,11 +178,10 @@ export default function JourneyWorkflowSection() {
 
             {/* Circular Scenic Destination Image */}
             <div
-              className={`relative w-64 h-64 sm:w-72 sm:h-72 md:w-80 md:h-80 rounded-full overflow-hidden shadow-2xl border-4 border-white/95 dark:border-slate-800/95 shrink-0 z-0 group transition-all duration-700 ease-out ${
-                isVisible
-                  ? "opacity-100 scale-100 filter-none"
-                  : "opacity-0 scale-90 blur-[3px]"
-              }`}
+              className={`relative w-64 h-64 sm:w-72 sm:h-72 md:w-80 md:h-80 rounded-full overflow-hidden shadow-2xl border-4 border-white/95 dark:border-slate-800/95 shrink-0 z-0 group transition-all duration-700 ease-out ${isVisible
+                ? "opacity-100 scale-100 filter-none"
+                : "opacity-0 scale-90 blur-[3px]"
+                }`}
             >
               <img
                 src="https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=85"
@@ -204,26 +201,23 @@ export default function JourneyWorkflowSection() {
                   <div
                     key={item.step}
                     onMouseEnter={() => setActiveStep(idx)}
-                    className={`absolute ${item.desktopPos} z-10 w-56 lg:w-60 bg-white/95 dark:bg-[#131b2e]/95 backdrop-blur-xl border rounded-2xl p-3.5 shadow-xl transition-all duration-500 ease-out cursor-pointer ${
-                      isActive
-                        ? "border-indigo-500/80 shadow-indigo-500/20 ring-2 ring-indigo-500/30 scale-105 z-20"
-                        : "border-slate-200/90 dark:border-slate-700/80 shadow-slate-200/30 dark:shadow-black/40 opacity-90 hover:opacity-100 hover:scale-102"
-                    } ${
-                      isVisible
+                    className={`absolute ${item.desktopPos} z-10 w-56 lg:w-60 bg-white/95 dark:bg-[#131b2e]/95 backdrop-blur-xl border rounded-2xl p-3.5 shadow-xl transition-all duration-500 ease-out cursor-pointer ${isActive
+                      ? "border-indigo-500/80 shadow-indigo-500/20 ring-2 ring-indigo-500/30 scale-105 z-20"
+                      : "border-slate-200/90 dark:border-slate-700/80 shadow-slate-200/30 dark:shadow-black/40 opacity-90 hover:opacity-100 hover:scale-102"
+                      } ${isVisible
                         ? "opacity-100 translate-y-0 filter-none"
                         : "opacity-0 translate-y-6 blur-[2px]"
-                    }`}
+                      }`}
                     style={{
                       transitionDelay: `${item.delayMs}ms`,
                     }}
                   >
                     <div className="flex items-start gap-3">
                       <div
-                        className={`h-8 w-8 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
-                          isActive
-                            ? "bg-indigo-600 text-white shadow-sm shadow-indigo-600/40"
-                            : "bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-800/50"
-                        }`}
+                        className={`h-8 w-8 rounded-xl flex items-center justify-center shrink-0 transition-colors ${isActive
+                          ? "bg-indigo-600 text-white shadow-sm shadow-indigo-600/40"
+                          : "bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-800/50"
+                          }`}
                       >
                         <Icon className="text-sm" />
                       </div>
@@ -257,18 +251,16 @@ export default function JourneyWorkflowSection() {
                 <div
                   key={item.step}
                   onClick={() => setActiveStep(idx)}
-                  className={`bg-white dark:bg-[#131b2e] border rounded-2xl p-3.5 shadow-xs flex items-start gap-3 transition-all duration-300 ${
-                    isActive
-                      ? "border-indigo-500/80 ring-2 ring-indigo-500/20"
-                      : "border-slate-200/80 dark:border-slate-800/80"
-                  }`}
+                  className={`bg-white dark:bg-[#131b2e] border rounded-2xl p-3.5 shadow-xs flex items-start gap-3 transition-all duration-300 ${isActive
+                    ? "border-indigo-500/80 ring-2 ring-indigo-500/20"
+                    : "border-slate-200/80 dark:border-slate-800/80"
+                    }`}
                 >
                   <div
-                    className={`h-8 w-8 rounded-xl flex items-center justify-center shrink-0 ${
-                      isActive
-                        ? "bg-indigo-600 text-white"
-                        : "bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400"
-                    }`}
+                    className={`h-8 w-8 rounded-xl flex items-center justify-center shrink-0 ${isActive
+                      ? "bg-indigo-600 text-white"
+                      : "bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400"
+                      }`}
                   >
                     <Icon className="text-sm" />
                   </div>
