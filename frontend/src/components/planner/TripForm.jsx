@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { generateAITrip } from "../../api/tripApi";
 import { normalizeTrip } from "../../utils/formatTrip";
 import { clearInventoryCache } from "../../services/inventoryService";
@@ -97,6 +98,7 @@ const loadingPhases = [
 ];
 
 export default function TripForm({ setTrip }) {
+  const navigate = useNavigate();
   const [currentIdx, setCurrentIdx] = useState(0);
   const [inputValue, setInputValue] = useState("");
   const [clarification, setClarification] = useState(null);
@@ -139,6 +141,70 @@ export default function TripForm({ setTrip }) {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [currentIdx, clarification, showSummary, isReviewing, editingQuestionId]);
+
+  const isGeneratingRef = useRef(false);
+
+  // Restore pending trip intent or complete pre-saved questionnaire responses
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    const savedPayload = sessionStorage.getItem("transix_saved_payload");
+    const savedAnswers = sessionStorage.getItem("transix_saved_answers");
+
+    // If user filled out entire questionnaire and just authenticated:
+    if (savedPayload && token && !isGeneratingRef.current) {
+      sessionStorage.removeItem("transix_saved_payload");
+      sessionStorage.removeItem("transix_saved_answers");
+      if (savedAnswers) {
+        try {
+          setAnswers(JSON.parse(savedAnswers));
+        } catch (e) {}
+      }
+      toast.success("Restored your preferences! Generating your itinerary...", { icon: "✨" });
+      executeGenerate(JSON.parse(savedPayload), token);
+      return;
+    }
+
+    // If user entered initial parameters from landing page hero planner:
+    try {
+      const stored = sessionStorage.getItem("transix_pending_plan");
+      if (stored) {
+        const plan = JSON.parse(stored);
+        sessionStorage.removeItem("transix_pending_plan");
+
+        const daysMatch = plan.duration?.toString().match(/\d+/);
+        const days = daysMatch ? parseInt(daysMatch[0], 10) : 7;
+
+        const start = new Date();
+        start.setDate(start.getDate() + 7);
+        const end = new Date(start);
+        end.setDate(start.getDate() + days);
+        const formatYMD = (d) => d.toISOString().split("T")[0];
+
+        const travMatch = plan.travelers?.toString().match(/\d+/);
+        const numTravelers = travMatch ? parseInt(travMatch[0], 10) : 2;
+
+        setAnswers((prev) => ({
+          ...prev,
+          destination: plan.destination || prev.destination,
+          travelers: numTravelers,
+          durationStr: `${days} Days`,
+          startDate: formatYMD(start),
+          endDate: formatYMD(end),
+          budget: plan.budget || 50000,
+          travelMode: plan.travelMode || "Train",
+          stay: "Standard",
+          dining: "Any",
+          travelerType: numTravelers === 1 ? "Just me" : (numTravelers === 2 ? "Couple" : "Family"),
+          interests: ["Sightseeing", "Nature"],
+          interestsStr: "Sightseeing, Nature",
+        }));
+
+        toast.success(`Starting planner for ${plan.destination} (${days} Days, ${numTravelers} Travelers)!`, { icon: "✨" });
+      }
+    } catch (e) {
+      console.warn("Failed to restore pending plan intent", e);
+    }
+  }, []);
 
   useEffect(() => {
     let interval = null;
@@ -344,49 +410,11 @@ export default function TripForm({ setTrip }) {
     }
   };
 
-  const handleGenerate = async () => {
+  const executeGenerate = async (payloadToUse, authToken) => {
+    isGeneratingRef.current = true;
     try {
       setLoading(true);
-      const token = localStorage.getItem("token");
-      
-      // Helper function to map conversational input to strict backend enums
-      const mapEnum = (val, validOptions, defaultOption) => {
-        if (!val) return defaultOption;
-        const normalized = val.toLowerCase();
-        
-        for (const opt of validOptions) {
-          if (normalized.includes(opt.toLowerCase())) return opt;
-        }
-        
-        // Custom fuzzy mapping
-        if (validOptions.includes("Solo") && (normalized.includes("just me") || normalized.includes("alone"))) return "Solo";
-        if (validOptions.includes("Veg") && normalized === "vegetarian") return "Veg";
-        if (validOptions.includes("Non-Veg") && normalized === "non-vegetarian") return "Non-Veg";
-        if (validOptions.includes("Standard") && (normalized.includes("comfort") || normalized.includes("premium"))) return "Standard";
-        if (validOptions.includes("Any") && normalized.includes("no preference")) return "Any";
-        
-        return defaultOption;
-      };
-
-      // Strict payload mapping for Zod validator
-      const payload = {
-        source: answers.source,
-        destination: answers.destination,
-        startDate: answers.startDate,
-        endDate: answers.endDate,
-        travelers: Number(answers.travelers) || 2,
-        budget: Number(answers.budget) || 50000,
-        currency: "INR",
-        travelMode: mapEnum(answers.travelMode, ["Flight", "Train", "Bus", "Car"], "Train"),
-        hotelType: mapEnum(answers.stay, ["Budget", "Standard", "Luxury"], "Standard"),
-        foodPreference: mapEnum(answers.dining, ["Veg", "Non-Veg", "Vegan", "Any"], "Any"),
-        tripType: mapEnum(answers.travelerType, ["Solo", "Family", "Friends", "Couple", "Business"], "Family"),
-        interests: answers.interests.length > 0 ? answers.interests : ["Sightseeing"],
-        priority: "Comfort",
-        purpose: "Vacation",
-      };
-
-      const res = await generateAITrip(payload, token);
+      const res = await generateAITrip(payloadToUse, authToken);
       if (res?.trip) {
         clearInventoryCache();
         const normalized = normalizeTrip(res.trip);
@@ -401,7 +429,63 @@ export default function TripForm({ setTrip }) {
       toast.error(err.response?.data?.message || "Failed to generate itinerary. Please try again.");
     } finally {
       setLoading(false);
+      isGeneratingRef.current = false;
     }
+  };
+
+  const handleGenerate = async () => {
+    if (loading || isGeneratingRef.current) return;
+    // Helper function to map conversational input to strict backend enums
+    const mapEnum = (val, validOptions, defaultOption) => {
+      if (!val) return defaultOption;
+      const normalized = val.toLowerCase();
+      
+      for (const opt of validOptions) {
+        if (normalized.includes(opt.toLowerCase())) return opt;
+      }
+      
+      // Custom fuzzy mapping
+      if (validOptions.includes("Solo") && (normalized.includes("just me") || normalized.includes("alone"))) return "Solo";
+      if (validOptions.includes("Veg") && normalized === "vegetarian") return "Veg";
+      if (validOptions.includes("Non-Veg") && normalized === "non-vegetarian") return "Non-Veg";
+      if (validOptions.includes("Standard") && (normalized.includes("comfort") || normalized.includes("premium"))) return "Standard";
+      if (validOptions.includes("Any") && normalized.includes("no preference")) return "Any";
+      
+      return defaultOption;
+    };
+
+    // Strict payload mapping for Zod validator
+    const payload = {
+      source: answers.source,
+      destination: answers.destination,
+      startDate: answers.startDate,
+      endDate: answers.endDate,
+      travelers: Number(answers.travelers) || 2,
+      budget: Number(answers.budget) || 50000,
+      currency: "INR",
+      travelMode: mapEnum(answers.travelMode, ["Flight", "Train", "Bus", "Car"], "Train"),
+      hotelType: mapEnum(answers.stay, ["Budget", "Standard", "Luxury"], "Standard"),
+      foodPreference: mapEnum(answers.dining, ["Veg", "Non-Veg", "Vegan", "Any"], "Any"),
+      tripType: mapEnum(answers.travelerType, ["Solo", "Family", "Friends", "Couple", "Business"], "Family"),
+      interests: answers.interests.length > 0 ? answers.interests : ["Sightseeing"],
+      priority: "Comfort",
+      purpose: "Vacation",
+    };
+
+    const token = localStorage.getItem("token");
+    if (!token) {
+      // Save all answers and payload so the user never has to re-fill anything
+      sessionStorage.setItem("transix_saved_answers", JSON.stringify(answers));
+      sessionStorage.setItem("transix_saved_payload", JSON.stringify(payload));
+      toast("Please sign in or create an account to finalize and save your personalized itinerary.", {
+        icon: "🔐",
+        duration: 4000,
+      });
+      navigate("/login", { state: { from: "/home", hasPendingGeneration: true } });
+      return;
+    }
+
+    await executeGenerate(payload, token);
   };
 
   // -------------------------------------------------------------

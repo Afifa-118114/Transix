@@ -31,23 +31,31 @@ import CampusCreate from "../pages/CampusCreate";
 import CoordinatorDashboard from "../pages/CoordinatorDashboard";
 import ParticipantDashboard from "../pages/ParticipantDashboard";
 
+import LandingPage from "../pages/public/LandingPage";
+import SampleItineraryPage from "../pages/public/SampleItineraryPage";
+import JoinAsGuidePage from "../pages/public/JoinAsGuidePage";
+
 function AppRoutes() {
   return (
     <Routes>
-      {/* Redirect root */}
-      <Route path="/" element={<Navigate to="/login" replace />} />
-      {/* Public Routes */}
+      {/* Public Landing & Showcase Routes */}
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/journey-flow" element={<LandingPage defaultSection="journey-flow" />} />
+      <Route path="/adaptive-travel" element={<LandingPage defaultSection="adaptive-travel" />} />
+      <Route path="/why-transix" element={<LandingPage defaultSection="why-transix" />} />
+      <Route path="/features" element={<LandingPage defaultSection="why-transix" />} />
+      <Route path="/explore" element={<LandingPage defaultSection="why-transix" />} />
+      <Route path="/sample-trips" element={<LandingPage defaultSection="sample-trips" />} />
+      <Route path="/sample-trips/:id" element={<SampleItineraryPage />} />
+      <Route path="/join-as-guide" element={<JoinAsGuidePage />} />
+      <Route path="/journey" element={<Navigate to="/home" replace />} />
+
+      {/* Public Authentication Routes */}
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      {/* Itinerary Planner Route — Questionnaire accessible prior to auth */}
+      <Route path="/planner" element={<TripPlanner />} />
       {/* Protected Routes */}
-      <Route
-        path="/planner"
-        element={
-          <ProtectedRoute allowedRoles={["traveler", "admin"]}>
-            <TripPlanner />
-          </ProtectedRoute>
-        }
-      />
       <Route
         path="/home"
         element={
