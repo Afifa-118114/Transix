@@ -16,6 +16,15 @@ export function formatBudget(amount) {
 
 export function getDuration(trip) {
   if (!trip) return "0 Days";
+  // Derive from date range (inclusive) first to prevent 0 days on empty itinerary
+  if (trip.startDate && trip.endDate) {
+    const start = new Date(trip.startDate + (trip.startDate.includes('T') ? '' : 'T00:00:00Z'));
+    const end = new Date(trip.endDate + (trip.endDate.includes('T') ? '' : 'T00:00:00Z'));
+    if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+      const days = Math.max(1, Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+      return `${days} Days`;
+    }
+  }
   // Authoritative: itinerary length
   if (trip.itinerary?.length) {
     return `${trip.itinerary.length} Days`;
@@ -23,15 +32,6 @@ export function getDuration(trip) {
   // Stored duration string
   if (trip.duration) {
     return typeof trip.duration === "number" ? `${trip.duration} Days` : String(trip.duration);
-  }
-  // Derive from date range (inclusive)
-  if (trip.startDate && trip.endDate) {
-    const start = new Date(trip.startDate);
-    const end = new Date(trip.endDate);
-    if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
-      const days = Math.max(1, Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1);
-      return `${days} Days`;
-    }
   }
   return "5 Days";
 }
@@ -143,10 +143,19 @@ export function normalizeTrip(rawTrip) {
     let currentTimelineMin = 9 * 60 + 30;
 
     const normalizedPlan = rawPlan.map((p, pIdx) => {
+      const isTrain = Boolean(p.trainNumber || p.category === "transport");
       const priceNum = parsePrice(p.price || p.estimatedCost || p.fare);
       const displayPrice = p.displayPrice || (priceNum > 0 ? `₹${priceNum.toLocaleString("en-IN")}` : null);
 
-      let durationMins = parseDurationMinutes(p.durationMinutes || p.duration, 90);
+      let durationMins = isTrain
+        ? (p.durationMinutes || (typeof p.duration === "string" ? (() => {
+            const hMatch = p.duration.match(/(\d+)\s*h/i);
+            const mMatch = p.duration.match(/(\d+)\s*m/i);
+            const hrs = hMatch ? parseInt(hMatch[1], 10) : 0;
+            const mins = mMatch ? parseInt(mMatch[1], 10) : 0;
+            return (hrs * 60 + mins) || 180;
+          })() : 180))
+        : parseDurationMinutes(p.durationMinutes || p.duration, 90);
 
       // Extract existing explicit user-configured times if present
       let explicitStart = null;
@@ -164,53 +173,72 @@ export function normalizeTrip(rawTrip) {
       let startMin;
       let endMin;
 
-      // If user has explicitly configured this item's custom time (or on initial load with explicit times)
-      if (explicitStart !== null && explicitEnd !== null && explicitEnd > explicitStart && p.startTime && p.endTime) {
+      // If the item has explicit times (from AI or user), trust them unconditionally.
+      if (explicitStart !== null && explicitEnd !== null && explicitEnd > explicitStart) {
         startMin = explicitStart;
         endMin = explicitEnd;
-        durationMins = endMin - startMin;
-        currentTimelineMin = endMin + 25; // 25m travel buffer
+        durationMins = endMin - startMin; // Preserve explicit duration
+        if (!isTrain) currentTimelineMin = endMin + 25;
+      } else if (isTrain && (p.departure || p.startTime)) {
+        // Real train scheduled departure time
+        const parsedDep = timeToMinutes(p.departure || p.startTime);
+        startMin = parsedDep !== null ? parsedDep : currentTimelineMin;
+        endMin = (startMin + (durationMins % 1440)) % 1440;
       } else {
-        // Build a guaranteed feasible sequence with 20-30m buffers
-        if (explicitStart !== null && explicitStart >= currentTimelineMin) {
-          startMin = explicitStart;
-        } else {
-          startMin = currentTimelineMin;
-        }
-
+        // Only if absolutely no valid time was provided, fall back to sequential placement
+        startMin = currentTimelineMin;
         endMin = startMin + durationMins;
-        currentTimelineMin = endMin + 25; // 25m travel buffer
+        currentTimelineMin = endMin + 25;
       }
 
-      const startTimeStr = minutesToTimeStr(startMin);
-      const endTimeStr = minutesToTimeStr(endMin);
+      const startTimeStr = (isTrain && !p.legType && p.departure) ? p.departure : minutesToTimeStr(startMin);
+      const endTimeStr = (isTrain && !p.legType && p.arrival) ? p.arrival : minutesToTimeStr(endMin);
 
+      const canonicalId = p._id ? String(p._id) : p.id;
+      
       return {
-        id: p.id || `item-d${dayNum}-${pIdx}-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-        name: p.name || p.activity || p.place || `Activity ${pIdx + 1}`,
+        id: canonicalId,
+        _id: canonicalId,
+        name: p.name || p.activity || p.place || (isTrain ? `${p.trainName} (#${p.trainNumber})` : `Activity ${pIdx + 1}`),
         activity: p.activity || p.name || p.place || `Activity ${pIdx + 1}`,
         place: p.place || p.location || destination,
         location: p.location || p.place || destination,
         notes: p.notes || p.description || "",
-        time: `${startTimeStr} - ${endTimeStr}`,
-        startTime: startTimeStr,
-        endTime: endTimeStr,
-        duration: p.duration || `${Math.floor(durationMins / 60)}h ${durationMins % 60}m`,
+        time: p.time || (isTrain && !p.legType ? `${p.departure || startTimeStr} - ${p.arrival || endTimeStr}` : `${startTimeStr} - ${endTimeStr}`),
+        startTime: p.startTime || (isTrain && !p.legType ? (p.departure || startTimeStr) : startTimeStr),
+        endTime: p.endTime || (isTrain && !p.legType ? (p.arrival || endTimeStr) : endTimeStr),
+        departure: p.departure || (isTrain ? startTimeStr : null),
+        arrival: p.arrival || (isTrain ? endTimeStr : null),
+        duration: isTrain ? (p.duration || `${Math.floor(durationMins / 60)}h ${durationMins % 60}m`) : `${Math.floor(durationMins / 60)}h ${durationMins % 60}m`,
         durationMinutes: durationMins,
         price: priceNum,
         displayPrice,
-        category: p.category || "activity",
-        categoryLabel: p.categoryLabel || "Activities",
+        category: p.category || (isTrain ? "transport" : "activity"),
+        categoryLabel: p.categoryLabel || (isTrain ? "Transport" : "Activities"),
         rating: p.rating || 4.7,
         dnaMatch: p.dnaMatch || 94,
-        icon: p.icon || "✨",
+        icon: p.icon || (isTrain ? "🚆" : "✨"),
         image: p.image || rawTrip.heroImage || null,
         trainNumber: p.trainNumber || null,
         trainName: p.trainName || null,
-        stops: p.stops,
-        route: p.route,
-        fares: p.fares,
-        runningDays: p.runningDays,
+        type: p.type || (isTrain ? "Express" : null),
+        journeyDirection: p.journeyDirection || null,
+        routeSource: p.routeSource || null,
+        routeDestination: p.routeDestination || null,
+        source: p.source || null,
+        destination: p.destination || null,
+        from: p.from || null,
+        to: p.to || null,
+        stops: p.stops !== undefined ? p.stops : p.totalStops,
+        totalStops: p.totalStops !== undefined ? p.totalStops : p.stops,
+        route: p.route || null,
+        fares: p.fares || null,
+        runningDays: p.runningDays || null,
+        isGateway: Boolean(p.isGateway),
+        gatewayLabel: p.gatewayLabel || null,
+        legType: p.legType || null,
+        isStaySegmentHotel: p.isStaySegmentHotel || false,
+        staySegmentId: p.staySegmentId || null,
       };
     });
 
@@ -223,34 +251,30 @@ export function normalizeTrip(rawTrip) {
   });
 
   // ---- Date / Duration / Itinerary synchronization ----
-  const numDays = normalizedItinerary.length || 5;
   let finalStartDate = rawTrip.startDate || null;
   let finalEndDate = rawTrip.endDate || null;
+  let numDays = normalizedItinerary.length || 5;
 
   if (finalStartDate) {
-    const s = new Date(finalStartDate);
+    const s = new Date(finalStartDate + (finalStartDate.includes('T') ? '' : 'T00:00:00Z'));
     if (!isNaN(s.getTime())) {
       if (!finalEndDate) {
         // Compute endDate from itinerary count
-        const e = new Date(s);
-        e.setDate(s.getDate() + numDays - 1);
+        const e = new Date(s.getTime());
+        e.setUTCDate(s.getUTCDate() + numDays - 1);
         finalEndDate = e.toISOString().split("T")[0];
       } else {
-        // Ensure endDate is aligned with itinerary count (adjust if mismatch)
-        const e = new Date(finalEndDate);
+        // Just sync numDays with the explicit dates, do not shift finalEndDate
+        const e = new Date(finalEndDate + (finalEndDate.includes('T') ? '' : 'T00:00:00Z'));
         if (!isNaN(e.getTime())) {
           const calDays = Math.max(1, Math.round((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24)) + 1);
-          if (calDays !== numDays) {
-            const adjustedE = new Date(s);
-            adjustedE.setDate(s.getDate() + numDays - 1);
-            finalEndDate = adjustedE.toISOString().split("T")[0];
-          }
+          numDays = calDays;
         }
       }
     }
   }
 
-  return {
+  const finalTrip = {
     ...rawTrip,
     _id: rawTrip._id || `trip-${Date.now()}`,
     source,
@@ -263,5 +287,20 @@ export function normalizeTrip(rawTrip) {
     duration: `${numDays} Days`,
     heroImage: rawTrip.heroImage || null,
     itinerary: normalizedItinerary,
+    staySegments: Array.isArray(rawTrip.staySegments) ? rawTrip.staySegments : [],
+    travelLegs: Array.isArray(rawTrip.travelLegs) ? rawTrip.travelLegs : [],
+    validation: rawTrip.validation || null,
   };
+
+  // We return the trip directly. If there are old injected hotels, we filter them out.
+  if (finalTrip.itinerary) {
+    finalTrip.itinerary = finalTrip.itinerary.map(day => ({
+      ...day,
+      plan: (day.plan || []).filter(item => !item.isStaySegmentHotel)
+    }));
+  }
+
+  return finalTrip;
 }
+
+

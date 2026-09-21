@@ -11,3 +11,9 @@ export const loginUser = async (userData) => {
   const res = await axios.post(`${API}/login`, userData);
   return res.data;
 };
+
+export const googleAuthUser = async ({ credential, role }) => {
+  const res = await axios.post(`${API}/google`, { credential, role });
+  return res.data;
+};
+

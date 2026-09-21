@@ -73,7 +73,7 @@ html.dark select:-webkit-autofill {
   caret-color: #f1f5f9 !important;
 }
 
-/* Wispr Flow style Marquee animation */
+/* Wispr Flow style Marquee animation (HEAD) */
 @keyframes marquee {
   0% {
     transform: translateX(0%);
@@ -91,4 +91,227 @@ html.dark select:-webkit-autofill {
 
 .animate-marquee:hover {
   animation-play-state: paused;
+}
+
+/* Horizontal Announcement Marquee Animation (Integration) */
+@keyframes marquee-scroll {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee-scroll {
+  display: flex;
+  width: max-content;
+  animation: marquee-scroll 32s linear infinite;
+  will-change: transform;
+}
+
+.animate-marquee-scroll:hover {
+  animation-play-state: paused;
+}
+
+/* ============================================================
+   TRANSIX HERO HOUDINI PAINTWORKLET & FALLBACK GLOW SYSTEM
+   ============================================================ */
+
+/* CSS Houdini Paint API Support */
+@supports (background: paint(hero-glow)) {
+  .transix-houdini-glow {
+    background: paint(hero-glow);
+    opacity: 1;
+    will-change: transform, opacity;
+  }
+}
+
+/* Graceful Fallback for browsers without Houdini Paint API */
+.transix-fallback-glow {
+  background: radial-gradient(
+    circle 400px at var(--pointer-x, 50%) var(--pointer-y, 50%),
+    rgba(108, 99, 255, 0.2) 0%,
+    rgba(91, 75, 255, 0.1) 35%,
+    rgba(0, 184, 217, 0.05) 60%,
+    transparent 80%
+  );
+  transition: background 0.12s ease-out;
+  will-change: background;
+}
+
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 14s linear infinite;
+}
+
+/* Continuous Character-by-Character Writing/Reveal Animation */
+@keyframes char-write-reveal {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.hero-char {
+  display: inline-block;
+  opacity: 0;
+  animation: char-write-reveal 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation-delay: calc(var(--char-index, 0) * 24ms + 60ms);
+  will-change: transform, opacity;
+}
+
+/* Hero Gradient Text: Purple/Blue gradient on individual characters */
+.hero-gradient-text .hero-char {
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #9333ea 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+html.dark .hero-gradient-text .hero-char {
+  background: linear-gradient(135deg, #818cf8 0%, #a855f7 50%, #c084fc 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+/* Flowing Route Soft Draw Animation */
+@keyframes route-draw {
+  0% {
+    stroke-dashoffset: 1400;
+    opacity: 0.2;
+  }
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+}
+
+.animate-route-draw {
+  stroke-dasharray: 1400;
+  stroke-dashoffset: 1400;
+  animation: route-draw 2.2s cubic-bezier(0.25, 1, 0.5, 1) 0.3s forwards;
+}
+
+/* Floating Destination Card Reveal */
+@keyframes hero-card-reveal {
+  0% {
+    opacity: 0;
+    transform: translateY(14px) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-card-reveal {
+  opacity: 0;
+  animation: hero-card-reveal 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Letter-by-letter Hero Title Reveal Animation */
+@keyframes char-entrance {
+  0% {
+    opacity: 0;
+    transform: translateY(18px) scale(0.98);
+    filter: blur(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+.animate-char-entrance {
+  display: inline-block;
+  opacity: 0;
+  animation: char-entrance 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity, filter;
+}
+
+/* Accessibility: Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .hero-char,
+  .animate-char-entrance,
+  .animate-card-reveal {
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
+    animation: none !important;
+  }
+
+  .animate-route-draw {
+    stroke-dashoffset: 0 !important;
+    opacity: 1 !important;
+    animation: none !important;
+  }
+
+  .transix-houdini-glow,
+  .transix-fallback-glow {
+    transition: none !important;
+    animation: none !important;
+    background: radial-gradient(
+      circle at 50% 50%,
+      rgba(108, 99, 255, 0.14) 0%,
+      transparent 70%
+    ) !important;
+  }
+
+  .animate-spin-slow,
+  .animate-marquee-scroll,
+  .animate-marquee {
+    animation: none !important;
+  }
+}
+
+/* Hero Trip Planner Field Proportions (Desktop 40% / 19% / 19% / 22%) */
+.hero-planner-form {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+@media (min-width: 640px) and (max-width: 1023px) {
+  .hero-planner-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .hero-planner-form {
+    grid-template-columns: 40fr 19fr 19fr 22fr;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }

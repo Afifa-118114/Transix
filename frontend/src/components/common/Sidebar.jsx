@@ -12,6 +12,7 @@ import {
   FiPlus,
   FiChevronsLeft,
   FiChevronsRight,
+  FiUsers,
 } from "react-icons/fi";
 import { FaTrain } from "react-icons/fa6";
 import logo from "../../assets/logo/logo.png";
@@ -21,11 +22,12 @@ import { useAuth } from "../../hooks/useAuth";
 const NAV_ITEMS = [
   { title: "Home", path: "/home", icon: <FiHome className="text-lg shrink-0" /> },
   { title: "Tour Builder", path: "/builder", icon: <FiLayers className="text-lg shrink-0" /> },
+  { title: "Campus Trips", path: "/campus", icon: <FiUsers className="text-lg shrink-0" /> },
   { title: "Train Routes", path: "/travel-options", icon: <FaTrain className="text-base shrink-0" /> },
   { title: "Journey Planner", path: "/planner", icon: <FiCompass className="text-lg shrink-0" /> },
   { title: "Saved Trips", path: "/saved", icon: <FiBookmark className="text-lg shrink-0" /> },
-  { title: "Profile", path: "/profile", icon: <FiUser className="text-lg shrink-0" /> },
 ];
+
 
 export default function Sidebar({ trip: propTrip, setTrip: propSetTrip }) {
   const { trip: contextTrip, setTrip: contextSetTrip, openMapModal } = useTripBuilder();
@@ -273,13 +275,13 @@ export default function Sidebar({ trip: propTrip, setTrip: propSetTrip }) {
         </nav>
       </div>
 
-      {/* Bottom Section: Shifted from Navbar (User Profile & Logout) */}
-      <div className="p-4 border-t border-[#f0efed] overflow-hidden">
+      {/* Bottom Section: User Profile & Logout */}
+      <div className="p-4 border-t border-[#f0efed] dark:border-slate-800 overflow-hidden">
         {collapsed ? (
           <div className="flex flex-col items-center gap-2">
             <div
               title={user?.name || "Traveler"}
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-[#f0efed] border border-[#e7e5e4] text-xs font-bold text-[#0c0a09]"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-[#f0efed] dark:bg-slate-800 border border-[#e7e5e4] dark:border-slate-700 text-xs font-bold text-[#0c0a09] dark:text-white"
             >
               {user?.name ? user.name[0].toUpperCase() : "T"}
             </div>
@@ -287,7 +289,7 @@ export default function Sidebar({ trip: propTrip, setTrip: propSetTrip }) {
               type="button"
               onClick={handleLogout}
               title="Sign Out"
-              className="flex h-8 w-8 items-center justify-center rounded-full text-[#777169] transition hover:bg-[#f5f5f5] hover:text-[#dc2626]"
+              className="flex h-8 w-8 items-center justify-center rounded-full text-[#777169] dark:text-slate-400 transition hover:bg-[#f5f5f5] dark:hover:bg-slate-800 hover:text-[#dc2626] dark:hover:text-red-400"
             >
               <FiLogOut className="text-sm" />
             </button>
@@ -300,15 +302,15 @@ export default function Sidebar({ trip: propTrip, setTrip: propSetTrip }) {
             className="flex items-center justify-between min-w-0"
           >
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#f0efed] border border-[#e7e5e4] text-xs font-bold text-[#0c0a09]">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#f0efed] dark:bg-slate-800 border border-[#e7e5e4] dark:border-slate-700 text-xs font-bold text-[#0c0a09] dark:text-white">
                 {user?.name ? user.name[0].toUpperCase() : "T"}
               </div>
 
               <div className="min-w-0 flex-1 whitespace-nowrap overflow-hidden">
-                <h4 className="truncate text-xs font-bold text-[#0c0a09]">
+                <h4 className="truncate text-xs font-bold text-[#0c0a09] dark:text-white">
                   {user?.name || "Traveler"}
                 </h4>
-                <p className="truncate text-[11px] text-[#777169]">
+                <p className="truncate text-[11px] text-[#777169] dark:text-slate-400">
                   {user?.email || "Personal Account"}
                 </p>
               </div>
@@ -318,7 +320,7 @@ export default function Sidebar({ trip: propTrip, setTrip: propSetTrip }) {
               type="button"
               onClick={handleLogout}
               title="Sign Out"
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#e7e5e4] text-[#777169] transition hover:bg-[#f5f5f5] hover:text-[#dc2626]"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#e7e5e4] dark:border-slate-700 text-[#777169] dark:text-slate-400 transition hover:bg-[#f5f5f5] dark:hover:bg-slate-800 hover:text-[#dc2626] dark:hover:text-red-400"
             >
               <FiLogOut className="text-xs" />
             </button>

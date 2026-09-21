@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   FiDollarSign,
   FiCheckCircle,
@@ -11,10 +11,17 @@ import {
   FiCheck,
 } from "react-icons/fi";
 import { useTripBuilder } from "../../context/TripBuilderContext";
+import {
+  getCampusAccommodationBudget,
+  getTripDurationDays,
+  calculateCampusCategoryBudgetAnalysis,
+} from "../../utils/campusBudgetUtils";
+import CampusBudgetAnalysis from "../campus/CampusBudgetAnalysis";
 
 export default function TripSummaryPanel() {
   const {
     trip,
+    setTrip,
     updateTripMeta,
     budgetStats,
     validationStats,
@@ -22,14 +29,87 @@ export default function TripSummaryPanel() {
     resetToSample,
     setIsFinalizeModalOpen,
     isSaved,
+    setIsSaved,
   } = useTripBuilder();
 
   const [isEditingBudget, setIsEditingBudget] = useState(false);
-  const [tempBudget, setTempBudget] = useState(trip.budget || 60000);
+  const [tempBudget, setTempBudget] = useState(trip.campusConfig?.budgetPerStudent || trip.budget || 60000);
 
-  const handleBudgetSave = () => {
-    updateTripMeta("budget", Number(tempBudget) || 60000);
+  const categoryBudget = useMemo(() => {
+    if (trip.tripCategory !== 'CAMPUS') return null;
+    return (
+      budgetStats?.categoryBudget ||
+      calculateCampusCategoryBudgetAnalysis(trip, trip?.staySegments, trip?.itinerary)
+    );
+  }, [trip, budgetStats]);
+
+  const handleBudgetSave = async () => {
+    if (trip.tripCategory === 'CAMPUS') {
+      const perStudent = Number(tempBudget) || 15000;
+      const tripDurationDays = getTripDurationDays(trip);
+      const derivedAccomBudget = Math.min(perStudent, tripDurationDays * 1000, 10000);
+      const expectedParticipants = Number(trip.campusConfig?.expectedParticipants) || 1;
+      const newConfig = {
+        ...trip.campusConfig,
+        budgetPerStudent: perStudent,
+        accommodationBudgetPerStudent: derivedAccomBudget,
+      };
+      updateTripMeta("campusConfig", newConfig);
+      updateTripMeta("budget", perStudent * expectedParticipants);
+
+      try {
+        const token = localStorage.getItem("token");
+        await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/campus-trips/${trip._id}/inclusions`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            inclusions: newConfig.inclusions,
+            exclusions: newConfig.exclusions,
+            mealInclusions: newConfig.mealInclusions,
+            accommodationBudgetPerStudent: derivedAccomBudget,
+            budgetPerStudent: perStudent
+          })
+        });
+      } catch (err) {
+        console.error("Failed to sync budget to backend:", err);
+      }
+    } else {
+      updateTripMeta("budget", Number(tempBudget) || 60000);
+    }
     setIsEditingBudget(false);
+  };
+
+  const toggleCampusInclusion = async (category, field) => {
+    if (!trip.campusConfig) return;
+
+    // Optimistic update
+    const newConfig = {
+      ...trip.campusConfig,
+      [category]: {
+        ...trip.campusConfig[category],
+        [field]: !trip.campusConfig[category][field]
+      }
+    };
+    updateTripMeta("campusConfig", newConfig);
+
+    try {
+      const token = localStorage.getItem("token");
+      await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/campus-trips/${trip._id}/inclusions`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          [category]: newConfig[category]
+        })
+      });
+    } catch (err) {
+      console.error("Failed to sync inclusion config:", err);
+    }
   };
 
   return (
@@ -78,121 +158,136 @@ export default function TripSummaryPanel() {
         </div>
 
         {/* ================= LIVE BUDGET ENGINE ================= */}
-        <div className="rounded-xl border border-[#e7e5e4] bg-[#fafaf9] p-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5">
-              <FiDollarSign className="text-[#034F46] text-sm font-bold" />
-              <h3 className="text-xs font-bold text-[#0c0a09]">Trip Budget</h3>
-            </div>
+        <div className="rounded-xl border border-slate-200 dark:border-slate-700/60 bg-slate-50/50 dark:bg-slate-800/40 p-3">
+          {trip.tripCategory === 'CAMPUS' ? (
+            <CampusBudgetAnalysis
+              trip={trip}
+              categoryBudget={categoryBudget}
+              updateTripMeta={updateTripMeta}
+              setTrip={setTrip}
+              saveItinerary={saveItinerary}
+              setIsSaved={setIsSaved}
+              toggleCampusInclusion={toggleCampusInclusion}
+            />
+          ) : (
+            <div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <FiDollarSign className="text-indigo-600 dark:text-indigo-400 text-sm font-bold" />
+                  <h3 className="text-xs font-bold text-slate-900 dark:text-white">Trip Budget</h3>
+                </div>
 
-            {/* Editable Budget Limit */}
-            {isEditingBudget ? (
-              <div className="flex items-center gap-1">
-                <input
-                  type="number"
-                  value={tempBudget}
-                  onChange={(e) => setTempBudget(e.target.value)}
-                  className="w-20 rounded-md border border-[#0c0a09] bg-white px-1.5 py-0.5 text-xs font-bold text-[#0c0a09] outline-none"
-                  autoFocus
-                />
-                <button
-                  onClick={handleBudgetSave}
-                  className="rounded-md bg-[#0c0a09] px-2 py-0.5 text-xs font-bold text-white"
-                >
-                  Save
-                </button>
+                {/* Editable Budget Limit for Personal Trips */}
+                {isEditingBudget ? (
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number"
+                      value={tempBudget}
+                      onChange={(e) => setTempBudget(e.target.value)}
+                      className="w-20 rounded-md border border-indigo-400 dark:border-indigo-600 bg-white dark:bg-[#1a233a] px-1.5 py-0.5 text-xs font-bold text-slate-900 dark:text-white outline-none"
+                      autoFocus
+                    />
+                    <div className="flex justify-end gap-1.5">
+                      <button
+                        onClick={() => setIsEditingBudget(false)}
+                        className="rounded px-2 py-0.5 text-[10px] font-bold text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleBudgetSave}
+                        className="rounded bg-indigo-600 px-2.5 py-0.5 text-[10px] font-bold text-white hover:bg-indigo-700"
+                      >
+                        Save
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setTempBudget(budgetStats.totalBudget);
+                      setIsEditingBudget(true);
+                    }}
+                    className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline"
+                  >
+                    Edit Limit
+                  </button>
+                )}
               </div>
-            ) : (
-              <button
-                onClick={() => {
-                  setTempBudget(budgetStats.totalBudget);
-                  setIsEditingBudget(true);
-                }}
-                className="text-[10px] font-bold text-[#034F46] hover:underline"
-              >
-                Edit Limit
-              </button>
-            )}
-          </div>
 
-          {/* Budget Numbers */}
-          <div className="mt-2.5 grid grid-cols-2 gap-2">
-            <div className="rounded-lg bg-white p-2 border border-[#e7e5e4]">
-              <p className="text-[9px] uppercase font-bold text-[#a8a29e]">
-                Planned Limit
-              </p>
-              <p className="mt-0.5 text-xs font-extrabold text-[#0c0a09]">
-                ₹{budgetStats.totalBudget.toLocaleString()}
-              </p>
-            </div>
+              <div className="mt-2.5 grid grid-cols-2 gap-2">
+                <div className="rounded-lg bg-white dark:bg-[#1a233a] p-2 border border-slate-100 dark:border-slate-700/60">
+                  <p className="text-[9px] uppercase font-bold text-slate-400 dark:text-slate-500">
+                    Planned Limit
+                  </p>
+                  <p className="mt-0.5 text-xs font-extrabold text-slate-900 dark:text-white">
+                    ₹{budgetStats.totalBudget?.toLocaleString()}
+                  </p>
+                </div>
 
-            <div className="rounded-lg bg-white p-2 border border-[#e7e5e4]">
-              <p className="text-[9px] uppercase font-bold text-[#a8a29e]">
-                Total Spent
-              </p>
-              <p
-                className={`mt-0.5 text-xs font-extrabold ${
-                  budgetStats.isOverBudget ? "text-rose-600" : "text-[#034F46]"
-                }`}
-              >
-                ₹{budgetStats.totalSpent.toLocaleString()}
-              </p>
-            </div>
-          </div>
+                <div className="rounded-lg bg-white dark:bg-[#1a233a] p-2 border border-slate-100 dark:border-slate-700/60">
+                  <p className="text-[9px] uppercase font-bold text-slate-400 dark:text-slate-500">
+                    Total Spent
+                  </p>
+                  <p
+                    className={`mt-0.5 text-xs font-extrabold ${
+                      budgetStats.isOverBudget ? "text-rose-600 dark:text-rose-400" : "text-indigo-600 dark:text-indigo-400"
+                    }`}
+                  >
+                    ₹{budgetStats.totalSpent?.toLocaleString()}
+                  </p>
+                </div>
+              </div>
 
-          {/* Progress Bar */}
-          <div className="mt-2.5">
-            <div className="flex items-center justify-between text-[10px] font-semibold text-[#777169]">
-              <span>{budgetStats.spentPercentage}% utilized</span>
-              <span
-                className={
-                  budgetStats.isOverBudget
-                    ? "text-rose-600 font-bold"
-                    : "text-[#034F46] font-bold"
-                }
-              >
-                {budgetStats.isOverBudget
-                  ? `₹${budgetStats.overAmount.toLocaleString()} over`
-                  : `₹${budgetStats.remaining.toLocaleString()} left`}
-              </span>
-            </div>
-            <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-[#e7e5e4]">
-              <div
-                className={`h-full rounded-full transition-all duration-300 ${
-                  budgetStats.isOverBudget
-                    ? "bg-rose-500"
-                    : budgetStats.spentPercentage > 85
-                    ? "bg-amber-500"
-                    : "bg-[#034F46]"
-                }`}
-                style={{ width: `${Math.min(100, budgetStats.spentPercentage)}%` }}
-              />
-            </div>
-          </div>
-
-          {/* Category Breakdown */}
-          <div className="mt-3 space-y-1 border-t border-[#e7e5e4] pt-2">
-            <p className="text-[9px] font-bold uppercase text-[#a8a29e]">
-              Category Breakdown
-            </p>
-            {Object.entries(budgetStats.breakdown).map(([category, amount]) => {
-              if (amount === 0) return null;
-              return (
-                <div
-                  key={category}
-                  className="flex items-center justify-between text-[11px] text-[#57534e]"
-                >
-                  <span className="flex items-center gap-1.5">
-                    <span className="h-1.5 w-1.5 rounded-full bg-[#034F46]" />
-                    <span>{category}</span>
-                  </span>
-                  <span className="font-bold text-[#0c0a09]">
-                    ₹{amount.toLocaleString()}
+              {/* Progress Bar for Personal Trip */}
+              <div className="mt-2.5">
+                <div className="flex items-center justify-between text-[10px] font-semibold text-slate-500 dark:text-slate-400">
+                  <span>{budgetStats.spentPercentage}% utilized</span>
+                  <span className={budgetStats.isOverBudget ? "text-rose-600 dark:text-rose-400 font-bold" : "text-emerald-700 dark:text-emerald-400 font-bold"}>
+                    {budgetStats.isOverBudget
+                      ? `₹${budgetStats.overAmount?.toLocaleString()} over`
+                      : `₹${budgetStats.remaining?.toLocaleString()} left`}
                   </span>
                 </div>
-              );
-            })}
-          </div>
+                <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+                  <div
+                    className={`h-full rounded-full transition-all duration-300 ${
+                      budgetStats.isOverBudget
+                        ? "bg-rose-500"
+                        : budgetStats.spentPercentage > 85
+                        ? "bg-amber-500"
+                        : "bg-indigo-600"
+                    }`}
+                    style={{ width: `${Math.min(100, budgetStats.spentPercentage)}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Category Breakdown for Personal Trip */}
+              <div className="mt-3 space-y-1 border-t border-slate-200 dark:border-slate-700/60 pt-2">
+                <p className="text-[9px] font-bold uppercase text-slate-400 dark:text-slate-500">
+                  Category Breakdown
+                </p>
+                {budgetStats.breakdown && Object.entries(budgetStats.breakdown).map(([category, amount]) => {
+                  if (amount === 0) return null;
+                  return (
+                    <div
+                      key={category}
+                      className="flex items-center justify-between text-[11px] text-slate-600 dark:text-slate-400"
+                    >
+                      <span className="flex items-center gap-1">
+                        <span className="h-1.5 w-1.5 rounded-full bg-indigo-500" />
+                        <span>{category}</span>
+                      </span>
+                      <span className="font-bold text-slate-900 dark:text-white">
+                        ₹{amount.toLocaleString()}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* ================= SCHEDULE STATS ================= */}
@@ -220,20 +315,36 @@ export default function TripSummaryPanel() {
 
           {/* Schedule Status & Conflicts List */}
           <div className="mt-2">
-            {validationStats.isFeasible ? (
-              <div className="flex items-center gap-1.5 rounded-lg bg-emerald-50 p-2 text-[11px] font-semibold text-emerald-800 border border-emerald-200">
-                <FiCheckCircle className="text-[#034F46] shrink-0 text-xs" />
-                <span>All days feasible with proper transition buffers</span>
+            {validationStats.isFeasible && validationStats.warnings?.length === 0 ? (
+              <div className="flex items-center gap-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 p-1.5 text-[11px] font-semibold text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-700/50">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                <span>🟢 All days feasible with proper buffers</span>
               </div>
-            ) : (
-              <div className="space-y-1 rounded-lg bg-amber-50 p-2 text-xs text-amber-900 border border-amber-200">
-                <div className="flex items-center gap-1 font-bold text-amber-800">
-                  <FiAlertTriangle className="text-amber-600 text-xs" />
+            ) : null}
+
+            {validationStats.conflictsCount > 0 && (
+              <div className="space-y-1 rounded-lg bg-amber-50 dark:bg-amber-950/30 p-2 text-xs text-amber-900 dark:text-amber-300 border border-amber-200 dark:border-amber-700/50">
+                <div className="flex items-center gap-1 font-bold text-amber-800 dark:text-amber-300">
+                  <FiAlertTriangle className="text-amber-600 dark:text-amber-400 text-xs" />
                   <span>{validationStats.conflictsCount} Schedule Conflict(s)</span>
                 </div>
                 {validationStats.conflicts.slice(0, 2).map((c, idx) => (
                   <p key={idx} className="text-[10px] text-amber-700">
                     • {c.message}
+                  </p>
+                ))}
+              </div>
+            )}
+
+            {validationStats.warnings?.length > 0 && (
+              <div className="space-y-1 rounded-lg bg-amber-50 dark:bg-amber-950/30 p-2 text-xs text-amber-900 dark:text-amber-300 border border-amber-200 dark:border-amber-700/50 mt-2">
+                <div className="flex items-center gap-1 font-bold text-amber-800 dark:text-amber-300">
+                  <FiAlertTriangle className="text-amber-600 dark:text-amber-400 text-xs" />
+                  <span>{validationStats.warnings.length} Warning(s)</span>
+                </div>
+                {validationStats.warnings.slice(0, 2).map((w, idx) => (
+                  <p key={idx} className="text-[10px] text-amber-700 dark:text-amber-400">
+                    • {w.message}
                   </p>
                 ))}
               </div>

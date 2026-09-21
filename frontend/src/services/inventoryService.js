@@ -1,6 +1,7 @@
 import { getHotels, getPlaces } from "../api/placeApi";
 import { searchTrains } from "./trainService";
 import generateTransportData from "../utils/transportGenerator";
+import { resolveHotelPricing } from "./hotelPricingService";
 
 // In-memory destination inventory cache to avoid redundant API requests
 const inventoryCache = new Map();
@@ -67,11 +68,14 @@ export async function getDestinationInventory(destination, trip = null, token = 
   const actualSource = (currentTripObj.source || "Mumbai").trim();
   const actualDestination = (destination || currentTripObj.destination || "Destination").trim();
   const actualDate = (currentTripObj.startDate || currentTripObj.date || "").trim();
+  const actualEndDate = (currentTripObj.endDate || "").trim();
+  const actualTravelers = currentTripObj.travelers || 2;
 
   const srcKey = actualSource.toLowerCase();
   const destKey = actualDestination.toLowerCase();
   const dateKey = actualDate.toLowerCase();
-  const cacheKey = `${srcKey}__${destKey}__${dateKey}`;
+  const endDateKey = actualEndDate.toLowerCase();
+  const cacheKey = `${srcKey}__${destKey}__${dateKey}__${endDateKey}__${actualTravelers}`;
 
   if (inventoryCache.has(cacheKey)) {
     return inventoryCache.get(cacheKey);
@@ -87,7 +91,7 @@ export async function getDestinationInventory(destination, trip = null, token = 
     try {
       // Concurrently fetch all real inventory sources using exact identical query parameters
       const [hotelsRes, attractionsRes, restaurantsRes, trainsRes] = await Promise.allSettled([
-        getHotels(actualDestination, authToken),
+        getHotels(actualDestination, authToken, actualDate, actualEndDate, actualTravelers),
         getPlaces(actualDestination, "Tourist attractions", authToken),
         getPlaces(actualDestination, "Restaurants", authToken),
         searchTrains(actualSource, actualDestination, actualDate || null),
@@ -104,9 +108,24 @@ export async function getDestinationInventory(destination, trip = null, token = 
       const busOptions = generateTransportData({ ...currentTripObj, travelMode: "Bus" });
       const cabOptions = generateTransportData({ ...currentTripObj, travelMode: "Car" });
 
+      // Calculate number of nights for demo pricing if applicable
+      const numNights = (() => {
+        if (!actualDate || !actualEndDate) return 1;
+        const start = new Date(actualDate);
+        const end = new Date(actualEndDate);
+        if (!isNaN(start) && !isNaN(end)) {
+          const diff = Math.abs(end - start);
+          const nights = Math.ceil(diff / (1000 * 60 * 60 * 24));
+          return nights > 0 ? nights : 1;
+        }
+        return 1;
+      })();
+
       // Normalize Hotels
       const hotels = (Array.isArray(rawHotels) ? rawHotels : []).map((h) => {
+        const pricing = resolveHotelPricing(h, numNights);
         const priceInfo = normalizePrice(h.price, h.priceLevel);
+        
         return {
           id: h.id || `hotel-${h.name.replace(/\s+/g, "-").toLowerCase()}`,
           name: h.name,
@@ -117,8 +136,8 @@ export async function getDestinationInventory(destination, trip = null, token = 
           city: actualDestination,
           rating: h.rating || null,
           reviews: h.reviews || null,
-          price: priceInfo.amount,
-          displayPrice: priceInfo.display,
+          price: pricing.livePriceAvailable ? pricing.totalPrice : priceInfo.amount,
+          displayPrice: pricing.livePriceAvailable ? `₹${pricing.totalPrice.toLocaleString()}` : priceInfo.display,
           priceLevel: h.priceLevel || null,
           duration: "Overnight Stay",
           durationMinutes: 720,
@@ -133,6 +152,7 @@ export async function getDestinationInventory(destination, trip = null, token = 
           businessStatus: h.businessStatus || "OPERATIONAL",
           notes: h.address ? `Located at ${h.address}` : `Premium accommodation in ${actualDestination}.`,
           defaultTime: "14:00 - 11:00 AM",
+          nuitee: pricing
         };
       });
 
@@ -433,4 +453,62 @@ export async function getDestinationInventory(destination, trip = null, token = 
 export function clearInventoryCache() {
   inventoryCache.clear();
   inFlightRequests.clear();
+}
+
+/**
+ * Fetches and normalizes hotels for a specific stay segment.
+ */
+export async function getHotelsForStaySegment(segment, trip = null, token = null) {
+  const actualDestination = segment.location;
+  const actualDate = segment.checkIn;
+  const actualEndDate = segment.checkOut;
+  const actualTravelers = trip?.travelers || 2;
+  const numNights = segment.nights || 1;
+
+  const authToken = token || localStorage.getItem("token");
+  
+  try {
+    const rawHotels = await getHotels(actualDestination, authToken, actualDate, actualEndDate, actualTravelers);
+    
+    return (Array.isArray(rawHotels) ? rawHotels : []).map((h) => {
+      const pricing = resolveHotelPricing(h, numNights);
+      const priceInfo = normalizePrice(h.price, h.priceLevel);
+      
+      return {
+        id: h.id || `hotel-${h.name.replace(/\s+/g, "-").toLowerCase()}`,
+        name: h.name,
+        category: "hotel",
+        categoryLabel: "Hotels",
+        icon: "🏨",
+        location: h.address || actualDestination,
+        city: actualDestination,
+        rating: h.rating || null,
+        reviews: h.reviews || null,
+        price: pricing.livePriceAvailable ? pricing.totalPrice : priceInfo.amount,
+        displayPrice: pricing.livePriceAvailable ? `₹${pricing.totalPrice.toLocaleString()}` : priceInfo.display,
+        priceLevel: h.priceLevel || null,
+        duration: "Overnight Stay",
+        durationMinutes: 720,
+        dnaMatch: h.rating ? Math.round(h.rating * 20) : 90,
+        image: h.image || "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600",
+        photos: h.photos || (h.image ? [{ url: h.image }] : []),
+        website: h.website || null,
+        phone: h.phone || null,
+        mapsUrl: h.mapsUrl || `https://maps.google.com/?q=${encodeURIComponent(h.name + " " + actualDestination)}`,
+        coordinates: h.coordinates || null,
+        openingHours: h.openingHours || null,
+        businessStatus: h.businessStatus || "OPERATIONAL",
+        notes: h.address ? `Located at ${h.address}` : `Premium accommodation in ${actualDestination}.`,
+        defaultTime: "14:00 - 11:00 AM",
+        nuitee: pricing,
+        staySegmentId: segment.id || segment.location,
+        checkIn: actualDate,
+        checkOut: actualEndDate,
+        nights: numNights
+      };
+    });
+  } catch (err) {
+    console.error(`Failed to fetch hotels for stay segment ${actualDestination}:`, err);
+    throw err;
+  }
 }

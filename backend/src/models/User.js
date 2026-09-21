@@ -18,8 +18,33 @@ const userSchema = new mongoose.Schema(
 
     password: {
       type: String,
-      required: true,
+      required: function () {
+        return !this.googleId;
+      },
       minlength: 6,
+    },
+
+    googleId: {
+      type: String,
+      sparse: true,
+      unique: true,
+    },
+
+    authProvider: {
+      type: String,
+      enum: ["local", "google"],
+      default: "local",
+    },
+
+    avatar: {
+      type: String,
+      default: "",
+    },
+    
+    role: {
+      type: String,
+      enum: ["traveler", "operator", "admin"],
+      default: "traveler"
     },
   },
   {

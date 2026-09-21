@@ -1,8 +1,25 @@
 import { createContext, useContext, useState, useEffect, useMemo, useCallback } from "react";
 import toast from "react-hot-toast";
 import { getDestinationInventory } from "../services/inventoryService";
-import { normalizeTrip, timeToMinutes, minutesToTimeStr, parsePrice } from "../utils/formatTrip";
+import {
+  detectConflicts,
+  findEarliestValidSlot,
+  isImmutableTransport,
+  scheduleTrainJourneyIntoTrip,
+  scheduleFlightJourneyIntoTrip,
+  validateTripSchedule,
+  generateConflictSuggestions,
+  findExistingTrainRecord,
+  findExistingTransportRecord,
+  buildProposedTrainAdaptation,
+  buildProposedTransportAdaptation,
+} from "../utils/schedulingEngine";
+import { generateSmartAlternatives } from "../utils/alternativeEngine";
+import { normalizeTrip, getDuration, timeToMinutes, minutesToTimeStr, parsePrice, parseDurationMinutes } from "../utils/formatTrip";
+import { normalizeInventoryItem } from "../utils/normalizeInventoryItem";
 import { updateTrip } from "../api/tripApi";
+import { calculateTripBudgetAnalysis, calculateStayAccommodation } from "../utils/campusBudgetUtils";
+import { detectBusRequirements } from "../utils/busRequirementDetector";
 
 export const TripBuilderContext = createContext();
 
@@ -184,6 +201,8 @@ export function TripBuilderProvider({ children }) {
     }
   }, [trip]);
 
+  const [pendingAlternatives, setPendingAlternatives] = useState(null);
+
   // Auto-calculate smart start time when adding a new item to a day
   const calculateSuggestedStartTime = useCallback((existingPlan, durationMinutes = 90) => {
     if (!existingPlan || existingPlan.length === 0) {
@@ -211,56 +230,145 @@ export function TripBuilderProvider({ children }) {
     };
   }, []);
 
+  // Validate before commit
+  const proposeTripUpdate = (proposedTrip, options = {}) => {
+    const conflicts = detectConflicts(proposedTrip);
+    if (conflicts.length > 0) {
+      return false; // Trip update rejected
+    }
+    setTrip(proposedTrip);
+    return true; // Accepted
+  };
+
+  const applyAlternative = (alternative) => {
+    if (alternative && alternative.candidateTrip) {
+       const finalConflicts = detectConflicts(alternative.candidateTrip);
+       if (finalConflicts.length > 0) {
+           toast.error("Cannot apply this change safely. It conflicts with other constraints.");
+           return;
+       }
+       setTrip(alternative.candidateTrip);
+       setPendingAlternatives(null);
+       toast.success("Schedule adjusted successfully!");
+    }
+  };
+
+  // Calculate requested time based on drop position
+  const calculateDropTime = (prevTrip, dayIndex, item, targetIndex) => {
+    const day = prevTrip.itinerary[dayIndex] || prevTrip.itinerary[0];
+    const plan = day.plan || [];
+    const durationMins = item.durationMinutes || 120;
+    
+    if (plan.length === 0) {
+      return { startTime: "09:30 AM", endTime: minutesToTimeStr(9 * 60 + 30 + durationMins) };
+    }
+    
+    if (targetIndex === 0) {
+      const firstItemStart = timeToMinutes(plan[0].startTime);
+      if (firstItemStart !== null && firstItemStart > durationMins + 30) {
+        return { startTime: minutesToTimeStr(firstItemStart - durationMins - 30), endTime: minutesToTimeStr(firstItemStart - 30) };
+      }
+      return { startTime: "08:00 AM", endTime: minutesToTimeStr(8 * 60 + durationMins) };
+    }
+    
+    const prevItemIndex = (targetIndex === null || targetIndex > plan.length) ? plan.length - 1 : targetIndex - 1;
+    const prevItem = plan[prevItemIndex];
+    
+    let lastEndMin = timeToMinutes(prevItem.endTime);
+    if (lastEndMin === null) {
+      const lastStartMin = timeToMinutes(prevItem.startTime) || 9 * 60;
+      lastEndMin = lastStartMin + (prevItem.durationMinutes || 90);
+    }
+    
+    const suggestedStartMin = lastEndMin + 15; // 15 min travel buffer
+    const suggestedEndMin = suggestedStartMin + durationMins;
+    
+    return {
+      startTime: minutesToTimeStr(suggestedStartMin),
+      endTime: minutesToTimeStr(suggestedEndMin)
+    };
+  };
+
   // Add Item to a Day
   const addItemToDay = (dayIndex, item, targetIndex = null) => {
+    let normalizedItem;
+    try {
+      normalizedItem = normalizeInventoryItem(item);
+    } catch (err) {
+      toast.error("Invalid item. Cannot schedule.");
+      return;
+    }
+
     setTrip((prevTrip) => {
       const newItinerary = [...prevTrip.itinerary];
-      const targetDay = newItinerary[dayIndex] || newItinerary[0] || {
-        day: 1,
-        title: "Day 1",
-        date: "Day 1",
-        plan: [],
-      };
+      const targetDay = newItinerary[dayIndex] || newItinerary[0];
+      if (!targetDay) return prevTrip;
+      
       const currentPlan = [...(targetDay.plan || [])];
 
-      const durationMinutes = item.durationMinutes || 90;
-      const { startTime, endTime } = calculateSuggestedStartTime(currentPlan, durationMinutes);
+      const dropTime = calculateDropTime(prevTrip, dayIndex, normalizedItem, targetIndex);
 
       const newItem = {
-        ...item,
-        id: item.id || `item-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-        startTime,
-        endTime,
-        time: `${startTime} - ${endTime}`,
-        duration: item.duration || `${Math.round(durationMinutes / 60)} hours`,
-        durationMinutes,
-        price: parsePrice(item.price || item.estimatedCost || item.fare),
-        displayPrice: item.displayPrice || (item.price || item.fare ? `₹${parsePrice(item.price || item.fare).toLocaleString()}` : null),
-        dnaMatch: item.dnaMatch || 94,
-        rating: item.rating || 4.8,
+        ...normalizedItem,
+        startTime: dropTime.startTime,
+        endTime: dropTime.endTime,
+        time: `${dropTime.startTime} - ${dropTime.endTime}`,
       };
 
-      if (targetIndex !== null && targetIndex >= 0 && targetIndex <= currentPlan.length) {
-        currentPlan.splice(targetIndex, 0, newItem);
-      } else {
-        currentPlan.push(newItem);
+      let insertIdx = targetIndex !== null && targetIndex >= 0 && targetIndex <= currentPlan.length 
+          ? targetIndex 
+          : currentPlan.length;
+
+      currentPlan.splice(insertIdx, 0, newItem);
+      newItinerary[dayIndex] = { ...targetDay, plan: currentPlan };
+      const proposedTrip = { ...prevTrip, itinerary: newItinerary };
+
+      const conflicts = detectConflicts(proposedTrip);
+      const itemConflicts = conflicts.filter(c => c.itemId === newItem.id);
+
+      if (itemConflicts.length > 0) {
+         const firstConflict = itemConflicts[0];
+         let conflictingItemDetails = null;
+         let overlapMinutes = 0;
+         
+         if (firstConflict.conflictingItemId) {
+            const cItem = currentPlan.find(p => p.id === firstConflict.conflictingItemId);
+            if (cItem) {
+               conflictingItemDetails = cItem;
+               const aStart = timeToMinutes(newItem.startTime);
+               const aEnd = timeToMinutes(newItem.endTime);
+               const bStart = timeToMinutes(cItem.startTime);
+               const bEnd = timeToMinutes(cItem.endTime);
+               if (aStart !== null && bStart !== null) {
+                  const overlapStart = Math.max(aStart, bStart);
+                  const overlapEnd = Math.min(aEnd, bEnd);
+                  overlapMinutes = Math.max(0, overlapEnd - overlapStart);
+               }
+            }
+         }
+
+         const alternatives = generateSmartAlternatives(prevTrip, newItem, dayIndex + 1);
+         setPendingAlternatives({ 
+            item: newItem, 
+            targetDay: dayIndex + 1, 
+            requestedTime: newItem.time,
+            conflictInfo: {
+                reason: firstConflict.reason,
+                conflictingItem: conflictingItemDetails,
+                overlapMinutes
+            },
+            alternatives 
+         });
+         return prevTrip;
       }
 
-      newItinerary[dayIndex] = {
-        ...targetDay,
-        plan: currentPlan,
-      };
-
-      return {
-        ...prevTrip,
-        itinerary: newItinerary,
-      };
+      toast.success(`Added "${newItem.name}" to Day ${dayIndex + 1}!`, {
+         icon: newItem.icon || "✨",
+      });
+      return proposedTrip;
     });
-
+    
     setIsSaved(false);
-    toast.success(`Added "${item.name || item.activity || "Item"}" to Day ${dayIndex + 1}!`, {
-      icon: item.icon || "✨",
-    });
   };
 
   // Remove Item from a Day
@@ -341,64 +449,92 @@ export function TripBuilderProvider({ children }) {
     return true;
   };
 
-  // Reorder Items within the same Day
-  const reorderInDay = (dayIndex, sourceIndex, targetIndex) => {
-    if (sourceIndex === targetIndex) return;
-
-    setTrip((prevTrip) => {
-      const newItinerary = [...prevTrip.itinerary];
-      const targetDay = newItinerary[dayIndex];
-      if (!targetDay) return prevTrip;
-
-      const plan = [...targetDay.plan];
-      const [movedItem] = plan.splice(sourceIndex, 1);
-      plan.splice(targetIndex, 0, movedItem);
-
-      newItinerary[dayIndex] = {
-        ...targetDay,
-        plan,
-      };
-
-      return {
-        ...prevTrip,
-        itinerary: newItinerary,
-      };
-    });
-
-    setIsSaved(false);
-    toast.success("Sequence updated", { icon: "🔄" });
-  };
-
-  // Move Item from one Day to another Day
-  const moveBetweenDays = (sourceDayIndex, targetDayIndex, sourceIndex, targetIndex = null) => {
-    setTrip((prevTrip) => {
+  const handleItemMoveWithValidation = (prevTrip, sourceDayIndex, targetDayIndex, sourceIndex, targetIndex) => {
       const newItinerary = [...prevTrip.itinerary];
       const sourceDay = newItinerary[sourceDayIndex];
       const targetDay = newItinerary[targetDayIndex];
       if (!sourceDay || !targetDay) return prevTrip;
 
       const sourcePlan = [...sourceDay.plan];
-      const targetPlan = [...targetDay.plan];
-
       const [movedItem] = sourcePlan.splice(sourceIndex, 1);
+      
+      newItinerary[sourceDayIndex] = { ...sourceDay, plan: sourcePlan };
+      
+      const intermediateTrip = { ...prevTrip, itinerary: newItinerary };
+      const dropTime = calculateDropTime(intermediateTrip, targetDayIndex, movedItem, targetIndex);
+      
+      const newItem = {
+          ...movedItem,
+          startTime: dropTime.startTime,
+          endTime: dropTime.endTime,
+          time: `${dropTime.startTime} - ${dropTime.endTime}`
+      };
+      
+      const targetPlan = sourceDayIndex === targetDayIndex ? sourcePlan : [...targetDay.plan];
+      
+      let insertIdx = targetIndex !== null && targetIndex >= 0 && targetIndex <= targetPlan.length 
+          ? targetIndex 
+          : targetPlan.length;
 
-      if (targetIndex !== null && targetIndex >= 0 && targetIndex <= targetPlan.length) {
-        targetPlan.splice(targetIndex, 0, movedItem);
-      } else {
-        targetPlan.push(movedItem);
+      targetPlan.splice(insertIdx, 0, newItem);
+      newItinerary[targetDayIndex] = { ...targetDay, plan: targetPlan };
+      
+      const proposedTrip = { ...prevTrip, itinerary: newItinerary };
+      
+      const conflicts = detectConflicts(proposedTrip);
+      const itemConflicts = conflicts.filter(c => c.itemId === newItem.id);
+
+      if (itemConflicts.length > 0) {
+         const firstConflict = itemConflicts[0];
+         let conflictingItemDetails = null;
+         let overlapMinutes = 0;
+         
+         if (firstConflict.conflictingItemId) {
+            const cItem = targetPlan.find(p => p.id === firstConflict.conflictingItemId);
+            if (cItem) {
+               conflictingItemDetails = cItem;
+               const aStart = timeToMinutes(newItem.startTime);
+               const aEnd = timeToMinutes(newItem.endTime);
+               const bStart = timeToMinutes(cItem.startTime);
+               const bEnd = timeToMinutes(cItem.endTime);
+               if (aStart !== null && bStart !== null) {
+                  const overlapStart = Math.max(aStart, bStart);
+                  const overlapEnd = Math.min(aEnd, bEnd);
+                  overlapMinutes = Math.max(0, overlapEnd - overlapStart);
+               }
+            }
+         }
+
+         const alternatives = generateSmartAlternatives(intermediateTrip, newItem, targetDayIndex + 1);
+         setPendingAlternatives({ 
+            item: newItem, 
+            targetDay: targetDayIndex + 1, 
+            requestedTime: newItem.time,
+            conflictInfo: {
+                reason: firstConflict.reason,
+                conflictingItem: conflictingItemDetails,
+                overlapMinutes
+            },
+            alternatives 
+         });
+         return prevTrip;
       }
 
-      newItinerary[sourceDayIndex] = { ...sourceDay, plan: sourcePlan };
-      newItinerary[targetDayIndex] = { ...targetDay, plan: targetPlan };
+      toast.success(`Schedule updated`, { icon: "🔄" });
+      return proposedTrip;
+  };
 
-      return {
-        ...prevTrip,
-        itinerary: newItinerary,
-      };
-    });
-
+  // Reorder Items within the same Day
+  const reorderInDay = (dayIndex, sourceIndex, targetIndex) => {
+    if (sourceIndex === targetIndex) return;
+    setTrip((prevTrip) => handleItemMoveWithValidation(prevTrip, dayIndex, dayIndex, sourceIndex, targetIndex));
     setIsSaved(false);
-    toast.success(`Moved to Day ${targetDayIndex + 1}`, { icon: "✨" });
+  };
+
+  // Move Item from one Day to another Day
+  const moveBetweenDays = (sourceDayIndex, targetDayIndex, sourceIndex, targetIndex = null) => {
+    setTrip((prevTrip) => handleItemMoveWithValidation(prevTrip, sourceDayIndex, targetDayIndex, sourceIndex, targetIndex));
+    setIsSaved(false);
   };
 
   // Duplicate Item
@@ -498,60 +634,7 @@ export function TripBuilderProvider({ children }) {
 
   // Live Budget Engine
   const budgetStats = useMemo(() => {
-    let totalSpent = 0;
-    const breakdown = {
-      Transport: 0,
-      Hotels: 0,
-      Activities: 0,
-      Food: 0,
-      "Local Transport": 0,
-      Shopping: 0,
-      Experiences: 0,
-    };
-
-    if (trip?.itinerary) {
-      trip.itinerary.forEach((day) => {
-        (day.plan || []).forEach((item) => {
-          const price = parsePrice(item.price || item.estimatedCost || item.fare || 0);
-          totalSpent += price;
-
-          const cat = (item.category || "").toLowerCase();
-          if (cat.includes("train") || cat.includes("flight") || cat.includes("bus")) {
-            breakdown.Transport += price;
-          } else if (cat.includes("hotel") || cat.includes("stay")) {
-            breakdown.Hotels += price;
-          } else if (cat.includes("activity") || cat.includes("sightseeing")) {
-            breakdown.Activities += price;
-          } else if (cat.includes("food") || cat.includes("dining") || cat.includes("cafe")) {
-            breakdown.Food += price;
-          } else if (cat.includes("transport") || cat.includes("taxi") || cat.includes("cab")) {
-            breakdown["Local Transport"] += price;
-          } else if (cat.includes("shopping")) {
-            breakdown.Shopping += price;
-          } else if (cat.includes("experience")) {
-            breakdown.Experiences += price;
-          } else {
-            breakdown.Activities += price;
-          }
-        });
-      });
-    }
-
-    const totalBudget = Number(trip?.budget) || 60000;
-    const remaining = totalBudget - totalSpent;
-    const isOverBudget = remaining < 0;
-    const overAmount = Math.abs(remaining);
-    const spentPercentage = Math.min(100, Math.round((totalSpent / totalBudget) * 100));
-
-    return {
-      totalBudget,
-      totalSpent,
-      remaining,
-      isOverBudget,
-      overAmount,
-      spentPercentage,
-      breakdown,
-    };
+    return calculateTripBudgetAnalysis(trip, trip?.staySegments, trip?.itinerary);
   }, [trip]);
 
   // Validation Engine with Travel Buffers & Conflict Tracking
@@ -559,6 +642,7 @@ export function TripBuilderProvider({ children }) {
     let totalActivities = 0;
     let conflictsCount = 0;
     const conflicts = [];
+    const warnings = [];
     let totalTravelMinutes = 0;
 
     if (trip?.itinerary) {
@@ -594,29 +678,6 @@ export function TripBuilderProvider({ children }) {
             });
           }
 
-          // Rule 2: Overlap with previous item
-          if (startMin !== null && prevEndMinutes !== null && startMin < prevEndMinutes) {
-            conflictsCount++;
-            conflicts.push({
-              day: dIdx + 1,
-              itemId: item.id,
-              itemTitle: item.name || item.activity,
-              type: "overlap",
-              message: `Schedule overlap on Day ${dIdx + 1}: "${item.name || item.activity}" starts at ${item.startTime} before "${prevItemTitle}" ends (${minutesToTimeStr(prevEndMinutes)}).`,
-            });
-          }
-
-          // Rule 3: Insufficient Travel Buffer check
-          if (startMin !== null && prevEndMinutes !== null && startMin >= prevEndMinutes && startMin - prevEndMinutes < 15) {
-            conflicts.push({
-              day: dIdx + 1,
-              itemId: item.id,
-              itemTitle: item.name || item.activity,
-              type: "buffer_warning",
-              message: `Tight transition (${startMin - prevEndMinutes}m buffer) between "${prevItemTitle}" and "${item.name || item.activity}".`,
-            });
-          }
-
           if (endMin !== null) {
             prevEndMinutes = endMin;
             prevItemTitle = item.name || item.activity;
@@ -625,8 +686,7 @@ export function TripBuilderProvider({ children }) {
 
         // Day overpacking check (>14 hours)
         if (dayDurationSum > 840) {
-          conflictsCount++;
-          conflicts.push({
+          warnings.push({
             day: dIdx + 1,
             type: "overpacked",
             message: `Day ${dIdx + 1} schedule is tightly packed (${Math.round(dayDurationSum / 60)} hrs total).`,
@@ -638,17 +698,59 @@ export function TripBuilderProvider({ children }) {
     const travelHours = Math.floor(totalTravelMinutes / 60);
     const travelMins = totalTravelMinutes % 60;
     const formattedTravelTime = `${travelHours}h ${travelMins}m`;
-    const isFeasible = conflictsCount === 0;
+
+    if (budgetStats.isOverBudget) {
+      conflictsCount++;
+      conflicts.push({
+        day: "Budget",
+        type: "overbudget",
+        message: budgetStats.isCampus
+          ? `Campus Trip exceeds total group budget of ₹${budgetStats.totalBudget.toLocaleString("en-IN")} by ₹${budgetStats.overAmount.toLocaleString("en-IN")}.`
+          : `Trip exceeds your budget of ₹${budgetStats.totalBudget.toLocaleString("en-IN")} by ₹${budgetStats.overAmount.toLocaleString("en-IN")}.`,
+      });
+    }
+
+    const isFeasible = conflictsCount === 0 && !budgetStats.isOverBudget;
 
     return {
       totalActivities,
       conflictsCount,
       conflicts,
+      warnings,
       totalTravelMinutes,
       formattedTravelTime,
       isFeasible,
     };
+  }, [trip, budgetStats]);
+
+  // Bus Transport Requirements & Preferences
+  const busRequirements = useMemo(() => {
+    return detectBusRequirements(trip);
   }, [trip]);
+
+  const saveBusPreferences = useCallback((updatedReqs, campusPlan, localTransportPref) => {
+    setTrip((prevTrip) => {
+      if (!prevTrip) return prevTrip;
+      return {
+        ...prevTrip,
+        busRequirements: updatedReqs,
+        ...(campusPlan ? { campusTransportPlan: campusPlan } : {}),
+        ...(localTransportPref !== undefined ? { localTransportPreference: localTransportPref } : {}),
+      };
+    });
+    setIsSaved(false);
+  }, [setTrip]);
+
+  const saveCampusTransportPlan = useCallback((campusPlan) => {
+    setTrip((prevTrip) => {
+      if (!prevTrip) return prevTrip;
+      return {
+        ...prevTrip,
+        campusTransportPlan: campusPlan,
+      };
+    });
+    setIsSaved(false);
+  }, [setTrip]);
 
   // Save Itinerary
   const saveItinerary = async () => {
@@ -663,6 +765,11 @@ export function TripBuilderProvider({ children }) {
             trip._id,
             {
               itinerary: trip.itinerary,
+              travelLegs: trip.travelLegs,
+              staySegments: trip.staySegments,
+              busRequirements: trip.busRequirements || busRequirements,
+              campusTransportPlan: trip.campusTransportPlan,
+              localTransportPreference: trip.localTransportPreference,
               budget: trip.budget,
               travelers: trip.travelers,
             },
@@ -689,6 +796,216 @@ export function TripBuilderProvider({ children }) {
     setIsSaved(true);
     toast.success(`Reset Itinerary for ${trip?.destination || "Trip"}`, { icon: "🔄" });
   };
+
+  // Select Hotel for a Stay Segment
+  const selectHotelForSegment = useCallback((segmentId, hotelData) => {
+    setTrip((prevTrip) => {
+      if (!prevTrip || !prevTrip.staySegments) return prevTrip;
+      const newSegments = [...prevTrip.staySegments];
+      
+      // Match by id or location or numeric index
+      let idx = newSegments.findIndex(s => (s.id === segmentId) || (s.location === segmentId));
+      if (idx === -1 && typeof segmentId === "number" && segmentId >= 0 && segmentId < newSegments.length) {
+        idx = segmentId;
+      }
+      if (idx !== -1) {
+        const dummySeg = { ...newSegments[idx], selectedHotel: hotelData };
+        const stayPricing = calculateStayAccommodation(dummySeg, prevTrip);
+        let updatedHotel = {
+          ...hotelData,
+          price: stayPricing.groupCost,
+          groupPrice: stayPricing.groupCost,
+          perStudentPrice: stayPricing.perStudentCost,
+          rooms: stayPricing.rooms,
+          nightlyPrice: stayPricing.nightlyRate,
+          isEstimatedPrice: stayPricing.isEstimated,
+        };
+        newSegments[idx] = { ...newSegments[idx], selectedHotel: updatedHotel };
+      }
+      return { ...prevTrip, staySegments: newSegments };
+    });
+  }, [setTrip]);
+
+  // Select Train for a specific travel journey and update canonical trip itinerary
+  const selectTrainForTrip = useCallback(async (train, routeContext = {}) => {
+    if (!train || !train.trainNumber) return { success: false, error: "Invalid train data" };
+    if (!trip) return { success: false, error: "No active trip found" };
+
+    // 1. Run the deterministic train journey scheduler
+    const scheduleResult = scheduleTrainJourneyIntoTrip(trip, train, routeContext);
+    if (!scheduleResult.success) {
+      return { success: false, error: scheduleResult.error || "Failed to schedule train journey." };
+    }
+
+    const proposedTrip = scheduleResult.trip;
+
+    // 2. Run the schedule validator
+    const validationResult = validateTripSchedule(proposedTrip);
+    if (!validationResult.valid) {
+      const errorMsg = validationResult.errors.join(". ");
+      console.warn("Schedule validation failed:", errorMsg);
+      return {
+        success: false,
+        error: `Schedule validation failed: ${errorMsg}`,
+      };
+    }
+
+    // 3. Persist to backend MongoDB if this is an existing database trip
+    const token = localStorage.getItem("token");
+    const isBackendTrip = Boolean(token && proposedTrip._id && !String(proposedTrip._id).startsWith("trip-"));
+
+    if (isBackendTrip) {
+      try {
+        await updateTrip(
+          proposedTrip._id,
+          {
+            itinerary: proposedTrip.itinerary,
+            travelLegs: proposedTrip.travelLegs,
+            staySegments: proposedTrip.staySegments,
+          },
+          token
+        );
+      } catch (err) {
+        console.error("Failed to persist train to backend Trip:", err);
+        const errMsg = err?.response?.data?.message || err?.message || "Failed to save train to server.";
+        return { success: false, error: errMsg };
+      }
+    }
+
+    // 4. Update canonical state in TripBuilderContext and localStorage
+    setTrip(proposedTrip);
+    setIsSaved(true);
+
+    return {
+      success: true,
+      actionType: "updated",
+      adaptationSummary: scheduleResult.adaptationSummary,
+    };
+  }, [trip, setTrip]);
+
+  // Preview transport changes (supporting Train or Flight independently) without mutating canonical state
+  const previewTransportChanges = useCallback(({ outboundTransport, returnTransport, outboundTrain, returnTrain, outboundFlight, returnFlight, routeContext = {} }) => {
+    if (!trip) return { success: false, error: "No active trip found" };
+    return buildProposedTransportAdaptation(trip, {
+      outboundTransport: outboundTransport || outboundFlight || outboundTrain,
+      returnTransport: returnTransport || returnFlight || returnTrain,
+      routeContext,
+    });
+  }, [trip]);
+
+  // Backward-compatible alias for existing train callers
+  const previewTrainChanges = useCallback(({ outboundTrain, returnTrain, routeContext = {} }) => {
+    return previewTransportChanges({ outboundTrain, returnTrain, routeContext });
+  }, [previewTransportChanges]);
+
+  // Apply already-reviewed and user-approved transport adaptation (Train or Flight)
+  const applyApprovedTransportChanges = useCallback(async (proposedTrip, adaptationSummary = null) => {
+    if (!proposedTrip || !Array.isArray(proposedTrip.itinerary)) {
+      return { success: false, error: "Invalid proposed trip data" };
+    }
+
+    // Zero-conflict invariant: verify proposed itinerary is strictly conflict-free before persistence
+    const preConflicts = detectConflicts(proposedTrip);
+    if (preConflicts && preConflicts.length > 0) {
+      return {
+        success: false,
+        error: `Cannot apply changes: itinerary has ${preConflicts.length} schedule conflict(s).`,
+      };
+    }
+
+    // Persist to backend MongoDB if this is an existing database trip
+    const token = localStorage.getItem("token");
+    const isBackendTrip = Boolean(token && proposedTrip._id && !String(proposedTrip._id).startsWith("trip-"));
+
+    if (isBackendTrip) {
+      try {
+        await updateTrip(
+          proposedTrip._id,
+          {
+            itinerary: proposedTrip.itinerary,
+            travelLegs: proposedTrip.travelLegs,
+            staySegments: proposedTrip.staySegments,
+            transport: proposedTrip.transport,
+          },
+          token
+        );
+      } catch (err) {
+        console.error("Failed to persist approved transport changes to server:", err);
+        const errMsg = err?.response?.data?.message || err?.message || "Failed to save transport to server.";
+        return { success: false, error: errMsg };
+      }
+    }
+
+    // Update canonical state in TripBuilderContext and localStorage
+    setTrip(proposedTrip);
+    setIsSaved(true);
+
+    return {
+      success: true,
+      actionType: "updated",
+      adaptationSummary,
+    };
+  }, [setTrip]);
+
+  const applyApprovedTrainChanges = applyApprovedTransportChanges;
+
+  // Dynamic scheduling conflict suggestions for Detailed Itinerary
+  const schedulingConflicts = useMemo(() => {
+    if (!trip || !Array.isArray(trip.itinerary)) return [];
+    try {
+      const res = generateConflictSuggestions(trip);
+      return res.enrichedConflicts || [];
+    } catch (e) {
+      console.warn("Error computing conflict suggestions:", e);
+      return [];
+    }
+  }, [trip]);
+
+  // Apply safe conflict resolution suggestion
+  const applySuggestion = useCallback(async (action) => {
+    if (!action || !trip) return;
+    setTrip((prevTrip) => {
+      if (!prevTrip || !Array.isArray(prevTrip.itinerary)) return prevTrip;
+      const newItinerary = prevTrip.itinerary.map(d => ({ ...d, plan: [...(d.plan || [])] }));
+
+      const fromDayIdx = (action.fromDay || action.day) - 1;
+      const toDayIdx = (action.toDay || action.day) - 1;
+      if (fromDayIdx < 0 || fromDayIdx >= newItinerary.length || toDayIdx < 0 || toDayIdx >= newItinerary.length) {
+        return prevTrip;
+      }
+
+      const fromPlan = newItinerary[fromDayIdx].plan;
+      const itemIdx = fromPlan.findIndex(i => i.id === action.itemId);
+      if (itemIdx === -1) return prevTrip;
+
+      const [movedItem] = fromPlan.splice(itemIdx, 1);
+      movedItem.startTime = action.startTime;
+      movedItem.endTime = action.endTime;
+      movedItem.time = `${action.startTime} - ${action.endTime}`;
+      const dur = (timeToMinutes(action.endTime) - timeToMinutes(action.startTime)) || movedItem.durationMinutes || 90;
+      movedItem.durationMinutes = dur;
+
+      newItinerary[toDayIdx].plan.push(movedItem);
+      newItinerary[toDayIdx].plan.sort((a, b) => {
+        const aStart = timeToMinutes(a.startTime || (a.time ? String(a.time).split("-")[0] : "00:00")) || 0;
+        const bStart = timeToMinutes(b.startTime || (b.time ? String(b.time).split("-")[0] : "00:00")) || 0;
+        return aStart - bStart;
+      });
+
+      const updated = {
+        ...prevTrip,
+        itinerary: newItinerary,
+      };
+
+      const token = localStorage.getItem("token");
+      if (token && updated._id && !String(updated._id).startsWith("trip-")) {
+        updateTrip(updated._id, { itinerary: updated.itinerary }, token).catch(e => console.warn("Background update error:", e));
+      }
+
+      toast.success(`Rescheduled "${movedItem.name || movedItem.activity}"`, { icon: "✅" });
+      return updated;
+    });
+  }, [trip, setTrip]);
 
   // Map Modal State
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
@@ -717,6 +1034,9 @@ export function TripBuilderProvider({ children }) {
         openMapModal,
         closeMapModal,
         isSaved,
+        pendingAlternatives,
+        setPendingAlternatives,
+        applyAlternative,
         budgetStats,
         validationStats,
         destinationInventory,
@@ -733,9 +1053,102 @@ export function TripBuilderProvider({ children }) {
         saveItinerary,
         resetToSample,
         initializeTrip,
+        selectHotelForSegment,
+        selectTrainForTrip,
+        previewTrainChanges,
+        previewTransportChanges,
+        applyApprovedTrainChanges,
+        applyApprovedTransportChanges,
+        schedulingConflicts,
+        applySuggestion,
+        busRequirements,
+        saveBusPreferences,
+        saveCampusTransportPlan,
       }}
     >
       {children}
     </TripBuilderContext.Provider>
   );
+}
+
+// Utility to inspect if canonical trip already has a selected train for a given journey direction
+export function findSelectedTrainInItinerary(trip, routeContext = {}) {
+  if (!trip || !Array.isArray(trip.itinerary)) return null;
+
+  const discovered = findExistingTrainRecord(trip, routeContext.direction || "outbound", routeContext);
+  if (discovered) return discovered;
+
+  const {
+    direction = "outbound",
+    source = trip.source || "Mumbai",
+    destination = trip.destination || "Destination",
+    dayIndex = null,
+  } = routeContext;
+
+  const norm = (str) => (str || "").toLowerCase().trim();
+  const tripSrc = norm(trip.source || source || "mumbai");
+  const tripDst = norm(trip.destination || destination || "destination");
+  const targetDir = String(direction).toLowerCase();
+  const totalDays = trip.itinerary.length;
+
+  for (let d = 0; d < totalDays; d++) {
+    if (dayIndex !== null && d !== dayIndex) continue;
+    const plan = trip.itinerary[d]?.plan || [];
+    for (const item of plan) {
+      if (!item || !item.trainNumber) continue;
+
+      if (item.journeyDirection) {
+        if (item.journeyDirection === targetDir) return item;
+        continue;
+      }
+
+      const act = norm(item.activity || item.name || "");
+      const notes = norm(item.notes || "");
+      const rSrc = norm(item.routeSource || item.source || item.from?.name || item.from?.code || "");
+      const rDst = norm(item.routeDestination || item.destination || item.to?.name || item.to?.code || "");
+
+      if (targetDir === "return") {
+        if (act.includes("return") || act.includes("farewell") || act.includes("back to") || notes.includes("return journey")) return item;
+        if (rSrc.includes(tripDst) && rDst.includes(tripSrc)) return item;
+        if (d >= totalDays - 1 && (rDst.includes(tripSrc) || rSrc.includes(tripDst))) return item;
+      } else {
+        // Outbound
+        if (act.includes("return") || act.includes("farewell") || act.includes("back to") || notes.includes("return journey")) continue;
+        if (rSrc.includes(tripSrc) && rDst.includes(tripDst)) return item;
+        if (d === 0 || d === 1) return item;
+      }
+    }
+  }
+
+  // Also check trip.travelLegs if present
+  if (Array.isArray(trip.travelLegs)) {
+    const leg = trip.travelLegs.find(l => {
+      if (!l.trainNumber) return false;
+      if (l.journeyDirection) return l.journeyDirection === targetDir;
+      if (targetDir === "return") {
+        return norm(l.to || l.destination).includes(tripSrc) || norm(l.from || l.source).includes(tripDst);
+      } else {
+        return norm(l.from || l.source).includes(tripSrc) || norm(l.to || l.destination).includes(tripDst);
+      }
+    });
+    if (leg) return leg;
+  }
+
+  return null;
+}
+
+// Utility to inspect if canonical trip already has a selected flight for a given journey direction
+export function findSelectedFlightInItinerary(trip, routeContext = {}) {
+  if (!trip || !Array.isArray(trip.itinerary)) return null;
+  const discovered = findExistingTransportRecord(trip, routeContext.direction || "outbound", routeContext);
+  if (discovered && (discovered.mode === "flight" || discovered.flightNumber)) {
+    return discovered;
+  }
+  return null;
+}
+
+// Unified utility to inspect existing transport (train or flight) for a given journey direction
+export function findSelectedTransportInItinerary(trip, routeContext = {}) {
+  if (!trip || !Array.isArray(trip.itinerary)) return null;
+  return findExistingTransportRecord(trip, routeContext.direction || "outbound", routeContext);
 }

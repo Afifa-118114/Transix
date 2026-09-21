@@ -1,8 +1,10 @@
 import { useState } from "react";
-import { loginUser } from "../../api/authApi";
+import { loginUser, googleAuthUser } from "../../api/authApi";
 import { useAuth } from "../../hooks/useAuth";
 import { useNavigate, Link } from "react-router-dom";
 import toast from "react-hot-toast";
+import AuthLayout from "./AuthLayout";
+import GoogleAuthButton from "./GoogleAuthButton";
 
 export default function LoginForm() {
   const navigate = useNavigate();
@@ -11,6 +13,7 @@ export default function LoginForm() {
   const [form, setForm] = useState({
     email: "",
     password: "",
+    role: "traveler", // role selection on frontend
   });
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -34,12 +37,23 @@ export default function LoginForm() {
       setLoading(true);
       setErrorMsg("");
 
-      const data = await loginUser(form);
+      const data = await loginUser({ email: form.email, password: form.password });
 
       if (data.token && data.user) {
+        // Backend returns the definitive role. Let's verify it matches frontend selection.
+        const actualRole = data.user.role || "traveler";
+        if (actualRole !== form.role) {
+          setErrorMsg(`Role mismatch. This account is registered as ${actualRole === 'operator' ? 'an Operator' : 'a Traveler'}.`);
+          return;
+        }
+
         login(data.user, data.token);
-        toast.success(`Welcome back, ${data.user.name || "traveler"}!`);
-        navigate("/home");
+        toast.success(`Welcome back, ${data.user.name || "traveler"}!`, { icon: "👋" });
+        if (actualRole === "operator") {
+          navigate("/operator/dashboard");
+        } else {
+          navigate("/home");
+        }
       } else {
         setErrorMsg("Invalid response from server.");
       }
@@ -56,57 +70,115 @@ export default function LoginForm() {
     }
   };
 
+  const handleGoogleSuccess = async (credential) => {
+    try {
+      setLoading(true);
+      setErrorMsg("");
+
+      const data = await googleAuthUser({
+        credential,
+        role: form.role,
+      });
+
+      if (data.token && data.user) {
+        const actualRole = data.user.role || "traveler";
+        if (actualRole !== form.role) {
+          setErrorMsg(
+            `Role mismatch. This account is registered as ${
+              actualRole === "operator" ? "an Operator" : "a Traveler"
+            }.`
+          );
+          return;
+        }
+
+        login(data.user, data.token);
+        toast.success(`Welcome back, ${data.user.name || "traveler"}!`, { icon: "👋" });
+        if (actualRole === "operator") {
+          navigate("/operator/dashboard");
+        } else {
+          navigate("/home");
+        }
+      } else {
+        setErrorMsg("Invalid response from server.");
+      }
+    } catch (err) {
+      const msg =
+        err.response?.data?.message ||
+        (err.code === "ERR_NETWORK"
+          ? "Cannot connect to server. Please ensure backend is running."
+          : "Google Sign-In failed. Please try again.");
+      setErrorMsg(msg);
+      toast.error(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleError = (msg) => {
+    setErrorMsg(msg);
+    toast.error(msg);
+  };
+
   return (
-    <div className="relative flex min-h-screen w-full items-center justify-center overflow-hidden bg-[#f5f5f5] px-4 py-12 font-sans antialiased selection:bg-[#f4c5a8]/40 selection:text-[#0c0a09]">
-      {/* Atmospheric Pastel Gradient Orbs (Tokens from design.md: peach, mint, lavender, sky) */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -top-28 -right-20 h-[400px] w-[400px] rounded-full bg-[#f4c5a8] opacity-45 blur-[110px] transition-all duration-1000"
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute top-1/3 -left-28 h-[380px] w-[380px] rounded-full bg-[#c8b8e0] opacity-40 blur-[110px] transition-all duration-1000"
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -bottom-24 right-1/4 h-[390px] w-[390px] rounded-full bg-[#a7e5d3] opacity-45 blur-[120px] transition-all duration-1000"
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute bottom-1/3 -right-24 h-[320px] w-[320px] rounded-full bg-[#a8c8e8] opacity-35 blur-[95px] transition-all duration-1000"
-      />
-
-      {/* Main Sign In Card */}
-      <div className="relative z-10 w-full max-w-[440px] rounded-[16px] border border-[#e7e5e4] bg-[#ffffff] p-8 sm:p-10 shadow-[0_4px_16px_rgba(0,0,0,0.04)]">
-        {/* Editorial Header */}
-        <div className="flex flex-col items-center text-center">
-
-          <h1
-            style={{ fontFamily: "'EB Garamond', Georgia, serif" }}
-            className="text-[32px] font-[300] leading-[1.13] tracking-[-0.32px] text-[#0c0a09]"
-          >
+    <AuthLayout>
+      <form onSubmit={handleSubmit} className="w-full flex flex-col">
+        <div className="flex flex-col mb-8">
+          <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
             Welcome back
           </h1>
-
-          <p className="mt-2.5 max-w-[320px] text-[15px] font-[400] leading-[1.47] tracking-[0.16px] text-[#777169]">
-            Sign in to access your planned itineraries and intelligent journeys.
+          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+            Continue where your journey left off.
           </p>
         </div>
 
         {/* Validation / Error Banner */}
         {errorMsg && (
-          <div className="mt-6 flex items-center rounded-lg border border-[#fca5a5] bg-[#fef2f2] px-3.5 py-2.5 text-[13px] text-[#dc2626]">
-            <span>{errorMsg}</span>
+          <div className="mb-6 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800/60 p-3 text-sm font-medium text-rose-700 dark:text-rose-300">
+            {errorMsg}
           </div>
         )}
 
-        {/* Sign In Form */}
-        <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-5">
-          {/* Email Address */}
-          <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-5">
+          <div className="mb-2">
+            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
+              Login as
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <div
+                onClick={() => setForm({ ...form, role: "traveler" })}
+                className={`cursor-pointer rounded-xl border p-3 flex items-start gap-3 transition-all ${
+                  form.role === "traveler"
+                    ? "border-blue-600 bg-blue-50/50 dark:bg-blue-900/20 ring-1 ring-blue-600"
+                    : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
+                }`}
+              >
+                <div className="text-xl">👤</div>
+                <div>
+                  <div className={`text-sm font-bold ${form.role === "traveler" ? "text-blue-700 dark:text-blue-400" : "text-slate-700 dark:text-slate-300"}`}>Traveler</div>
+                  <div className="text-[10px] font-semibold text-slate-500">Plan and manage journeys.</div>
+                </div>
+              </div>
+              <div
+                onClick={() => setForm({ ...form, role: "operator" })}
+                className={`cursor-pointer rounded-xl border p-3 flex items-start gap-3 transition-all ${
+                  form.role === "operator"
+                    ? "border-blue-600 bg-blue-50/50 dark:bg-blue-900/20 ring-1 ring-blue-600"
+                    : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
+                }`}
+              >
+                <div className="text-xl">⚙️</div>
+                <div>
+                  <div className={`text-sm font-bold ${form.role === "operator" ? "text-blue-700 dark:text-blue-400" : "text-slate-700 dark:text-slate-300"}`}>Operator</div>
+                  <div className="text-[10px] font-semibold text-slate-500">Monitor shared trips.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div>
             <label
               htmlFor="login-email"
-              className="text-[13px] font-medium tracking-[0.15px] text-[#292524]"
+              className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5"
             >
               Email address
             </label>
@@ -115,23 +187,25 @@ export default function LoginForm() {
               name="email"
               type="email"
               value={form.email}
-              placeholder="alex@domain.com"
+              placeholder="Enter your email"
               onChange={handleChange}
               autoComplete="email"
               required
-              className="h-11 w-full rounded-[8px] border border-[#d6d3d1] bg-[#ffffff] px-4 text-[15px] text-[#0c0a09] placeholder-[#a8a29e] transition-colors focus:border-[#0c0a09] focus:outline-none"
+              className="w-full rounded-[14px] border-[1.5px] border-slate-200 dark:border-slate-700/80 bg-slate-50/50 dark:bg-slate-800/50 px-4 py-3.5 text-sm text-slate-900 dark:text-white placeholder-slate-400/80 dark:placeholder-slate-500 outline-none transition-all duration-300 hover:border-blue-300 dark:hover:border-slate-500 focus:border-blue-600 dark:focus:border-blue-500 focus:ring-4 focus:ring-blue-600/10 dark:focus:ring-blue-900/40 focus:bg-white dark:focus:bg-[#131b2e]"
             />
           </div>
 
-          {/* Password */}
-          <div className="flex flex-col gap-1.5">
-            <div className="flex items-center justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
               <label
                 htmlFor="login-password"
-                className="text-[13px] font-medium tracking-[0.15px] text-[#292524]"
+                className="block text-sm font-semibold text-slate-700 dark:text-slate-300"
               >
                 Password
               </label>
+              <button type="button" className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors">
+                Forgot password?
+              </button>
             </div>
             <input
               id="login-password"
@@ -142,33 +216,44 @@ export default function LoginForm() {
               onChange={handleChange}
               autoComplete="current-password"
               required
-              className="h-11 w-full rounded-[8px] border border-[#d6d3d1] bg-[#ffffff] px-4 text-[15px] text-[#0c0a09] placeholder-[#a8a29e] transition-colors focus:border-[#0c0a09] focus:outline-none"
+              className="w-full rounded-[14px] border-[1.5px] border-slate-200 dark:border-slate-700/80 bg-slate-50/50 dark:bg-slate-800/50 px-4 py-3.5 text-sm text-slate-900 dark:text-white placeholder-slate-400/80 dark:placeholder-slate-500 outline-none transition-all duration-300 hover:border-blue-300 dark:hover:border-slate-500 focus:border-blue-600 dark:focus:border-blue-500 focus:ring-4 focus:ring-blue-600/10 dark:focus:ring-blue-900/40 focus:bg-white dark:focus:bg-[#131b2e]"
             />
           </div>
 
-          {/* Primary CTA Button (Ink Pill) */}
           <button
             type="submit"
             disabled={loading}
-            className="mt-3 flex h-10 w-full items-center justify-center rounded-full bg-[#292524] px-5 text-[15px] font-medium text-[#ffffff] transition-all hover:bg-[#0c0a09] active:scale-[0.99] disabled:pointer-events-none disabled:opacity-50"
+            className="mt-2 w-full rounded-[14px] bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 py-3.5 text-sm font-bold text-white shadow-md shadow-blue-600/20 dark:shadow-blue-900/20 transition-all active:scale-[0.98] disabled:opacity-70 flex justify-center cursor-pointer"
           >
-            {loading ? "Signing in..." : "Sign in"}
+            {loading ? "Signing In..." : "Sign In →"}
           </button>
-        </form>
 
-        {/* Secondary Navigation */}
-        <div className="mt-8 border-t border-[#f0efed] pt-6 text-center">
-          <p className="text-[14px] font-[400] text-[#777169]">
+          <div className="relative my-2 flex items-center justify-center">
+            <div className="border-t border-slate-200 dark:border-slate-800 w-full"></div>
+            <span className="bg-[#f8fafc] dark:bg-[#0b0f19] px-3 text-xs font-bold uppercase tracking-wider text-slate-400">
+              or
+            </span>
+          </div>
+
+          <GoogleAuthButton
+            onGoogleSuccess={handleGoogleSuccess}
+            onError={handleGoogleError}
+            loading={loading}
+          />
+        </div>
+
+        <div className="mt-8 pt-8 border-t border-slate-200 dark:border-slate-800 flex flex-col items-center">
+          <p className="text-sm text-slate-500 dark:text-slate-400">
             Don't have an account?{" "}
             <Link
               to="/register"
-              className="font-medium text-[#0c0a09] underline underline-offset-4 transition hover:text-[#292524]"
+              className="font-bold text-blue-600 dark:text-blue-400 hover:underline"
             >
               Create account
             </Link>
           </p>
         </div>
-      </div>
-    </div>
+      </form>
+    </AuthLayout>
   );
 }

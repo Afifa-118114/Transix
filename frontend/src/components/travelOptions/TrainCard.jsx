@@ -1,109 +1,116 @@
-import { FiClock, FiMapPin, FiArrowRight } from "react-icons/fi";
-import { FaTrainSubway } from "react-icons/fa6";
+import { FiArrowRight, FiCheck, FiMapPin, FiClock } from "react-icons/fi";
+import { FaTrain } from "react-icons/fa";
+import { formatCompactSchedule } from "../../utils/scheduleFormatter";
 
-function TrainCard({ train, selected, onClick }) {
+export default function TrainCard({ train, selected, isSaved = false, isPending = false, onClick }) {
   const fromCode = train.from?.code || train.from?.name || train.source || "";
   const toCode = train.to?.code || train.to?.name || train.destination || "";
+  const scheduleText = formatCompactSchedule(train.runningDays);
   const stopsCount =
     train.totalStops !== undefined
       ? train.totalStops
       : train.stops !== undefined
-        ? train.stops
-        : 0;
+      ? train.stops
+      : (train.route?.length || 0);
 
   return (
     <button
+      type="button"
       onClick={onClick}
-      className={`group w-full rounded-2xl border text-left p-4 transition-all duration-150 ${
-        selected
-          ? "border-[#034F46] bg-[#034F46]/[0.03] ring-1 ring-[#034F46]/20 shadow-sm"
-          : "border-stone-200 bg-white hover:border-stone-300 hover:shadow-xs"
-      }`}
+      className={`group mb-2 w-full rounded-xl border p-3 text-left transition-all duration-150 cursor-pointer
+        ${
+          selected
+            ? "border-indigo-500 dark:border-indigo-400 bg-indigo-50/70 dark:bg-indigo-950/50 shadow-xs ring-1 ring-indigo-500/40"
+            : isPending
+            ? "border-purple-500 dark:border-purple-500 bg-purple-50/40 dark:bg-purple-950/30 shadow-xs ring-1 ring-purple-500/30"
+            : "border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131b2e] hover:border-indigo-300 dark:hover:border-indigo-600/50 hover:bg-slate-50/50 dark:hover:bg-[#162036]"
+        }`}
     >
-      {/* Top Header: Train Name & Type Badge */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <span
-              className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg ${
-                selected ? "bg-[#034F46] text-white" : "bg-stone-100 text-stone-600 group-hover:bg-stone-200"
-              }`}
-            >
-              <FaTrainSubway className="text-xs" />
-            </span>
-            <h3
-              className={`text-sm font-semibold truncate transition ${
-                selected ? "text-[#034F46]" : "text-stone-900 group-hover:text-[#034F46]"
-              }`}
-            >
-              {train.trainName}
-            </h3>
-          </div>
-          <p className="mt-0.5 ml-8 text-[11px] font-medium text-stone-400">
-            Train #{train.trainNumber}
-          </p>
-        </div>
-
-        <div className="flex items-center gap-1.5 shrink-0">
+      {/* Header: Train Name, Number, Badges & Status */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="flex h-5 w-5 items-center justify-center rounded-md bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 text-xs shrink-0">
+            <FaTrain />
+          </span>
+          <span className="text-sm font-extrabold text-slate-900 dark:text-white truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition">
+            {train.trainName}
+          </span>
+          <span className="text-xs text-slate-500 dark:text-slate-400 font-mono font-medium">
+            #{train.trainNumber}
+          </span>
           {train.isGateway && (
-            <span className="rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-[10px] font-semibold text-amber-800">
+            <span className="rounded-full bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 px-1.5 py-0.2 text-[9px] font-bold text-amber-700 dark:text-amber-300 shrink-0">
               Gateway
             </span>
           )}
-          <span className="rounded-full bg-stone-100 border border-stone-200/80 px-2 py-0.5 text-[10px] font-medium text-stone-700">
-            {train.type || "Express"}
+        </div>
+
+        {/* Status Indicator */}
+        {isSaved ? (
+          <span className="flex items-center gap-1 rounded-md bg-emerald-600 px-2 py-0.5 text-[9.5px] font-black uppercase tracking-wider text-white shadow-2xs shrink-0">
+            <FiCheck size={11} />
+            <span>Saved</span>
+          </span>
+        ) : isPending ? (
+          <span className="flex items-center gap-1 rounded-md bg-purple-600 px-2 py-0.5 text-[9.5px] font-black uppercase tracking-wider text-white shadow-2xs shrink-0">
+            <FiCheck size={11} />
+            <span>Selected</span>
+          </span>
+        ) : selected ? (
+          <span className="rounded-md bg-indigo-600 px-2 py-0.5 text-[9.5px] font-black uppercase tracking-wider text-white shadow-2xs shrink-0">
+            Viewing
+          </span>
+        ) : train.type ? (
+          <span className="rounded-md bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 text-[9.5px] font-medium text-slate-600 dark:text-slate-300 shrink-0">
+            {train.type}
+          </span>
+        ) : null}
+      </div>
+
+      {/* Timing & Route Row */}
+      <div className="mt-2.5 flex items-center justify-between">
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-sm sm:text-base font-black text-slate-900 dark:text-white leading-tight">
+            {train.departure}
+          </span>
+          <span className="text-xs sm:text-[13px] font-bold text-slate-600 dark:text-slate-300">
+            {fromCode}
+          </span>
+        </div>
+
+        <div className="flex flex-col items-center px-1">
+          <span className="text-[11px] sm:text-xs font-bold text-indigo-600 dark:text-indigo-400">
+            {train.duration}
+          </span>
+          <FiArrowRight className="text-slate-400 dark:text-slate-500 text-xs" />
+        </div>
+
+        <div className="flex items-baseline gap-1.5 text-right">
+          <span className="text-xs sm:text-[13px] font-bold text-slate-600 dark:text-slate-300">
+            {toCode}
+          </span>
+          <span className="text-sm sm:text-base font-black text-slate-900 dark:text-white leading-tight">
+            {train.arrival}
           </span>
         </div>
       </div>
 
-      {/* Timing Schedule Row */}
-      <div className="mt-3.5 flex items-center justify-between rounded-xl bg-stone-50/80 border border-stone-200/60 px-3.5 py-2.5">
-        <div>
-          <p className="text-sm font-bold text-stone-900">{train.departure}</p>
-          <p className="text-[11px] font-medium text-stone-500">{fromCode}</p>
-        </div>
-
-        <div className="flex flex-col items-center px-2">
-          <span className="text-[10px] font-semibold text-[#034F46]">{train.duration}</span>
-          <div className="flex items-center gap-1 text-stone-300 my-0.5">
-            <div className="h-[1px] w-6 bg-stone-300" />
-            <FiArrowRight className="text-xs text-stone-400" />
-            <div className="h-[1px] w-6 bg-stone-300" />
-          </div>
-          <span className="text-[9px] text-stone-400">Direct Rail</span>
-        </div>
-
-        <div className="text-right">
-          <p className="text-sm font-bold text-stone-900">{train.arrival}</p>
-          <p className="text-[11px] font-medium text-stone-500">{toCode}</p>
-        </div>
-      </div>
-
-      {/* Bottom Info Bar */}
-      <div className="mt-3 flex items-center justify-between text-xs text-stone-500 pt-1">
-        <div className="flex items-center gap-3">
-          <span className="flex items-center gap-1.5">
-            <FiClock className="text-stone-400 text-xs" />
-            <span className="text-[11px]">{train.duration}</span>
-          </span>
-
-          <span className="flex items-center gap-1.5">
-            <FiMapPin className="text-stone-400 text-xs" />
-            <span className="text-[11px]">{stopsCount} halts</span>
-          </span>
-        </div>
-
-        {train.price && (
-          <div className="text-right">
-            <span className="text-xs font-bold text-[#034F46]">
-              ₹{train.price.toLocaleString()}
+      {/* Secondary Information: Schedule, Halts & Price */}
+      <div className="mt-2 flex items-center justify-between text-xs text-slate-600 dark:text-slate-400 border-t border-slate-100 dark:border-slate-800/80 pt-1.5 font-medium">
+        <div className="flex items-center gap-2">
+          {scheduleText && <span>Runs: {scheduleText}</span>}
+          {stopsCount > 0 && (
+            <span className="text-slate-400 dark:text-slate-500 text-[11px]">
+              • {stopsCount} halts
             </span>
-            <span className="text-[10px] text-stone-400 ml-1">onwards</span>
-          </div>
+          )}
+        </div>
+        {train.price && (
+          <span className="font-black text-indigo-600 dark:text-indigo-400 text-sm">
+            ₹{train.price.toLocaleString()}
+          </span>
         )}
       </div>
     </button>
   );
 }
-
-export default TrainCard;

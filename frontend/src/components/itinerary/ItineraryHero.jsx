@@ -4,16 +4,25 @@ import {
   FiArrowRight,
   FiCalendar,
   FiUsers,
-  FiDollarSign,
+  FiDownload,
   FiLayers,
   FiShare2,
 } from "react-icons/fi";
 import { FaTrainSubway, FaPlaneDeparture, FaBus, FaCar } from "react-icons/fa6";
+import { FaRupeeSign } from "react-icons/fa";
 import toast from "react-hot-toast";
 import { formatBudget, getDuration } from "../../utils/formatTrip";
 
-export default function ItineraryHero({ trip }) {
+export default function ItineraryHero({ trip, onDownloadPdf, isGeneratingPdf = false }) {
   const navigate = useNavigate();
+
+  const isCampus = trip?.tripCategory === "CAMPUS" || Boolean(trip?.campusConfig?.expectedParticipants);
+
+  // Dynamic values
+  const durationText = getDuration(trip) || (trip?.duration ? (typeof trip.duration === "number" ? `${trip.duration} Days` : trip.duration) : `${trip?.itinerary?.length || 5} Days`);
+  const budgetVal = trip?.campusConfig?.budgetPerStudent || trip?.budget;
+  const budgetText = budgetVal ? formatBudget(budgetVal) : null;
+  const travelersCount = trip?.campusConfig?.expectedParticipants || trip?.registrationSettings?.capacity || trip?.travelers || 2;
 
   const getTransitIcon = (mode) => {
     switch (mode?.toLowerCase()) {
@@ -37,30 +46,51 @@ export default function ItineraryHero({ trip }) {
   };
 
   return (
-    <section className="w-full rounded-2xl border border-[#e7e5e4] bg-white p-6 sm:p-8 shadow-xs">
-      {/* Top Action Row */}
-      <div className="flex items-center justify-between gap-3 mb-4">
+    <section className="mx-auto w-full max-w-3xl rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-[#131b2e] p-5 sm:p-6 shadow-xs transition-colors">
+      {/* Top Controls: Back Button & Actions */}
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <button
           onClick={() => navigate(-1)}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#777169] transition hover:text-[#0c0a09]"
+          className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-400 transition hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer"
         >
           <FiArrowLeft className="text-xs" />
           <span>Back</span>
         </button>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={handleShare}
-            className="flex items-center gap-1.5 rounded-full border border-[#e7e5e4] bg-[#fafaf9] px-3 py-1.5 text-xs font-semibold text-[#57534e] hover:bg-white hover:text-[#0c0a09] transition shadow-2xs"
+            className="flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 px-3 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer shadow-2xs"
           >
             <FiShare2 className="text-xs" />
             <span>Share</span>
           </button>
 
+          {onDownloadPdf && (
+            <button
+              onClick={onDownloadPdf}
+              disabled={isGeneratingPdf}
+              id="download-itinerary-pdf-btn"
+              className="flex items-center gap-2 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-xl text-xs font-bold shadow-xs transition cursor-pointer"
+            >
+              {isGeneratingPdf ? (
+                <>
+                  <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>Generating PDF...</span>
+                </>
+              ) : (
+                <>
+                  <FiDownload className="text-xs" />
+                  <span>Download PDF</span>
+                </>
+              )}
+            </button>
+          )}
+
           <Link
             to="/builder"
-            className="flex items-center gap-1.5 rounded-full bg-[#0c0a09] px-4 py-1.5 text-xs font-semibold text-white hover:bg-[#292524] transition shadow-xs"
+            className="flex items-center gap-1.5 rounded-xl bg-slate-900 dark:bg-indigo-600 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-slate-800 dark:hover:bg-indigo-700 transition shadow-xs"
           >
             <FiLayers className="text-xs" />
             <span>Customize in Builder</span>
@@ -68,44 +98,48 @@ export default function ItineraryHero({ trip }) {
         </div>
       </div>
 
-      {/* Main Route Header */}
-      <div>
-        <span className="text-[10px] font-bold uppercase tracking-wider text-[#034F46] block mb-1">
-          Confirmed Journey Plan
-        </span>
-        <h1
-          style={{ fontFamily: "'EB Garamond', Georgia, serif" }}
-          className="text-2xl sm:text-4xl font-[400] text-[#0c0a09] leading-tight flex items-center gap-2.5 flex-wrap"
-        >
-          <span>{trip.source}</span>
-          <FiArrowRight className="text-base sm:text-xl text-[#034F46]" />
-          <span>{trip.destination}</span>
+      {/* Main Route */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <h1 className="text-2xl font-bold capitalize text-slate-900 dark:text-white">
+          {trip?.source || "Origin"}
+        </h1>
+        <FiArrowRight className="text-xl text-indigo-600" />
+        <h1 className="text-2xl font-bold capitalize text-indigo-600 dark:text-indigo-400">
+          {trip?.destination || "Destination"}
         </h1>
       </div>
 
-      {/* Metadata Badges Strip */}
-      <div className="mt-4 flex flex-wrap items-center gap-2 sm:gap-3 text-xs text-[#57534e] pt-3 border-t border-[#e7e5e4]">
-        <div className="inline-flex items-center gap-1.5 rounded-full bg-[#fafaf9] border border-[#e7e5e4] px-3 py-1 font-medium">
-          <FiCalendar className="text-[#034F46]" />
-          <span>{getDuration(trip) || `${trip.itinerary?.length || 5} Days`}</span>
-        </div>
+      {/* Meta Strip */}
+      <div className="mt-3 flex flex-wrap items-center gap-3 sm:gap-4 text-xs font-medium text-slate-500 dark:text-slate-400 border-t border-slate-100 dark:border-slate-800 pt-3">
+        {durationText && (
+          <div className="flex items-center gap-1.5">
+            <FiCalendar className="text-indigo-600 dark:text-indigo-400" />
+            <span>{durationText}</span>
+          </div>
+        )}
 
-        <div className="inline-flex items-center gap-1.5 rounded-full bg-[#fafaf9] border border-[#e7e5e4] px-3 py-1 font-medium">
-          <FiDollarSign className="text-[#034F46]" />
-          <span>{formatBudget(trip.budget)}</span>
-        </div>
+        {budgetText && (
+          <div className="flex items-center gap-1.5">
+            <FaRupeeSign className="text-indigo-600 dark:text-indigo-400" />
+            <span>{budgetText}</span>
+          </div>
+        )}
 
-        <div className="inline-flex items-center gap-1.5 rounded-full bg-[#fafaf9] border border-[#e7e5e4] px-3 py-1 font-medium">
-          <FiUsers className="text-[#034F46]" />
-          <span>
-            {trip.travelers || 2} Travelers ({trip.tripType || "Leisure"})
-          </span>
-        </div>
+        {travelersCount ? (
+          <div className="flex items-center gap-1.5">
+            <FiUsers className="text-indigo-600 dark:text-indigo-400" />
+            <span>
+              {travelersCount} Travelers{!isCampus && trip?.tripType ? ` (${trip.tripType})` : ""}
+            </span>
+          </div>
+        ) : null}
 
-        <div className="inline-flex items-center gap-1.5 rounded-full bg-[#fafaf9] border border-[#e7e5e4] px-3 py-1 font-medium">
-          {getTransitIcon(trip.travelMode)}
-          <span>{trip.travelMode || "Train"}</span>
-        </div>
+        {trip?.travelMode && (
+          <div className="flex items-center gap-1.5">
+            <span className="text-indigo-600 dark:text-indigo-400">{getTransitIcon(trip.travelMode)}</span>
+            <span>{trip.travelMode}</span>
+          </div>
+        )}
       </div>
     </section>
   );

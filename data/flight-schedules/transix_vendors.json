@@ -1,0 +1,6293 @@
+[
+  {
+    "name": "National Coach Network",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Chandigarh",
+      "Delhi",
+      "Haryana",
+      "Himachal Pradesh",
+      "Jammu and Kashmir",
+      "Ladakh",
+      "Punjab",
+      "Rajasthan",
+      "Uttar Pradesh",
+      "Uttarakhand"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 46,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 50,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 27,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 13,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Himalayan Route Mobility",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Chandigarh",
+      "Delhi",
+      "Haryana",
+      "Himachal Pradesh",
+      "Jammu and Kashmir",
+      "Ladakh",
+      "Maharashtra",
+      "Punjab",
+      "Rajasthan",
+      "Uttar Pradesh",
+      "Uttarakhand"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 32,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 42,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 30,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 17,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Northern Star Coachlines",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Chandigarh",
+      "Delhi",
+      "Haryana",
+      "Himachal Pradesh",
+      "Jammu and Kashmir",
+      "Ladakh",
+      "Punjab",
+      "Rajasthan",
+      "Telangana",
+      "Uttar Pradesh",
+      "Uttarakhand"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 48,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 50,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 27,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 13,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Shivalik Coach Services",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Bihar",
+      "Chandigarh",
+      "Delhi",
+      "Gujarat",
+      "Haryana",
+      "Himachal Pradesh",
+      "Jammu and Kashmir",
+      "Ladakh",
+      "Punjab",
+      "Rajasthan",
+      "Uttar Pradesh",
+      "Uttarakhand"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 42,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 50,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 20,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 17,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Capital Corridor Travels",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Chandigarh",
+      "Delhi",
+      "Haryana",
+      "Himachal Pradesh",
+      "Jammu and Kashmir",
+      "Karnataka",
+      "Ladakh",
+      "Punjab",
+      "Rajasthan",
+      "Tamil Nadu",
+      "Uttar Pradesh",
+      "Uttarakhand",
+      "West Bengal"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 50,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 25,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 18,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Southern Arc Coachlines",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Andhra Pradesh",
+      "Karnataka",
+      "Kerala",
+      "Lakshadweep",
+      "Puducherry",
+      "Tamil Nadu",
+      "Telangana"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 50,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 27,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 17,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Deccan Trail Mobility",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Andhra Pradesh",
+      "Gujarat",
+      "Karnataka",
+      "Kerala",
+      "Lakshadweep",
+      "Puducherry",
+      "Tamil Nadu",
+      "Telangana"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 32,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 50,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 25,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 12,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Malabar Route Services",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Andhra Pradesh",
+      "Assam",
+      "Haryana",
+      "Karnataka",
+      "Kerala",
+      "Lakshadweep",
+      "Puducherry",
+      "Tamil Nadu",
+      "Telangana"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 32,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 50,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 25,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 18,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "STANDARD_NON_AC_BUS",
+        "capacity": 40,
+        "ac": false,
+        "comfort": "STANDARD"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Coromandel Fleet Mobility",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Andhra Pradesh",
+      "Chandigarh",
+      "Chhattisgarh",
+      "Himachal Pradesh",
+      "Karnataka",
+      "Kerala",
+      "Lakshadweep",
+      "Puducherry",
+      "Tamil Nadu",
+      "Telangana"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 32,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 52,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 27,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 13,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Peninsula Coach Network",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Andhra Pradesh",
+      "Delhi",
+      "Goa",
+      "Karnataka",
+      "Kerala",
+      "Lakshadweep",
+      "Manipur",
+      "Odisha",
+      "Puducherry",
+      "Tamil Nadu",
+      "Telangana",
+      "Uttarakhand"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 30,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 18,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Eastern Horizon Coachlines",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Andaman and Nicobar Islands",
+      "Arunachal Pradesh",
+      "Assam",
+      "Bihar",
+      "Chhattisgarh",
+      "Jharkhand",
+      "Manipur",
+      "Meghalaya",
+      "Mizoram",
+      "Nagaland",
+      "Odisha",
+      "Sikkim",
+      "Tripura",
+      "West Bengal"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 42,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 25,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 13,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Ganga Route Mobility",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Andaman and Nicobar Islands",
+      "Arunachal Pradesh",
+      "Assam",
+      "Bihar",
+      "Chhattisgarh",
+      "Delhi",
+      "Jharkhand",
+      "Manipur",
+      "Meghalaya",
+      "Mizoram",
+      "Nagaland",
+      "Odisha",
+      "Sikkim",
+      "Tripura",
+      "West Bengal"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 42,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 50,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 20,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 13,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Brahmaputra Fleet Services",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Andaman and Nicobar Islands",
+      "Arunachal Pradesh",
+      "Assam",
+      "Bihar",
+      "Chhattisgarh",
+      "Jharkhand",
+      "Maharashtra",
+      "Manipur",
+      "Meghalaya",
+      "Mizoram",
+      "Nagaland",
+      "Odisha",
+      "Sikkim",
+      "Tripura",
+      "West Bengal"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 32,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 52,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 30,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 13,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Utkal Coach Network",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Andaman and Nicobar Islands",
+      "Arunachal Pradesh",
+      "Assam",
+      "Bihar",
+      "Chhattisgarh",
+      "Delhi",
+      "Jharkhand",
+      "Kerala",
+      "Manipur",
+      "Meghalaya",
+      "Mizoram",
+      "Nagaland",
+      "Odisha",
+      "Sikkim",
+      "Tripura",
+      "West Bengal"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 42,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 48,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 50,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 27,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 12,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Sunrise Corridor Travels",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Andaman and Nicobar Islands",
+      "Arunachal Pradesh",
+      "Assam",
+      "Bihar",
+      "Chhattisgarh",
+      "Jharkhand",
+      "Madhya Pradesh",
+      "Manipur",
+      "Meghalaya",
+      "Mizoram",
+      "Nagaland",
+      "Odisha",
+      "Puducherry",
+      "Sikkim",
+      "Tripura",
+      "West Bengal"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 32,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 46,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 50,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 25,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 17,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "STANDARD_NON_AC_BUS",
+        "capacity": 50,
+        "ac": false,
+        "comfort": "STANDARD"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Western Coachlines",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Dadra and Nagar Haveli and Daman and Diu",
+      "Goa",
+      "Gujarat",
+      "Madhya Pradesh",
+      "Maharashtra",
+      "Rajasthan",
+      "Tamil Nadu"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 52,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 27,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 12,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Konkan Coast Mobility",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Dadra and Nagar Haveli and Daman and Diu",
+      "Goa",
+      "Gujarat",
+      "Haryana",
+      "Jharkhand",
+      "Madhya Pradesh",
+      "Maharashtra"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 52,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 27,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 13,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Saurashtra Route Services",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Chandigarh",
+      "Dadra and Nagar Haveli and Daman and Diu",
+      "Goa",
+      "Gujarat",
+      "Haryana",
+      "Madhya Pradesh",
+      "Maharashtra",
+      "Tamil Nadu"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 50,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 27,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 18,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Sahyadri Fleet Network",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Andaman and Nicobar Islands",
+      "Chhattisgarh",
+      "Dadra and Nagar Haveli and Daman and Diu",
+      "Goa",
+      "Gujarat",
+      "Madhya Pradesh",
+      "Maharashtra",
+      "Tripura",
+      "Uttar Pradesh"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 42,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 27,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 17,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "STANDARD_NON_AC_BUS",
+        "capacity": 50,
+        "ac": false,
+        "comfort": "STANDARD"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Sabarmati Coach Network",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Andhra Pradesh",
+      "Assam",
+      "Chhattisgarh",
+      "Dadra and Nagar Haveli and Daman and Diu",
+      "Goa",
+      "Gujarat",
+      "Kerala",
+      "Lakshadweep",
+      "Madhya Pradesh",
+      "Maharashtra",
+      "Odisha"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 32,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 25,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 17,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Bharat Fleet Mobility",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Andaman and Nicobar Islands",
+      "Bihar",
+      "Chandigarh",
+      "Delhi",
+      "Gujarat",
+      "Haryana",
+      "Jharkhand",
+      "Karnataka",
+      "Ladakh",
+      "Nagaland",
+      "Puducherry",
+      "Punjab",
+      "Rajasthan",
+      "Sikkim",
+      "Telangana",
+      "Uttar Pradesh"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 32,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 50,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 20,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 17,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Horizon Coach Services",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Andhra Pradesh",
+      "Assam",
+      "Goa",
+      "Gujarat",
+      "Jharkhand",
+      "Karnataka",
+      "Lakshadweep",
+      "Madhya Pradesh",
+      "Odisha",
+      "Uttar Pradesh"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 32,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 42,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 50,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 20,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 13,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Royal Route Mobility",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Delhi",
+      "Goa",
+      "Kerala",
+      "Maharashtra",
+      "Punjab",
+      "Telangana",
+      "Uttarakhand"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 32,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 46,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 52,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 25,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 13,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "MetroLink Tourist Transport",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Bihar",
+      "Goa",
+      "Karnataka",
+      "Madhya Pradesh",
+      "Odisha",
+      "Puducherry",
+      "Rajasthan",
+      "Telangana",
+      "Uttarakhand",
+      "West Bengal"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 32,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 50,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 25,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 13,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Aravali Tourist Coaches",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Assam",
+      "Bihar",
+      "Delhi",
+      "Gujarat",
+      "Karnataka",
+      "Kerala",
+      "Maharashtra",
+      "Rajasthan",
+      "Telangana",
+      "Tripura"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 50,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 30,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 12,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Vindhya Travel Fleet",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Delhi",
+      "Gujarat",
+      "Karnataka",
+      "Lakshadweep",
+      "Maharashtra",
+      "Rajasthan",
+      "Telangana"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 52,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 30,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 17,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Nilgiri Coach Lines",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Assam",
+      "Chhattisgarh",
+      "Dadra and Nagar Haveli and Daman and Diu",
+      "Gujarat",
+      "Jharkhand",
+      "Madhya Pradesh",
+      "Maharashtra",
+      "Tamil Nadu",
+      "Telangana"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 50,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 25,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 18,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Sundarban Route Services",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Assam",
+      "Delhi",
+      "Gujarat",
+      "Himachal Pradesh",
+      "Jammu and Kashmir",
+      "Lakshadweep",
+      "Madhya Pradesh",
+      "Maharashtra",
+      "Odisha",
+      "Rajasthan",
+      "Tamil Nadu",
+      "Uttar Pradesh"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 50,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 20,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 13,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Konark Fleet Mobility",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Goa",
+      "Gujarat",
+      "Karnataka",
+      "Kerala",
+      "Maharashtra",
+      "Meghalaya",
+      "Odisha",
+      "Punjab",
+      "Rajasthan",
+      "Sikkim",
+      "Telangana",
+      "Uttar Pradesh"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 52,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 25,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 13,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Charminar Coach Network",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Assam",
+      "Dadra and Nagar Haveli and Daman and Diu",
+      "Delhi",
+      "Gujarat",
+      "Haryana",
+      "Jammu and Kashmir",
+      "Karnataka",
+      "Kerala",
+      "Manipur",
+      "Odisha",
+      "Rajasthan",
+      "Sikkim",
+      "Telangana"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 46,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 52,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 25,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 18,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Kaveri Luxury Coaches",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Chhattisgarh",
+      "Gujarat",
+      "Haryana",
+      "Kerala",
+      "Madhya Pradesh",
+      "Nagaland",
+      "Odisha",
+      "Punjab",
+      "Rajasthan",
+      "Tamil Nadu"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 32,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 52,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 27,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 12,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "STANDARD_NON_AC_BUS",
+        "capacity": 45,
+        "ac": false,
+        "comfort": "STANDARD"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Tungabhadra Travel Services",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Arunachal Pradesh",
+      "Dadra and Nagar Haveli and Daman and Diu",
+      "Haryana",
+      "Karnataka",
+      "Kerala",
+      "Maharashtra",
+      "Tripura",
+      "Uttar Pradesh"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 32,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 50,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 20,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 17,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Narmada Coach Mobility",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Bihar",
+      "Goa",
+      "Gujarat",
+      "Kerala",
+      "Maharashtra",
+      "Meghalaya",
+      "Tamil Nadu",
+      "Telangana",
+      "West Bengal"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 52,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 27,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 18,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Godavari Route Lines",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Andaman and Nicobar Islands",
+      "Delhi",
+      "Goa",
+      "Haryana",
+      "Karnataka",
+      "Kerala",
+      "Maharashtra",
+      "Punjab",
+      "Sikkim",
+      "Tamil Nadu",
+      "Tripura",
+      "Uttarakhand"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 48,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 50,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 30,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 17,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "STANDARD_NON_AC_BUS",
+        "capacity": 40,
+        "ac": false,
+        "comfort": "STANDARD"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Yamuna Corridor Coaches",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Bihar",
+      "Chhattisgarh",
+      "Dadra and Nagar Haveli and Daman and Diu",
+      "Delhi",
+      "Gujarat",
+      "Maharashtra",
+      "Punjab",
+      "Rajasthan",
+      "Telangana",
+      "Uttar Pradesh",
+      "West Bengal"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 32,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 42,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 52,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 27,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 12,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": false,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Trident Tourist Transport",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Delhi",
+      "Gujarat",
+      "Kerala",
+      "Madhya Pradesh",
+      "Manipur",
+      "Rajasthan",
+      "Telangana",
+      "Tripura",
+      "Uttar Pradesh"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 32,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 50,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 20,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 17,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Pinnacle Fleet Services",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Gujarat",
+      "Kerala",
+      "Lakshadweep",
+      "Maharashtra",
+      "Manipur",
+      "Telangana",
+      "West Bengal"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 46,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 50,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 27,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 12,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "STANDARD_NON_AC_BUS",
+        "capacity": 40,
+        "ac": false,
+        "comfort": "STANDARD"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Crown Route Travels",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Assam",
+      "Chhattisgarh",
+      "Delhi",
+      "Goa",
+      "Karnataka",
+      "Rajasthan",
+      "Sikkim",
+      "Tamil Nadu",
+      "Telangana",
+      "Uttar Pradesh",
+      "Uttarakhand",
+      "West Bengal"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 50,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 27,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 12,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "STANDARD_NON_AC_BUS",
+        "capacity": 40,
+        "ac": false,
+        "comfort": "STANDARD"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Zenith Coach Mobility",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Andhra Pradesh",
+      "Assam",
+      "Dadra and Nagar Haveli and Daman and Diu",
+      "Goa",
+      "Jammu and Kashmir",
+      "Karnataka",
+      "Maharashtra",
+      "Odisha",
+      "Punjab",
+      "Rajasthan",
+      "Tamil Nadu",
+      "Telangana",
+      "Tripura",
+      "Uttar Pradesh",
+      "West Bengal"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 42,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 46,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 50,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 25,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 12,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "STANDARD_NON_AC_BUS",
+        "capacity": 50,
+        "ac": false,
+        "comfort": "STANDARD"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Meridian Tourist Lines",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Andaman and Nicobar Islands",
+      "Assam",
+      "Jammu and Kashmir",
+      "Karnataka",
+      "Ladakh",
+      "Tamil Nadu",
+      "Telangana"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 32,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 50,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 25,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 13,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Lotus Coach Services",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Chandigarh",
+      "Goa",
+      "Gujarat",
+      "Haryana",
+      "Lakshadweep",
+      "Maharashtra",
+      "Manipur",
+      "Mizoram",
+      "Odisha",
+      "Puducherry",
+      "Telangana",
+      "Uttar Pradesh"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 42,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 52,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 25,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 12,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Mayur Fleet Mobility",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Andhra Pradesh",
+      "Assam",
+      "Goa",
+      "Gujarat",
+      "Haryana",
+      "Himachal Pradesh",
+      "Jharkhand",
+      "Karnataka",
+      "Mizoram",
+      "Tamil Nadu",
+      "Telangana",
+      "Uttarakhand"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 46,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 50,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 30,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 18,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Rajdhani Tourist Coaches",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Dadra and Nagar Haveli and Daman and Diu",
+      "Delhi",
+      "Kerala",
+      "Madhya Pradesh",
+      "Maharashtra",
+      "Manipur",
+      "Nagaland",
+      "Puducherry",
+      "Rajasthan",
+      "Sikkim"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 42,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 25,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 12,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "STANDARD_NON_AC_BUS",
+        "capacity": 40,
+        "ac": false,
+        "comfort": "STANDARD"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Vayu Route Travels",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Bihar",
+      "Chandigarh",
+      "Gujarat",
+      "Haryana",
+      "Karnataka",
+      "Maharashtra",
+      "Rajasthan",
+      "Tamil Nadu",
+      "West Bengal"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 32,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 50,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 27,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 18,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "STANDARD_NON_AC_BUS",
+        "capacity": 45,
+        "ac": false,
+        "comfort": "STANDARD"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Prime Meridian Coaches",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Assam",
+      "Bihar",
+      "Goa",
+      "Himachal Pradesh",
+      "Ladakh",
+      "Madhya Pradesh",
+      "Manipur",
+      "Odisha",
+      "Telangana",
+      "Uttarakhand"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 32,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 50,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 27,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 17,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "STANDARD_NON_AC_BUS",
+        "capacity": 40,
+        "ac": false,
+        "comfort": "STANDARD"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Sagar Tourist Fleet",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Andhra Pradesh",
+      "Delhi",
+      "Goa",
+      "Gujarat",
+      "Himachal Pradesh",
+      "Jammu and Kashmir",
+      "Karnataka",
+      "Maharashtra",
+      "Meghalaya",
+      "West Bengal"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 32,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 46,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 50,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 20,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 18,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Trishul Coach Network",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Delhi",
+      "Jharkhand",
+      "Karnataka",
+      "Madhya Pradesh",
+      "Maharashtra",
+      "Odisha",
+      "Puducherry",
+      "Uttarakhand",
+      "West Bengal"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 32,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 42,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 48,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 50,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 25,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 17,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Kohinoor Route Mobility",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Bihar",
+      "Chandigarh",
+      "Dadra and Nagar Haveli and Daman and Diu",
+      "Gujarat",
+      "Jharkhand",
+      "Karnataka",
+      "Kerala",
+      "Punjab",
+      "Tamil Nadu",
+      "Uttarakhand",
+      "West Bengal"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 32,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 52,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 20,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 18,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Tarang Fleet Services",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Andaman and Nicobar Islands",
+      "Arunachal Pradesh",
+      "Dadra and Nagar Haveli and Daman and Diu",
+      "Delhi",
+      "Goa",
+      "Karnataka",
+      "Kerala",
+      "Nagaland",
+      "Odisha",
+      "West Bengal"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 32,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 50,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 27,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 18,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "STANDARD_NON_AC_BUS",
+        "capacity": 45,
+        "ac": false,
+        "comfort": "STANDARD"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Indus Trail Coaches",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Chhattisgarh",
+      "Haryana",
+      "Karnataka",
+      "Telangana",
+      "Uttar Pradesh",
+      "Uttarakhand",
+      "West Bengal"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 46,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 52,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 25,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 12,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Heritage Highway Mobility",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Chhattisgarh",
+      "Delhi",
+      "Goa",
+      "Gujarat",
+      "Maharashtra",
+      "Punjab",
+      "West Bengal"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 46,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 50,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 20,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 18,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Sapphire Coach Lines",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Assam",
+      "Delhi",
+      "Goa",
+      "Kerala",
+      "Maharashtra",
+      "Meghalaya",
+      "Odisha",
+      "Rajasthan",
+      "Sikkim",
+      "Tamil Nadu",
+      "West Bengal"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 42,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 50,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 25,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 13,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "STANDARD_NON_AC_BUS",
+        "capacity": 40,
+        "ac": false,
+        "comfort": "STANDARD"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Evergreen Tourist Transport",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Goa",
+      "Himachal Pradesh",
+      "Kerala",
+      "Madhya Pradesh",
+      "Puducherry",
+      "Tamil Nadu",
+      "Uttar Pradesh",
+      "Uttarakhand"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 52,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 25,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 17,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Ambar Fleet Network",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Delhi",
+      "Goa",
+      "Haryana",
+      "Karnataka",
+      "Maharashtra",
+      "Mizoram",
+      "Sikkim",
+      "Tamil Nadu",
+      "Uttar Pradesh"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 32,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 50,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 25,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 17,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Silverline Coach Mobility",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Delhi",
+      "Karnataka",
+      "Madhya Pradesh",
+      "Odisha",
+      "Rajasthan",
+      "Sikkim",
+      "Tamil Nadu"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 32,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 50,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 27,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 13,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Jubilee Route Services",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Andhra Pradesh",
+      "Assam",
+      "Bihar",
+      "Delhi",
+      "Goa",
+      "Jammu and Kashmir",
+      "Maharashtra",
+      "Nagaland",
+      "Puducherry",
+      "Uttar Pradesh"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 50,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 30,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 12,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": false,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Orion Tourist Fleet",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Assam",
+      "Bihar",
+      "Goa",
+      "Himachal Pradesh",
+      "Kerala",
+      "Maharashtra",
+      "Mizoram",
+      "Rajasthan",
+      "Sikkim",
+      "Uttar Pradesh"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 32,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 42,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 20,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 13,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Meghdoot Coach Network",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Arunachal Pradesh",
+      "Dadra and Nagar Haveli and Daman and Diu",
+      "Delhi",
+      "Gujarat",
+      "Himachal Pradesh",
+      "Jammu and Kashmir",
+      "Karnataka",
+      "Tamil Nadu",
+      "West Bengal"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 20,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 12,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "STANDARD_NON_AC_BUS",
+        "capacity": 40,
+        "ac": false,
+        "comfort": "STANDARD"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Sarathi Fleet Mobility",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Assam",
+      "Delhi",
+      "Goa",
+      "Karnataka",
+      "Kerala",
+      "Maharashtra",
+      "Manipur",
+      "Telangana",
+      "Uttar Pradesh",
+      "West Bengal"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 27,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 13,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Gulmohar Travel Lines",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Andhra Pradesh",
+      "Bihar",
+      "Gujarat",
+      "Haryana",
+      "Himachal Pradesh",
+      "Karnataka",
+      "Maharashtra",
+      "Odisha"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 20,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 13,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "STANDARD_NON_AC_BUS",
+        "capacity": 50,
+        "ac": false,
+        "comfort": "STANDARD"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Kailash Route Coaches",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Andhra Pradesh",
+      "Assam",
+      "Delhi",
+      "Goa",
+      "Gujarat",
+      "Himachal Pradesh",
+      "Kerala",
+      "Madhya Pradesh",
+      "Maharashtra",
+      "Odisha",
+      "Rajasthan",
+      "Tamil Nadu",
+      "West Bengal"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 27,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 13,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "STANDARD_NON_AC_BUS",
+        "capacity": 50,
+        "ac": false,
+        "comfort": "STANDARD"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Udaan Fleet Services",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Chandigarh",
+      "Goa",
+      "Gujarat",
+      "Jammu and Kashmir",
+      "Kerala",
+      "Maharashtra",
+      "Telangana",
+      "Uttar Pradesh"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 32,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 42,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 46,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 52,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 20,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 17,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": false,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Bluewave Coach Mobility",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Bihar",
+      "Dadra and Nagar Haveli and Daman and Diu",
+      "Delhi",
+      "Karnataka",
+      "Kerala",
+      "Maharashtra",
+      "Puducherry",
+      "Rajasthan",
+      "Sikkim",
+      "West Bengal"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 52,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 30,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 17,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Amber Route Travels",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Arunachal Pradesh",
+      "Assam",
+      "Bihar",
+      "Chandigarh",
+      "Delhi",
+      "Goa",
+      "Gujarat",
+      "Tamil Nadu",
+      "Telangana"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 42,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 48,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 52,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 30,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 13,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Compass Coach Network",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Andhra Pradesh",
+      "Dadra and Nagar Haveli and Daman and Diu",
+      "Delhi",
+      "Goa",
+      "Haryana",
+      "Himachal Pradesh",
+      "Karnataka",
+      "Mizoram",
+      "Odisha",
+      "Tamil Nadu",
+      "Uttarakhand"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 32,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 42,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 48,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 50,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 30,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 17,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Skyline Tourist Coaches",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Andhra Pradesh",
+      "Assam",
+      "Delhi",
+      "Goa",
+      "Gujarat",
+      "Himachal Pradesh",
+      "Kerala",
+      "Punjab",
+      "Rajasthan",
+      "Uttar Pradesh",
+      "West Bengal"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 46,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 50,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 27,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 13,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Panchvati Fleet Services",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Assam",
+      "Goa",
+      "Karnataka",
+      "Maharashtra",
+      "Sikkim",
+      "Telangana",
+      "Uttar Pradesh",
+      "Uttarakhand",
+      "West Bengal"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 48,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 50,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 20,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 12,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Ekta Route Mobility",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Andhra Pradesh",
+      "Assam",
+      "Bihar",
+      "Dadra and Nagar Haveli and Daman and Diu",
+      "Delhi",
+      "Gujarat",
+      "Punjab",
+      "Sikkim",
+      "Telangana"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 42,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 46,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 50,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 20,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 18,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "STANDARD_NON_AC_BUS",
+        "capacity": 45,
+        "ac": false,
+        "comfort": "STANDARD"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Milestone Coach Lines",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Andhra Pradesh",
+      "Assam",
+      "Bihar",
+      "Delhi",
+      "Goa",
+      "Gujarat",
+      "Haryana",
+      "Karnataka",
+      "Lakshadweep",
+      "Maharashtra",
+      "Manipur",
+      "Meghalaya",
+      "Uttarakhand",
+      "West Bengal"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 46,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 50,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 30,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 18,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "STANDARD_NON_AC_BUS",
+        "capacity": 45,
+        "ac": false,
+        "comfort": "STANDARD"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Suryoday Tourist Transport",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Delhi",
+      "Goa",
+      "Gujarat",
+      "Karnataka",
+      "Odisha",
+      "Punjab",
+      "Rajasthan",
+      "Tamil Nadu",
+      "West Bengal"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 42,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 50,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 30,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 12,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Navrang Fleet Mobility",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Andhra Pradesh",
+      "Goa",
+      "Gujarat",
+      "Maharashtra",
+      "Manipur",
+      "Punjab",
+      "Sikkim",
+      "Tamil Nadu",
+      "Uttar Pradesh",
+      "West Bengal"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 42,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 52,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 20,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 17,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "STANDARD_NON_AC_BUS",
+        "capacity": 40,
+        "ac": false,
+        "comfort": "STANDARD"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Chandni Coach Services",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Arunachal Pradesh",
+      "Assam",
+      "Chandigarh",
+      "Delhi",
+      "Goa",
+      "Gujarat",
+      "Himachal Pradesh",
+      "Madhya Pradesh",
+      "Maharashtra",
+      "Puducherry",
+      "Rajasthan",
+      "Telangana",
+      "West Bengal"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 50,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 27,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 17,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Prayag Route Lines",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Assam",
+      "Goa",
+      "Haryana",
+      "Maharashtra",
+      "Puducherry",
+      "Tamil Nadu",
+      "Telangana",
+      "Uttar Pradesh",
+      "West Bengal"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 42,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 46,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 52,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 30,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 13,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Seven Hills Coachlines",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Andhra Pradesh",
+      "Assam",
+      "Bihar",
+      "Gujarat",
+      "Himachal Pradesh",
+      "Karnataka",
+      "Madhya Pradesh",
+      "Uttar Pradesh"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 27,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 12,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Lakshya Fleet Network",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Delhi",
+      "Goa",
+      "Gujarat",
+      "Haryana",
+      "Jammu and Kashmir",
+      "Kerala",
+      "Madhya Pradesh",
+      "Meghalaya",
+      "Nagaland",
+      "Odisha",
+      "Punjab",
+      "Rajasthan",
+      "Tamil Nadu",
+      "Uttar Pradesh",
+      "West Bengal"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 52,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 30,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 12,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Rudra Coach Mobility",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Andhra Pradesh",
+      "Assam",
+      "Chandigarh",
+      "Gujarat",
+      "Himachal Pradesh",
+      "Kerala",
+      "Maharashtra",
+      "Mizoram",
+      "Puducherry",
+      "Punjab",
+      "Rajasthan",
+      "Sikkim",
+      "Telangana",
+      "Uttar Pradesh"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 50,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 25,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 13,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Vihaan Tourist Fleet",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Andaman and Nicobar Islands",
+      "Goa",
+      "Gujarat",
+      "Jharkhand",
+      "Lakshadweep",
+      "Maharashtra",
+      "Odisha",
+      "Rajasthan",
+      "Uttar Pradesh"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 42,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 52,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 30,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 12,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Darpan Route Services",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Goa",
+      "Maharashtra",
+      "Mizoram",
+      "Nagaland",
+      "Rajasthan",
+      "Sikkim",
+      "Telangana",
+      "Uttarakhand",
+      "West Bengal"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 42,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 20,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 18,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Aakash Coach Network",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Andhra Pradesh",
+      "Assam",
+      "Delhi",
+      "Gujarat",
+      "Haryana",
+      "Jharkhand",
+      "Maharashtra",
+      "Tamil Nadu"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 25,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 18,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Yatra Mitra Coach Services",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Chandigarh",
+      "Goa",
+      "Himachal Pradesh",
+      "Kerala",
+      "Maharashtra",
+      "Manipur",
+      "Mizoram",
+      "Tamil Nadu",
+      "Telangana",
+      "Uttar Pradesh",
+      "West Bengal"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 42,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 25,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 12,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Safarnama Fleet Mobility",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Andhra Pradesh",
+      "Delhi",
+      "Karnataka",
+      "Kerala",
+      "Nagaland",
+      "Sikkim",
+      "Telangana",
+      "Tripura",
+      "Uttarakhand"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 25,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 18,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Padma Route Coaches",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Andhra Pradesh",
+      "Chhattisgarh",
+      "Delhi",
+      "Karnataka",
+      "Kerala",
+      "Madhya Pradesh",
+      "Maharashtra",
+      "Odisha",
+      "Punjab",
+      "Rajasthan",
+      "Telangana",
+      "Uttar Pradesh",
+      "West Bengal"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 32,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 42,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 48,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 50,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 30,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 12,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Kanchan Tourist Transport",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Delhi",
+      "Goa",
+      "Kerala",
+      "Maharashtra",
+      "Mizoram",
+      "Rajasthan",
+      "Tamil Nadu",
+      "West Bengal"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 52,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 20,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 13,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Vaishali Coach Network",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Andhra Pradesh",
+      "Assam",
+      "Delhi",
+      "Goa",
+      "Karnataka",
+      "Rajasthan",
+      "West Bengal"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 32,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 20,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 18,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "STANDARD_NON_AC_BUS",
+        "capacity": 45,
+        "ac": false,
+        "comfort": "STANDARD"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Mandakini Fleet Services",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Assam",
+      "Bihar",
+      "Gujarat",
+      "Maharashtra",
+      "Odisha",
+      "Punjab",
+      "Rajasthan",
+      "West Bengal"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 48,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 50,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 27,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 17,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Trailblazer Coach Mobility",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Andhra Pradesh",
+      "Assam",
+      "Delhi",
+      "Goa",
+      "Gujarat",
+      "Haryana",
+      "Karnataka",
+      "Odisha",
+      "Punjab",
+      "Telangana",
+      "West Bengal"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 50,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 30,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 18,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Sanchi Route Lines",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Andhra Pradesh",
+      "Assam",
+      "Gujarat",
+      "Himachal Pradesh",
+      "Jharkhand",
+      "Madhya Pradesh",
+      "Odisha",
+      "Rajasthan",
+      "Tamil Nadu",
+      "Telangana",
+      "Uttarakhand",
+      "West Bengal"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 50,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 25,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 13,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Harmony Tourist Coaches",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Bihar",
+      "Chandigarh",
+      "Delhi",
+      "Kerala",
+      "Maharashtra",
+      "Manipur",
+      "Punjab",
+      "Rajasthan",
+      "Tamil Nadu",
+      "Telangana",
+      "Tripura",
+      "Uttar Pradesh"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 52,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 30,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 17,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Ujjwal Fleet Network",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Bihar",
+      "Chhattisgarh",
+      "Goa",
+      "Jammu and Kashmir",
+      "Kerala",
+      "Maharashtra",
+      "Rajasthan",
+      "Telangana",
+      "Uttar Pradesh",
+      "West Bengal"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 32,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 50,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 25,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 18,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "STANDARD_NON_AC_BUS",
+        "capacity": 40,
+        "ac": false,
+        "comfort": "STANDARD"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Avani Coach Mobility",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Delhi",
+      "Goa",
+      "Gujarat",
+      "Himachal Pradesh",
+      "Karnataka",
+      "Kerala",
+      "Madhya Pradesh",
+      "Maharashtra",
+      "Manipur",
+      "Nagaland",
+      "Rajasthan",
+      "Tamil Nadu",
+      "Uttar Pradesh",
+      "Uttarakhand",
+      "West Bengal"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 42,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 52,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 30,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 17,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "STANDARD_NON_AC_BUS",
+        "capacity": 45,
+        "ac": false,
+        "comfort": "STANDARD"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Cardinal Route Services",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Andaman and Nicobar Islands",
+      "Andhra Pradesh",
+      "Jammu and Kashmir",
+      "Lakshadweep",
+      "Telangana",
+      "Uttar Pradesh",
+      "West Bengal"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 32,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 42,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 50,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 20,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 12,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Ridgeway Tourist Fleet",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Andhra Pradesh",
+      "Assam",
+      "Bihar",
+      "Chhattisgarh",
+      "Dadra and Nagar Haveli and Daman and Diu",
+      "Jammu and Kashmir",
+      "Karnataka",
+      "Kerala",
+      "Maharashtra",
+      "Rajasthan",
+      "Tamil Nadu",
+      "Uttar Pradesh",
+      "Uttarakhand",
+      "West Bengal"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 42,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 46,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 50,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 30,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 12,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "STANDARD_NON_AC_BUS",
+        "capacity": 40,
+        "ac": false,
+        "comfort": "STANDARD"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Sahaj Coach Lines",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Andhra Pradesh",
+      "Chhattisgarh",
+      "Goa",
+      "Haryana",
+      "Himachal Pradesh",
+      "Jharkhand",
+      "Ladakh",
+      "Madhya Pradesh",
+      "Maharashtra",
+      "Tamil Nadu",
+      "Uttar Pradesh"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 32,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 50,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 20,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 12,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Nexus Route Mobility",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Arunachal Pradesh",
+      "Assam",
+      "Gujarat",
+      "Maharashtra",
+      "Punjab",
+      "Tamil Nadu",
+      "Telangana",
+      "Uttar Pradesh",
+      "West Bengal"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 32,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 50,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 27,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 17,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Firdaus Tourist Transport",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Assam",
+      "Chhattisgarh",
+      "Goa",
+      "Himachal Pradesh",
+      "Jammu and Kashmir",
+      "Karnataka",
+      "Kerala",
+      "Rajasthan",
+      "Tamil Nadu",
+      "West Bengal"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 50,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 30,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 12,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": false,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Mahanadi Route Services",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Assam",
+      "Delhi",
+      "Goa",
+      "Jharkhand",
+      "Karnataka",
+      "Madhya Pradesh",
+      "Maharashtra",
+      "Manipur",
+      "Rajasthan",
+      "Sikkim",
+      "Telangana"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 50,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 30,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 17,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "STANDARD_NON_AC_BUS",
+        "capacity": 40,
+        "ac": false,
+        "comfort": "STANDARD"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Kanha Fleet Mobility",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Delhi",
+      "Goa",
+      "Himachal Pradesh",
+      "Jammu and Kashmir",
+      "Karnataka",
+      "Kerala",
+      "Madhya Pradesh",
+      "Odisha",
+      "Sikkim",
+      "Tamil Nadu",
+      "West Bengal"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 42,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 27,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 12,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Ashwa Tourist Coaches",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Andhra Pradesh",
+      "Bihar",
+      "Dadra and Nagar Haveli and Daman and Diu",
+      "Maharashtra",
+      "Punjab",
+      "Rajasthan",
+      "Telangana",
+      "West Bengal"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 35,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 45,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 25,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 12,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "STANDARD_NON_AC_BUS",
+        "capacity": 40,
+        "ac": false,
+        "comfort": "STANDARD"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Golden Quadrilateral Coach Lines",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Delhi",
+      "Goa",
+      "Gujarat",
+      "Himachal Pradesh",
+      "Karnataka",
+      "Kerala",
+      "Manipur",
+      "Odisha",
+      "Rajasthan",
+      "West Bengal"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 32,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 48,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 50,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 30,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 13,
+        "ac": true,
+        "comfort": "COMFORT"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": false,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  },
+  {
+    "name": "Bharat Yatra Fleet Services",
+    "status": "CONNECTED",
+    "source": "DEMO_ONBOARDED_VENDOR",
+    "serviceStates": [
+      "Arunachal Pradesh",
+      "Dadra and Nagar Haveli and Daman and Diu",
+      "Delhi",
+      "Goa",
+      "Gujarat",
+      "Jammu and Kashmir",
+      "Karnataka",
+      "Kerala",
+      "Ladakh",
+      "Madhya Pradesh",
+      "Mizoram",
+      "Rajasthan",
+      "Sikkim",
+      "Uttar Pradesh"
+    ],
+    "fleet": [
+      {
+        "category": "STANDARD_AC_BUS",
+        "capacity": 32,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "COMFORT_AC_BUS",
+        "capacity": 40,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "LUXURY_AC_COACH",
+        "capacity": 46,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "LARGE_COACH",
+        "capacity": 50,
+        "ac": true,
+        "comfort": "LUXURY"
+      },
+      {
+        "category": "MINI_BUS",
+        "capacity": 25,
+        "ac": true,
+        "comfort": "STANDARD"
+      },
+      {
+        "category": "TEMPO_TRAVELLER",
+        "capacity": 17,
+        "ac": true,
+        "comfort": "COMFORT"
+      },
+      {
+        "category": "STANDARD_NON_AC_BUS",
+        "capacity": 45,
+        "ac": false,
+        "comfort": "STANDARD"
+      }
+    ],
+    "capabilities": {
+      "intercity": true,
+      "multiDay": true,
+      "groupTransport": true,
+      "driverIncluded": true
+    }
+  }
+]
