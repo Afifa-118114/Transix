@@ -1,13 +1,10 @@
 import { useState } from "react";
 import { registerUser } from "../../api/authApi";
 import { useNavigate, Link } from "react-router-dom";
-import { FiSun, FiMoon } from "react-icons/fi";
-import { useTheme } from "../../context/ThemeContext";
 import toast from "react-hot-toast";
 
 export default function RegisterForm() {
   const navigate = useNavigate();
-  const { isDark, toggleTheme } = useTheme();
 
   const [form, setForm] = useState({
     name: "",
@@ -36,7 +33,7 @@ export default function RegisterForm() {
       setLoading(true);
       setErrorMsg("");
       await registerUser(form);
-      toast.success("Account created! Please sign in.", { icon: "🎉" });
+      toast.success("Account created. Please sign in.");
       navigate("/login");
     } catch (err) {
       const msg = err.response?.data?.message || "Registration failed. Please try again.";
@@ -48,105 +45,133 @@ export default function RegisterForm() {
   };
 
   return (
-    <div className="relative flex min-h-screen w-full items-center justify-center px-4 py-8 bg-[#f8faff] dark:bg-[#0b0f19] transition-colors duration-200">
-      {/* Top Floating Theme Toggle */}
-      <button
-        onClick={toggleTheme}
-        type="button"
-        title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
-        className="absolute top-6 right-6 flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131b2e] text-slate-600 dark:text-slate-300 shadow-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition"
-      >
-        {isDark ? <FiSun className="text-lg text-amber-400" /> : <FiMoon className="text-lg text-slate-700" />}
-      </button>
+    <div className="relative flex min-h-screen w-full items-center justify-center overflow-hidden bg-[#f5f5f5] px-4 py-12 font-sans antialiased selection:bg-[#f4c5a8]/40 selection:text-[#0c0a09]">
+      {/* Atmospheric Pastel Gradient Orbs (Tokens from design.md: mint, peach, lavender, sky, rose) */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -top-24 -left-20 h-[380px] w-[380px] rounded-full bg-[#a7e5d3] opacity-45 blur-[100px] transition-all duration-1000"
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute top-1/4 -right-28 h-[420px] w-[420px] rounded-full bg-[#f4c5a8] opacity-40 blur-[110px] transition-all duration-1000"
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -bottom-32 left-1/3 h-[400px] w-[400px] rounded-full bg-[#c8b8e0] opacity-45 blur-[120px] transition-all duration-1000"
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute bottom-1/4 -left-24 h-[320px] w-[320px] rounded-full bg-[#a8c8e8] opacity-35 blur-[95px] transition-all duration-1000"
+      />
 
-      <form
-        onSubmit={handleSubmit}
-        className="w-full max-w-md rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-[#131b2e] p-6 sm:p-8 shadow-sm dark:shadow-2xl flex flex-col transition-colors duration-200"
-      >
-        <div className="flex flex-col items-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-50 dark:bg-indigo-950/70 border border-indigo-100 dark:border-indigo-800/60 text-xl font-black text-indigo-600 dark:text-indigo-400">
-            T
-          </div>
-          <h1 className="mt-3 text-center text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white">
-            Create your Transix account
+      {/* Main Registration Card */}
+      <div className="relative z-10 w-full max-w-[440px] rounded-[16px] border border-[#e7e5e4] bg-[#ffffff] p-8 sm:p-10 shadow-[0_4px_16px_rgba(0,0,0,0.04)]">
+        {/* Editorial Header */}
+        <div className="flex flex-col items-center text-center">
+          <h1
+            style={{ fontFamily: "'EB Garamond', Georgia, serif" }}
+            className="text-[32px] font-[300] leading-[1.13] tracking-[-0.32px] text-[#0c0a09]"
+          >
+            Create your account
           </h1>
-          <p className="mt-1 text-center text-xs text-slate-500 dark:text-slate-400">
-            Start planning smarter trips with AI intelligence
+
+          <p className="mt-2.5 max-w-[320px] text-[15px] font-[400] leading-[1.47] tracking-[0.16px] text-[#777169]">
+            Intelligent journeys crafted with precision and quiet editorial calm.
           </p>
         </div>
 
+        {/* Validation / Error Banner */}
         {errorMsg && (
-          <div className="mt-4 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800/60 p-2.5 text-xs font-bold text-rose-700 dark:text-rose-300 text-center">
-            {errorMsg}
+          <div className="mt-6 flex items-center rounded-lg border border-[#fca5a5] bg-[#fef2f2] px-3.5 py-2.5 text-[13px] text-[#dc2626]">
+            <span>{errorMsg}</span>
           </div>
         )}
 
-        <div className="mt-6 flex flex-col gap-4">
-          <div>
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 mb-1">
-              Full Name
+        {/* Registration Form */}
+        <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-5">
+          {/* Full Name */}
+          <div className="flex flex-col gap-1.5">
+            <label
+              htmlFor="name"
+              className="text-[13px] font-medium tracking-[0.15px] text-[#292524]"
+            >
+              Full name
             </label>
             <input
+              id="name"
               name="name"
               type="text"
               value={form.name}
-              placeholder="e.g. Alex Johnson"
+              placeholder="e.g. Alex Hastings"
               onChange={handleChange}
               required
-              className="w-full rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50/50 dark:bg-[#1a233a] px-3.5 py-2.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 outline-none transition focus:border-indigo-500 focus:bg-white dark:focus:bg-[#1f2a45] focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-900/40"
+              className="h-11 w-full rounded-[8px] border border-[#d6d3d1] bg-[#ffffff] px-4 text-[15px] text-[#0c0a09] placeholder-[#a8a29e] transition-colors focus:border-[#0c0a09] focus:outline-none"
             />
           </div>
 
-          <div>
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 mb-1">
-              Email Address
+          {/* Email Address */}
+          <div className="flex flex-col gap-1.5">
+            <label
+              htmlFor="email"
+              className="text-[13px] font-medium tracking-[0.15px] text-[#292524]"
+            >
+              Email address
             </label>
             <input
+              id="email"
               name="email"
               type="email"
               value={form.email}
-              placeholder="e.g. alex@example.com"
+              placeholder="alex@domain.com"
               onChange={handleChange}
               required
-              className="w-full rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50/50 dark:bg-[#1a233a] px-3.5 py-2.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 outline-none transition focus:border-indigo-500 focus:bg-white dark:focus:bg-[#1f2a45] focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-900/40"
+              className="h-11 w-full rounded-[8px] border border-[#d6d3d1] bg-[#ffffff] px-4 text-[15px] text-[#0c0a09] placeholder-[#a8a29e] transition-colors focus:border-[#0c0a09] focus:outline-none"
             />
           </div>
 
-          <div>
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 mb-1">
+          {/* Password */}
+          <div className="flex flex-col gap-1.5">
+            <label
+              htmlFor="password"
+              className="text-[13px] font-medium tracking-[0.15px] text-[#292524]"
+            >
               Password
             </label>
             <input
-              type="password"
+              id="password"
               name="password"
+              type="password"
               value={form.password}
-              placeholder="Create a password"
+              placeholder="••••••••••••"
               onChange={handleChange}
               required
-              className="w-full rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50/50 dark:bg-[#1a233a] px-3.5 py-2.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 outline-none transition focus:border-indigo-500 focus:bg-white dark:focus:bg-[#1f2a45] focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-900/40"
+              className="h-11 w-full rounded-[8px] border border-[#d6d3d1] bg-[#ffffff] px-4 text-[15px] text-[#0c0a09] placeholder-[#a8a29e] transition-colors focus:border-[#0c0a09] focus:outline-none"
             />
           </div>
 
+          {/* Primary CTA Button (Ink Pill) */}
           <button
             type="submit"
             disabled={loading}
-            className="mt-2 w-full rounded-xl bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-500 py-2.5 text-xs font-bold text-white shadow-xs transition active:scale-98 disabled:opacity-60"
+            className="mt-3 flex h-10 w-full items-center justify-center rounded-full bg-[#292524] px-5 text-[15px] font-medium text-[#ffffff] transition-all hover:bg-[#0c0a09] active:scale-[0.99] disabled:pointer-events-none disabled:opacity-50"
           >
-            {loading ? "Creating Account..." : "Create Account"}
+            {loading ? "Creating account..." : "Create account"}
           </button>
-        </div>
+        </form>
 
-        <p className="mt-5 text-center text-xs text-slate-500 dark:text-slate-400">
-          Already have an account?{" "}
-          <Link
-            to="/login"
-            className="font-bold text-indigo-600 dark:text-indigo-400 hover:underline"
-          >
-            Sign in
-          </Link>
-        </p>
-      </form>
+        {/* Secondary Navigation */}
+        <div className="mt-8 border-t border-[#f0efed] pt-6 text-center">
+          <p className="text-[14px] font-[400] text-[#777169]">
+            Already have an account?{" "}
+            <Link
+              to="/login"
+              className="font-medium text-[#0c0a09] underline underline-offset-4 transition hover:text-[#292524]"
+            >
+              Sign in
+            </Link>
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
-

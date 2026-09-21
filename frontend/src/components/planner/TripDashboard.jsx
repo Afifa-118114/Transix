@@ -8,8 +8,6 @@ import FoodPreview from "../dashboard/food/FoodPreview";
 import EssentialsPreview from "../dashboard/essentials/EssentialsPreview";
 import { getDestinationInventory } from "../../services/inventoryService";
 
-// MapPreview is intentionally removed — Map is now accessed via the Sidebar Map modal overlay.
-
 const TripDashboard = ({ trip, setTrip }) => {
   const [hotels, setHotels] = useState([]);
   const [loadingHotels, setLoadingHotels] = useState(true);
@@ -43,7 +41,7 @@ const TripDashboard = ({ trip, setTrip }) => {
 
   return (
     <div className="flex flex-col gap-6 pb-12">
-      <HeroBanner trip={trip} />
+      <HeroBanner trip={trip} onResetTrip={() => setTrip && setTrip(null)} />
       <TravelOptions trip={trip} />
       <ItineraryPreview trip={trip} />
       <HotelsPreview hotels={hotels} loading={loadingHotels} />

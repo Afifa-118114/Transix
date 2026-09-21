@@ -19,11 +19,11 @@ export default function HotelsPreview(props) {
 
   if (loading) {
     return (
-      <section className="rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-[#131b2e] p-5 shadow-xs transition-colors">
+      <section className="rounded-2xl border border-slate-200/90 bg-white p-5 md:p-6 shadow-[0_4px_20px_rgba(0,0,0,0.03)] transition-colors">
         <div className="mb-4 flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-bold text-slate-900">Stays & Accommodations</h2>
-            <p className="text-xs text-slate-500">
+            <h2 className="text-xl font-serif font-light text-slate-900">Stays & Accommodations</h2>
+            <p className="text-xs text-slate-500 mt-0.5">
               Loading verified hotels near your destination...
             </p>
           </div>
@@ -33,7 +33,7 @@ export default function HotelsPreview(props) {
           {[1, 2, 3, 4].map((i) => (
             <div
               key={i}
-              className="h-64 w-60 shrink-0 animate-pulse rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
+              className="h-64 w-60 shrink-0 animate-pulse rounded-2xl bg-slate-100 border border-slate-200"
             />
           ))}
         </div>
@@ -42,18 +42,18 @@ export default function HotelsPreview(props) {
   }
 
   return (
-    <section className="rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-[#131b2e] p-5 shadow-xs transition-colors">
-      <div className="mb-4 flex items-center justify-between">
+    <section className="rounded-2xl border border-slate-200/90 bg-white p-5 md:p-6 shadow-[0_4px_20px_rgba(0,0,0,0.03)] transition-colors">
+      <div className="mb-5 flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-lg font-bold text-slate-900">Stays & Accommodations</h2>
+            <h2 className="text-xl font-serif font-light text-slate-900">Stays & Accommodations</h2>
             {hotels.length > 0 && (
-              <span className="rounded-full bg-indigo-50 border border-indigo-100 px-2 py-0.5 text-[10px] font-bold text-indigo-700">
+              <span className="rounded-full bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 text-[10px] font-bold text-indigo-700 uppercase tracking-wider">
                 {hotels.length} verified stays
               </span>
             )}
           </div>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-slate-500 mt-0.5">
             Swipe or scroll to explore curated accommodations near your destination
           </p>
         </div>
@@ -64,14 +64,14 @@ export default function HotelsPreview(props) {
             <button
               onClick={() => scroll("left")}
               title="Scroll Left"
-              className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+              className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 transition cursor-pointer shadow-xs"
             >
               <FiChevronLeft className="text-base" />
             </button>
             <button
               onClick={() => scroll("right")}
               title="Scroll Right"
-              className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+              className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 transition cursor-pointer shadow-xs"
             >
               <FiChevronRight className="text-base" />
             </button>

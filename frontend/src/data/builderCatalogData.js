@@ -1,15 +1,15 @@
 // Catalog of rich draggable options across all 9 categories
 export const CATEGORIES = [
-  { id: "all", label: "All Items", icon: "✨" },
-  { id: "hotel", label: "Hotels", icon: "🏨" },
-  { id: "train", label: "Trains", icon: "🚆" },
-  { id: "flight", label: "Flights", icon: "✈️" },
-  { id: "bus", label: "Bus", icon: "🚌" },
-  { id: "activity", label: "Activities", icon: "🎟️" },
-  { id: "food", label: "Restaurants / Food", icon: "🍴" },
-  { id: "transport", label: "Local Transport", icon: "🚗" },
-  { id: "shopping", label: "Shopping", icon: "🛍️" },
-  { id: "experience", label: "Experiences", icon: "🌿" },
+  { id: "all", label: "All Items", iconName: "sparkles" },
+  { id: "hotel", label: "Hotels", iconName: "hotel" },
+  { id: "train", label: "Trains", iconName: "train" },
+  { id: "flight", label: "Flights", iconName: "flight" },
+  { id: "bus", label: "Bus", iconName: "bus" },
+  { id: "activity", label: "Activities", iconName: "activity" },
+  { id: "food", label: "Restaurants & Food", iconName: "food" },
+  { id: "transport", label: "Local Transport", iconName: "transport" },
+  { id: "shopping", label: "Shopping", iconName: "shopping" },
+  { id: "experience", label: "Experiences", iconName: "experience" },
 ];
 
 export const CATALOG_ITEMS = [

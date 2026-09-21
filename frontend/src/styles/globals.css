@@ -72,3 +72,23 @@ html.dark select:-webkit-autofill {
   -webkit-text-fill-color: #f1f5f9 !important;
   caret-color: #f1f5f9 !important;
 }
+
+/* Wispr Flow style Marquee animation */
+@keyframes marquee {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee 30s linear infinite;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
+}

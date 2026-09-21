@@ -1,4 +1,5 @@
 import { FiArrowLeft, FiArrowRight, FiRefreshCw } from "react-icons/fi";
+import { FaWandMagicSparkles } from "react-icons/fa6";
 
 export default function BottomNav({
   selectedDay,
@@ -8,29 +9,36 @@ export default function BottomNav({
   loading,
 }) {
   return (
-    <div className="mx-auto mt-6 flex max-w-3xl items-center justify-between rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-[#131b2e] p-3.5 shadow-xs transition-colors">
+    <div className="w-full mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#e7e5e4] bg-white p-3.5 shadow-xs">
       <button
+        type="button"
         disabled={selectedDay === 0}
         onClick={() => setSelectedDay((d) => d - 1)}
-        className="flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3.5 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 transition hover:bg-slate-100 dark:hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
+        className="flex items-center gap-1.5 rounded-full border border-[#e7e5e4] bg-white px-4 py-2 text-xs font-semibold text-[#57534e] transition hover:bg-[#fafaf9] hover:text-[#0c0a09] disabled:cursor-not-allowed disabled:opacity-40"
       >
         <FiArrowLeft className="text-xs" />
         <span>Previous Day</span>
       </button>
 
       <button
+        type="button"
         onClick={onRegenerate}
         disabled={loading}
-        className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-70"
+        className="flex items-center gap-1.5 rounded-full bg-[#0c0a09] px-5 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-[#292524] disabled:cursor-not-allowed disabled:opacity-70"
       >
-        <FiRefreshCw className={`text-xs ${loading ? "animate-spin" : ""}`} />
-        <span>{loading ? "Regenerating..." : "Regenerate Day"}</span>
+        {loading ? (
+          <FiRefreshCw className="text-xs animate-spin" />
+        ) : (
+          <FaWandMagicSparkles className="text-xs" />
+        )}
+        <span>{loading ? "Regenerating Day..." : "Regenerate Day with AI"}</span>
       </button>
 
       <button
-        disabled={selectedDay === totalDays - 1}
+        type="button"
+        disabled={selectedDay >= totalDays - 1}
         onClick={() => setSelectedDay((d) => d + 1)}
-        className="flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3.5 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 transition hover:bg-slate-100 dark:hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
+        className="flex items-center gap-1.5 rounded-full border border-[#e7e5e4] bg-white px-4 py-2 text-xs font-semibold text-[#57534e] transition hover:bg-[#fafaf9] hover:text-[#0c0a09] disabled:cursor-not-allowed disabled:opacity-40"
       >
         <span>Next Day</span>
         <FiArrowRight className="text-xs" />

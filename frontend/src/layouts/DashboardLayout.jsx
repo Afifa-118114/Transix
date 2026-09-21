@@ -1,19 +1,30 @@
+import { useLocation } from "react-router-dom";
 import Sidebar from "../components/common/Sidebar";
-import Navbar from "../components/common/Navbar";
 import TripMapModal from "../components/map/TripMapModal";
 import { useTripBuilder } from "../context/TripBuilderContext";
 
 export default function DashboardLayout({ trip, setTrip, children }) {
   const { isMapModalOpen, closeMapModal } = useTripBuilder();
+  const location = useLocation();
+
+  // Hide sidebar when answering the wizard questionnaire
+  const isWizard =
+    (location.pathname === "/home" || location.pathname === "/planner") && !trip;
 
   return (
-    <div className="flex min-h-screen gap-4 bg-[#f8faff] dark:bg-[#0b0f19] p-4 transition-colors duration-200">
-      <Sidebar />
+    <div className="relative flex min-h-screen bg-[#ffffff] font-sans antialiased text-[#0c0a09]">
+      {/* Show sidebar only when NOT in wizard */}
+      {!isWizard && <Sidebar trip={trip} setTrip={setTrip} />}
 
-      <main className="flex-1 flex flex-col min-w-0">
-        <Navbar trip={trip} setTrip={setTrip} />
-
-        <div className="mt-4 flex-1 w-full max-w-[1600px] mx-auto">
+      {/* Main Content Area */}
+      <main
+        className={`relative z-10 flex-1 min-w-0 min-h-screen overflow-y-auto bg-[#ffffff] ${
+          isWizard
+            ? "flex flex-col items-center justify-center p-6 sm:p-10"
+            : "p-6 sm:p-8 lg:p-12"
+        }`}
+      >
+        <div className={`w-full ${isWizard ? "max-w-[420px]" : "max-w-[1200px]"} mx-auto`}>
           {children}
         </div>
       </main>

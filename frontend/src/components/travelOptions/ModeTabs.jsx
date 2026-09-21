@@ -1,44 +1,49 @@
-import { FaTrain, FaPlane, FaBus } from "react-icons/fa";
+import { FaTrainSubway, FaPlaneDeparture, FaBusSimple } from "react-icons/fa6";
 
 const modes = [
   {
     id: "train",
-    name: "Train",
-    icon: <FaTrain className="text-xs" />,
+    name: "Railways",
+    subtext: "IRCTC Verified",
+    icon: FaTrainSubway,
   },
   {
     id: "flight",
-    name: "Flight",
-    icon: <FaPlane className="text-xs" />,
+    name: "Flights",
+    subtext: "Connecting Air",
+    icon: FaPlaneDeparture,
   },
   {
     id: "bus",
-    name: "Bus",
-    icon: <FaBus className="text-xs" />,
+    name: "Buses",
+    subtext: "Intercity Road",
+    icon: FaBusSimple,
   },
 ];
 
 function ModeTabs({ selectedMode, setSelectedMode }) {
   return (
-    <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-[#131b2e] p-1 shadow-2xs">
-      {modes.map((mode) => (
-        <button
-          key={mode.id}
-          onClick={() => setSelectedMode(mode.id)}
-          className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all duration-200
-            ${
-              selectedMode === mode.id
-                ? "bg-indigo-600 text-white shadow-xs"
-                : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
+    <div className="flex items-center gap-1.5 rounded-2xl border border-stone-200 bg-stone-50/80 p-1">
+      {modes.map((mode) => {
+        const Icon = mode.icon;
+        const isActive = selectedMode === mode.id;
+        return (
+          <button
+            key={mode.id}
+            onClick={() => setSelectedMode(mode.id)}
+            className={`flex items-center gap-2 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all duration-150 ${
+              isActive
+                ? "bg-[#034F46] text-white shadow-sm"
+                : "text-stone-600 hover:bg-white hover:text-stone-900"
             }`}
-        >
-          {mode.icon}
-          <span>{mode.name}</span>
-        </button>
-      ))}
+          >
+            <Icon className={`text-xs ${isActive ? "text-white" : "text-stone-500"}`} />
+            <span>{mode.name}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }
-
 
 export default ModeTabs;

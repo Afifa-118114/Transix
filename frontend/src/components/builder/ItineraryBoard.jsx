@@ -5,10 +5,11 @@ import {
   FiGrid,
   FiLayers,
 } from "react-icons/fi";
+import { FaWandMagicSparkles } from "react-icons/fa6";
 import { useTripBuilder } from "../../context/TripBuilderContext";
 import ItineraryItemCard from "./ItineraryItemCard";
 
-export default function ItineraryBoard() {
+export default function ItineraryBoard({ isCatalogOpen, onToggleCatalog }) {
   const {
     trip,
     activeDayIndex,
@@ -47,7 +48,7 @@ export default function ItineraryBoard() {
     }
   };
 
-  // Two-way synchronization: On manual scroll, update activeDayIndex based on visible day container
+  // Synchronize activeDayIndex on scroll
   useEffect(() => {
     if (viewMode !== "all") return;
     const container = canvasContainerRef.current;
@@ -130,7 +131,10 @@ export default function ItineraryBoard() {
       addItemToDay(targetDayIdx, dragSource.item, targetItemIdx);
     } else if (dragSource.type === "itinerary") {
       if (dragSource.dayIndex === targetDayIdx) {
-        const toIdx = targetItemIdx !== null ? targetItemIdx : (trip.itinerary[targetDayIdx]?.plan?.length || 1) - 1;
+        const toIdx =
+          targetItemIdx !== null
+            ? targetItemIdx
+            : (trip.itinerary[targetDayIdx]?.plan?.length || 1) - 1;
         reorderInDay(targetDayIdx, dragSource.itemIndex, toIdx);
       } else {
         moveBetweenDays(
@@ -155,32 +159,52 @@ export default function ItineraryBoard() {
       : [trip.itinerary[activeDayIndex] || trip.itinerary[0]];
 
   return (
-    <div className="flex h-full flex-col rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-[#131b2e] p-4 shadow-xs transition-colors">
-      {/* Board Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
+    <div className="flex h-full flex-col">
+      {/* Board Top Header Row */}
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[#e7e5e4]">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-base font-bold text-slate-900 dark:text-white">
+            <h1
+              style={{ fontFamily: "'EB Garamond', Georgia, serif" }}
+              className="text-xl sm:text-2xl font-[400] text-[#0c0a09] leading-none"
+            >
               {trip.destination ? `Itinerary Canvas — ${trip.destination}` : "Itinerary Canvas"}
             </h1>
-            <span className="rounded-full bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-100 dark:border-indigo-800/60 px-2 py-0.5 text-[10px] font-bold text-indigo-700 dark:text-indigo-300">
+            <span className="rounded-full bg-[#034F46]/10 px-2 py-0.5 text-[10px] font-bold text-[#034F46]">
               {trip.itinerary.length} Days
             </span>
           </div>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400">
-            Click Day tabs to jump • Drag to reorder • Customize activity timings
+          <p className="text-[11px] text-[#777169] mt-0.5">
+            Organize activities • Customize timings • Reorder by dragging
           </p>
         </div>
 
-        {/* View Mode Toggle & Add Day */}
-        <div className="flex items-center gap-2">
-          <div className="flex rounded-lg bg-slate-100 dark:bg-slate-800 p-0.5">
+        {/* Action Controls: Catalog Toggle, View Switcher, Add Day */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Catalog Open/Close Toggle Button */}
+          {onToggleCatalog && (
+            <button
+              type="button"
+              onClick={onToggleCatalog}
+              className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
+                isCatalogOpen
+                  ? "bg-[#034F46] text-white shadow-xs"
+                  : "border border-[#e7e5e4] bg-white text-[#0c0a09] hover:bg-[#fafaf9] hover:border-[#0c0a09] shadow-2xs"
+              }`}
+            >
+              <FaWandMagicSparkles className="text-xs" />
+              <span>{isCatalogOpen ? "Hide Options" : "+ Available Options"}</span>
+            </button>
+          )}
+
+          {/* View Mode Switcher */}
+          <div className="flex rounded-full bg-[#fafaf9] border border-[#e7e5e4] p-0.5">
             <button
               onClick={() => setViewMode("all")}
-              className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold transition ${
+              className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold transition ${
                 viewMode === "all"
-                  ? "bg-white dark:bg-[#1a233a] text-indigo-600 dark:text-indigo-400 shadow-xs"
-                  : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
+                  ? "bg-white text-[#0c0a09] shadow-xs"
+                  : "text-[#777169] hover:text-[#0c0a09]"
               }`}
             >
               <FiLayers className="text-xs" />
@@ -188,10 +212,10 @@ export default function ItineraryBoard() {
             </button>
             <button
               onClick={() => setViewMode("single")}
-              className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold transition ${
+              className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold transition ${
                 viewMode === "single"
-                  ? "bg-white dark:bg-[#1a233a] text-indigo-600 dark:text-indigo-400 shadow-xs"
-                  : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
+                  ? "bg-white text-[#0c0a09] shadow-xs"
+                  : "text-[#777169] hover:text-[#0c0a09]"
               }`}
             >
               <FiGrid className="text-xs" />
@@ -199,9 +223,10 @@ export default function ItineraryBoard() {
             </button>
           </div>
 
+          {/* Add Day Button */}
           <button
             onClick={() => addDay()}
-            className="flex items-center gap-1 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs transition hover:bg-indigo-700 active:scale-98"
+            className="flex items-center gap-1 rounded-full bg-[#0c0a09] px-3.5 py-1.5 text-xs font-semibold text-white shadow-xs transition hover:bg-[#292524] active:scale-98"
           >
             <FiPlus className="text-xs" />
             <span>Add Day</span>
@@ -209,8 +234,8 @@ export default function ItineraryBoard() {
         </div>
       </div>
 
-      {/* Synchronized Day Selector Tabs */}
-      <div className="mt-3 flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+      {/* Synchronized Minimalist Day Selector Strip */}
+      <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
         {trip.itinerary.map((day, idx) => {
           const isSelected = activeDayIndex === idx;
           const dayCost = (day.plan || []).reduce(
@@ -222,36 +247,29 @@ export default function ItineraryBoard() {
             <button
               key={day.day || idx}
               onClick={() => handleDayTabClick(idx)}
-              className={`flex shrink-0 items-center gap-2 rounded-xl border px-3 py-1.5 text-left transition-all duration-200 ${
+              className={`flex shrink-0 items-center gap-2 rounded-full px-3 py-1.5 text-xs transition-all duration-150 ${
                 isSelected
-                  ? "border-indigo-600 dark:border-indigo-500 bg-indigo-50/70 dark:bg-indigo-950/40 text-indigo-900 dark:text-indigo-100 shadow-xs ring-1 ring-indigo-200 dark:ring-indigo-700 font-bold"
-                  : "border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 text-slate-700 dark:text-slate-300 hover:border-indigo-300 dark:hover:border-indigo-600/50 hover:bg-white dark:hover:bg-slate-800"
+                  ? "bg-[#0c0a09] text-white font-semibold shadow-xs"
+                  : "border border-[#e7e5e4] bg-white text-[#57534e] hover:border-[#0c0a09] hover:text-[#0c0a09]"
               }`}
             >
-              <div
-                className={`flex h-6 w-6 items-center justify-center rounded-lg text-[10px] font-extrabold ${
-                  isSelected
-                    ? "bg-indigo-600 text-white"
-                    : "bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300"
+              <span className="font-bold">Day {idx + 1}</span>
+              <span
+                className={`text-[10px] ${
+                  isSelected ? "text-stone-300" : "text-[#a8a29e]"
                 }`}
               >
-                D{idx + 1}
-              </div>
-              <div>
-                <p className="text-[11px] font-bold">Day {idx + 1}</p>
-                <p className="text-[9px] text-slate-500 dark:text-slate-400 font-medium">
-                  {day.plan?.length || 0} items • ₹{dayCost.toLocaleString()}
-                </p>
-              </div>
+                ₹{dayCost.toLocaleString()}
+              </span>
             </button>
           );
         })}
       </div>
 
-      {/* Days Canvas List */}
+      {/* Days Editorial Stream (No Heavy Nested Boxes) */}
       <div
         ref={canvasContainerRef}
-        className="mt-3 flex-1 space-y-4 overflow-y-auto pr-1 pb-4 scroll-smooth"
+        className="mt-4 flex-1 space-y-8 overflow-y-auto pr-1 pb-10 scroll-smooth"
       >
         {daysToRender.map((day) => {
           const actualDayIndex = trip.itinerary.findIndex((d) => d.day === day.day);
@@ -270,58 +288,52 @@ export default function ItineraryBoard() {
               }}
               onDragOver={(e) => handleDragOverDay(e, actualDayIndex)}
               onDrop={(e) => handleDropOnDay(e, actualDayIndex)}
-              className={`rounded-xl border transition-all duration-200 p-3.5 scroll-mt-2 ${
-                isTargeted
-                  ? "border-indigo-500 dark:border-indigo-500 bg-indigo-50/30 dark:bg-indigo-950/20 shadow-sm"
-                  : "border-slate-200 dark:border-slate-700/80 bg-slate-50/50 dark:bg-slate-800/30"
-              }`}
+              className="scroll-mt-4"
             >
-              {/* Day Header */}
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/80 dark:border-slate-700/60 pb-2.5">
-                <div className="flex items-center gap-2">
-                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-600 text-xs font-extrabold text-white">
+              {/* Day Header Bar: Clean & Editorial */}
+              <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 mb-3 border-b border-[#e7e5e4]">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#034F46] text-xs font-bold text-white shadow-xs">
                     {day.day}
                   </span>
                   <div>
-                    <h3 className="text-xs font-bold text-slate-900 dark:text-white">
-                      Day {day.day} — {day.title || "Daily Itinerary"}
+                    <h3 className="text-sm font-bold text-[#0c0a09]">
+                      {day.title || `Day ${day.day} — Daily Itinerary`}
                     </h3>
-                    <p className="text-[10px] text-slate-500 dark:text-slate-400">
-                      {dayPlan.length} scheduled items • Day Budget:{" "}
-                      <span className="font-bold text-indigo-600 dark:text-indigo-400">
+                    <p className="text-[11px] text-[#777169]">
+                      {dayPlan.length} activities scheduled • Day cost:{" "}
+                      <span className="font-semibold text-[#034F46]">
                         ₹{dayTotalCost.toLocaleString()}
                       </span>
                     </p>
                   </div>
                 </div>
 
-                {/* Day Actions */}
-                <div className="flex items-center gap-1.5">
-                  {trip.itinerary.length > 1 && (
-                    <button
-                      onClick={() => removeDay(actualDayIndex)}
-                      title="Remove Day"
-                      className="flex h-6 w-6 items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-400 dark:text-slate-500 hover:border-rose-300 dark:hover:border-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30 hover:text-rose-600 dark:hover:text-rose-400 transition"
-                    >
-                      <FiTrash2 className="text-[10px]" />
-                    </button>
-                  )}
-                </div>
+                {/* Day Action */}
+                {trip.itinerary.length > 1 && (
+                  <button
+                    onClick={() => removeDay(actualDayIndex)}
+                    title="Remove Day"
+                    className="flex h-6 w-6 items-center justify-center rounded-md text-[#a8a29e] hover:text-rose-600 transition"
+                  >
+                    <FiTrash2 className="text-xs" />
+                  </button>
+                )}
               </div>
 
-              {/* Items List Inside Day */}
-              <div className="mt-3 space-y-2.5">
+              {/* Day Activities Stream with Vertical Timeline */}
+              <div className="space-y-2.5 pl-2 relative before:absolute before:left-5 before:top-2 before:bottom-2 before:w-px before:bg-[#e7e5e4] last:before:hidden">
                 {dayPlan.length === 0 ? (
                   <div
                     onDragOver={(e) => handleDragOverDay(e, actualDayIndex)}
                     onDrop={(e) => handleDropOnDay(e, actualDayIndex, 0)}
-                    className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/30 p-6 text-center transition hover:border-indigo-400 dark:hover:border-indigo-600"
+                    className="flex flex-col items-center justify-center rounded-xl border border-dashed border-[#e7e5e4] bg-[#fafaf9] p-6 text-center transition hover:border-[#0c0a09]"
                   >
-                    <p className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                      Day {day.day} is currently empty
+                    <p className="text-xs font-semibold text-[#0c0a09]">
+                      No activities scheduled for Day {day.day}
                     </p>
-                    <p className="mt-0.5 text-[10px] text-slate-400 dark:text-slate-500">
-                      Drag options from the left catalog here or click &quot;+ Add&quot;
+                    <p className="mt-0.5 text-[10px] text-[#777169]">
+                      Open Available Options to drag or add items
                     </p>
                   </div>
                 ) : (
@@ -329,7 +341,7 @@ export default function ItineraryBoard() {
                     <div key={item.id || itemIdx}>
                       {/* Insertion indicator if dragging above this item */}
                       {isTargeted && dragOverItemIndex === itemIdx && (
-                        <div className="my-1 flex items-center justify-center rounded-md border border-dashed border-indigo-500 bg-indigo-50 dark:bg-indigo-950/30 py-1 text-[10px] font-bold text-indigo-700 dark:text-indigo-300">
+                        <div className="my-1 flex items-center justify-center rounded-md border border-dashed border-[#0c0a09] bg-stone-100 py-1 text-[10px] font-bold text-[#0c0a09]">
                           ↓ Insert before this item
                         </div>
                       )}
@@ -346,18 +358,19 @@ export default function ItineraryBoard() {
                   ))
                 )}
 
-                {/* Bottom "+ Drop Activity" Zone */}
+                {/* Bottom "+ Drop or Add Activity" Target Row */}
                 <div
                   onDragOver={(e) => handleDragOverDay(e, actualDayIndex)}
                   onDrop={(e) => handleDropOnDay(e, actualDayIndex, dayPlan.length)}
-                  className={`flex cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-dashed py-2 text-[11px] font-bold transition-all ${
+                  onClick={onToggleCatalog}
+                  className={`flex cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-dashed py-2 text-[11px] font-medium transition-all ${
                     isTargeted
-                      ? "border-indigo-600 bg-indigo-100/60 dark:bg-indigo-950/30 text-indigo-800 dark:text-indigo-300"
-                      : "border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/20 text-slate-500 dark:text-slate-400 hover:border-indigo-400 dark:hover:border-indigo-600 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/20 hover:text-indigo-600 dark:hover:text-indigo-400"
+                      ? "border-[#0c0a09] bg-[#fafaf9] text-[#0c0a09]"
+                      : "border-[#e7e5e4] bg-white text-[#777169] hover:border-[#0c0a09] hover:text-[#0c0a09]"
                   }`}
                 >
                   <FiPlus className="text-xs" />
-                  <span>+ Drop Activity in Day {day.day}</span>
+                  <span>Add activity to Day {day.day}</span>
                 </div>
               </div>
             </div>

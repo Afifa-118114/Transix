@@ -12,6 +12,12 @@ export const generateAITrip = async (tripData, token) => {
   return res.data;
 };
 
+export const getTripById = async (tripId, token) => {
+  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+  const res = await axios.get(`${API}/trips/${tripId}`, { headers });
+  return res.data;
+};
+
 export const updateTrip = async (tripId, tripData, token) => {
   const res = await axios.put(`${API}/trips/${tripId}`, tripData, {
     headers: {
@@ -32,6 +38,17 @@ export const regenerateDay = async (tripId, day, token) => {
       },
     },
   );
+  return res.data;
+};
 
+export const getAllTrips = async (token) => {
+  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+  const res = await axios.get(`${API}/trips`, { headers });
+  return res.data;
+};
+
+export const deleteTrip = async (tripId, token) => {
+  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+  const res = await axios.delete(`${API}/trips/${tripId}`, { headers });
   return res.data;
 };

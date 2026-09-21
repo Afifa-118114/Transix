@@ -4,39 +4,66 @@ import { useNavigate } from "react-router-dom";
 export default function TravelCard({ option, source, destination }) {
   const navigate = useNavigate();
 
+  const getModeTheme = (type) => {
+    switch (type?.toLowerCase()) {
+      case "train":
+        return {
+          iconBg: "bg-indigo-100/90 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400",
+          badge: "bg-indigo-50 dark:bg-indigo-950/50 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300",
+        };
+      case "flight":
+        return {
+          iconBg: "bg-sky-100/90 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400",
+          badge: "bg-sky-50 dark:bg-sky-950/50 border-sky-200 dark:border-sky-800 text-sky-700 dark:text-sky-300",
+        };
+      case "bus":
+        return {
+          iconBg: "bg-amber-100/90 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400",
+          badge: "bg-amber-50 dark:bg-amber-950/50 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300",
+        };
+      default:
+        return {
+          iconBg: "bg-emerald-100/90 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400",
+          badge: "bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300",
+        };
+    }
+  };
+
+  const theme = getModeTheme(option.type);
+
   return (
-    <div className="group relative flex flex-col justify-between rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-[#131b2e] p-4 shadow-xs transition-all duration-200 hover:border-indigo-300 dark:hover:border-indigo-600/50 hover:shadow-md">
+    <div className="group relative flex flex-col justify-between rounded-2xl border border-slate-200/90 bg-white p-4.5 shadow-[0_4px_16px_rgba(0,0,0,0.04)] transition-all duration-200 hover:-translate-y-1 hover:border-indigo-300 hover:shadow-xl">
       {/* Top Row: Icon, Title & Recommended Badge */}
       <div>
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-50 dark:bg-indigo-950/70 text-xl text-indigo-600 dark:text-indigo-400">
+            <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${theme.iconBg} text-xl shadow-xs transition group-hover:scale-105`}>
               {option.icon}
             </div>
 
             <div>
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white">{option.type}</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1">{option.operator || option.company}</p>
+              <h3 className="text-sm font-bold text-slate-900">{option.type}</h3>
+              <p className="text-xs text-slate-500 line-clamp-1">{option.operator || option.company}</p>
             </div>
           </div>
 
           {option.recommended && (
-            <span className="rounded-full bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800/60 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
-              Best Match
+            <span className="rounded-full bg-emerald-50 border border-emerald-200/80 px-2.5 py-0.5 text-[10px] font-bold text-emerald-700 uppercase tracking-wider">
+              Recommended
             </span>
           )}
         </div>
 
         {/* Stats Grid */}
-        <div className="mt-4 grid grid-cols-3 gap-2 rounded-xl bg-slate-50/80 dark:bg-slate-800/60 p-2.5 text-center border border-slate-100 dark:border-slate-700/60">
+        <div className="mt-4 grid grid-cols-3 gap-2 rounded-xl bg-slate-50/80 p-2.5 text-center border border-slate-100">
           <div>
-            <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase">Duration</p>
-            <p className="mt-0.5 text-xs font-bold text-slate-800 dark:text-white">{option.duration}</p>
+            <p className="text-[10px] font-semibold text-slate-400 uppercase">Duration</p>
+            <p className="mt-0.5 text-xs font-bold text-slate-900">{option.duration}</p>
           </div>
 
           <div>
-            <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase">Est. Fare</p>
-            <p className="mt-0.5 text-xs font-extrabold text-indigo-600 dark:text-indigo-400">
+            <p className="text-[10px] font-semibold text-slate-400 uppercase">Est. Fare</p>
+            <p className="mt-0.5 text-xs font-extrabold text-emerald-600">
               {typeof option.price === "number"
                 ? `₹${option.price.toLocaleString()}`
                 : option.price?.startsWith("₹")
@@ -46,9 +73,9 @@ export default function TravelCard({ option, source, destination }) {
           </div>
 
           <div>
-            <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase">Rating</p>
-            <p className="mt-0.5 flex items-center justify-center gap-1 text-xs font-bold text-slate-800 dark:text-white">
-              <FaStar className="text-amber-400 text-[10px]" />
+            <p className="text-[10px] font-semibold text-slate-400 uppercase">Rating</p>
+            <p className="mt-0.5 flex items-center justify-center gap-1 text-xs font-bold text-slate-900">
+              <FaStar className="text-amber-500 text-[10px]" />
               <span>{option.rating || "4.8"}</span>
             </p>
           </div>
@@ -56,7 +83,7 @@ export default function TravelCard({ option, source, destination }) {
       </div>
 
       {/* Bottom Actions */}
-      <div className="mt-4 flex items-center gap-2 border-t border-slate-100 dark:border-slate-800/80 pt-3">
+      <div className="mt-4 flex items-center gap-2 border-t border-[#f0efed] dark:border-stone-800 pt-3">
         <button
           onClick={() => {
             import("../../../utils/tourBuilderHelper").then(({ addItemToTourBuilder }) => {
@@ -88,7 +115,7 @@ export default function TravelCard({ option, source, destination }) {
               );
             });
           }}
-          className="flex-1 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 py-2 text-center text-xs font-bold text-indigo-700 dark:text-indigo-300 transition hover:bg-indigo-600 hover:text-white dark:hover:bg-indigo-600 dark:hover:text-white"
+          className="flex-1 rounded-full bg-indigo-600 hover:bg-indigo-700 py-2.5 text-center text-xs font-semibold text-white shadow-xs transition hover:shadow-md cursor-pointer"
         >
           + Add to Tour
         </button>
@@ -103,7 +130,7 @@ export default function TravelCard({ option, source, destination }) {
               },
             })
           }
-          className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 transition hover:bg-slate-50 dark:hover:bg-slate-700"
+          className="flex items-center justify-center gap-1.5 rounded-full border border-indigo-200 dark:border-stone-700 bg-indigo-50/70 dark:bg-stone-800 px-3.5 py-2.5 text-xs font-semibold text-indigo-700 dark:text-indigo-300 transition hover:bg-indigo-100 dark:hover:bg-stone-700 cursor-pointer"
         >
           <span>Explore</span>
           <FaArrowRight className="text-[10px]" />
