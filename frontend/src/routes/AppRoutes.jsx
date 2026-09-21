@@ -34,6 +34,7 @@ import ParticipantDashboard from "../pages/ParticipantDashboard";
 import LandingPage from "../pages/public/LandingPage";
 import SampleItineraryPage from "../pages/public/SampleItineraryPage";
 import JoinAsGuidePage from "../pages/public/JoinAsGuidePage";
+import GuideVerificationStatusPage from "../pages/public/GuideVerificationStatusPage";
 
 function AppRoutes() {
   return (
@@ -48,6 +49,9 @@ function AppRoutes() {
       <Route path="/sample-trips" element={<LandingPage defaultSection="sample-trips" />} />
       <Route path="/sample-trips/:id" element={<SampleItineraryPage />} />
       <Route path="/join-as-guide" element={<JoinAsGuidePage />} />
+      <Route path="/guide/verification-status" element={<GuideVerificationStatusPage />} />
+      <Route path="/guide/verification-status/:id" element={<GuideVerificationStatusPage />} />
+      <Route path="/join-as-guide/status/:id" element={<GuideVerificationStatusPage />} />
       <Route path="/journey" element={<Navigate to="/home" replace />} />
 
       {/* Public Authentication Routes */}
