@@ -188,14 +188,27 @@ exports.getCampusTripById = async (req, res) => {
     let relationship = "NONE";
     let registration = null;
     const coordinatorUserId = trip.coordinatorId?._id ? trip.coordinatorId._id.toString() : trip.coordinatorId?.toString();
-    if (coordinatorUserId && coordinatorUserId === req.user.id.toString()) {
+    const tripCreatorId = trip.userId?._id ? trip.userId._id.toString() : trip.userId?.toString();
+    const isCoordinator = (coordinatorUserId && coordinatorUserId === req.user.id.toString()) ||
+                          (tripCreatorId && tripCreatorId === req.user.id.toString());
+
+    if (isCoordinator) {
       relationship = "COORDINATOR";
     } else {
       const reg = await CampusRegistration.findOne({ tripId: id, userId: req.user.id });
       if (reg) {
         relationship = "PARTICIPANT";
         registration = reg;
+      } else if (req.user.role === "operator" || req.user.role === "admin") {
+        relationship = "OPERATOR";
       }
+    }
+
+    if (relationship === "NONE") {
+      return res.status(403).json({
+        success: false,
+        message: "Unauthorized: You do not have access to this campus trip"
+      });
     }
 
     // Ensure campusTransportPlan is populated with resolved operational route
@@ -363,43 +376,179 @@ exports.updateRegistrationConfig = async (req, res) => {
   }
 };
 
-// 5a. Add Announcement
+// 5a. Get All Announcements for a Trip
+exports.getAnnouncements = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const trip = await Trip.findById(id);
+    if (!trip || trip.tripCategory !== "CAMPUS") {
+      return res.status(404).json({ success: false, message: "Campus trip not found" });
+    }
+
+    // Verify relationship: coordinator, creator, participant, or operator/admin
+    const coordinatorUserId = trip.coordinatorId?._id ? trip.coordinatorId._id.toString() : trip.coordinatorId?.toString();
+    const tripCreatorId = trip.userId?._id ? trip.userId._id.toString() : trip.userId?.toString();
+    const isCoordinator = (coordinatorUserId && coordinatorUserId === req.user.id.toString()) ||
+                          (tripCreatorId && tripCreatorId === req.user.id.toString());
+
+    if (!isCoordinator) {
+      const reg = await CampusRegistration.findOne({ tripId: id, userId: req.user.id });
+      if (!reg && req.user.role !== "operator" && req.user.role !== "admin") {
+        return res.status(403).json({ success: false, message: "Unauthorized: You do not have access to this trip's announcements" });
+      }
+    }
+
+    const announcements = Array.isArray(trip.announcements)
+      ? [...trip.announcements].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      : [];
+
+    res.status(200).json({ success: true, announcements });
+  } catch (error) {
+    console.error("Get announcements error:", error);
+    res.status(500).json({ success: false, message: "Failed to fetch announcements" });
+  }
+};
+
+// 5b. Get Single Announcement by ID
+exports.getAnnouncementById = async (req, res) => {
+  try {
+    const { id, annId } = req.params;
+    const trip = await Trip.findById(id);
+    if (!trip || trip.tripCategory !== "CAMPUS") {
+      return res.status(404).json({ success: false, message: "Campus trip not found" });
+    }
+
+    // Verify relationship
+    const coordinatorUserId = trip.coordinatorId?._id ? trip.coordinatorId._id.toString() : trip.coordinatorId?.toString();
+    const tripCreatorId = trip.userId?._id ? trip.userId._id.toString() : trip.userId?.toString();
+    const isCoordinator = (coordinatorUserId && coordinatorUserId === req.user.id.toString()) ||
+                          (tripCreatorId && tripCreatorId === req.user.id.toString());
+
+    if (!isCoordinator) {
+      const reg = await CampusRegistration.findOne({ tripId: id, userId: req.user.id });
+      if (!reg && req.user.role !== "operator" && req.user.role !== "admin") {
+        return res.status(403).json({ success: false, message: "Unauthorized: You do not have access to this trip's announcements" });
+      }
+    }
+
+    const announcement = trip.announcements.id(annId);
+    if (!announcement) {
+      return res.status(404).json({ success: false, message: "Announcement not found" });
+    }
+
+    res.status(200).json({ success: true, announcement });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Failed to fetch announcement" });
+  }
+};
+
+// 5c. Add Announcement (Create)
 exports.addAnnouncement = async (req, res) => {
   try {
     const { id } = req.params;
     const { message, expiresAt } = req.body;
-    
-    const trip = await Trip.findOne({ _id: id, coordinatorId: req.user.id, tripCategory: "CAMPUS" });
-    if (!trip) return res.status(404).json({ success: false, message: "Trip not found or unauthorized" });
 
-    trip.announcements.push({ message, expiresAt });
+    if (!message || !message.trim()) {
+      return res.status(400).json({ success: false, message: "Announcement message is required" });
+    }
+
+    const trip = await Trip.findOne({
+      _id: id,
+      $or: [{ coordinatorId: req.user.id }, { user: req.user.id }],
+      tripCategory: "CAMPUS",
+    });
+    if (!trip) return res.status(403).json({ success: false, message: "Trip not found or unauthorized" });
+
+    const newAnnouncement = {
+      message: message.trim(),
+      createdAt: new Date(),
+      expiresAt: expiresAt || null,
+      active: true,
+    };
+
+    trip.announcements.push(newAnnouncement);
     await trip.save();
-    
-    res.status(200).json({ success: true, announcements: trip.announcements, message: "Announcement added" });
+
+    const created = trip.announcements[trip.announcements.length - 1];
+
+    res.status(200).json({
+      success: true,
+      announcements: trip.announcements,
+      announcement: created,
+      message: "Announcement added",
+    });
   } catch (error) {
+    console.error("Add announcement error:", error);
     res.status(500).json({ success: false, message: "Failed to add announcement" });
   }
 };
 
-// 5b. Toggle Announcement
-exports.toggleAnnouncement = async (req, res) => {
+// 5d. Update Announcement (Edit)
+exports.updateAnnouncement = async (req, res) => {
   try {
     const { id, annId } = req.params;
-    const { active } = req.body;
-    
-    const trip = await Trip.findOne({ _id: id, coordinatorId: req.user.id, tripCategory: "CAMPUS" });
-    if (!trip) return res.status(404).json({ success: false, message: "Trip not found or unauthorized" });
+    const { message, active, expiresAt } = req.body;
+
+    const trip = await Trip.findOne({
+      _id: id,
+      $or: [{ coordinatorId: req.user.id }, { user: req.user.id }],
+      tripCategory: "CAMPUS",
+    });
+    if (!trip) return res.status(403).json({ success: false, message: "Trip not found or unauthorized" });
 
     const announcement = trip.announcements.id(annId);
     if (!announcement) return res.status(404).json({ success: false, message: "Announcement not found" });
 
+    if (message !== undefined) announcement.message = message.trim();
     if (active !== undefined) announcement.active = active;
-    
+    if (expiresAt !== undefined) announcement.expiresAt = expiresAt;
+
     await trip.save();
-    res.status(200).json({ success: true, announcements: trip.announcements, message: "Announcement updated" });
+
+    res.status(200).json({
+      success: true,
+      announcements: trip.announcements,
+      announcement,
+      message: "Announcement updated",
+    });
   } catch (error) {
+    console.error("Update announcement error:", error);
     res.status(500).json({ success: false, message: "Failed to update announcement" });
   }
+};
+
+// 5e. Delete Announcement (Delete)
+exports.deleteAnnouncement = async (req, res) => {
+  try {
+    const { id, annId } = req.params;
+
+    const trip = await Trip.findOne({
+      _id: id,
+      $or: [{ coordinatorId: req.user.id }, { user: req.user.id }],
+      tripCategory: "CAMPUS",
+    });
+    if (!trip) return res.status(403).json({ success: false, message: "Trip not found or unauthorized" });
+
+    const announcement = trip.announcements.id(annId);
+    if (!announcement) return res.status(404).json({ success: false, message: "Announcement not found" });
+
+    trip.announcements.pull({ _id: annId });
+    await trip.save();
+
+    res.status(200).json({
+      success: true,
+      announcements: trip.announcements,
+      message: "Announcement deleted",
+    });
+  } catch (error) {
+    console.error("Delete announcement error:", error);
+    res.status(500).json({ success: false, message: "Failed to delete announcement" });
+  }
+};
+
+// 5f. Toggle Announcement (Backwards compatibility)
+exports.toggleAnnouncement = async (req, res) => {
+  return exports.updateAnnouncement(req, res);
 };
 
 // 5c. Update Student Access

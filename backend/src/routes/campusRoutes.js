@@ -13,8 +13,12 @@ router.put("/:id/registration-config", authMiddleware, campusController.updateRe
 router.put("/:id/inclusions", authMiddleware, campusController.updateCampusConfig);
 
 // Announcements and access
+router.get("/:id/announcements", authMiddleware, campusController.getAnnouncements);
+router.get("/:id/announcements/:annId", authMiddleware, campusController.getAnnouncementById);
 router.post("/:id/announcements", authMiddleware, campusController.addAnnouncement);
-router.patch("/:id/announcements/:annId", authMiddleware, campusController.toggleAnnouncement);
+router.put("/:id/announcements/:annId", authMiddleware, campusController.updateAnnouncement);
+router.patch("/:id/announcements/:annId", authMiddleware, campusController.updateAnnouncement);
+router.delete("/:id/announcements/:annId", authMiddleware, campusController.deleteAnnouncement);
 router.patch("/:id/student-access", authMiddleware, campusController.updateStudentAccess);
 
 // Participant actions

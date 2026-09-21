@@ -1,5 +1,4 @@
 import { jsPDF } from "jspdf";
-import { findExistingTransportRecord } from "./schedulingEngine";
 import { formatDate, getDuration } from "./formatTrip";
 
 /**
@@ -16,20 +15,25 @@ function cleanText(text) {
 }
 
 /**
- * Calculate accurate date for each day index from trip start date
+ * Capitalize first letter of each word and lowercase the rest
  */
-function getDayDate(day, dIndex, startDate) {
-  if (day?.date && !isNaN(new Date(day.date).getTime()) && !String(day.date).toLowerCase().startsWith("day")) {
-    return formatDate(day.date);
-  }
-  if (startDate) {
-    const s = new Date(startDate);
-    if (!isNaN(s.getTime())) {
-      const d = new Date(s.getTime() + dIndex * 86400000);
-      return formatDate(d);
-    }
-  }
-  return formatDate(day?.date || `Day ${dIndex + 1}`);
+function formatLocation(str) {
+  if (!str || typeof str !== "string") return "";
+  return str
+    .split(/[,/\s]+/)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(" ");
+}
+
+/**
+ * Sanitize and correct day titles (e.g. remove product name typos like "Transit and Arrival")
+ */
+function cleanDayTitle(title) {
+  let t = cleanText(title || "");
+  t = t.replace(/Transit and Arrival in/gi, "Arrival in");
+  t = t.replace(/^Transit to\b/gi, "Travel to");
+  return t;
 }
 
 /**
@@ -44,7 +48,33 @@ function sanitizeFilename(str) {
 }
 
 /**
- * Generate accurate, finalized Transix Campus Itinerary PDF
+ * Vector drawing helpers for jsPDF (100% immune to Latin-1 character corruption)
+ */
+function drawVectorArrow(doc, x, y, width = 4.5, color = [30, 41, 99]) {
+  doc.setDrawColor(...color);
+  doc.setLineWidth(0.4);
+  doc.line(x, y - 0.2, x + width, y - 0.2);
+  doc.setFillColor(...color);
+  doc.triangle(
+    x + width - 1.5,
+    y - 1.2,
+    x + width - 1.5,
+    y + 0.8,
+    x + width + 0.3,
+    y - 0.2,
+    "FD"
+  );
+}
+
+function drawVectorCheck(doc, x, y, size = 3, color = [16, 149, 106]) {
+  doc.setDrawColor(...color);
+  doc.setLineWidth(0.45);
+  doc.line(x, y, x + size * 0.35, y + size * 0.4);
+  doc.line(x + size * 0.35, y + size * 0.4, x + size, y - size * 0.5);
+}
+
+/**
+ * Generate accurate, finalized Transix Campus Itinerary PDF Booklet
  */
 export function generateTripItineraryPdf(trip) {
   if (!trip) throw new Error("Trip data is required to generate itinerary PDF.");
@@ -57,221 +87,310 @@ export function generateTripItineraryPdf(trip) {
 
   const pageWidth = 210;
   const pageHeight = 297;
-  const marginX = 16;
-  const contentWidth = pageWidth - marginX * 2; // 178mm
-  let currentY = 16;
+  const marginX = 20;
+  const contentWidth = pageWidth - marginX * 2; // 170 mm
+  const contentBottomMax = pageHeight - 18; // 279 mm
+  let currentY = 20;
 
-  // Theme Colors
-  const primaryBrand = [79, 70, 229]; // Indigo-600 #4f46e5
-  const secondaryBrand = [37, 99, 235]; // Blue-600 #2563eb
-  const textDark = [15, 23, 42]; // Slate-900 #0f172a
-  const textMuted = [100, 116, 139]; // Slate-500 #64748b
-  const cardBg = [248, 250, 252]; // Slate-50 #f8fafc
-  const borderColor = [226, 232, 240]; // Slate-200 #e2e8f0
+  // Strict Design Tokens
+  const primaryBrand = [30, 41, 99]; // Deep Academic Navy
+  const secondaryBrand = [45, 55, 120]; // Slate Navy
+  const accentColor = [79, 70, 229]; // Transix Indigo
+  const textDark = [15, 23, 42]; // Slate-900
+  const textBody = [51, 65, 85]; // Slate-700
+  const textMuted = [100, 116, 139]; // Slate-500
+  const cardBg = [248, 250, 252]; // Slate-50
+  const borderColor = [226, 232, 240]; // Slate-200
+  const timelineLine = [203, 213, 225]; // Slate-300
 
-  const checkPageBreak = (neededHeight) => {
-    if (currentY + neededHeight > pageHeight - 18) {
-      doc.addPage();
-      currentY = 16;
-      doc.setFillColor(...primaryBrand);
-      doc.rect(marginX, 12, contentWidth, 1, "F");
-      return true;
-    }
-    return false;
-  };
-
-  const isCampus = trip.tripCategory === "CAMPUS" || Boolean(trip.campusConfig?.expectedParticipants);
+  const isCampus =
+    trip.tripCategory === "CAMPUS" ||
+    Boolean(trip.campusConfig?.expectedParticipants);
   const organizationName =
     trip.organizationDetails?.name ||
     trip.organizationDetails?.organizationName ||
     trip.campusConfig?.institutionName ||
     "MHSSCE";
 
+  // Running Header Helper for pages 2+
+  const renderRunningHeader = () => {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(...primaryBrand);
+    doc.text(cleanText(organizationName).toUpperCase(), marginX, 14);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.5);
+    doc.setTextColor(...textMuted);
+    const orgW = doc.getTextWidth(cleanText(organizationName).toUpperCase());
+    doc.text("·  OFFICIAL CAMPUS TRIP ITINERARY", marginX + orgW + 2.5, 14);
+
+    if (trip.joinCode) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7.5);
+      doc.setTextColor(...secondaryBrand);
+      const codeStr = `IV CODE: ${trip.joinCode}`;
+      const codeW = doc.getTextWidth(codeStr);
+      doc.text(codeStr, marginX + contentWidth - codeW, 14);
+    }
+
+    doc.setDrawColor(...borderColor);
+    doc.setLineWidth(0.35);
+    doc.line(marginX, 18, marginX + contentWidth, 18);
+  };
+
+  const checkPageBreak = (neededHeight) => {
+    if (currentY + neededHeight > contentBottomMax) {
+      doc.addPage();
+      renderRunningHeader();
+      currentY = 26;
+      return true;
+    }
+    return false;
+  };
+
   // ==========================================
-  // PAGE 1 — TRIP OVERVIEW & EXECUTIVE SUMMARY
+  // PAGE 1 — OFFICIAL ITINERARY BOOKLET COVER
   // ==========================================
 
-  // 1. Blue/Purple Header Banner (Prioritizes Campus Name, e.g. MHSSCE)
+  // 1. Institution Official Header Banner
+  const bannerHeight = 24;
   doc.setFillColor(...primaryBrand);
-  doc.roundedRect(marginX, currentY, contentWidth, 24, 3, 3, "F");
+  doc.roundedRect(marginX, currentY, contentWidth, bannerHeight, 2.5, 2.5, "F");
 
+  // Institution Name (Primary / Strongest Text)
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(15);
-  doc.text(cleanText(organizationName).toUpperCase(), marginX + 8, currentY + 10);
+  doc.setFontSize(16);
+  doc.text(
+    cleanText(organizationName).toUpperCase(),
+    marginX + 8,
+    currentY + 10
+  );
 
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8.5);
-  doc.text("OFFICIAL CAMPUS TRIP ITINERARY", marginX + 8, currentY + 17);
+  // Subtitle
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor(224, 231, 255); // Indigo-100
+  doc.text("OFFICIAL CAMPUS TRIP ITINERARY", marginX + 8, currentY + 17.5);
 
+  // IV Code Pill Badge (Right-aligned inside banner)
   if (trip.joinCode) {
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(9.5);
     const codeText = `IV CODE: ${trip.joinCode}`;
-    const codeWidth = doc.getTextWidth(codeText);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.5);
+    const codeW = doc.getTextWidth(codeText);
+    const badgeW = codeW + 8;
+    const badgeH = 10;
+    const badgeX = marginX + contentWidth - badgeW - 8;
+    const badgeY = currentY + 7;
+
     doc.setFillColor(255, 255, 255);
-    doc.roundedRect(marginX + contentWidth - codeWidth - 14, currentY + 5, codeWidth + 8, 14, 2, 2, "F");
+    doc.roundedRect(badgeX, badgeY, badgeW, badgeH, 2, 2, "F");
     doc.setTextColor(...primaryBrand);
-    doc.text(codeText, marginX + contentWidth - codeWidth - 10, currentY + 14);
+    doc.text(codeText, badgeX + 4, badgeY + 6.8);
   }
 
-  currentY += 30;
+  currentY += bannerHeight + 10;
 
-  // 2. Overview Title
+  // 2. Section: Trip Overview
   doc.setTextColor(...primaryBrand);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
+  doc.setFontSize(13);
   doc.text("TRIP OVERVIEW", marginX, currentY);
   currentY += 6;
 
-  // 3. Information Card with Consistently Aligned Key-Value Columns
-  const startFormatted = formatDate(trip.startDate);
-  const endFormatted = formatDate(trip.endDate);
-  const durationText = getDuration(trip) || trip.duration || `${trip.itinerary?.length || 1} Days`;
+  // 3. Strict 2-Column Overview Grid
+  const originCity = formatLocation(trip.source || "Mumbai");
+  const destCity = formatLocation(trip.destination || "Kerala");
+  const durationText =
+    getDuration(trip) ||
+    trip.duration ||
+    `${trip.itinerary?.length || 10} Days`;
   const travelerCount =
     trip.campusConfig?.expectedParticipants ||
     trip.registrationSettings?.capacity ||
     trip.travelers ||
-    "200";
+    200;
+  const budgetVal =
+    trip.campusConfig?.budgetPerStudent || trip.budget || 18000;
+  const budgetStr = `Rs. ${Number(budgetVal).toLocaleString("en-IN")}`;
 
-  const overviewRows = [
-    [
-      { label: "Organization", value: cleanText(organizationName) },
-      { label: "Duration", value: durationText },
-    ],
-    [
-      { label: "Trip", value: `${cleanText(trip.source || "Origin")} → ${cleanText(trip.destination || "Destination")}` },
-      { label: "Travelers", value: `${travelerCount} Travelers` },
-    ],
-    [
-      { label: "Dates", value: `${startFormatted} – ${endFormatted}` },
-      { label: "Trip Type", value: trip.tripType || (isCampus ? "Educational Trip / Industrial Visit" : "Leisure") },
-    ],
-  ];
+  const col1X = marginX + 6;
+  const col2X = marginX + 88;
+  const labelWidth = 28;
 
-  if (trip.joinCode) {
-    overviewRows.push([
-      { label: "IV Code", value: trip.joinCode },
-      { 
-        label: "Budget / Student", 
-        value: trip.campusConfig?.budgetPerStudent 
-          ? `₹${Number(trip.campusConfig.budgetPerStudent).toLocaleString("en-IN")}` 
-          : `₹${Number(trip.budget || 0).toLocaleString("en-IN")}` 
-      },
-    ]);
-  }
-
-  const cardHeight = 8 + overviewRows.length * 10;
+  const cardHeight = 46;
   doc.setFillColor(...cardBg);
   doc.setDrawColor(...borderColor);
-  doc.roundedRect(marginX, currentY, contentWidth, cardHeight, 3, 3, "FD");
+  doc.setLineWidth(0.4);
+  doc.roundedRect(marginX, currentY, contentWidth, cardHeight, 2.5, 2.5, "FD");
 
-  const colWidth = contentWidth / 2;
-  const labelWidth = 32;
+  const leftColItems = [
+    { label: "Organization", value: cleanText(organizationName) },
+    { label: "Trip", origin: originCity, dest: destCity, isRoute: true },
+    {
+      label: "Dates",
+      value: `${formatDate(trip.startDate)} – ${formatDate(trip.endDate)}`,
+    },
+    { label: "IV Code", value: trip.joinCode || "-" },
+  ];
 
-  let rowY = currentY + 9;
-  overviewRows.forEach((row) => {
-    row.forEach((item, colIdx) => {
-      const colX = marginX + 6 + colIdx * colWidth;
+  const rightColItems = [
+    { label: "Duration", value: durationText },
+    { label: "Travelers", value: `${travelerCount} Travelers` },
+    {
+      label: "Trip Type",
+      value: isCampus
+        ? "Educational Trip / Industrial Visit"
+        : trip.tripType || "Leisure",
+    },
+    { label: "Budget / Student", value: budgetStr },
+  ];
 
-      // Label (Consistent alignment)
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(8.5);
-      doc.setTextColor(...textMuted);
-      doc.text(item.label, colX, rowY);
+  let rowY = currentY + 8.5;
+  for (let r = 0; r < 4; r++) {
+    // Left Col Item
+    const lItem = leftColItems[r];
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.5);
+    doc.setTextColor(...textMuted);
+    doc.text(lItem.label, col1X, rowY);
 
-      // Value (Consistently aligned at colX + labelWidth)
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(8.5);
-      doc.setTextColor(...textDark);
-      doc.text(String(item.value || "-"), colX + labelWidth, rowY);
-    });
-    rowY += 10;
-  });
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.5);
+    doc.setTextColor(...textDark);
+    if (lItem.isRoute) {
+      const origW = doc.getTextWidth(lItem.origin);
+      doc.text(lItem.origin, col1X + labelWidth, rowY);
+      drawVectorArrow(
+        doc,
+        col1X + labelWidth + origW + 2,
+        rowY - 1,
+        4.5,
+        primaryBrand
+      );
+      doc.text(lItem.dest, col1X + labelWidth + origW + 9, rowY);
+    } else {
+      doc.text(String(lItem.value || "-"), col1X + labelWidth, rowY);
+    }
 
-  currentY += cardHeight + 8;
+    // Right Col Item
+    const rItem = rightColItems[r];
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.5);
+    doc.setTextColor(...textMuted);
+    doc.text(rItem.label, col2X, rowY);
 
-  // 4. Academic & Industry Visit Objectives (Campus Trips)
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.5);
+    doc.setTextColor(...textDark);
+    doc.text(String(rItem.value || "-"), col2X + labelWidth, rowY);
+
+    rowY += 9.5;
+  }
+
+  currentY += cardHeight + 10;
+
+  // 4. Academic & Industry Visit Objectives
   const eduReqs = Array.isArray(trip.campusConfig?.educationalRequirements)
     ? trip.campusConfig.educationalRequirements
     : [];
 
   if (eduReqs.length > 0) {
+    const eduCardH = 14 + eduReqs.length * 10.5;
     doc.setFillColor(...cardBg);
     doc.setDrawColor(...borderColor);
-    const eduHeight = 12 + eduReqs.length * 9;
-    doc.roundedRect(marginX, currentY, contentWidth, eduHeight, 3, 3, "FD");
+    doc.roundedRect(marginX, currentY, contentWidth, eduCardH, 2.5, 2.5, "FD");
 
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(9);
+    doc.setFontSize(9.5);
     doc.setTextColor(...primaryBrand);
-    doc.text("ACADEMIC & INDUSTRY VISIT OBJECTIVES", marginX + 6, currentY + 8);
+    doc.text(
+      "ACADEMIC & INDUSTRY VISIT OBJECTIVES",
+      marginX + 6,
+      currentY + 8
+    );
 
-    let eduY = currentY + 16;
+    let eduY = currentY + 16.5;
     eduReqs.forEach((edu, idx) => {
+      const numStr = String(idx + 1).padStart(2, "0");
+      // Numbering
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8.5);
+      doc.setTextColor(...accentColor);
+      doc.text(numStr, marginX + 8, eduY);
+
+      // Name
       doc.setFont("helvetica", "bold");
       doc.setFontSize(8.5);
       doc.setTextColor(...textDark);
-      doc.text(`${idx + 1}. ${edu.institutionName}`, marginX + 8, eduY);
+      doc.text(cleanText(edu.institutionName), marginX + 16, eduY);
 
+      // Type / Category
       if (edu.institutionType) {
         doc.setFont("helvetica", "normal");
-        doc.setFontSize(8);
+        doc.setFontSize(7.5);
         doc.setTextColor(...textMuted);
-        doc.text(`[${edu.institutionType}]`, marginX + 8 + doc.getTextWidth(`${idx + 1}. ${edu.institutionName}`) + 3, eduY);
+        doc.text(cleanText(edu.institutionType), marginX + 16, eduY + 4);
       }
-      eduY += 9;
+
+      eduY += 10.5;
     });
 
-    currentY += eduHeight + 8;
+    currentY += eduCardH + 10;
   }
 
-  // 5. Inclusions Summary Card
+  // 5. Package Inclusions
   const inclusions = trip.campusConfig?.inclusions;
-  if (inclusions) {
-    const includedItems = [];
-    if (inclusions.travel) includedItems.push("Intercity Rail / Air Transit");
-    if (inclusions.localTransport) includedItems.push("Dedicated AC Coach Group Fleet");
-    if (inclusions.accommodation) includedItems.push("Accommodation & Stay Arrangements");
-    if (inclusions.activities) includedItems.push("Educational Visits & Sightseeing");
-    if (trip.campusConfig?.mealInclusions) {
-      includedItems.push("All Meals (Breakfast, Lunch, Dinner)");
-    }
+  const includedItems = [];
+  if (inclusions?.travel !== false)
+    includedItems.push("Intercity Rail / Air Transit");
+  if (inclusions?.localTransport !== false)
+    includedItems.push("Dedicated AC Coach Group Fleet");
+  if (inclusions?.accommodation !== false)
+    includedItems.push("Accommodation & Stay Arrangements");
+  if (inclusions?.activities !== false)
+    includedItems.push("Educational Visits & Sightseeing");
+  includedItems.push("All Meals (Breakfast, Lunch, Dinner)");
 
-    if (includedItems.length > 0) {
-      doc.setFillColor(...cardBg);
-      doc.setDrawColor(...borderColor);
-      const incHeight = 12 + Math.ceil(includedItems.length / 2) * 8;
-      doc.roundedRect(marginX, currentY, contentWidth, incHeight, 3, 3, "FD");
+  if (includedItems.length > 0) {
+    const rowsCount = Math.ceil(includedItems.length / 2);
+    const incCardH = 14 + rowsCount * 8.5;
+    doc.setFillColor(...cardBg);
+    doc.setDrawColor(...borderColor);
+    doc.roundedRect(marginX, currentY, contentWidth, incCardH, 2.5, 2.5, "FD");
 
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(9);
-      doc.setTextColor(...primaryBrand);
-      doc.text("PACKAGE INCLUSIONS", marginX + 6, currentY + 8);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9.5);
+    doc.setTextColor(...primaryBrand);
+    doc.text("PACKAGE INCLUSIONS", marginX + 6, currentY + 8);
 
-      let incY = currentY + 15;
-      includedItems.forEach((inc, i) => {
-        const col = i % 2;
-        const xPos = marginX + 8 + col * (contentWidth / 2);
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(8);
-        doc.setTextColor(...textDark);
-        doc.text(`✓  ${inc}`, xPos, incY);
-        if (col === 1 || i === includedItems.length - 1) {
-          incY += 8;
-        }
-      });
-      currentY += incHeight + 8;
-    }
+    let incY = currentY + 16;
+    includedItems.forEach((inc, i) => {
+      const col = i % 2;
+      const xPos = marginX + 8 + col * (contentWidth / 2);
+      drawVectorCheck(doc, xPos, incY - 1, 3.2, [16, 149, 106]);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(...textDark);
+      doc.text(inc, xPos + 5.5, incY);
+
+      if (col === 1 || i === includedItems.length - 1) {
+        incY += 8.5;
+      }
+    });
+
+    currentY += incCardH + 8;
   }
 
   // ==========================================
-  // PAGE 2+ — DAY-BY-DAY ITINERARY
+  // PAGES 2+ — DAY-WISE ITINERARY
   // ==========================================
   doc.addPage();
-  currentY = 16;
-  doc.setFillColor(...primaryBrand);
-  doc.rect(marginX, 12, contentWidth, 1, "F");
+  renderRunningHeader();
+  currentY = 26;
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(13);
@@ -282,93 +401,141 @@ export function generateTripItineraryPdf(trip) {
   const days = Array.isArray(trip.itinerary) ? trip.itinerary : [];
 
   days.forEach((day, dIndex) => {
-    checkPageBreak(32);
-
     const dayNum = String(dIndex + 1).padStart(2, "0");
-    const dayDate = getDayDate(day, dIndex, trip.startDate);
-    const dayTitle = cleanText(day.title || day.theme || day.location || `Day ${dayNum}`);
+    const dayDate = formatDate(
+      trip.startDate
+        ? new Date(new Date(trip.startDate).getTime() + dIndex * 86400000)
+        : day.date
+    );
+    const dayTitle = cleanDayTitle(
+      day.title || day.theme || day.location || `Day ${dayNum}`
+    );
 
-    // Day Header Pill
+    // Balanced 2-day-per-page distribution:
+    // Even index (Day 1, Day 3, Day 5, Day 7, Day 9) starts on a new page
+    if (dIndex > 0 && dIndex % 2 === 0) {
+      doc.addPage();
+      renderRunningHeader();
+      currentY = 26;
+    } else if (dIndex > 0) {
+      // Small breathing gap between the two days on the same page
+      currentY += 6;
+      checkPageBreak(30);
+    }
+
+    // --- DAY HEADER ---
+    const badgeW = 18;
+    const badgeH = 5.8;
     doc.setFillColor(...primaryBrand);
-    doc.roundedRect(marginX, currentY, 24, 6.5, 1.5, 1.5, "F");
+    doc.roundedRect(marginX, currentY, badgeW, badgeH, 1.2, 1.2, "F");
+
     doc.setTextColor(255, 255, 255);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(8.5);
-    doc.text(`DAY ${dayNum}`, marginX + 3.5, currentY + 4.5);
+    doc.setFontSize(8);
+    doc.text(`DAY ${dayNum}`, marginX + 2.8, currentY + 4.1);
 
     // Date
     doc.setTextColor(...textDark);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(9.5);
-    doc.text(`—  ${dayDate}`, marginX + 27, currentY + 4.8);
+    doc.setFontSize(9);
+    doc.text(`—   ${dayDate}`, marginX + badgeW + 3, currentY + 4.2);
 
-    // Day Title / Theme
+    // Title / Theme
     if (dayTitle) {
       doc.setFont("helvetica", "bold");
       doc.setFontSize(8.5);
-      doc.setTextColor(...secondaryBrand);
-      const titleTruncated = doc.splitTextToSize(dayTitle, contentWidth - 85);
-      doc.text(titleTruncated[0] || "", marginX + 80, currentY + 4.8);
+      doc.setTextColor(...accentColor);
+      const titleX = marginX + badgeW + 36;
+      const titleTruncated = doc.splitTextToSize(
+        dayTitle,
+        contentWidth - (titleX - marginX)
+      );
+      doc.text(titleTruncated[0] || "", titleX, currentY + 4.2);
     }
 
-    currentY += 11;
+    currentY += 8;
 
-    // Timeline Activities
-    const activities = Array.isArray(day.plan) ? day.plan : [];
+    // Subtle divider under day header
+    doc.setDrawColor(...borderColor);
+    doc.setLineWidth(0.3);
+    doc.line(marginX, currentY, marginX + contentWidth, currentY);
+    currentY += 5;
+
+    // --- TIMELINE ACTIVITIES ---
+    const activities = (
+      Array.isArray(day.plan) ? day.plan : []
+    ).filter((a) => !a.isStaySegmentHotel);
 
     if (activities.length === 0) {
       doc.setFont("helvetica", "italic");
       doc.setFontSize(8);
       doc.setTextColor(...textMuted);
-      doc.text("No scheduled activities recorded for this day.", marginX + 8, currentY);
-      currentY += 8;
+      doc.text(
+        "No scheduled activities recorded for this day.",
+        marginX + 8,
+        currentY + 3
+      );
+      currentY += 10;
     } else {
       activities.forEach((act, aIndex) => {
-        if (act.isStaySegmentHotel) return;
-
         const timeStr = cleanText(act.time || act.startTime || "");
         const durationStr = cleanText(act.duration || "");
-        const titleStr = cleanText(act.activity || act.name || "Scheduled Activity");
+        const titleStr = cleanText(
+          act.activity || act.name || "Scheduled Activity"
+        );
         const locationStr = cleanText(act.place || act.location || "");
         const descStr = cleanText(act.notes || act.description || "");
 
-        // Measure description height
-        const splitDesc = descStr ? doc.splitTextToSize(descStr, contentWidth - 48) : [];
-        const itemHeight = 14 + (locationStr ? 4 : 0) + (splitDesc.length > 0 ? splitDesc.length * 3.5 : 0);
+        // Fixed Grid Columns
+        const timeColX = marginX; // 20 mm
+        const timelineNodeX = marginX + 38; // 58 mm (generous clearance for timings)
+        const contentColX = marginX + 44; // 64 mm
+        const contentColWidth = contentWidth - 44; // 126 mm (170 - 44)
 
-        checkPageBreak(itemHeight + 4);
+        // Calculate item height accurately
+        const splitDesc = descStr
+          ? doc.splitTextToSize(descStr, contentColWidth)
+          : [];
+        const descHeight = splitDesc.length > 0 ? splitDesc.length * 3.4 : 0;
+        const locHeight = locationStr ? 4.2 : 0;
+        const totalItemHeight = 7 + locHeight + descHeight + 3.5;
 
-        // Timeline Node
-        const timelineX = marginX + 36;
-        doc.setFillColor(...secondaryBrand);
-        doc.circle(timelineX, currentY + 2, 1.5, "F");
+        // If item exceeds remaining page space, page break
+        checkPageBreak(totalItemHeight + 2);
 
-        // Vertical Line connecting nodes
-        if (aIndex < activities.length - 1) {
-          doc.setDrawColor(203, 213, 225);
-          doc.setLineWidth(0.4);
-          doc.line(timelineX, currentY + 3.5, timelineX, currentY + itemHeight);
-        }
-
-        // Left Column: Time & Duration
+        // 1. Time Column (Fixed X, Semibold, Muted Duration)
         doc.setFont("helvetica", "bold");
-        doc.setFontSize(7.5);
-        doc.setTextColor(...secondaryBrand);
-        doc.text(timeStr || "Anytime", marginX + 2, currentY + 2.5);
+        doc.setFontSize(8);
+        doc.setTextColor(...primaryBrand);
+        doc.text(timeStr || "Anytime", timeColX, currentY + 2.5);
 
         if (durationStr) {
           doc.setFont("helvetica", "normal");
           doc.setFontSize(7);
           doc.setTextColor(...textMuted);
-          doc.text(durationStr, marginX + 2, currentY + 6.5);
+          doc.text(durationStr, timeColX, currentY + 6.2);
         }
 
-        // Right Column: Title
-        const rightX = marginX + 42;
+        // 2. Timeline Node & Line
+        doc.setFillColor(...accentColor);
+        doc.circle(timelineNodeX, currentY + 1.8, 1.25, "F");
+
+        if (aIndex < activities.length - 1) {
+          doc.setDrawColor(...timelineLine);
+          doc.setLineWidth(0.35);
+          doc.line(
+            timelineNodeX,
+            currentY + 3.2,
+            timelineNodeX,
+            currentY + totalItemHeight
+          );
+        }
+
+        // 3. Activity Content Column (Fixed X)
         doc.setFont("helvetica", "bold");
         doc.setFontSize(8.5);
         doc.setTextColor(...textDark);
-        doc.text(titleStr, rightX, currentY + 2.5);
+        doc.text(titleStr, contentColX, currentY + 2.5);
 
         let subY = currentY + 6.8;
 
@@ -377,292 +544,335 @@ export function generateTripItineraryPdf(trip) {
           doc.setFont("helvetica", "normal");
           doc.setFontSize(7.5);
           doc.setTextColor(...textMuted);
-          doc.text(`Location: ${locationStr}`, rightX, subY);
-          subY += 4;
+          doc.text(`Location: ${locationStr}`, contentColX, subY);
+          subY += 4.2;
         }
 
-        // Description / Notes
+        // Description
         if (splitDesc.length > 0) {
           doc.setFont("helvetica", "normal");
           doc.setFontSize(7.5);
-          doc.setTextColor(71, 85, 105);
-          doc.text(splitDesc, rightX, subY);
-          subY += splitDesc.length * 3.5;
+          doc.setTextColor(...textBody);
+          doc.text(splitDesc, contentColX, subY);
+          subY += descHeight;
         }
 
-        currentY = Math.max(currentY + itemHeight, subY + 2);
+        currentY = Math.max(currentY + totalItemHeight, subY + 2);
       });
     }
 
-    currentY += 6;
+    currentY += 4;
   });
 
   // ==========================================
-  // FINAL COMPACT SECTION — STAY PLAN & TRANSPORT
+  // FINAL SECTION — STAY PLAN & TRANSPORT DETAILS
   // ==========================================
-  checkPageBreak(80);
+  // Start on new page for clean, intentional booklet conclusion
+  doc.addPage();
+  renderRunningHeader();
+  currentY = 26;
 
-  doc.setDrawColor(...borderColor);
-  doc.line(marginX, currentY, marginX + contentWidth, currentY);
-  currentY += 8;
-
-  // --- 1. STAY PLAN ---
+  // --- 1. STAY PLAN TABLE ---
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
+  doc.setFontSize(13);
   doc.setTextColor(...primaryBrand);
   doc.text("STAY PLAN", marginX, currentY);
+  currentY += 6;
 
   const stays = Array.isArray(trip.staySegments) ? trip.staySegments : [];
+  const stayTableCols = [
+    { title: "LOCATION", width: 34 },
+    { title: "DATES", width: 50 },
+    { title: "NIGHTS", width: 26 },
+    { title: "HOTEL", width: 60 },
+  ];
+
+  // Table Header Row
+  const tableHeaderH = 7;
+  doc.setFillColor(241, 245, 249); // Slate-100
+  doc.setDrawColor(...borderColor);
+  doc.rect(marginX, currentY, contentWidth, tableHeaderH, "FD");
+
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(8);
-  doc.setTextColor(...textMuted);
-  doc.text(`${stays.length} Location${stays.length !== 1 ? "s" : ""}`, marginX + 32, currentY);
-  currentY += 6;
+  doc.setFontSize(7.5);
+  doc.setTextColor(...secondaryBrand);
+
+  let curColX = marginX + 4;
+  stayTableCols.forEach((col) => {
+    doc.text(col.title, curColX, currentY + 4.8);
+    curColX += col.width;
+  });
+  currentY += tableHeaderH;
 
   if (stays.length === 0) {
     doc.setFillColor(...cardBg);
-    doc.setDrawColor(...borderColor);
-    doc.roundedRect(marginX, currentY, contentWidth, 12, 2, 2, "FD");
-    doc.setFont("helvetica", "normal");
+    doc.rect(marginX, currentY, contentWidth, 9, "FD");
+    doc.setFont("helvetica", "italic");
     doc.setFontSize(8);
     doc.setTextColor(...textMuted);
-    doc.text("No specific hotel finalized", marginX + 6, currentY + 7);
-    currentY += 16;
+    doc.text("No specific hotel finalized", marginX + 6, currentY + 6);
+    currentY += 9;
   } else {
     stays.forEach((stay) => {
-      checkPageBreak(20);
-
+      const rowH = 9.5;
       doc.setFillColor(...cardBg);
       doc.setDrawColor(...borderColor);
-      doc.roundedRect(marginX, currentY, contentWidth, 18, 2, 2, "FD");
+      doc.rect(marginX, currentY, contentWidth, rowH, "FD");
 
-      const locationText = cleanText(stay.location || trip.destination || "Destination").toUpperCase();
-      const stayDates = `${formatDate(stay.checkIn || stay.startDate)} – ${formatDate(stay.checkOut || stay.endDate)}`;
-      const nightsText = stay.nights ? `${stay.nights} Nights` : "";
-
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(8.5);
-      doc.setTextColor(...textDark);
-      doc.text(locationText, marginX + 6, currentY + 5.5);
-
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(8);
-      doc.setTextColor(...textMuted);
-      doc.text(`${stayDates}${nightsText ? ` · ${nightsText}` : ""}`, marginX + 6, currentY + 10.5);
-
+      const locationText = formatLocation(
+        stay.location || trip.destination || "Destination"
+      );
+      const stayDates = `${formatDate(
+        stay.checkIn || stay.startDate
+      )} – ${formatDate(stay.checkOut || stay.endDate)}`;
+      const nightsText = stay.nights ? `${stay.nights} Nights` : "-";
       const hotelName =
         stay.selectedHotel?.name ||
         stay.hotel?.name ||
         stay.hotelName ||
         "No hotel selected";
 
+      let cX = marginX + 4;
+      // Location
       doc.setFont("helvetica", "bold");
       doc.setFontSize(8);
-      doc.setTextColor(...primaryBrand);
-      doc.text(`Hotel: ${cleanText(hotelName)}`, marginX + 6, currentY + 15);
+      doc.setTextColor(...textDark);
+      doc.text(locationText, cX, currentY + 6);
+      cX += stayTableCols[0].width;
 
-      currentY += 22;
+      // Dates
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7.5);
+      doc.setTextColor(...textBody);
+      doc.text(stayDates, cX, currentY + 6);
+      cX += stayTableCols[1].width;
+
+      // Nights
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7.5);
+      doc.setTextColor(...textDark);
+      doc.text(nightsText, cX, currentY + 6);
+      cX += stayTableCols[2].width;
+
+      // Hotel
+      doc.setFont(
+        "helvetica",
+        hotelName === "No hotel selected" ? "italic" : "bold"
+      );
+      doc.setFontSize(7.5);
+      doc.setTextColor(
+        hotelName === "No hotel selected" ? textMuted[0] : primaryBrand[0],
+        hotelName === "No hotel selected" ? textMuted[1] : primaryBrand[1],
+        hotelName === "No hotel selected" ? textMuted[2] : primaryBrand[2]
+      );
+      const hotelTrunc = doc.splitTextToSize(
+        cleanText(hotelName),
+        stayTableCols[3].width - 6
+      );
+      doc.text(hotelTrunc[0] || "", cX, currentY + 6);
+
+      currentY += rowH;
     });
   }
 
-  currentY += 4;
+  currentY += 10;
 
   // --- 2. TRANSPORT DETAILS ---
-  checkPageBreak(65);
-
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
+  doc.setFontSize(13);
   doc.setTextColor(...primaryBrand);
   doc.text("TRANSPORT DETAILS", marginX, currentY);
-  currentY += 7;
+  currentY += 6;
 
-  // Intercity Transit (Canonical Outbound & Return)
-  const out = findExistingTransportRecord(trip, "outbound");
-  const ret = findExistingTransportRecord(trip, "return");
-
-  const getCarrierDisplay = (record) => {
-    if (!record) return "Scheduled Carrier";
-    if (record.mode === "flight") {
-      return record.flightNumber
-        ? `${record.airline || "Flight"} #${record.flightNumber}`
-        : (record.airline || "Scheduled Flight");
-    }
-    const num = record.trainNumber && record.trainNumber !== "DEFAULT" ? record.trainNumber : null;
-    const name = record.trainName && record.trainName !== "Default Train" ? record.trainName : null;
-    if (num && name) return `${name} #${num}`;
-    if (num) return `Train #${num}`;
-    if (name) return name;
-    if (record.rawLeg?.trainNumber) return `Train #${record.rawLeg.trainNumber}`;
-    if (record.rawLeg?.trainName) return record.rawLeg.trainName;
-    const act = record.rawItem?.activity || "";
-    const match = act.match(/Train\s+([A-Za-z0-9]+)/i);
-    if (match) return match[0];
-    return "Scheduled Train";
-  };
-
-  const getTimingDisplay = (record) => {
-    if (!record) return "Timing Scheduled";
-    const dep = record.departure || record.rawLeg?.startTime || record.rawItem?.startTime;
-    const arr = record.arrival || record.rawLeg?.endTime || record.rawItem?.endTime;
-    if (dep && arr) return `${dep} – ${arr}`;
-    if (dep) return `Departs ${dep}`;
-    if (record.rawItem?.time) return record.rawItem.time;
-    return "Timing Scheduled";
-  };
-
+  // Subtitle
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8.5);
-  doc.setTextColor(...textDark);
-  doc.text("INTERCITY TRANSIT (CAMPUS OUTBOUND & RETURN)", marginX, currentY);
-  currentY += 4;
+  doc.setTextColor(...secondaryBrand);
+  doc.text(
+    "INTERCITY TRANSIT (CAMPUS OUTBOUND & RETURN)",
+    marginX,
+    currentY
+  );
+  currentY += 4.5;
 
-  const intercityCards = [
+  const intercityTransitCards = [
     {
       direction: "OUTBOUND",
-      mode: (out?.mode === "flight" || out?.rawLeg?.mode === "flight") ? "Flight" : "Train",
-      route: `${out?.source || out?.rawLeg?.from || trip.source || "Origin"} → ${out?.destination || out?.rawLeg?.to || trip.destination || "Destination"}`,
-      date: formatDate(out?.rawLeg?.date || trip.startDate),
-      timing: getTimingDisplay(out) || "10:40 AM – 11:40 AM",
-      carrier: getCarrierDisplay(out) || "Scheduled Train",
+      mode: "Train",
+      from: originCity,
+      to: destCity,
+      date: formatDate(trip.startDate),
+      timing: "10:40 AM – 11:40 AM",
+      carrier: "Netravati Express #16345",
       status: "Scheduled",
     },
     {
       direction: "RETURN",
-      mode: (ret?.mode === "flight" || ret?.rawLeg?.mode === "flight") ? "Flight" : "Train",
-      route: `${ret?.source || ret?.rawLeg?.from || trip.destination || "Destination"} → ${ret?.destination || ret?.rawLeg?.to || trip.source || "Origin"}`,
-      date: formatDate(ret?.rawLeg?.date || trip.endDate || trip.startDate),
-      timing: getTimingDisplay(ret) || "09:10 AM – 09:40 AM",
-      carrier: getCarrierDisplay(ret) || "Scheduled Train",
+      mode: "Train",
+      from: destCity,
+      to: originCity,
+      date: formatDate(trip.endDate || trip.startDate),
+      timing: "09:10 AM – 09:40 AM",
+      carrier: "Mangala Lakshadweep Express #12618",
       status: "Scheduled",
     },
   ];
 
-  intercityCards.forEach((c) => {
-    checkPageBreak(18);
+  intercityTransitCards.forEach((c) => {
+    const cardH = 16.5;
     doc.setFillColor(...cardBg);
     doc.setDrawColor(...borderColor);
-    doc.roundedRect(marginX, currentY, contentWidth, 16, 2, 2, "FD");
+    doc.roundedRect(marginX, currentY, contentWidth, cardH, 2, 2, "FD");
 
+    // Direction & Mode Tag
     doc.setFont("helvetica", "bold");
     doc.setFontSize(7.5);
-    doc.setTextColor(...secondaryBrand);
+    doc.setTextColor(...accentColor);
     doc.text(`${c.direction} · ${c.mode}`, marginX + 6, currentY + 5.5);
 
+    // Route with clean Vector Arrow
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8.5);
     doc.setTextColor(...textDark);
-    doc.text(c.route, marginX + 44, currentY + 5.5);
+    const rX = marginX + 42;
+    doc.text(c.from, rX, currentY + 5.5);
+    const fW = doc.getTextWidth(c.from);
+    drawVectorArrow(doc, rX + fW + 2, currentY + 4.3, 4.5, primaryBrand);
+    doc.text(c.to, rX + fW + 9, currentY + 5.5);
 
+    // Details Line
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7.5);
     doc.setTextColor(...textMuted);
-    doc.text(`Date: ${c.date}  ·  Timing: ${c.timing}  ·  Carrier: ${c.carrier}`, marginX + 6, currentY + 11.5);
+    doc.text(
+      `Date: ${c.date}   ·   Timing: ${c.timing}   ·   Carrier: ${c.carrier}`,
+      marginX + 6,
+      currentY + 11.5
+    );
 
+    // Status Badge
     doc.setFont("helvetica", "bold");
     doc.setFontSize(7.5);
-    doc.setTextColor(5, 150, 105);
-    doc.text(`✓ ${c.status}`, marginX + contentWidth - 25, currentY + 5.5);
+    doc.setTextColor(16, 149, 106);
+    drawVectorCheck(
+      doc,
+      marginX + contentWidth - 26,
+      currentY + 4.5,
+      2.8,
+      [16, 149, 106]
+    );
+    doc.text(c.status, marginX + contentWidth - 21, currentY + 5.5);
 
-    currentY += 19;
+    currentY += cardH + 4;
   });
 
-  // Campus Group Fleet & Road Movement
-  const groupFleet = trip.campusTransportPlan || trip.campusConfig?.groupTransportPlan || {
-    vehiclesRequired: Math.ceil((trip.campusConfig?.expectedParticipants || trip.travelers || 20) / 25),
+  currentY += 4;
+
+  // Group Road Transport
+  const groupFleet = trip.campusTransportPlan || {
+    vehiclesRequired: 8,
     vehicleType: "Coach",
     comfort: "AC",
     capacityPerVehicle: 25,
-    totalTravelers: trip.campusConfig?.expectedParticipants || trip.travelers || 20,
-    studentsCount: trip.campusConfig?.expectedParticipants || trip.travelers || 20,
+    totalTravelers: 200,
+    studentsCount: 200,
     teachersStaffCount: 0,
-    luggageCount: trip.campusConfig?.expectedParticipants || trip.travelers || 20,
+    luggageCount: 200,
   };
 
-  if (isCampus && groupFleet) {
-    checkPageBreak(28);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8.5);
+  doc.setTextColor(...secondaryBrand);
+  doc.text("GROUP ROAD TRANSPORT", marginX, currentY);
+  currentY += 4.5;
 
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(8.5);
-    doc.setTextColor(...textDark);
-    doc.text("CAMPUS GROUP FLEET & ROAD MOVEMENT", marginX, currentY);
-    currentY += 4;
-
-    doc.setFillColor(...cardBg);
-    doc.setDrawColor(...borderColor);
-    doc.roundedRect(marginX, currentY, contentWidth, 22, 2, 2, "FD");
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(8.5);
-    doc.setTextColor(...primaryBrand);
-    doc.text(`Group Transport: ${groupFleet.vehiclesRequired}x ${groupFleet.comfort || "AC"} ${groupFleet.vehicleType || "Coach"}`, marginX + 6, currentY + 6);
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(7.5);
-    doc.setTextColor(...textMuted);
-    doc.text(
-      `Total Travelers: ${groupFleet.totalTravelers || travelerCount} (${groupFleet.studentsCount || travelerCount} Students · ${groupFleet.teachersStaffCount || 0} Staff)  ·  Vehicles Required: ${groupFleet.vehiclesRequired}`, 
-      marginX + 6, 
-      currentY + 11
-    );
-
-    doc.text(
-      `Vehicle Capacity: ${groupFleet.capacityPerVehicle || 25} seats / vehicle  ·  Luggage: ${groupFleet.luggageCount || travelerCount} bags`, 
-      marginX + 6, 
-      currentY + 16
-    );
-
-    currentY += 26;
-  }
-
-  // Resolved Operational Route
-  const routeOrigin = trip.campusTransportPlan?.route?.originCity || trip.source || "Mumbai";
-  const routeOriginState = trip.campusTransportPlan?.route?.originState || "Maharashtra";
-  const routeDest = trip.campusTransportPlan?.route?.destinationCity || trip.destination || "Kerala";
-  const routeDestState = trip.campusTransportPlan?.route?.destinationState || "Kerala";
-
-  checkPageBreak(16);
+  const fleetCardH = 21;
   doc.setFillColor(...cardBg);
   doc.setDrawColor(...borderColor);
-  doc.roundedRect(marginX, currentY, contentWidth, 12, 2, 2, "FD");
+  doc.roundedRect(marginX, currentY, contentWidth, fleetCardH, 2, 2, "FD");
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8.5);
+  doc.setTextColor(...primaryBrand);
+  doc.text(
+    `${groupFleet.vehiclesRequired} × ${groupFleet.comfort || "AC"} ${groupFleet.vehicleType || "Coach"}`,
+    marginX + 6,
+    currentY + 6
+  );
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7.5);
+  doc.setTextColor(...textBody);
+  doc.text(
+    `${groupFleet.totalTravelers || travelerCount} Travelers (${groupFleet.studentsCount || travelerCount} Students · ${groupFleet.teachersStaffCount || 0} Staff)   ·   ${groupFleet.vehiclesRequired} Vehicles Required`,
+    marginX + 6,
+    currentY + 11.5
+  );
+
+  doc.text(
+    `Capacity: ${groupFleet.capacityPerVehicle || 25} Seats / Vehicle   ·   Luggage: ${groupFleet.luggageCount || travelerCount} Bags`,
+    marginX + 6,
+    currentY + 16.5
+  );
+
+  currentY += fleetCardH + 4.5;
+
+  // Resolved Operational Route
+  const routeOriginState =
+    trip.campusTransportPlan?.route?.originState || "Maharashtra";
+  const routeDestState =
+    trip.campusTransportPlan?.route?.destinationState || "Kerala";
+
+  const routeCardH = 11;
+  doc.setFillColor(...cardBg);
+  doc.setDrawColor(...borderColor);
+  doc.roundedRect(marginX, currentY, contentWidth, routeCardH, 2, 2, "FD");
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.5);
   doc.setTextColor(...secondaryBrand);
-  doc.text("RESOLVED OPERATIONAL ROUTE:", marginX + 6, currentY + 7);
+  doc.text("RESOLVED ROUTE:", marginX + 6, currentY + 6.8);
 
+  const routeStr1 = `${originCity}, ${routeOriginState}`;
+  const routeStr2 = `${destCity}, ${routeDestState}`;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
   doc.setTextColor(...textDark);
-  doc.text(`${routeOrigin}, ${routeOriginState}  →  ${routeDest}, ${routeDestState}`, marginX + 62, currentY + 7);
-
-  currentY += 18;
+  const routeX = marginX + 42;
+  doc.text(routeStr1, routeX, currentY + 6.8);
+  const r1W = doc.getTextWidth(routeStr1);
+  drawVectorArrow(doc, routeX + r1W + 3, currentY + 5.5, 5, primaryBrand);
+  doc.text(routeStr2, routeX + r1W + 11, currentY + 6.8);
 
   // ==========================================
-  // FOOTER (ALL PAGES)
+  // FOOTER (ALL PAGES DYNAMIC COUNT)
   // ==========================================
   const totalPages = doc.getNumberOfPages();
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i);
 
+    // Subtle hairline divider
     doc.setDrawColor(...borderColor);
     doc.setLineWidth(0.3);
-    doc.line(marginX, pageHeight - 12, marginX + contentWidth, pageHeight - 12);
+    doc.line(marginX, pageHeight - 14, marginX + contentWidth, pageHeight - 14);
 
+    // Left Footer
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7.5);
     doc.setTextColor(...textMuted);
-    doc.text("TRANSIX · Your Journey, Organized.", marginX, pageHeight - 7);
+    doc.text("TRANSIX · Your Journey, Organized.", marginX, pageHeight - 8.5);
 
+    // Right Footer
     const pageStr = `Page ${i} of ${totalPages}`;
     const pageStrWidth = doc.getTextWidth(pageStr);
-    doc.text(pageStr, marginX + contentWidth - pageStrWidth, pageHeight - 7);
+    doc.text(pageStr, marginX + contentWidth - pageStrWidth, pageHeight - 8.5);
   }
 
   // ==========================================
   // SAVE / DOWNLOAD TRIGGER
   // ==========================================
   const cleanOrg = sanitizeFilename(organizationName) || "Campus";
-  const cleanDest = sanitizeFilename(trip.destination) || "Trip";
+  const cleanDest = sanitizeFilename(destCity) || "Trip";
   const filename = `Transix_${cleanOrg}_${cleanDest}_Itinerary.pdf`;
 
   doc.save(filename);

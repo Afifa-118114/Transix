@@ -1,8 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { FiFileText, FiDollarSign, FiMap, FiCheckCircle, FiBell, FiChevronRight, FiUpload, FiX, FiAlertCircle, FiClock, FiMail, FiPhone, FiMessageSquare, FiInfo, FiCompass, FiBriefcase } from "react-icons/fi";
+import { FiFileText, FiDollarSign, FiMap, FiCheckCircle, FiBell, FiChevronRight, FiUpload, FiX, FiAlertCircle, FiClock, FiMail, FiPhone, FiMessageSquare, FiInfo, FiCompass, FiBriefcase, FiDownload } from "react-icons/fi";
+import toast from "react-hot-toast";
 import DashboardLayout from "../layouts/DashboardLayout";
 import { useAuth } from "../context/AuthContext";
+import StudentAnnouncementMarquee from "../components/campus/StudentAnnouncementMarquee";
+import { generateTripItineraryPdf } from "../utils/itineraryPdfGenerator";
 
 export default function ParticipantDashboard() {
   const { id } = useParams();
@@ -15,6 +18,21 @@ export default function ParticipantDashboard() {
   const [currentStep, setCurrentStep] = useState(1);
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [paymentError, setPaymentError] = useState(null);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+
+  const handleDownloadItinerary = () => {
+    if (!trip) return;
+    try {
+      setDownloadingPdf(true);
+      generateTripItineraryPdf(trip);
+      toast.success("Itinerary downloaded", { id: "download-itinerary", duration: 3000 });
+    } catch (err) {
+      console.error("Itinerary download error:", err);
+      toast.error("Failed to generate itinerary PDF. Please try again.");
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
 
   useEffect(() => {
     fetchData();
@@ -428,8 +446,8 @@ export default function ParticipantDashboard() {
         <div className="max-w-5xl mx-auto px-4 md:px-8 pt-6">
           
           {/* Header */}
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8 border-b border-slate-800 pb-6">
-            <div>
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-6 mb-8 border-b border-slate-800 pb-6">
+            <div className="min-w-0 flex-1">
               <h1 className="text-3xl md:text-4xl font-black text-white uppercase tracking-tight mb-2">
                 {title}
               </h1>
@@ -438,27 +456,28 @@ export default function ParticipantDashboard() {
               </div>
             </div>
 
-            {/* View Finalized Itinerary Action Button */}
-            <div className="flex items-center gap-3">
+            {/* View & Download Finalized Itinerary Action Buttons */}
+            <div className="flex items-center gap-3 sm:gap-3.5 shrink-0">
               <button 
                 onClick={() => navigate(`/itinerary/${trip._id}`, { state: { trip, viewOnly: true, relation: "PARTICIPANT" } })}
-                className="px-5 py-2.5 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 rounded-xl font-bold text-xs flex items-center gap-2 transition shadow-lg"
+                className="h-10 px-4 py-2.5 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 rounded-xl font-bold text-xs inline-flex items-center justify-center gap-2 whitespace-nowrap transition shadow-lg cursor-pointer"
+                title="View complete finalized itinerary"
               >
-                <FiMap /> View Itinerary
+                <FiMap size={14} /> View Itinerary
+              </button>
+              <button 
+                onClick={handleDownloadItinerary}
+                disabled={downloadingPdf}
+                className="h-10 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs inline-flex items-center justify-center gap-2 whitespace-nowrap transition shadow-lg shadow-indigo-900/40 cursor-pointer disabled:opacity-60"
+                title="Download official finalized trip itinerary PDF"
+              >
+                <FiDownload size={14} /> {downloadingPdf ? "Generating..." : "Download Itinerary"}
               </button>
             </div>
           </div>
 
-          {/* Announcements */}
-          {latestAnnouncement && (
-            <div className="flex items-center gap-4 bg-indigo-900/40 border border-indigo-500/50 p-4 rounded-xl mb-6 shadow-md">
-              <div className="p-2 bg-indigo-600 rounded-lg text-white"><FiBell /></div>
-              <div>
-                <p className="text-xs font-bold text-indigo-300 uppercase tracking-wider mb-1">Latest Announcement</p>
-                <p className="text-sm font-semibold text-indigo-100">{latestAnnouncement.message}</p>
-              </div>
-            </div>
-          )}
+          {/* Animated Announcement Marquee */}
+          <StudentAnnouncementMarquee announcements={trip.announcements || []} />
 
           {/* Banner: IV Overview Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">

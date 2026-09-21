@@ -10,6 +10,7 @@ import toast from "react-hot-toast";
 import DashboardLayout from "../layouts/DashboardLayout";
 import CampusSettingsModal from "../components/campus/CampusSettingsModal";
 import TripChatModal from "../components/chat/TripChatModal";
+import CoordinatorAnnouncementBar from "../components/campus/CoordinatorAnnouncementBar";
 import { getUnreadMessageCount } from "../api/tripApi";
 import { generateTripItineraryPdf } from "../utils/itineraryPdfGenerator";
 
@@ -24,7 +25,6 @@ export default function CoordinatorDashboard() {
   const [showStudentModal, setShowStudentModal] = useState(null);
   const [showRegistrationModal, setShowRegistrationModal] = useState(false);
   const [settingsModalTab, setSettingsModalTab] = useState("general");
-  const [showAnnouncementModal, setShowAnnouncementModal] = useState(false);
 
   // Search & Filter
   const [searchQuery, setSearchQuery] = useState("");
@@ -422,26 +422,6 @@ export default function CoordinatorDashboard() {
     }
   };
 
-  const handleCreateAnnouncement = async (e) => {
-    e.preventDefault();
-    const message = e.target.message.value;
-    if (!message) return;
-    try {
-      const token = localStorage.getItem("token");
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/campus-trips/${trip._id}/announcements`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ message })
-      });
-      if (res.ok) {
-        setShowAnnouncementModal(false);
-        fetchData();
-      }
-    } catch (err) {
-      alert("Error adding announcement");
-    }
-  };
-
   const handleToggleStudentAccess = async (enabled) => {
     try {
       const token = localStorage.getItem("token");
@@ -568,24 +548,12 @@ export default function CoordinatorDashboard() {
             </div>
           </div>
 
-          {/* Announcement Bar */}
-          <div className="flex items-center justify-between bg-indigo-50 text-indigo-900 p-3 rounded-xl mb-6 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="bg-indigo-200 text-indigo-800 p-2 rounded-lg">
-                <FiBell />
-              </div>
-              <span className="font-bold text-sm bg-indigo-100 px-2 py-0.5 rounded text-indigo-800">Announcement</span>
-              <span className="text-sm font-medium">
-                {latestAnnouncement ? latestAnnouncement.message : "No active announcements."}
-              </span>
-            </div>
-            <div className="flex items-center gap-4 text-xs font-semibold">
-              {latestAnnouncement && <span className="text-indigo-700">Posted on {new Date(latestAnnouncement.createdAt).toLocaleDateString('en-GB', {day:'numeric', month:'short', year:'numeric'})}</span>}
-              <button onClick={() => setShowAnnouncementModal(true)} className="text-indigo-600 hover:text-indigo-800 underline underline-offset-2">
-                + New Announcement
-              </button>
-            </div>
-          </div>
+          {/* Announcement Bar (Compact Single Layer) */}
+          <CoordinatorAnnouncementBar
+            tripId={trip._id}
+            announcements={trip.announcements || []}
+            onRefresh={fetchData}
+          />
 
           {/* Main Grid Layout */}
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 md:gap-6">
@@ -1086,28 +1054,6 @@ export default function CoordinatorDashboard() {
             onClose={() => setShowRegistrationModal(false)}
             onRefresh={fetchData}
           />
-        )}
-
-        {/* New Announcement Modal */}
-        {showAnnouncementModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-            <div className="w-full max-w-md bg-[#131c31] border border-slate-800 rounded-2xl p-6 shadow-2xl">
-              <h3 className="text-lg font-black text-white mb-4">Post Announcement</h3>
-              <form onSubmit={handleCreateAnnouncement}>
-                <textarea 
-                  name="message" 
-                  rows="4" 
-                  placeholder="Type your message here..."
-                  className="w-full bg-[#0a101f] border border-slate-700 rounded-xl p-4 text-sm text-white focus:outline-none focus:border-indigo-500 mb-4"
-                  required
-                ></textarea>
-                <div className="flex gap-3 justify-end">
-                  <button type="button" onClick={() => setShowAnnouncementModal(false)} className="px-4 py-2 rounded-lg text-xs font-bold text-slate-400 hover:text-white">Cancel</button>
-                  <button type="submit" className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold">Post Notice</button>
-                </div>
-              </form>
-            </div>
-          </div>
         )}
 
         {/* Student Details & Verification Modal */}

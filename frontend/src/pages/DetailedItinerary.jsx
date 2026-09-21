@@ -26,6 +26,7 @@ export default function DetailedItinerary() {
 
   const [fetchedTrip, setFetchedTrip] = useState(null);
   const [fetchingTrip, setFetchingTrip] = useState(!initialTrip && Boolean(tripId));
+  const [authError, setAuthError] = useState(null);
 
   const trip = fetchedTrip || initialTrip;
   const initialDay = state?.dayIndex ?? 0;
@@ -36,21 +37,31 @@ export default function DetailedItinerary() {
     if (!initialTrip && tripId) {
       let isMounted = true;
       setFetchingTrip(true);
+      setAuthError(null);
       const token = localStorage.getItem("token");
-      const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
+      const rawApi = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+      const apiBase = rawApi.replace(/\/api$/, "");
 
-      fetch(`${API}/api/campus-trips/${tripId}`, {
+      fetch(`${apiBase}/api/campus-trips/${tripId}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       })
-        .then((res) => res.json())
+        .then(async (res) => {
+          if (res.status === 403) {
+            throw new Error("UNAUTHORIZED");
+          }
+          return res.json();
+        })
         .then((data) => {
           if (isMounted && data?.success && data?.trip) {
             setFetchedTrip(data.trip);
             setFetchingTrip(false);
           } else {
-            return fetch(`${API}/api/trips/${tripId}`, {
+            return fetch(`${apiBase}/api/trips/${tripId}`, {
               headers: token ? { Authorization: `Bearer ${token}` } : {},
-            }).then((res) => res.json()).then((pData) => {
+            }).then(async (res) => {
+              if (res.status === 403) throw new Error("UNAUTHORIZED");
+              return res.json();
+            }).then((pData) => {
               if (isMounted && pData?.success && pData?.trip) {
                 setFetchedTrip(pData.trip);
               }
@@ -60,6 +71,9 @@ export default function DetailedItinerary() {
         })
         .catch((err) => {
           console.error("Failed to load trip directly:", err);
+          if (err.message === "UNAUTHORIZED" && isMounted) {
+            setAuthError("You do not have permission to view this campus trip's itinerary.");
+          }
           if (isMounted) setFetchingTrip(false);
         });
 
@@ -85,6 +99,26 @@ export default function DetailedItinerary() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f8faff] dark:bg-[#0b0f19]">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
+
+  if (authError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#f8faff] dark:bg-[#0b0f19] px-4">
+        <div className="max-w-md w-full bg-white dark:bg-[#131b2e] border border-slate-200 dark:border-slate-800 rounded-2xl p-8 text-center shadow-xl">
+          <div className="w-12 h-12 rounded-full bg-rose-100 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 mx-auto flex items-center justify-center text-xl mb-4">
+            ⚠️
+          </div>
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Access Restricted</h2>
+          <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">{authError}</p>
+          <button
+            onClick={() => window.history.back()}
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl transition cursor-pointer"
+          >
+            Go Back
+          </button>
+        </div>
       </div>
     );
   }
