@@ -116,6 +116,11 @@ const tripSchema = new mongoose.Schema(
       min: 1,
     },
 
+    roomArrangement: {
+      type: [Number],
+      default: [],
+    },
+
     budget: {
       type: Number,
       required: true,
@@ -295,5 +300,10 @@ const tripSchema = new mongoose.Schema(
     timestamps: true,
   },
 );
+
+// Indexes for operator portal & queries
+tripSchema.index({ "operatorAccess.enabled": 1, status: 1 });
+tripSchema.index({ user: 1, status: 1 });
+tripSchema.index({ coordinatorId: 1, status: 1 });
 
 module.exports = mongoose.model("Trip", tripSchema);

@@ -28,124 +28,10 @@ const repairTripIds = async (trip) => {
   return trip;
 };
 
-// Helper to automatically sync booking requirements based on trip changes
+// Canonical sync delegated to operatorController implementation
 const syncBookingRequirements = async (trip) => {
-  if (trip.status === "Draft") return; // Do not generate requirements while still drafting
-  
-  // 1. Accommodation requirements from staySegments
-  if (Array.isArray(trip.staySegments)) {
-    for (const stay of trip.staySegments) {
-      if (stay.selectedHotel) {
-        // Idempotent upsert
-        await BookingRequirement.findOneAndUpdate(
-          { tripId: trip._id, staySegmentId: stay.id, type: "ACCOMMODATION" },
-          {
-            travelerId: trip.user,
-            title: stay.selectedHotel.name || stay.selectedHotel.hotelName || "Accommodation",
-            location: stay.location,
-            vendorName: stay.selectedHotel.brand || "Independent",
-            externalUrl: stay.selectedHotel.url || stay.selectedHotel.bookingUrl || "",
-          },
-          { upsert: true, setDefaultsOnInsert: true }
-        );
-      }
-    }
-  }
-
-  // 2. Road / Fleet Transport Booking Requirements (ONE Fleet or Vehicle Arrangement per trip)
-  const { detectBusRequirements, resolveLocalTransportArrangement } = require("../utils/busRequirementDetector");
-  const travelerId = trip.user || trip.coordinatorId;
-  const isCampus = trip.tripCategory === "CAMPUS";
-
-  if (isCampus) {
-    // Campus Trip: Sync exactly ONE Group Fleet Booking Requirement
-    const campusPlan = trip.campusTransportPlan || (trip.campusConfig?.groupTransportPlan ? trip.campusConfig.groupTransportPlan : null);
-    if (campusPlan) {
-      await BookingRequirement.findOneAndUpdate(
-        { tripId: trip._id, itemId: "campus-group-fleet", type: "TRANSPORT" },
-        {
-          $setOnInsert: {
-            travelerId,
-            status: campusPlan.status || "PENDING",
-          },
-          $set: {
-            title: `Campus Fleet: ${campusPlan.vehiclesRequired}x ${campusPlan.comfort} ${campusPlan.vehicleType} (${campusPlan.totalTravelers} Travelers)`,
-            location: `${trip.source} → ${trip.destination} (Tour Fleet)`,
-            vendorName: "Pending Fleet Vendor Assignment",
-            notes: `${campusPlan.vehiclesRequired} vehicles required (${campusPlan.capacityPerVehicle} seats/coach) for ${campusPlan.totalTravelers} travelers (${campusPlan.studentsCount} students + ${campusPlan.teachersStaffCount} staff). Luggage: ${campusPlan.luggageCount} bags.${campusPlan.notes ? ` Notes: ${campusPlan.notes}` : ""}`,
-            transportDetails: {
-              mode: "BUS",
-              requirementType: "GROUP_TRANSPORT",
-              arrangement: "GROUP_FLEET",
-              travelers: campusPlan.totalTravelers,
-              groupTransportPlan: campusPlan,
-              preferences: {
-                vehicleType: campusPlan.vehicleType,
-                comfort: campusPlan.comfort,
-                capacityPerVehicle: campusPlan.capacityPerVehicle,
-                vehiclesRequired: campusPlan.vehiclesRequired,
-                studentsCount: campusPlan.studentsCount,
-                teachersStaffCount: campusPlan.teachersStaffCount,
-                seatCount: campusPlan.totalTravelers,
-                luggageCount: campusPlan.luggageCount,
-                notes: campusPlan.notes,
-              },
-            },
-          },
-        },
-        { upsert: true, setDefaultsOnInsert: true }
-      );
-    }
-    // Prune movement-level requirements for Campus trip
-    await BookingRequirement.deleteMany({
-      tripId: trip._id,
-      type: "TRANSPORT",
-      itemId: { $ne: "campus-group-fleet" },
-    });
-  } else {
-    // Personal Trip: Sync ONE Private Vehicle arrangement OR delete if Traveler Managed
-    const arrangement = resolveLocalTransportArrangement(trip);
-    if (arrangement?.isTransixCoordinated) {
-      const prefs = arrangement.preferences || {};
-      const vehicleLabel = prefs.vehicleType || (arrangement.isPrivateMinibus ? "Private Mini Bus" : "Private Car");
-      await BookingRequirement.findOneAndUpdate(
-        { tripId: trip._id, itemId: "personal-private-vehicle", type: "TRANSPORT" },
-        {
-          $setOnInsert: {
-            travelerId,
-            status: "PENDING",
-          },
-          $set: {
-            title: `${vehicleLabel} (${prefs.comfort || "AC"}) — Entire Trip`,
-            location: `${trip.source} → ${trip.destination} (Private Vehicle)`,
-            vendorName: "Pending Operator Assignment",
-            notes: `Entire trip private vehicle: ${vehicleLabel} (${prefs.comfort || "AC"}). Capacity: ${prefs.seatCount || trip.travelers} seats. Travelers: ${prefs.travelerCount || trip.travelers}. Luggage: ${prefs.luggageCount} bags.${prefs.notes ? ` Notes: ${prefs.notes}` : ""}`,
-            transportDetails: {
-              mode: "PRIVATE_VEHICLE",
-              requirementType: "LOCAL_TRANSPORT",
-              arrangement: arrangement.arrangementType,
-              travelers: prefs.travelerCount || trip.travelers,
-              preferences: prefs,
-            },
-          },
-        },
-        { upsert: true, setDefaultsOnInsert: true }
-      );
-    } else {
-      // Traveler managed: no booking requirement created
-      await BookingRequirement.deleteOne({
-        tripId: trip._id,
-        itemId: "personal-private-vehicle",
-        type: "TRANSPORT",
-      });
-    }
-    // Prune movement-level requirements for Personal trip
-    await BookingRequirement.deleteMany({
-      tripId: trip._id,
-      type: "TRANSPORT",
-      itemId: { $ne: "personal-private-vehicle" },
-    });
-  }
+  const { syncTripRequirements } = require("./operatorController");
+  return await syncTripRequirements(trip);
 };
 
 const generateTrip = asyncHandler(async (req, res) => {
@@ -173,6 +59,7 @@ const generateTrip = asyncHandler(async (req, res) => {
     startDate,
     endDate,
     travelers,
+    roomArrangement: req.body.roomArrangement || [],
     budget,
     currency,
     travelMode,
@@ -500,6 +387,10 @@ const updateOperatorAccess = asyncHandler(async (req, res) => {
   };
 
   await trip.save();
+
+  if (enabled) {
+    await syncBookingRequirements(trip);
+  }
 
   res.status(200).json({
     success: true,

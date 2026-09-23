@@ -6,7 +6,15 @@ import { clearInventoryCache } from "../../services/inventoryService";
 import toast from "react-hot-toast";
 import { Sparkles, ArrowRight, User, Send } from "lucide-react";
 
-const QUESTIONS = [
+import {
+  formatRoomArrangement,
+  getRoomArrangementOptions,
+  parseRoomArrangement,
+} from "../../utils/roomArrangement";
+
+export { formatRoomArrangement, getRoomArrangementOptions, parseRoomArrangement };
+
+const BASE_QUESTIONS = [
   {
     id: "source",
     title: "Where are you travelling from?",
@@ -89,6 +97,33 @@ const QUESTIONS = [
   },
 ];
 
+export const getQuestionsList = (travelerCount) => {
+  const count = Number(travelerCount) || 0;
+  if (count < 2) {
+    return BASE_QUESTIONS;
+  }
+
+  const roomArrangementQuestion = {
+    id: "roomArrangement",
+    title: "How would you like to arrange the rooms?",
+    subtitle: "Choose how travelers are distributed across rooms, or type your preferred combination.",
+    placeholder: "e.g. 2 + 1, 3 sharing one room, or 1 room each...",
+    suggestions: getRoomArrangementOptions(count).map((o) => o.label),
+    multi: false,
+  };
+
+  const list = [];
+  for (const q of BASE_QUESTIONS) {
+    list.push(q);
+    if (q.id === "travelers") {
+      list.push(roomArrangementQuestion);
+    }
+  }
+  return list;
+};
+
+export const QUESTIONS = BASE_QUESTIONS;
+
 const loadingPhases = [
   "Analyzing destination & travel preferences...",
   "Querying transit schedules...",
@@ -116,6 +151,7 @@ export default function TripForm({ setTrip }) {
     durationStr: "",
     budget: "",
     travelers: "",
+    roomArrangement: [],
     travelMode: "",
     stay: "",
     dining: "",
@@ -219,9 +255,10 @@ export default function TripForm({ setTrip }) {
     };
   }, [loading]);
 
+  const questions = getQuestionsList(answers.travelers);
   const activeQuestion = editingQuestionId 
-    ? QUESTIONS.find(q => q.id === editingQuestionId) 
-    : QUESTIONS[currentIdx];
+    ? (getQuestionsList(answers.travelers).find(q => q.id === editingQuestionId) || BASE_QUESTIONS.find(q => q.id === editingQuestionId))
+    : (questions[currentIdx] || questions[0]);
 
   const handleSuggestionClick = (sug) => {
     if (activeQuestion.multi) {
@@ -245,6 +282,7 @@ export default function TripForm({ setTrip }) {
     let val = "";
     if (qId === "dates") val = answers.durationStr || `${answers.startDate} to ${answers.endDate}`;
     else if (qId === "interests") val = answers.interestsStr;
+    else if (qId === "roomArrangement") val = Array.isArray(answers.roomArrangement) && answers.roomArrangement.length > 0 ? answers.roomArrangement.join(" + ") : "";
     else val = answers[qId]?.toString() || "";
     
     setInputValue(val);
@@ -354,6 +392,39 @@ export default function TripForm({ setTrip }) {
              clarMsg = `You selected "${nextAnswers.travelerType}" earlier, but now mentioned ${nextAnswers.travelers} travelers. Which is correct?`;
           }
         }
+
+        // Room arrangement revalidation & synchronization
+        if (!needsClarification) {
+          if (nextAnswers.travelers === 1) {
+            nextAnswers.roomArrangement = [];
+          } else {
+            const currentSum = Array.isArray(nextAnswers.roomArrangement) && nextAnswers.roomArrangement.length > 0
+              ? nextAnswers.roomArrangement.reduce((a, b) => a + b, 0)
+              : 0;
+
+            if (currentSum !== nextAnswers.travelers) {
+              nextAnswers.roomArrangement = [];
+              if (editingQuestionId === "travelers") {
+                setAnswers(nextAnswers);
+                setEditingQuestionId("roomArrangement");
+                setInputValue("");
+                setClarification(`You updated to ${nextAnswers.travelers} travelers. How would you like to arrange the rooms?`);
+                return;
+              }
+            }
+          }
+        }
+        break;
+      case "roomArrangement":
+        const numTrav = Number(nextAnswers.travelers) || Number(answers.travelers) || 2;
+        const parsedArr = parseRoomArrangement(inputValue, numTrav);
+        if (!parsedArr) {
+          needsClarification = true;
+          const sampleOpts = getRoomArrangementOptions(numTrav).slice(0, 3).map((o) => o.label).join(", ");
+          clarMsg = `The room arrangement must account for all ${numTrav} travelers. Please choose or specify a valid arrangement (e.g. ${sampleOpts}).`;
+        } else {
+          nextAnswers.roomArrangement = parsedArr;
+        }
         break;
       case "travelMode":
         nextAnswers.travelMode = inputValue.trim();
@@ -394,7 +465,8 @@ export default function TripForm({ setTrip }) {
       if (editingQuestionId) {
         setEditingQuestionId(null);
       } else {
-        if (currentIdx < QUESTIONS.length - 1) {
+        const nextQuestions = getQuestionsList(nextAnswers.travelers);
+        if (currentIdx < nextQuestions.length - 1) {
           setCurrentIdx(currentIdx + 1);
         } else {
           setShowSummary(true);
@@ -435,6 +507,22 @@ export default function TripForm({ setTrip }) {
 
   const handleGenerate = async () => {
     if (loading || isGeneratingRef.current) return;
+
+    if (Number(answers.travelers) >= 2) {
+      const sum = Array.isArray(answers.roomArrangement) && answers.roomArrangement.length > 0
+        ? answers.roomArrangement.reduce((a, b) => a + b, 0)
+        : 0;
+      if (sum !== Number(answers.travelers)) {
+        toast.error("Please specify a room arrangement for your travelers.");
+        setIsReviewing(true);
+        setShowSummary(false);
+        setEditingQuestionId("roomArrangement");
+        setInputValue("");
+        setClarification(`Please specify how you'd like to arrange the rooms for ${answers.travelers} travelers.`);
+        return;
+      }
+    }
+
     // Helper function to map conversational input to strict backend enums
     const mapEnum = (val, validOptions, defaultOption) => {
       if (!val) return defaultOption;
@@ -461,6 +549,9 @@ export default function TripForm({ setTrip }) {
       startDate: answers.startDate,
       endDate: answers.endDate,
       travelers: Number(answers.travelers) || 2,
+      roomArrangement: Number(answers.travelers) >= 2 && Array.isArray(answers.roomArrangement) && answers.roomArrangement.length > 0
+        ? answers.roomArrangement
+        : [],
       budget: Number(answers.budget) || 50000,
       currency: "INR",
       travelMode: mapEnum(answers.travelMode, ["Flight", "Train", "Bus", "Car"], "Train"),
@@ -543,6 +634,28 @@ export default function TripForm({ setTrip }) {
                  <button onClick={() => { setIsReviewing(true); setShowSummary(false); setEditingQuestionId("travelerType"); setInputValue(answers.travelerType); }} className="text-sm font-bold text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity">Edit Type</button>
                </div>
              </div>
+
+             {Number(answers.travelers) >= 2 && (
+               <div className="flex justify-between items-center group">
+                 <div>
+                   <div className="text-sm font-medium text-slate-500 mb-1">Room arrangement</div>
+                   <div className="font-semibold text-slate-900 dark:text-white">
+                     {formatRoomArrangement(answers.roomArrangement) || "Not configured"}
+                   </div>
+                 </div>
+                 <button 
+                   onClick={() => { 
+                     setIsReviewing(true); 
+                     setShowSummary(false); 
+                     setEditingQuestionId("roomArrangement"); 
+                     setInputValue(Array.isArray(answers.roomArrangement) && answers.roomArrangement.length > 0 ? answers.roomArrangement.join(" + ") : ""); 
+                   }} 
+                   className="text-sm font-bold text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                 >
+                   Edit
+                 </button>
+               </div>
+             )}
              
              <div className="flex justify-between items-center group">
                <div>
@@ -615,10 +728,11 @@ export default function TripForm({ setTrip }) {
         </div>
         
         <div className="space-y-8">
-          {QUESTIONS.map(q => {
+          {questions.map(q => {
             let val = "";
             if (q.id === "dates") val = answers.durationStr || `${answers.startDate} to ${answers.endDate}`;
             else if (q.id === "interests") val = answers.interestsStr;
+            else if (q.id === "roomArrangement") val = formatRoomArrangement(answers.roomArrangement) || "Not configured";
             else val = answers[q.id];
             
             return (
@@ -745,7 +859,7 @@ export default function TripForm({ setTrip }) {
         {!editingQuestionId && (
           <div className="mt-6 flex items-center justify-center">
             <span className="text-sm font-medium text-slate-400">
-              Step {currentIdx + 1} of {QUESTIONS.length}
+              Step {currentIdx + 1} of {questions.length}
             </span>
           </div>
         )}

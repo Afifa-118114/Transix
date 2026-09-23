@@ -15,6 +15,7 @@ const Razorpay = require("razorpay");
 const { generateTripPlan } = require("../services/aiService");
 const { getDestinationImage } = require("../services/imageService");
 const { resolveCityToState } = require("../services/locationService");
+const { syncTripRequirements } = require("./operatorController");
 
 // 1. Create a new Campus Trip
 exports.createCampusTrip = async (req, res) => {
@@ -273,6 +274,8 @@ exports.finalizeCampusTrip = async (req, res) => {
 
     trip.status = "Finalized";
     await trip.save();
+
+    await syncTripRequirements(trip);
 
     res.status(200).json({ success: true, trip, message: "IV Finalized" });
   } catch (error) {

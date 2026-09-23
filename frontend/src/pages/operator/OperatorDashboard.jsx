@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { getDashboardStats, getOperatorTrips, getOperatorAllVendorRequests } from "../../api/operatorApi";
 import { formatDate } from "../../utils/formatTrip";
@@ -23,8 +23,13 @@ export default function OperatorDashboard() {
   const [loading, setLoading] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  const isFetchingRef = useRef(false);
+  const lastFetchRef = useRef(0);
+
   useEffect(() => {
     const fetchDashboardData = async () => {
+      if (isFetchingRef.current) return;
+      isFetchingRef.current = true;
       try {
         const token = localStorage.getItem("token");
         const [statsData, tripsData, vendorRequestsData] = await Promise.all([
@@ -44,16 +49,22 @@ export default function OperatorDashboard() {
         if (vendorRequestsData?.success) {
           setVendorRequests(vendorRequestsData.requests || []);
         }
+        lastFetchRef.current = Date.now();
       } catch (err) {
         console.error("Failed to load Tour Operation Center data", err);
       } finally {
+        isFetchingRef.current = false;
         setLoading(false);
       }
     };
     fetchDashboardData();
 
-    const interval = setInterval(fetchDashboardData, 10000);
-    const onFocus = () => fetchDashboardData();
+    const interval = setInterval(fetchDashboardData, 25000);
+    const onFocus = () => {
+      if (Date.now() - lastFetchRef.current > 15000) {
+        fetchDashboardData();
+      }
+    };
     window.addEventListener("focus", onFocus);
 
     return () => {

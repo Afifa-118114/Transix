@@ -302,13 +302,42 @@ const getDashboardStats = asyncHandler(async (req, res) => {
   const operatorQuery = { "operatorAccess.enabled": true, status: "Finalized" };
   const trips = await Trip.find(operatorQuery).populate("user", "name email");
 
-  // Sync requirements for all shared finalized trips
-  for (const trip of trips) {
-    await syncTripRequirements(trip);
-  }
-
   const tripIds = trips.map(t => t._id);
   const now = new Date();
+
+  // Parallel bulk reads for all bookings and vendor requests
+  const [allBookings, allVendorRequests] = await Promise.all([
+    BookingRequirement.find({ tripId: { $in: tripIds } }).sort({ updatedAt: -1 }),
+    VendorRequest.find({ tripId: { $in: tripIds } }).populate("vendorId", "name"),
+  ]);
+
+  // Group bookings and vendor requests by tripId for O(1) in-memory lookups
+  const bookingsByTrip = new Map();
+  for (const b of allBookings) {
+    const tid = b.tripId.toString();
+    let list = bookingsByTrip.get(tid);
+    if (!list) {
+      list = [];
+      bookingsByTrip.set(tid, list);
+    }
+    list.push(b);
+  }
+
+  const vendorRequestsByTrip = new Map();
+  for (const r of allVendorRequests) {
+    const tid = r.tripId.toString();
+    let list = vendorRequestsByTrip.get(tid);
+    if (!list) {
+      list = [];
+      vendorRequestsByTrip.set(tid, list);
+    }
+    list.push(r);
+  }
+
+  const tripMap = new Map();
+  for (const t of trips) {
+    tripMap.set(t._id.toString(), t);
+  }
 
   // Categorize trips
   const personalTrips = trips.filter(t => t.tripCategory !== "CAMPUS");
@@ -336,9 +365,6 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     return now > e;
   });
 
-  // All bookings for these trips
-  const allBookings = await BookingRequirement.find({ tripId: { $in: tripIds } }).sort({ updatedAt: -1 });
-
   const bookingsConfirmed = allBookings.filter(b => b.status === "CONFIRMED").length;
   const bookingsProcessing = allBookings.filter(b => b.status === "PROCESSING").length;
   const bookingsNotBooked = allBookings.filter(b => b.status === "NOT_BOOKED").length;
@@ -349,7 +375,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
   const actionItems = [];
 
   for (const trip of trips) {
-    const tripBookings = allBookings.filter(b => b.tripId.toString() === trip._id.toString());
+    const tripBookings = bookingsByTrip.get(trip._id.toString()) || [];
     const pendingStays = tripBookings.filter(b => b.type === "ACCOMMODATION" && b.status !== "CONFIRMED" && b.status !== "CANCELLED");
     const pendingTransports = tripBookings.filter(b => b.type === "TRANSPORT" && b.status !== "CONFIRMED" && b.status !== "CANCELLED");
     const actionReqBookings = tripBookings.filter(b => b.status === "ACTION_REQUIRED");
@@ -411,9 +437,8 @@ const getDashboardStats = asyncHandler(async (req, res) => {
   }
 
   // 5. Derive actionable work from real VendorRequest records
-  const allVendorRequests = await VendorRequest.find({ tripId: { $in: tripIds } }).populate("vendorId", "name");
   for (const trip of trips) {
-    const tripRequests = allVendorRequests.filter(r => r.tripId.toString() === trip._id.toString());
+    const tripRequests = vendorRequestsByTrip.get(trip._id.toString()) || [];
     const respondedRequests = tripRequests.filter(r => r.status === "RESPONDED");
     const awaitingConfirmationRequests = tripRequests.filter(r => r.status === "CONFIRMATION_REQUESTED");
 
@@ -448,7 +473,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
   const recentUpdates = [];
   for (const b of allBookings) {
     if (recentUpdates.length >= 6) break;
-    const matchingTrip = trips.find(t => t._id.toString() === b.tripId.toString());
+    const matchingTrip = tripMap.get(b.tripId.toString());
     const tripName = matchingTrip?.organizationDetails?.name 
       ? `${matchingTrip.organizationDetails.name} • ${matchingTrip.destination}`
       : `${matchingTrip?.source || "Trip"} → ${matchingTrip?.destination || ""}`;
@@ -500,69 +525,81 @@ const getOperatorTrips = asyncHandler(async (req, res) => {
     .populate("user", "name email")
     .populate("coordinatorId", "name email phone");
 
+  const tripIds = trips.map(t => t._id);
   const now = new Date();
 
-  // Fetch booking requirements per trip to compute progress
-  const tripsWithBookings = await Promise.all(
-    trips.map(async (trip) => {
-      await syncTripRequirements(trip);
-      const bookings = await BookingRequirement.find({ tripId: trip._id });
+  // Fetch all booking requirements for these trips in ONE single query
+  const allBookings = await BookingRequirement.find({ tripId: { $in: tripIds } });
 
-      const accommodationBookings = bookings.filter(b => b.type === "ACCOMMODATION");
-      const transportBookings = bookings.filter(b => b.type === "TRANSPORT");
-      const visitBookings = bookings.filter(b => b.type === "VISIT" || b.type === "PERMISSION" || b.type === "ACTIVITY");
+  const bookingsByTrip = new Map();
+  for (const b of allBookings) {
+    const tid = b.tripId.toString();
+    let list = bookingsByTrip.get(tid);
+    if (!list) {
+      list = [];
+      bookingsByTrip.set(tid, list);
+    }
+    list.push(b);
+  }
 
-      const accTotal = accommodationBookings.length || (trip.staySegments?.length || 0);
-      const accConfirmed = accommodationBookings.filter(b => b.status === "CONFIRMED").length;
+  // Build trips with bookings in memory without N+1 queries
+  const tripsWithBookings = trips.map((trip) => {
+    const bookings = bookingsByTrip.get(trip._id.toString()) || [];
 
-      const transTotal = transportBookings.length || (trip.travelLegs?.length || 0);
-      const transConfirmed = transportBookings.filter(b => b.status === "CONFIRMED").length;
+    const accommodationBookings = bookings.filter(b => b.type === "ACCOMMODATION");
+    const transportBookings = bookings.filter(b => b.type === "TRANSPORT");
+    const visitBookings = bookings.filter(b => b.type === "VISIT" || b.type === "PERMISSION" || b.type === "ACTIVITY");
 
-      const visitTotal = visitBookings.length || (trip.campusConfig?.educationalRequirements?.length || 0);
-      const visitConfirmed = visitBookings.filter(b => b.status === "CONFIRMED").length;
+    const accTotal = accommodationBookings.length || (trip.staySegments?.length || 0);
+    const accConfirmed = accommodationBookings.filter(b => b.status === "CONFIRMED").length;
 
-      // Timing Classification:
-      // ACTIVE = now between startDate and endDate
-      // UPCOMING = startDate > now
-      // COMPLETED = endDate < now
-      const s = new Date(trip.startDate);
-      const e = new Date(trip.endDate);
-      e.setHours(23, 59, 59, 999);
+    const transTotal = transportBookings.length || (trip.travelLegs?.length || 0);
+    const transConfirmed = transportBookings.filter(b => b.status === "CONFIRMED").length;
 
-      let timingStatus = "UPCOMING";
-      if (now >= s && now <= e) {
-        timingStatus = "ACTIVE";
-      } else if (now > e) {
-        timingStatus = "COMPLETED";
-      }
+    const visitTotal = visitBookings.length || (trip.campusConfig?.educationalRequirements?.length || 0);
+    const visitConfirmed = visitBookings.filter(b => b.status === "CONFIRMED").length;
 
-      // Operational Status
-      const hasActionRequired = bookings.some(b => b.status === "ACTION_REQUIRED");
-      const allConfirmed = bookings.length > 0 && bookings.every(b => b.status === "CONFIRMED");
-      let operationalStatus = "Processing";
-      if (hasActionRequired) operationalStatus = "Action Required";
-      else if (allConfirmed) operationalStatus = "Confirmed";
-      else if (bookings.every(b => b.status === "NOT_BOOKED")) operationalStatus = "Not Booked";
+    // Timing Classification:
+    // ACTIVE = now between startDate and endDate
+    // UPCOMING = startDate > now
+    // COMPLETED = endDate < now
+    const s = new Date(trip.startDate);
+    const e = new Date(trip.endDate);
+    e.setHours(23, 59, 59, 999);
 
-      return {
-        ...trip.toObject(),
-        timingStatus,
-        operationalStatus,
-        readiness: {
-          accommodation: { confirmed: accConfirmed, total: accTotal },
-          transport: { confirmed: transConfirmed, total: transTotal },
-          visits: { confirmed: visitConfirmed, total: visitTotal },
-        },
-        bookingProgress: {
-          total: bookings.length,
-          confirmed: bookings.filter(b => b.status === "CONFIRMED").length,
-          actionRequired: bookings.filter(b => b.status === "ACTION_REQUIRED").length,
-          processing: bookings.filter(b => b.status === "PROCESSING").length,
-          notBooked: bookings.filter(b => b.status === "NOT_BOOKED").length,
-        },
-      };
-    })
-  );
+    let timingStatus = "UPCOMING";
+    if (now >= s && now <= e) {
+      timingStatus = "ACTIVE";
+    } else if (now > e) {
+      timingStatus = "COMPLETED";
+    }
+
+    // Operational Status
+    const hasActionRequired = bookings.some(b => b.status === "ACTION_REQUIRED");
+    const allConfirmed = bookings.length > 0 && bookings.every(b => b.status === "CONFIRMED");
+    let operationalStatus = "Processing";
+    if (hasActionRequired) operationalStatus = "Action Required";
+    else if (allConfirmed) operationalStatus = "Confirmed";
+    else if (bookings.every(b => b.status === "NOT_BOOKED")) operationalStatus = "Not Booked";
+
+    return {
+      ...trip.toObject(),
+      timingStatus,
+      operationalStatus,
+      readiness: {
+        accommodation: { confirmed: accConfirmed, total: accTotal },
+        transport: { confirmed: transConfirmed, total: transTotal },
+        visits: { confirmed: visitConfirmed, total: visitTotal },
+      },
+      bookingProgress: {
+        total: bookings.length,
+        confirmed: bookings.filter(b => b.status === "CONFIRMED").length,
+        actionRequired: bookings.filter(b => b.status === "ACTION_REQUIRED").length,
+        processing: bookings.filter(b => b.status === "PROCESSING").length,
+        notBooked: bookings.filter(b => b.status === "NOT_BOOKED").length,
+      },
+    };
+  });
 
   res.status(200).json({
     success: true,
@@ -585,9 +622,17 @@ const getOperatorTripDetails = asyncHandler(async (req, res) => {
     .populate("coordinatorId", "name email phone");
   if (!trip) throw new AppError("Trip not found or access not granted", 404);
 
-  await syncTripRequirements(trip);
-  const bookings = await BookingRequirement.find({ tripId: trip._id });
-  const messages = await TripMessage.find({ tripId: trip._id }).sort({ createdAt: 1 });
+  let [bookings, messages] = await Promise.all([
+    BookingRequirement.find({ tripId: trip._id }),
+    TripMessage.find({ tripId: trip._id }).sort({ createdAt: 1 }),
+  ]);
+
+  // Fallback safety: If an existing finalized trip has 0 booking requirements (legacy/un-synced record),
+  // sync once as an idempotent fallback
+  if (bookings.length === 0) {
+    await syncTripRequirements(trip);
+    bookings = await BookingRequirement.find({ tripId: trip._id });
+  }
 
   // Derive canonical recipient for Operator messaging
   let recipient = null;
@@ -936,14 +981,21 @@ const getFleetVendorsForTrip = asyncHandler(async (req, res) => {
   const trip = await Trip.findById(tripId);
   if (!trip) throw new AppError("Trip not found", 404);
 
-  // Synchronize trip requirements so campus-group-fleet requirement is up to date
-  await syncTripRequirements(trip);
-
-  const fleetBooking = await BookingRequirement.findOne({
+  let fleetBooking = await BookingRequirement.findOne({
     tripId: trip._id,
     itemId: "campus-group-fleet",
     type: "TRANSPORT",
   });
+
+  if (!fleetBooking) {
+    // Synchronize trip requirements if not already present
+    await syncTripRequirements(trip);
+    fleetBooking = await BookingRequirement.findOne({
+      tripId: trip._id,
+      itemId: "campus-group-fleet",
+      type: "TRANSPORT",
+    });
+  }
 
   const isCampus = trip.tripCategory === "CAMPUS" || Boolean(trip.campusConfig?.expectedParticipants);
   const campusPlan = trip.campusTransportPlan || (isCampus ? trip.campusConfig?.groupTransportPlan : null) || {
@@ -1348,10 +1400,6 @@ const getOperatorBookings = asyncHandler(async (req, res) => {
   const operatorQuery = { "operatorAccess.enabled": true, status: "Finalized" };
   const trips = await Trip.find(operatorQuery).populate("user", "name email");
 
-  for (const trip of trips) {
-    await syncTripRequirements(trip);
-  }
-
   const tripIds = trips.map(t => t._id);
   const tripMap = new Map();
   trips.forEach(t => tripMap.set(t._id.toString(), t));
@@ -1509,6 +1557,7 @@ const getOperatorConversations = asyncHandler(async (req, res) => {
 });
 
 module.exports = {
+  syncTripRequirements,
   getDashboardStats,
   getOperatorTrips,
   getOperatorTripDetails,

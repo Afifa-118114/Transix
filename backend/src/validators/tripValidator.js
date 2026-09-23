@@ -19,6 +19,7 @@ const tripSchema = z
       .refine(isValidDate, { message: "Valid end date is required" }),
 
     travelers: z.number().int().min(1, "Travelers must be at least 1"),
+    roomArrangement: z.array(z.number().int().positive()).optional(),
 
     budget: z.number().min(0, "Budget must be a non-negative number"),
 
@@ -47,7 +48,18 @@ const tripSchema = z
     {
       message: "End date cannot be before start date",
       path: ["endDate"],
+    }
+  )
+  .refine(
+    (data) => {
+      if (!Array.isArray(data.roomArrangement) || data.roomArrangement.length === 0) return true;
+      const sum = data.roomArrangement.reduce((acc, curr) => acc + curr, 0);
+      return sum === data.travelers;
     },
+    {
+      message: "Room arrangement occupant count must equal total travelers",
+      path: ["roomArrangement"],
+    }
   );
 
 module.exports = tripSchema;

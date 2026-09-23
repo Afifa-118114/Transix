@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { getOperatorBookings, getDashboardStats } from "../../api/operatorApi";
 import { formatDate } from "../../utils/formatTrip";
@@ -25,8 +25,13 @@ export default function OperatorBookings() {
   const [loading, setLoading] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  const isFetchingRef = useRef(false);
+  const lastFetchRef = useRef(0);
+
   useEffect(() => {
     const fetchBookings = async () => {
+      if (isFetchingRef.current) return;
+      isFetchingRef.current = true;
       try {
         const token = localStorage.getItem("token");
         const [bookingsData, statsData] = await Promise.all([
@@ -40,16 +45,22 @@ export default function OperatorBookings() {
         if (statsData?.success) {
           setStats(statsData.stats);
         }
+        lastFetchRef.current = Date.now();
       } catch (err) {
         console.error("Failed to load operator bookings", err);
       } finally {
+        isFetchingRef.current = false;
         setLoading(false);
       }
     };
     fetchBookings();
 
-    const interval = setInterval(fetchBookings, 10000);
-    const onFocus = () => fetchBookings();
+    const interval = setInterval(fetchBookings, 25000);
+    const onFocus = () => {
+      if (Date.now() - lastFetchRef.current > 15000) {
+        fetchBookings();
+      }
+    };
     window.addEventListener("focus", onFocus);
 
     return () => {

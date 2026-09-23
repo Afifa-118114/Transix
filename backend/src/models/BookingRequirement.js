@@ -96,4 +96,9 @@ bookingRequirementSchema.index({ tripId: 1, staySegmentId: 1, type: 1 }, { uniqu
 // Prevent duplicates: one booking per item
 bookingRequirementSchema.index({ tripId: 1, itemId: 1, type: 1 }, { unique: true, partialFilterExpression: { itemId: { $exists: true } } });
 
+// General operator retrieval indexes
+bookingRequirementSchema.index({ tripId: 1 });
+bookingRequirementSchema.index({ tripId: 1, type: 1 });
+bookingRequirementSchema.index({ tripId: 1, status: 1 });
+
 module.exports = mongoose.model("BookingRequirement", bookingRequirementSchema);

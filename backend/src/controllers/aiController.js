@@ -14,9 +14,15 @@ const generateAITrip = asyncHandler(async (req, res) => {
   if (heroImage) {
     aiData = await generateTripPlan(tripData);
   } else {
+    // Non-blocking destination image fetch: capped with timeout so external image network calls never block itinerary generation
+    const imagePromise = Promise.race([
+      getDestinationImage(tripData.destination),
+      new Promise((resolve) => setTimeout(() => resolve(null), 2500)),
+    ]).catch(() => null);
+
     [aiData, heroImage] = await Promise.all([
       generateTripPlan(tripData),
-      getDestinationImage(tripData.destination),
+      imagePromise,
     ]);
   }
   const tAi = Date.now();
@@ -52,6 +58,7 @@ const generateAITrip = asyncHandler(async (req, res) => {
     endDate: finalEndDate,
     duration: `${numDays} Days`,
     travelers: tripData.travelers,
+    roomArrangement: tripData.roomArrangement || [],
     budget: tripData.budget,
     currency: tripData.currency || "INR",
     travelMode: tripData.travelMode,
@@ -82,6 +89,17 @@ const generateAITrip = asyncHandler(async (req, res) => {
   const tDb = Date.now();
   console.log(`[Backend Trace] DB Save: ${tDb - tAi}ms`);
   console.log(`[Backend Trace] Total Backend Execution: ${tDb - tStart}ms`);
+
+  // Progressive background image update if image was not yet ready
+  if (!heroImage && tripData.destination) {
+    getDestinationImage(tripData.destination)
+      .then(async (img) => {
+        if (img) {
+          await Trip.findByIdAndUpdate(savedTrip._id, { heroImage: img });
+        }
+      })
+      .catch(() => {});
+  }
 
   res.status(201).json({
     success: true,

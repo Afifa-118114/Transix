@@ -97,18 +97,18 @@ const getGuidePortalRequests = asyncHandler(async (req, res) => {
     .sort({ createdAt: -1 })
     .lean();
 
-  // Attach guide summary to each request
-  const enriched = await Promise.all(
-    requests.map(async (r) => {
-      const g = await GuideProfile.findOne({ guideId: r.guideId })
-        .select("guideId fullName email phone primaryRegion languages guidingExperience verificationStatus")
-        .lean();
-      return {
-        ...r,
-        guide: g,
-      };
-    })
-  );
+  // Bulk fetch all guide profiles for these requests in ONE query
+  const guideIds = [...new Set(requests.map(r => r.guideId).filter(Boolean))];
+  const guideProfiles = await GuideProfile.find({ guideId: { $in: guideIds } })
+    .select("guideId fullName email phone primaryRegion languages guidingExperience verificationStatus")
+    .lean();
+
+  const guideMap = new Map(guideProfiles.map(g => [g.guideId, g]));
+
+  const enriched = requests.map((r) => ({
+    ...r,
+    guide: guideMap.get(r.guideId) || null,
+  }));
 
   res.status(200).json({
     success: true,

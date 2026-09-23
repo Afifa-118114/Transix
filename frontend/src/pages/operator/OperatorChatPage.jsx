@@ -35,6 +35,7 @@ export default function OperatorChatPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const messagesEndRef = useRef(null);
+  const isFetchingRef = useRef(false);
 
   // Auto-scroll to bottom of conversation thread
   const scrollToBottom = () => {
@@ -47,6 +48,8 @@ export default function OperatorChatPage() {
 
   // Load all operator conversations and stats
   const fetchAllConversations = async () => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
     try {
       const token = localStorage.getItem("token");
       if (!token) return;
@@ -81,13 +84,14 @@ export default function OperatorChatPage() {
     } catch (err) {
       console.error("Failed to load operator conversations", err);
     } finally {
+      isFetchingRef.current = false;
       setLoadingConversations(false);
     }
   };
 
   useEffect(() => {
     fetchAllConversations();
-    const interval = setInterval(fetchAllConversations, 12000);
+    const interval = setInterval(fetchAllConversations, 20000);
     return () => clearInterval(interval);
   }, []);
 

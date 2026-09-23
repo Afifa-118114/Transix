@@ -109,6 +109,7 @@ export default function AskTransix({ trip, setTrip }) {
           startDate: trip.startDate.split("T")[0],
           endDate: trip.endDate.split("T")[0],
           travelers: trip.travelers,
+          roomArrangement: trip.roomArrangement || [],
           budget: newBudget, // MODIFIED FIELD
           currency: trip.currency || "INR",
           travelMode: trip.travelMode,
