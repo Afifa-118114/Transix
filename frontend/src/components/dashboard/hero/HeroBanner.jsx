@@ -10,18 +10,32 @@ import TripStats from "./TripStats";
 import { getPlaceImage } from "../../../services/imageService";
 
 export default function HeroBanner({ trip, onResetTrip }) {
-  const [heroImage, setHeroImage] = useState("");
+  const [heroImage, setHeroImage] = useState(trip?.heroImage || "");
 
   useEffect(() => {
+    // Prefer persisted Trip.heroImage: no AI or Pexels API calls when image exists
+    if (trip?.heroImage) {
+      setHeroImage(trip.heroImage);
+      return;
+    }
+
+    // Fallback only for legacy trips without heroImage
+    let isMounted = true;
     async function loadImage() {
       const image = await getPlaceImage(trip.destination);
-      setHeroImage(image);
+      if (isMounted) {
+        setHeroImage(image);
+      }
     }
 
     if (trip?.destination) {
       loadImage();
     }
-  }, [trip]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [trip?.heroImage, trip?.destination]);
 
   return (
     <section className="relative flex flex-col gap-4">

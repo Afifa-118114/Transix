@@ -96,6 +96,11 @@ const tripSchema = new mongoose.Schema(
       trim: true,
     },
 
+    heroImage: {
+      type: String,
+      default: null,
+    },
+
     startDate: {
       type: Date,
       required: true,

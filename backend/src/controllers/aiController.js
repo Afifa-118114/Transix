@@ -1,7 +1,7 @@
 const asyncHandler = require("../middleware/asyncHandler");
 const Trip = require("../models/Trip");
 const { generateTripPlan } = require("../services/aiService");
-const { getDestinationImage } = require("../services/imageService");
+const { generateHeroImage } = require("../services/imageService");
 const crypto = require("crypto");
 
 const generateAITrip = asyncHandler(async (req, res) => {
@@ -14,9 +14,16 @@ const generateAITrip = asyncHandler(async (req, res) => {
   if (heroImage) {
     aiData = await generateTripPlan(tripData);
   } else {
+    // Generate Gemini trip plan and AI hero image concurrently.
+    // .catch ensures hero image failure never prevents trip creation.
+    const imagePromise = generateHeroImage(tripData.destination).catch((err) => {
+      console.error("[aiController] Hero image generation error:", err.message);
+      return null;
+    });
+
     [aiData, heroImage] = await Promise.all([
       generateTripPlan(tripData),
-      getDestinationImage(tripData.destination),
+      imagePromise,
     ]);
   }
   const tAi = Date.now();

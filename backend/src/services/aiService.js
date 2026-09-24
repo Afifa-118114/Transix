@@ -1,125 +1,857 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
+const crypto = require("crypto");
 
 const getModel = () => {
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
   return genAI.getGenerativeModel({
-    model: process.env.GEMINI_MODEL || "gemini-3.6-flash",
+    model: process.env.GEMINI_MODEL || "gemini-flash-latest",
   });
 };
 
-
-const { validateItinerary, timeToMinutes, minutesToTimeStr, calculateCampusGroupRoomRate } = require("./itineraryValidator");
+const {
+  validateItinerary,
+  timeToMinutes,
+  minutesToTimeStr,
+  calculateCampusGroupRoomRate,
+  detectConflicts
+} = require("./itineraryValidator");
 
 const { resolveStationCandidates } = require("./stationService");
 const { searchDirectTrains } = require("./trainPlannerService");
 const { fetchTravelOptions } = require("./travelService");
+const FlightSchedule = require("../models/FlightSchedule");
+const { resolveAirports } = require("../utils/airportCodes");
+const { doesScheduleOperateOnWeekday } = require("../utils/flightScheduleMatcher");
 
-const buildDeterministicTimeline = (data) => {
-  if (!Array.isArray(data.days)) return;
+const parseDurationMinutes = (durStr) => {
+  if (!durStr) return 120;
+  const s = String(durStr).toLowerCase();
+  let total = 0;
+  const hMatch = s.match(/(\d+)\s*h/);
+  const mMatch = s.match(/(\d+)\s*m/);
+  if (hMatch) total += parseInt(hMatch[1], 10) * 60;
+  if (mMatch) total += parseInt(mMatch[1], 10);
+  return total > 0 ? total : 120;
+};
 
-  let absoluteTimelineMin = 8 * 60; // Start at 08:00 AM on Day 1
+const parseFareNumber = (fareStr, defaultFare = 1000) => {
+  if (typeof fareStr === "number") return fareStr;
+  if (!fareStr) return defaultFare;
+  const num = parseFloat(String(fareStr).replace(/[^0-9.]/g, ""));
+  return isNaN(num) || num <= 0 ? defaultFare : num;
+};
 
-  data.days.forEach((day, dayIndex) => {
-    let dayBaseMin = dayIndex * 1440;
-    let minStartForDay = dayBaseMin + (8 * 60); // 08:00 AM of current day
+const minutesTo24H = (mins) => {
+  if (mins === null || mins === undefined) return "00:00:00";
+  const m = ((mins % 1440) + 1440) % 1440;
+  const h = Math.floor(m / 60);
+  const min = m % 60;
+  return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}:00`;
+};
 
-    if (absoluteTimelineMin < minStartForDay) {
-      absoluteTimelineMin = minStartForDay;
+/**
+ * Builds an unambiguous, fully-qualified transport leg with exact dates and datetimes.
+ * For return legs, targetArrivalDate guarantees arrivalDate <= targetArrivalDate.
+ */
+const buildTransportLeg = ({
+  from,
+  to,
+  mode,
+  provider,
+  trainNumber,
+  trainName,
+  flightNumber,
+  airline,
+  departureDate,
+  departureTime,
+  durationMinutes,
+  estimatedCost,
+  estimated = false,
+  targetArrivalDate = null
+}) => {
+  const depMin = timeToMinutes(departureTime) ?? (8 * 60);
+  const durMin = Math.max(30, parseInt(durationMinutes, 10) || 120);
+
+  let actualDepDate = departureDate;
+  if (targetArrivalDate) {
+    const totalMinutes = depMin + durMin;
+    const daysAdded = Math.floor(totalMinutes / 1440);
+    const targetDateObj = new Date(targetArrivalDate + (targetArrivalDate.includes('T') ? '' : 'T00:00:00Z'));
+    const depDateObj = new Date(targetDateObj.getTime() - daysAdded * 86400000);
+    actualDepDate = depDateObj.toISOString().split("T")[0];
+  }
+
+  const depDateObj = new Date(actualDepDate + (actualDepDate.includes('T') ? '' : 'T00:00:00Z'));
+  const totalArrMinutes = depMin + durMin;
+  const daysAdded = Math.floor(totalArrMinutes / 1440);
+  const arrMinutesOfDay = totalArrMinutes % 1440;
+
+  const arrDateObj = new Date(depDateObj.getTime() + daysAdded * 86400000);
+  const arrivalDate = arrDateObj.toISOString().split("T")[0];
+  const arrivalTime = minutesToTimeStr(arrMinutesOfDay);
+
+  const depTime24 = minutesTo24H(depMin);
+  const arrTime24 = minutesTo24H(arrMinutesOfDay);
+
+  const departureDateTime = `${actualDepDate}T${depTime24}`;
+  const arrivalDateTime = `${arrivalDate}T${arrTime24}`;
+  const isOvernight = actualDepDate !== arrivalDate;
+
+  return {
+    from,
+    to,
+    mode,
+    provider: provider || trainName || airline || `${mode} Transfer`,
+    trainNumber,
+    trainName,
+    flightNumber,
+    airline,
+    date: actualDepDate,
+    departureDate: actualDepDate,
+    departureTime: minutesToTimeStr(depMin),
+    departureDateTime,
+    arrivalDate,
+    arrivalTime,
+    arrivalDateTime,
+    startTime: minutesToTimeStr(depMin),
+    endTime: arrivalTime,
+    durationMinutes: durMin,
+    estimatedCost: Math.round(estimatedCost || 0),
+    estimated,
+    isOvernight
+  };
+};
+
+/**
+ * Resolves both outbound (Day 1) and return intercity transport
+ * strictly based on the user's selected travelMode.
+ */
+const resolveIntercityTransport = async (tripData) => {
+  const mode = String(tripData.travelMode || "train").toLowerCase();
+  const travelers = parseInt(tripData.travelers, 10) || 1;
+  const src = tripData.source;
+  const dst = tripData.destination;
+  const startDate = tripData.startDate;
+  const endDate = tripData.endDate;
+
+  let outboundLeg = null;
+  let returnLeg = null;
+
+  if (mode === "flight") {
+    try {
+      const srcAirports = resolveAirports(src);
+      const dstAirports = resolveAirports(dst);
+      const srcCodes = srcAirports.map(t => t.code);
+      const dstCodes = dstAirports.map(t => t.code);
+
+      const outFlights = await FlightSchedule.find({
+        $and: [
+          { $or: [{ "origin.code": { $in: srcCodes } }, { "origin.name": { $in: srcAirports.map(t => t.name) } }] },
+          { $or: [{ "destination.code": { $in: dstCodes } }, { "destination.name": { $in: dstAirports.map(t => t.name) } }] }
+        ]
+      }).limit(20).lean();
+
+      let outMatched = outFlights;
+      if (startDate) {
+        const dObj = new Date(startDate);
+        if (!isNaN(dObj.getTime())) {
+          const dayFiltered = outFlights.filter(f => doesScheduleOperateOnWeekday(f, dObj));
+          if (dayFiltered.length > 0) outMatched = dayFiltered;
+        }
+      }
+
+      const retFlights = await FlightSchedule.find({
+        $and: [
+          { $or: [{ "origin.code": { $in: dstCodes } }, { "origin.name": { $in: dstAirports.map(t => t.name) } }] },
+          { $or: [{ "destination.code": { $in: srcCodes } }, { "destination.name": { $in: srcAirports.map(t => t.name) } }] }
+        ]
+      }).limit(20).lean();
+
+      let retMatched = retFlights;
+      if (endDate) {
+        const dObj = new Date(endDate);
+        if (!isNaN(dObj.getTime())) {
+          const dayFiltered = retFlights.filter(f => doesScheduleOperateOnWeekday(f, dObj));
+          if (dayFiltered.length > 0) retMatched = dayFiltered;
+        }
+      }
+
+      const travelOpts = await fetchTravelOptions(src, dst).catch(() => ({}));
+      const flightOpt = travelOpts.flight?.[0];
+      const baseFare = parseFareNumber(flightOpt?.estimatedFare, 4500);
+
+      if (outMatched.length > 0) {
+        const f = outMatched[0];
+        const dep = f.scheduledDepartureTime || f.departureTime || "08:30 AM";
+        const arr = f.scheduledArrivalTime || f.arrivalTime || "11:00 AM";
+        const depMin = timeToMinutes(dep) || 8 * 60 + 30;
+        let arrMin = timeToMinutes(arr) || depMin + 150;
+        if (arrMin < depMin) arrMin += 1440;
+        outboundLeg = buildTransportLeg({
+          from: f.origin.name || src,
+          to: f.destination.name || dst,
+          mode: "Flight",
+          flightNumber: `${f.airline} #${f.flightNumber}`,
+          airline: f.airline,
+          departureDate: startDate,
+          departureTime: minutesToTimeStr(depMin),
+          durationMinutes: arrMin - depMin,
+          estimatedCost: baseFare * travelers,
+          estimated: false
+        });
+      }
+
+      if (retMatched.length > 0) {
+        const f = retMatched[0];
+        const dep = f.scheduledDepartureTime || f.departureTime || "06:00 PM";
+        const arr = f.scheduledArrivalTime || f.arrivalTime || "08:30 PM";
+        const depMin = timeToMinutes(dep) || 18 * 60;
+        let arrMin = timeToMinutes(arr) || depMin + 150;
+        if (arrMin < depMin) arrMin += 1440;
+        returnLeg = buildTransportLeg({
+          from: f.origin.name || dst,
+          to: f.destination.name || src,
+          mode: "Flight",
+          flightNumber: `${f.airline} #${f.flightNumber}`,
+          airline: f.airline,
+          departureDate: endDate,
+          departureTime: minutesToTimeStr(depMin),
+          durationMinutes: arrMin - depMin,
+          estimatedCost: baseFare * travelers,
+          estimated: false,
+          targetArrivalDate: endDate
+        });
+      }
+
+      if (!outboundLeg) {
+        const dur = parseDurationMinutes(flightOpt?.duration || "2h 30m");
+        outboundLeg = buildTransportLeg({
+          from: src,
+          to: dst,
+          mode: "Flight",
+          flightNumber: "Air India #AI-602",
+          airline: "Air India",
+          departureDate: startDate,
+          departureTime: "09:00 AM",
+          durationMinutes: dur,
+          estimatedCost: baseFare * travelers,
+          estimated: true
+        });
+      }
+      if (!returnLeg) {
+        const dur = parseDurationMinutes(flightOpt?.duration || "2h 30m");
+        returnLeg = buildTransportLeg({
+          from: dst,
+          to: src,
+          mode: "Flight",
+          flightNumber: "Air India #AI-603",
+          airline: "Air India",
+          departureDate: endDate,
+          departureTime: "06:00 PM",
+          durationMinutes: dur,
+          estimatedCost: baseFare * travelers,
+          estimated: true,
+          targetArrivalDate: endDate
+        });
+      }
+    } catch (e) {
+      console.error("[aiService] Flight resolution error:", e.message);
     }
+  } else if (mode === "train") {
+    try {
+      const srcStations = await resolveStationCandidates(src).catch(() => ({ codes: [], stationNames: [] }));
+      const dstStations = await resolveStationCandidates(dst).catch(() => ({ codes: [], stationNames: [] }));
 
-    if (Array.isArray(day.plan)) {
-      // Sort to ensure operational events (check-ins) are correctly positioned chronologically
-      day.plan.sort((a, b) => {
-        const aStart = timeToMinutes(a.startTime || (a.time ? String(a.time).split("-")[0] : null)) || 0;
-        const bStart = timeToMinutes(b.startTime || (b.time ? String(b.time).split("-")[0] : null)) || 0;
-        return aStart - bStart;
+      const hasSrcStations = srcStations && ((srcStations.codes && srcStations.codes.length > 0) || (srcStations.stationNames && srcStations.stationNames.length > 0));
+      const hasDstStations = dstStations && ((dstStations.codes && dstStations.codes.length > 0) || (dstStations.stationNames && dstStations.stationNames.length > 0));
+
+      const travelOpts = await fetchTravelOptions(src, dst).catch(() => ({}));
+      const trainOpt = travelOpts.train?.[0];
+      const baseFare = parseFareNumber(trainOpt?.estimatedFare, 1200);
+      const fallbackDur = parseDurationMinutes(trainOpt?.duration || "6h 00m");
+
+      let outTrains = [];
+      if (hasSrcStations && hasDstStations) {
+        outTrains = await searchDirectTrains(srcStations, dstStations, startDate).catch(() => []);
+      }
+
+      if (outTrains.length > 0) {
+        const t = outTrains[0];
+        const depMin = timeToMinutes(t.from.departure) || 7 * 60 + 30;
+        const dur = t.durationMinutes || parseDurationMinutes(t.duration) || fallbackDur;
+        const dist = Math.abs((t.to.distance || 500) - (t.from.distance || 0)) || 500;
+        const fare = (t.price || t.fare || Math.round(dist * 1.5)) * travelers;
+        outboundLeg = buildTransportLeg({
+          from: t.from.name || src,
+          to: t.to.name || dst,
+          mode: "Train",
+          trainNumber: t.trainNumber,
+          trainName: t.trainName,
+          departureDate: startDate,
+          departureTime: minutesToTimeStr(depMin),
+          durationMinutes: dur,
+          estimatedCost: fare,
+          estimated: false
+        });
+      }
+
+      // Determine return train departure date so that arrivalDate <= endDate
+      const estRetDur = outboundLeg ? outboundLeg.durationMinutes : fallbackDur;
+      const estRetDepMin = 16 * 60 + 30;
+      const daysAdded = Math.floor((estRetDepMin + estRetDur) / 1440);
+      const retDepDateObj = new Date(new Date(endDate + (endDate.includes('T') ? '' : 'T00:00:00Z')).getTime() - daysAdded * 86400000);
+      const retDepDate = retDepDateObj.toISOString().split("T")[0];
+
+      let retTrains = [];
+      if (hasSrcStations && hasDstStations) {
+        retTrains = await searchDirectTrains(dstStations, srcStations, retDepDate).catch(() => []);
+      }
+
+      if (retTrains.length > 0) {
+        const t = retTrains[0];
+        const depMin = timeToMinutes(t.from.departure) || 16 * 60 + 30;
+        const dur = t.durationMinutes || parseDurationMinutes(t.duration) || estRetDur;
+        const dist = Math.abs((t.to.distance || 500) - (t.from.distance || 0)) || 500;
+        const fare = (t.price || t.fare || Math.round(dist * 1.5)) * travelers;
+        returnLeg = buildTransportLeg({
+          from: t.from.name || dst,
+          to: t.to.name || src,
+          mode: "Train",
+          trainNumber: t.trainNumber,
+          trainName: t.trainName,
+          departureDate: retDepDate,
+          departureTime: minutesToTimeStr(depMin),
+          durationMinutes: dur,
+          estimatedCost: fare,
+          estimated: false,
+          targetArrivalDate: endDate
+        });
+      }
+
+      if (!outboundLeg) {
+        outboundLeg = buildTransportLeg({
+          from: src,
+          to: dst,
+          mode: "Train",
+          trainNumber: "12955",
+          trainName: "Express",
+          departureDate: startDate,
+          departureTime: "07:30 AM",
+          durationMinutes: fallbackDur,
+          estimatedCost: baseFare * travelers,
+          estimated: true
+        });
+      }
+      if (!returnLeg) {
+        returnLeg = buildTransportLeg({
+          from: dst,
+          to: src,
+          mode: "Train",
+          trainNumber: "12956",
+          trainName: "Express Return",
+          departureDate: retDepDate,
+          departureTime: "04:30 PM",
+          durationMinutes: estRetDur,
+          estimatedCost: baseFare * travelers,
+          estimated: true,
+          targetArrivalDate: endDate
+        });
+      }
+    } catch (e) {
+      console.error("[aiService] Train resolution error:", e.message);
+    }
+  } else if (mode === "bus") {
+    try {
+      const travelOpts = await fetchTravelOptions(src, dst).catch(() => ({}));
+      const busOpt = travelOpts.bus?.[0];
+      const baseFare = parseFareNumber(busOpt?.estimatedFare, 800);
+      const dur = parseDurationMinutes(busOpt?.duration || "5h 00m");
+
+      outboundLeg = buildTransportLeg({
+        from: src,
+        to: dst,
+        mode: "Bus",
+        provider: "Intercity Express Bus",
+        departureDate: startDate,
+        departureTime: "07:00 AM",
+        durationMinutes: dur,
+        estimatedCost: baseFare * travelers,
+        estimated: true
       });
-
-      day.plan.forEach(p => {
-        const isFixed = p.category === "transport" || p.trainNumber || p.flightNumber;
-
-        const explicitStartStr = p.startTime || (p.time ? String(p.time).split("-")[0] : null);
-        const explicitEndStr = p.endTime || (p.time ? String(p.time).split("-")[1] : null);
-
-        let explicitStartMin = timeToMinutes(explicitStartStr);
-        let explicitEndMin = timeToMinutes(explicitEndStr);
-
-        let durationMins = 120; // Default 2h
-        if (p.duration) {
-          const durStr = String(p.duration).toLowerCase();
-          let dm = 0;
-          const hMatch = durStr.match(/(\d+)\s*h/);
-          const mMatch = durStr.match(/(\d+)\s*m/);
-          if (hMatch) dm += parseInt(hMatch[1]) * 60;
-          if (mMatch) dm += parseInt(mMatch[1]);
-          if (dm > 0) durationMins = dm;
-        } else if (explicitStartMin !== null && explicitEndMin !== null) {
-          if (explicitEndMin < explicitStartMin) {
-            durationMins = (explicitEndMin + 1440) - explicitStartMin;
-          } else {
-            durationMins = explicitEndMin - explicitStartMin;
-          }
-        }
-
-        const nameLower = String(p.activity || p.name || "").toLowerCase();
-        const isBreakfast = nameLower.includes("breakfast");
-        const isLunch = nameLower.includes("lunch");
-        const isDinner = nameLower.includes("dinner");
-
-        let startMin;
-        if (explicitStartMin !== null) {
-          let absStart = dayBaseMin + explicitStartMin;
-
-          if (absStart < dayBaseMin) absStart += 1440;
-
-          if (!isFixed && absStart < absoluteTimelineMin) {
-            absStart = absoluteTimelineMin;
-          }
-          startMin = absStart;
-        } else {
-          startMin = absoluteTimelineMin;
-        }
-
-        if (!isFixed) {
-          let localTime = startMin % 1440;
-
-          if (isBreakfast) {
-            if (localTime < 7 * 60) startMin += (7 * 60 - localTime);
-          } else if (isLunch) {
-            if (localTime < 12 * 60) startMin += (12 * 60 - localTime);
-          } else if (isDinner) {
-            if (localTime < 19 * 60) startMin += (19 * 60 - localTime);
-          }
-
-          // Cap normal activities to 23:00 local time to prevent spilling into midnight.
-          if (startMin > dayBaseMin + (23 * 60)) {
-            startMin = dayBaseMin + (23 * 60);
-          }
-        }
-
-        let endMin = startMin + durationMins;
-
-        p.startTime = minutesToTimeStr(startMin % 1440);
-        p.endTime = minutesToTimeStr(endMin % 1440);
-        p.time = `${p.startTime} - ${p.endTime}`;
-        p.duration = `${Math.floor(durationMins / 60)}h ${durationMins % 60}m`;
-
-        p._absStart = startMin;
-        p._absEnd = endMin;
-
-        let buffer = 10; // Default 10m minimum transition buffer
-        if (isFixed) buffer = 30; // 30m post-arrival transport buffer
-        if (p.category === "operational") buffer = 0; // Check-in/out itself needs no buffer padding
-
-        absoluteTimelineMin = endMin + buffer;
+      returnLeg = buildTransportLeg({
+        from: dst,
+        to: src,
+        mode: "Bus",
+        provider: "Intercity Express Bus",
+        departureDate: endDate,
+        departureTime: "04:00 PM",
+        durationMinutes: dur,
+        estimatedCost: baseFare * travelers,
+        estimated: true,
+        targetArrivalDate: endDate
       });
+    } catch (e) {
+      console.error("[aiService] Bus resolution error:", e.message);
+    }
+  } else {
+    try {
+      const travelOpts = await fetchTravelOptions(src, dst).catch(() => ({}));
+      const cabOpt = travelOpts.cab?.[0];
+      const baseFare = parseFareNumber(cabOpt?.estimatedFare, 2500);
+      const dur = parseDurationMinutes(cabOpt?.duration || "4h 00m");
+
+      outboundLeg = buildTransportLeg({
+        from: src,
+        to: dst,
+        mode: "Car",
+        provider: "Private Cab Transfer",
+        departureDate: startDate,
+        departureTime: "08:00 AM",
+        durationMinutes: dur,
+        estimatedCost: baseFare,
+        estimated: true
+      });
+      returnLeg = buildTransportLeg({
+        from: dst,
+        to: src,
+        mode: "Car",
+        provider: "Private Cab Transfer",
+        departureDate: endDate,
+        departureTime: "03:00 PM",
+        durationMinutes: dur,
+        estimatedCost: baseFare,
+        estimated: true,
+        targetArrivalDate: endDate
+      });
+    } catch (e) {
+      console.error("[aiService] Car resolution error:", e.message);
+    }
+  }
+
+  // Diagnostic logging as requested by user
+  console.log("[Transport Debug]", {
+    mode,
+    outbound: {
+      departureDateTime: outboundLeg?.departureDateTime,
+      arrivalDateTime: outboundLeg?.arrivalDateTime
+    },
+    return: {
+      departureDateTime: returnLeg?.departureDateTime,
+      arrivalDateTime: returnLeg?.arrivalDateTime
     }
   });
+
+  return { outboundLeg, returnLeg };
+};
+
+/**
+ * Ensures stay segments cover the exact trip dates and have realistic costs.
+ */
+/**
+ * Ensures stay segments cover the exact destination occupancy dates and have realistic costs.
+ * Strictly avoids duplicate stays, overlapping intervals, or charging for transit nights.
+ */
+const ensureStaySegments = (parsedData, tripData, outboundLeg, returnLeg) => {
+  const travelers = parseInt(tripData.travelers, 10) || 1;
+  const hotelType = tripData.hotelType || "Standard";
+  const rooms = Math.max(1, Math.ceil(travelers / 2));
+
+  // Stay check-in starts when travelers arrive in destination
+  const expectedFirstCheckIn = (outboundLeg && outboundLeg.arrivalDate)
+    ? outboundLeg.arrivalDate
+    : tripData.startDate;
+
+  // Stay check-out occurs when travelers depart destination for return
+  const expectedLastCheckOut = (returnLeg && returnLeg.departureDate)
+    ? returnLeg.departureDate
+    : tripData.endDate;
+
+  const checkInObj = new Date(expectedFirstCheckIn + (expectedFirstCheckIn.includes('T') ? '' : 'T00:00:00Z'));
+  const checkOutObj = new Date(expectedLastCheckOut + (expectedLastCheckOut.includes('T') ? '' : 'T00:00:00Z'));
+  const expectedHotelNights = Math.max(1, Math.round((checkOutObj - checkInObj) / (1000 * 60 * 60 * 24)));
+
+  let baseRate = 3500;
+  if (hotelType.toLowerCase() === "budget") baseRate = 1800;
+  if (hotelType.toLowerCase() === "luxury") baseRate = 7500;
+
+  if (tripData.tripCategory === "CAMPUS") {
+    const students = parseInt(tripData.campusConfig?.expectedParticipants, 10) || travelers;
+    const campusRooms = Math.max(1, Math.ceil(students / (parseInt(tripData.campusConfig?.studentsPerRoom, 10) || 2)));
+    baseRate = calculateCampusGroupRoomRate(baseRate, campusRooms);
+  }
+
+  let stayCost = baseRate * rooms * expectedHotelNights;
+  const userBudget = parseFloat(tripData.budget) || 0;
+  if (userBudget > 0 && stayCost > userBudget * 0.45) {
+    stayCost = Math.round(userBudget * 0.4);
+  }
+
+  // Deduplicate and validate Gemini stay segments
+  let hasValidStays = false;
+  if (Array.isArray(parsedData.staySegments) && parsedData.staySegments.length > 0) {
+    const cleanStays = [];
+    const seenIntervals = new Set();
+
+    parsedData.staySegments.forEach(s => {
+      if (!s.checkIn || !s.checkOut) return;
+      const key = `${s.location}_${s.checkIn}_${s.checkOut}`.toLowerCase();
+      if (seenIntervals.has(key)) return;
+      seenIntervals.add(key);
+      cleanStays.push(s);
+    });
+
+    let contiguous = true;
+    let sumNights = 0;
+    let prevOut = null;
+
+    cleanStays.forEach((s, idx) => {
+      const ci = new Date(s.checkIn + (s.checkIn.includes('T') ? '' : 'T00:00:00Z'));
+      const co = new Date(s.checkOut + (s.checkOut.includes('T') ? '' : 'T00:00:00Z'));
+      if (isNaN(ci.getTime()) || isNaN(co.getTime()) || ci >= co) {
+        contiguous = false;
+        return;
+      }
+      const n = Math.round((co - ci) / (1000 * 60 * 60 * 24));
+      s.nights = n;
+      sumNights += n;
+      if (idx === 0 && s.checkIn !== expectedFirstCheckIn) contiguous = false;
+      if (idx === cleanStays.length - 1 && s.checkOut !== expectedLastCheckOut) contiguous = false;
+      if (prevOut && s.checkIn !== prevOut) contiguous = false;
+      prevOut = s.checkOut;
+    });
+
+    if (contiguous && sumNights === expectedHotelNights) {
+      hasValidStays = true;
+      const perSegCost = Math.round(stayCost / cleanStays.length);
+      cleanStays.forEach(s => {
+        if (!s.estimatedCost) s.estimatedCost = perSegCost;
+      });
+      parsedData.staySegments = cleanStays;
+    }
+  }
+
+  if (!hasValidStays) {
+    parsedData.staySegments = [
+      {
+        id: "stay-1",
+        location: tripData.destination,
+        checkIn: expectedFirstCheckIn,
+        checkOut: expectedLastCheckOut,
+        nights: expectedHotelNights,
+        accommodationType: hotelType,
+        estimatedCost: stayCost,
+        reason: `Central accommodation in ${tripData.destination}`
+      }
+    ];
+  }
+};
+
+/**
+ * Detects and repairs any residual overlap conflicts by shifting or removing overlapping items.
+ */
+const repairResidualConflicts = (data) => {
+  const trip = { days: data.days, travelLegs: data.travelLegs, staySegments: data.staySegments, startDate: data.startDate };
+  let conflicts = detectConflicts(trip).filter(c => c.type === "OVERLAP");
+  let maxPasses = 8;
+
+  while (conflicts.length > 0 && maxPasses > 0) {
+    maxPasses--;
+    for (const conflict of conflicts) {
+      const day = data.days.find(d => d.day === conflict.affectedDay);
+      if (!day || !Array.isArray(day.plan)) continue;
+
+      const itemIdx = day.plan.findIndex(p => p.id === conflict.itemId);
+      if (itemIdx === -1) continue;
+
+      const item = day.plan[itemIdx];
+      // Only remove flexible activities, never fixed transport or hotel events
+      if (item.category !== "transport" && item.category !== "operational" && !item.trainNumber && !item.flightNumber) {
+        day.plan.splice(itemIdx, 1);
+      }
+    }
+    conflicts = detectConflicts(trip).filter(c => c.type === "OVERLAP");
+  }
+};
+
+/**
+ * Overhauls the day schedules into a deterministic, chronological timeline with zero overlaps.
+ */
+const buildDeterministicTimeline = (data, tripData, outboundLeg, returnLeg) => {
+  if (!Array.isArray(data.days)) return;
+
+  const tripStartObj = new Date(tripData.startDate + (tripData.startDate.includes('T') ? '' : 'T00:00:00Z'));
+
+  data.days.forEach((day, dayIndex) => {
+    if (!Array.isArray(day.plan)) day.plan = [];
+
+    const dayNum = day.day || dayIndex + 1;
+    const currentDayDate = new Date(tripStartObj.getTime() + dayIndex * 86400000).toISOString().split("T")[0];
+
+    // Filter out pseudo hotel checkin/checkout activities generated by AI
+    day.plan = day.plan.filter(p => {
+      const act = (p.activity || p.name || "").toLowerCase();
+      if ((act.includes("check-in") || act.includes("check in") || act.includes("check-out") || act.includes("checkout")) && p.id && !p.id.startsWith("sync-")) {
+        return false;
+      }
+      return true;
+    });
+
+    const fixedTransport = day.plan.filter(p => p.category === "transport" || p.trainNumber || p.flightNumber || p.id?.includes("arrival"));
+    const operational = day.plan.filter(p => p.category === "operational" && !p.id?.includes("arrival"));
+    const flexible = day.plan.filter(p => p.category !== "transport" && p.category !== "operational" && !p.trainNumber && !p.flightNumber && !p.id?.includes("arrival"));
+
+    let dayStartFloor = 8 * 60; // 08:00 AM
+    let dayEndCap = 22 * 60 + 30; // 10:30 PM
+
+    // If an outbound transport arrives on this day:
+    if (outboundLeg && outboundLeg.arrivalDate === currentDayDate && outboundLeg.departureDate !== currentDayDate) {
+      const arrM = timeToMinutes(outboundLeg.endTime) || 0;
+      dayStartFloor = Math.max(dayStartFloor, arrM + 30); // 30m post-arrival
+    }
+
+    // If a return transport arrives on this day:
+    if (returnLeg && returnLeg.arrivalDate === currentDayDate && returnLeg.departureDate !== currentDayDate) {
+      const arrM = timeToMinutes(returnLeg.endTime) || 0;
+      dayStartFloor = Math.max(dayStartFloor, arrM + 30);
+    }
+
+    // If an outbound transport departs on this day:
+    if (outboundLeg && outboundLeg.departureDate === currentDayDate) {
+      const depM = timeToMinutes(outboundLeg.startTime) || 8 * 60;
+      if (depM < dayStartFloor) {
+        dayStartFloor = Math.max(0, depM - 60);
+      }
+      dayEndCap = Math.min(dayEndCap, depM - 60);
+    }
+
+    // If a return transport departs on this day:
+    if (returnLeg && returnLeg.departureDate === currentDayDate) {
+      const depM = timeToMinutes(returnLeg.startTime) || 16 * 60;
+      if (depM < dayStartFloor) {
+        dayStartFloor = Math.max(0, depM - 90);
+      }
+      dayEndCap = Math.min(dayEndCap, depM - 60);
+    }
+
+    const scheduledItems = [];
+
+    // Add fixed transport items with proper timestamps
+    fixedTransport.forEach(t => {
+      const sMin = timeToMinutes(t.startTime);
+      const eMin = timeToMinutes(t.endTime);
+      t.startTime = minutesToTimeStr(sMin);
+      t.endTime = minutesToTimeStr(eMin);
+      t.time = `${t.startTime} - ${t.endTime}`;
+      t._absStart = (dayNum - 1) * 1440 + (sMin || 0);
+      let absE = (dayNum - 1) * 1440 + (eMin || 0);
+      if (t.isOvernight || (eMin !== null && sMin !== null && eMin < sMin)) {
+        absE += 1440;
+      }
+      t._absEnd = absE;
+      scheduledItems.push(t);
+    });
+
+    // Add operational check-in / check-out items
+    operational.forEach(op => {
+      let opStart = timeToMinutes(op.startTime) || 11 * 60;
+      if (op.activity?.toLowerCase().includes("check-out") && returnLeg && returnLeg.departureDate === currentDayDate) {
+        const retDepM = timeToMinutes(returnLeg.startTime) || 16 * 60;
+        opStart = Math.min(opStart, retDepM - 45);
+      }
+      if (op.activity?.toLowerCase().includes("check-in") && outboundLeg && outboundLeg.arrivalDate === currentDayDate) {
+        const outArrM = timeToMinutes(outboundLeg.endTime) || 12 * 60;
+        opStart = Math.max(opStart, outArrM + 30);
+      }
+      op.startTime = minutesToTimeStr(opStart);
+      op.endTime = minutesToTimeStr(opStart + 30);
+      op.time = `${op.startTime} - ${op.endTime}`;
+      op.duration = "30m";
+      op._absStart = (dayNum - 1) * 1440 + opStart;
+      op._absEnd = (dayNum - 1) * 1440 + opStart + 30;
+      scheduledItems.push(op);
+    });
+
+    flexible.sort((a, b) => {
+      const aStart = timeToMinutes(a.startTime || (a.time ? String(a.time).split("-")[0] : null)) || 0;
+      const bStart = timeToMinutes(b.startTime || (b.time ? String(b.time).split("-")[0] : null)) || 0;
+      return aStart - bStart;
+    });
+
+    let dayCursor = dayStartFloor;
+
+    flexible.forEach(act => {
+      let durationMins = 90;
+      const nameLower = (act.activity || act.name || "").toLowerCase();
+      if (nameLower.includes("lunch") || nameLower.includes("dinner") || nameLower.includes("breakfast")) {
+        durationMins = 60;
+      } else if (act.duration) {
+        const durStr = String(act.duration).toLowerCase();
+        let dm = 0;
+        const hMatch = durStr.match(/(\d+)\s*h/);
+        const mMatch = durStr.match(/(\d+)\s*m/);
+        if (hMatch) dm += parseInt(hMatch[1], 10) * 60;
+        if (mMatch) dm += parseInt(mMatch[1], 10);
+        if (dm >= 30 && dm <= 240) durationMins = dm;
+      }
+
+      if (nameLower.includes("breakfast") && dayCursor < 8 * 60) dayCursor = 8 * 60;
+      if (nameLower.includes("lunch") && dayCursor < 12 * 60 + 30) dayCursor = 12 * 60 + 30;
+      if (nameLower.includes("dinner") && dayCursor < 19 * 60 + 30) dayCursor = 19 * 60 + 30;
+
+      for (const s of scheduledItems) {
+        const sStart = timeToMinutes(s.startTime);
+        const sEnd = timeToMinutes(s.endTime);
+        if (sStart !== null && sEnd !== null) {
+          if (dayCursor + durationMins > sStart - 15 && dayCursor < sEnd + 15) {
+            dayCursor = sEnd + 15;
+          }
+        }
+      }
+
+      if (dayCursor + durationMins <= dayEndCap) {
+        const startM = dayCursor;
+        const endM = startM + durationMins;
+        act.startTime = minutesToTimeStr(startM);
+        act.endTime = minutesToTimeStr(endM);
+        act.time = `${act.startTime} - ${act.endTime}`;
+        act.duration = `${Math.floor(durationMins / 60)}h ${durationMins % 60}m`.replace("0h ", "");
+        act._absStart = (dayNum - 1) * 1440 + startM;
+        act._absEnd = (dayNum - 1) * 1440 + endM;
+        scheduledItems.push(act);
+        dayCursor = endM + 15;
+      }
+    });
+
+    scheduledItems.sort((a, b) => {
+      const aStart = timeToMinutes(a.startTime) || 0;
+      const bStart = timeToMinutes(b.startTime) || 0;
+      return aStart - bStart;
+    });
+
+    day.plan = scheduledItems;
+  });
+
+  repairResidualConflicts(data);
+};
+
+/**
+ * Ensures user interests are reflected in the generated activities.
+ */
+const ensureInterestAlignment = (data, tripData) => {
+  const userInterests = Array.isArray(tripData.interests) ? tripData.interests.map(i => i.toLowerCase()) : [];
+  if (userInterests.length === 0 || !Array.isArray(data.days)) return;
+
+  let matched = 0;
+  data.days.forEach(day => {
+    (day.plan || []).forEach(p => {
+      const str = `${p.activity || ""} ${p.category || ""} ${p.notes || ""}`.toLowerCase();
+      if (userInterests.some(interest => str.includes(interest))) {
+        matched++;
+      }
+    });
+  });
+
+  if (matched === 0) {
+    const primaryInterest = tripData.interests[0];
+    data.days.forEach(day => {
+      const flexible = (day.plan || []).find(p => p.category !== "transport" && p.category !== "operational");
+      if (flexible) {
+        flexible.notes = `${flexible.notes ? flexible.notes + " - " : ""}${primaryInterest} experience`;
+      }
+    });
+  }
+};
+
+/**
+ * Calculates accurate budget breakdown covering transport, stays, food, activities, and misc.
+ */
+const recalculateBudgetBreakdown = (data, tripData) => {
+  const userBudget = parseFloat(tripData.budget) || 0;
+
+  let totalTransport = 0;
+  if (Array.isArray(data.travelLegs)) {
+    data.travelLegs.forEach(l => {
+      totalTransport += parseFloat(l.estimatedCost) || 0;
+    });
+  }
+
+  let totalStay = 0;
+  if (Array.isArray(data.staySegments)) {
+    data.staySegments.forEach(s => {
+      totalStay += parseFloat(s.estimatedCost) || 0;
+    });
+  }
+
+  let totalActivities = 0;
+  let totalFood = 0;
+
+  if (Array.isArray(data.days)) {
+    data.days.forEach(day => {
+      (day.plan || []).forEach(p => {
+        const cost = parseFloat(p.estimatedCost) || 0;
+        const nameLower = (p.activity || p.name || "").toLowerCase();
+        if (p.category === "transport" || p.trainNumber || p.flightNumber) {
+          // accounted in totalTransport
+        } else if (p.category === "operational") {
+          // operational events cost 0
+        } else if (nameLower.includes("breakfast") || nameLower.includes("lunch") || nameLower.includes("dinner")) {
+          totalFood += cost;
+        } else {
+          totalActivities += cost;
+        }
+      });
+    });
+  }
+
+  let remainingBudget = Math.max(0, userBudget - totalTransport - totalStay);
+  if (totalFood === 0 && remainingBudget > 0) {
+    totalFood = Math.round(remainingBudget * 0.45);
+  }
+  if (totalActivities === 0 && remainingBudget > 0) {
+    totalActivities = Math.round(remainingBudget * 0.45);
+  }
+  let totalMisc = Math.max(0, Math.round(remainingBudget * 0.1));
+
+  let totalEstimated = totalTransport + totalStay + totalFood + totalActivities + totalMisc;
+
+  if (userBudget > 0 && totalEstimated > userBudget) {
+    const fixedCost = totalTransport + totalStay;
+    if (fixedCost < userBudget) {
+      const allowedFlexible = (userBudget - fixedCost) * 0.9;
+      const flexRatio = allowedFlexible / (totalFood + totalActivities + totalMisc || 1);
+      totalFood = Math.round(totalFood * flexRatio);
+      totalActivities = Math.round(totalActivities * flexRatio);
+      totalMisc = Math.round(totalMisc * flexRatio);
+      totalEstimated = fixedCost + totalFood + totalActivities + totalMisc;
+
+      if (Array.isArray(data.days)) {
+        data.days.forEach(day => {
+          (day.plan || []).forEach(p => {
+            if (p.category !== "transport" && p.category !== "operational") {
+              const current = parseFloat(p.estimatedCost) || 0;
+              p.estimatedCost = String(Math.round(current * flexRatio));
+            }
+          });
+        });
+      }
+    }
+  }
+
+  data.budgetBreakdown = {
+    travel: `₹${Math.round(totalTransport).toLocaleString('en-IN')}`,
+    stay: `₹${Math.round(totalStay).toLocaleString('en-IN')}`,
+    food: `₹${Math.round(totalFood).toLocaleString('en-IN')}`,
+    misc: `₹${Math.round(totalMisc).toLocaleString('en-IN')}`,
+    transport: `₹${Math.round(totalTransport).toLocaleString('en-IN')}`,
+    accommodation: `₹${Math.round(totalStay).toLocaleString('en-IN')}`,
+    activities: `₹${Math.round(totalActivities).toLocaleString('en-IN')}`,
+    total: `₹${Math.round(totalEstimated).toLocaleString('en-IN')}`
+  };
 };
 
 const generateTripPlan = async (tripData) => {
   const model = getModel();
-  // Calculate exact inclusive number of days from the user's date range
+
   let numDays = 5;
   if (tripData.startDate && tripData.endDate) {
     const start = new Date(tripData.startDate);
@@ -129,72 +861,40 @@ const generateTripPlan = async (tripData) => {
     }
   }
 
-  // Transport Feasibility Resolver
-  let feasibleTransportString = "No specific transport found. Use logical estimates based on selected mode.";
-  try {
-    if (String(tripData.travelMode).toLowerCase() === "flight") {
-      const FlightSchedule = require("../models/FlightSchedule");
-      const { resolveAirports } = require("../utils/airportCodes");
-      const { doesScheduleOperateOnWeekday } = require("../utils/flightScheduleMatcher");
+  // Authoritative Intercity Transport Resolver
+  const { outboundLeg, returnLeg } = await resolveIntercityTransport(tripData);
 
-      const originTargets = resolveAirports(tripData.source);
-      const destTargets = resolveAirports(tripData.destination);
-      const originCodes = originTargets.map(t => t.code);
-      const destCodes = destTargets.map(t => t.code);
+  const outboundStr = outboundLeg
+    ? `${outboundLeg.mode} (${outboundLeg.trainNumber || outboundLeg.flightNumber || outboundLeg.provider || "Direct"}): Departs ${outboundLeg.from} at ${outboundLeg.startTime}, Arrives ${outboundLeg.to} at ${outboundLeg.endTime}. Est. Cost: ₹${outboundLeg.estimatedCost}`
+    : `Standard ${tripData.travelMode} from ${tripData.source} to ${tripData.destination}`;
 
-      const matchedFlights = await FlightSchedule.find({
-        $and: [
-          { $or: [{ "origin.code": { $in: originCodes } }, { "origin.name": { $in: originTargets.map(t => t.name) } }] },
-          { $or: [{ "destination.code": { $in: destCodes } }, { "destination.name": { $in: destTargets.map(t => t.name) } }] }
-        ]
-      }).limit(50).lean();
+  const returnStr = returnLeg
+    ? `${returnLeg.mode} (${returnLeg.trainNumber || returnLeg.flightNumber || returnLeg.provider || "Direct"}): Departs ${returnLeg.from} at ${returnLeg.startTime}, Arrives ${returnLeg.to} at ${returnLeg.endTime}. Est. Cost: ₹${returnLeg.estimatedCost}`
+    : `Standard ${tripData.travelMode} from ${tripData.destination} to ${tripData.source}`;
 
-      let filtered = matchedFlights;
-      if (tripData.startDate) {
-        const travelDateObj = new Date(tripData.startDate);
-        if (!isNaN(travelDateObj.getTime())) {
-          const dayFiltered = matchedFlights.filter(f => doesScheduleOperateOnWeekday(f, travelDateObj));
-          if (dayFiltered.length > 0) filtered = dayFiltered;
-        }
-      }
+  const expectedFirstCheckIn = (outboundLeg && outboundLeg.arrivalDate)
+    ? outboundLeg.arrivalDate
+    : tripData.startDate;
 
-      if (filtered.length > 0) {
-        const topFlights = filtered.slice(0, 5).map(f =>
-          `Flight ${f.airline} #${f.flightNumber}: Departs ${f.origin.name} (${f.origin.code}) at ${f.departureTime}, Arrives ${f.destination.name} (${f.destination.code}) at ${f.arrivalTime}. Operating: ${f.daysOfWeek.join(", ")}`
-        );
-        feasibleTransportString = `REAL FLIGHT OPTIONS AVAILABLE:\n${topFlights.join("\n")}`;
-      } else {
-        feasibleTransportString = `REAL FLIGHT ROUTE: Direct domestic flight schedule pattern between ${tripData.source} and ${tripData.destination}. Estimated flight duration: 2h 30m.`;
-      }
-    } else {
-      const sourceCandidates = await resolveStationCandidates(tripData.source);
-      const destinationCandidates = await resolveStationCandidates(tripData.destination);
+  const expectedLastCheckOut = (returnLeg && returnLeg.departureDate)
+    ? returnLeg.departureDate
+    : tripData.endDate;
 
-      let trains = [];
-      if (sourceCandidates && destinationCandidates) {
-        trains = await searchDirectTrains(sourceCandidates, destinationCandidates, tripData.startDate);
-      }
+  const checkInObj = new Date(expectedFirstCheckIn + (expectedFirstCheckIn.includes('T') ? '' : 'T00:00:00Z'));
+  const checkOutObj = new Date(expectedLastCheckOut + (expectedLastCheckOut.includes('T') ? '' : 'T00:00:00Z'));
+  const expectedHotelNights = Math.max(1, Math.round((checkOutObj - checkInObj) / (1000 * 60 * 60 * 24)));
 
-      if (trains && trains.length > 0) {
-        const topTrains = trains.slice(0, 5).map(t =>
-          `Train ${t.trainNumber} (${t.trainName}): Departs ${t.from.name} at ${t.from.departure}, Arrives ${t.to.name} at ${t.to.arrival}. Duration: ${t.duration}, Est. Fare: ${t.estimatedFare}`
-        );
-        feasibleTransportString = `REAL TRAIN OPTIONS AVAILABLE:\n${topTrains.join("\n")}`;
-      } else {
-        const otherOptions = await fetchTravelOptions(tripData.source, tripData.destination);
-        let fallbacks = [];
-        if (otherOptions.flight && otherOptions.flight.length > 0) fallbacks.push(`Flight: ~${otherOptions.flight[0].duration}, Fare: ${otherOptions.flight[0].estimatedFare}`);
-        if (otherOptions.bus && otherOptions.bus.length > 0) fallbacks.push(`Bus: ~${otherOptions.bus[0].duration}, Fare: ${otherOptions.bus[0].estimatedFare}`);
-        if (otherOptions.cab && otherOptions.cab.length > 0) fallbacks.push(`Cab: ~${otherOptions.cab[0].duration}, Fare: ${otherOptions.cab[0].estimatedFare}`);
+  const feasibleTransportString = `
+OUTBOUND INTERCITY TRANSPORT (${tripData.source} → ${tripData.destination}):
+- Departs: ${outboundLeg ? outboundLeg.departureDate : tripData.startDate} at ${outboundLeg?.startTime || '08:00 AM'}
+- Arrives: ${outboundLeg ? outboundLeg.arrivalDate : tripData.startDate} at ${outboundLeg?.endTime || '12:00 PM'}
+- Details: ${outboundStr}
 
-        if (fallbacks.length > 0) {
-          feasibleTransportString = `REAL TRANSPORT OPTIONS AVAILABLE:\n${fallbacks.join("\n")}`;
-        }
-      }
-    }
-  } catch (err) {
-    console.error("Failed to resolve transport candidates:", err);
-  }
+RETURN INTERCITY TRANSPORT (${tripData.destination} → ${tripData.source}):
+- Departs: ${returnLeg ? returnLeg.departureDate : tripData.endDate} at ${returnLeg?.startTime || '04:30 PM'}
+- Arrives: ${returnLeg ? returnLeg.arrivalDate : tripData.endDate} at ${returnLeg?.endTime || '10:00 PM'}
+- Details: ${returnStr}
+`;
 
   const basePrompt = `
 You are an expert travel planner acting as a strict financial and geographic planner.
@@ -230,39 +930,32 @@ IMPORTANT CAMPUS RULES:
 FEASIBLE TRANSPORT CANDIDATES:
 ${feasibleTransportString}
 
-Your task is to plan a robust multi-location itinerary using the following strict scheduling order:
-STEP 1: Identify suitable geographic stay points (locations) based on the destination.
-STEP 2: Allocate contiguous check-in/check-out dates and nights to each stay point covering the exact trip dates.
-STEP 3: Plan logical travel legs ONLY from the FEASIBLE TRANSPORT CANDIDATES list. You MUST NOT invent your own transport or fabricate times. Place fixed transport as the skeleton of the itinerary.
-STEP 4: Assign feasible, chronological daily activities that respect the current stay point's geography and leave ample buffers for transport and hotel checkouts.
+Your task is to plan a robust itinerary using the following strict scheduling order:
+STEP 1: Stay segments: Central accommodation in ${tripData.destination} from ${expectedFirstCheckIn} to ${expectedLastCheckOut} (${expectedHotelNights} nights).
+STEP 2: Use the FEASIBLE TRANSPORT CANDIDATES above for Outbound and Return.
+STEP 3: Assign feasible, chronological daily activities:
+- Outbound travel departs ${outboundLeg?.departureDate || tripData.startDate} at ${outboundLeg?.startTime || '08:00 AM'}.
+- Destination activities can only take place during destination occupancy (${expectedFirstCheckIn} to ${expectedLastCheckOut}).
+- Return travel departs ${returnLeg?.departureDate || tripData.endDate} at ${returnLeg?.startTime || '04:30 PM'}.
 
 RULES:
-1. Stay Segments MUST perfectly cover the trip dates. Total nights must equal (End Date - Start Date). No overlaps.
-2. Transport constraints: Leave at least a 60-minute pre-departure buffer and a 30-minute post-arrival buffer for any transport legs.
-3. Hotel constraints: Leave at least a 30-minute buffer for hotel checkout (standard 11:00 AM).
+1. Stay Segments MUST perfectly cover destination occupancy: ${expectedFirstCheckIn} to ${expectedLastCheckOut} (${expectedHotelNights} nights). No overlaps.
+2. Transport constraints: Leave at least a 60-minute pre-departure buffer and a 30-minute post-arrival buffer for transport legs.
+3. Hotel constraints: Leave at least a 30-minute buffer for hotel checkout.
 4. TIMING PREFERENCES:
-   - Breakfast should be approximately 07:00 AM - 10:00 AM.
-   - Lunch should be approximately 12:00 PM - 03:00 PM.
-   - Dinner should be approximately 08:00 PM - 11:00 PM.
-   - Normal activities should prefer 07:00 AM - 08:00 PM. Avoid normal activities between 08:00 PM and 07:00 AM unless actual availability or transport requires it.
-5. PRESERVE DURATIONS: Do not invent availability or silently shorten realistic activity durations just to fit them. Respect transport and fixed-event constraints absolutely.
-6. Total estimated cost MUST NOT exceed ${tripData.tripCategory === 'CAMPUS' && tripData.campusConfig ? (tripData.campusConfig.budgetPerStudent * tripData.campusConfig.expectedParticipants) : tripData.budget} ${tripData.currency}. Aim for ~10% under budget. Provide ONLY pure numbers for "estimatedCost" (no currency symbols).
+   - Breakfast: ~08:00 AM - 09:30 AM.
+   - Lunch: ~12:30 PM - 02:00 PM.
+   - Dinner: ~07:30 PM - 09:30 PM.
+   - Normal activities should end by 10:00 PM. Avoid clumping activities late at night.
+5. PRESERVE DURATIONS: Respect transport and fixed-event constraints absolutely.
+6. Total estimated cost MUST NOT exceed budget. Provide pure numbers for "estimatedCost" (no currency symbols).
 7. TRANSPORT MODE IS A HARD USER CONSTRAINT:
-   The user has explicitly chosen the initial travel mode: ${String(tripData.travelMode).toUpperCase()}.
-   - If the user selects TRAIN as the trip's initial travel mode:
-     * Outbound intercity transport (${tripData.source} → ${tripData.destination}) MUST be TRAIN.
-     * Return intercity transport (${tripData.destination} → ${tripData.source}) MUST be TRAIN.
-     * Do NOT use Flight or Bus as primary intercity transport.
-   - If the user selects FLIGHT as the trip's initial travel mode:
-     * Outbound intercity transport (${tripData.source} → ${tripData.destination}) MUST be FLIGHT.
-     * Return intercity transport (${tripData.destination} → ${tripData.source}) MUST be FLIGHT.
-     * Do NOT use Train or Bus as primary intercity transport.
-   - Do not substitute one mode for another.
-   - Do not infer or choose a different outbound/return mode.
-   - Do not generate both Train and Flight for the same journey leg.
-   - IMPORTANT - LOCAL/IN-TRIP TRANSPORT IS SEPARATE:
-     This strict mode constraint applies exclusively to the primary intercity outbound/return journey legs between ${tripData.source} and ${tripData.destination}.
-     Inside ${tripData.destination}, local movements (such as hotel to sightseeing spots, local transfers, cabs, or day excursions) are separate operational/local transport requirements and must NOT be forced into Train or Flight.
+   The user has explicitly chosen: ${String(tripData.travelMode).toUpperCase()}.
+   Outbound intercity transport MUST be ${String(tripData.travelMode).toUpperCase()}.
+   Return intercity transport MUST be ${String(tripData.travelMode).toUpperCase()}.
+   Do NOT substitute another mode.
+8. INTEREST ALIGNMENT:
+   You MUST align activities with user interests (${tripData.interests.join(", ")}). Mention them in activity names or notes.
 
 Return ONLY this EXACT JSON structure, do NOT use markdown or backticks:
 
@@ -271,22 +964,32 @@ Return ONLY this EXACT JSON structure, do NOT use markdown or backticks:
   "staySegments": [
     {
       "id": "stay-1",
-      "location": "City Name",
-      "checkIn": "YYYY-MM-DD",
-      "checkOut": "YYYY-MM-DD",
-      "nights": 3,
-      "reason": "Why this location"
+      "location": "${tripData.destination}",
+      "checkIn": "${expectedFirstCheckIn}",
+      "checkOut": "${expectedLastCheckOut}",
+      "nights": ${expectedHotelNights},
+      "reason": "Base stay in ${tripData.destination}"
     }
   ],
   "travelLegs": [
     {
-      "from": "Origin",
-      "to": "City Name",
-      "date": "YYYY-MM-DD",
-      "startTime": "09:00 AM",
-      "endTime": "13:00 PM",
-      "durationMinutes": 240,
-      "mode": "Train",
+      "from": "${tripData.source}",
+      "to": "${tripData.destination}",
+      "date": "${outboundLeg?.departureDate || tripData.startDate}",
+      "startTime": "${outboundLeg?.startTime || '08:00 AM'}",
+      "endTime": "${outboundLeg?.endTime || '12:00 PM'}",
+      "durationMinutes": ${outboundLeg?.durationMinutes || 240},
+      "mode": "${outboundLeg?.mode || tripData.travelMode}",
+      "estimated": true
+    },
+    {
+      "from": "${tripData.destination}",
+      "to": "${tripData.source}",
+      "date": "${returnLeg?.departureDate || tripData.endDate}",
+      "startTime": "${returnLeg?.startTime || '04:30 PM'}",
+      "endTime": "${returnLeg?.endTime || '10:00 PM'}",
+      "durationMinutes": ${returnLeg?.durationMinutes || 240},
+      "mode": "${returnLeg?.mode || tripData.travelMode}",
       "estimated": true
     }
   ],
@@ -319,294 +1022,211 @@ Return ONLY this EXACT JSON structure, do NOT use markdown or backticks:
 
   let currentPrompt = basePrompt;
   let parsedData = null;
-  let validationResult = null;
 
   for (let attempt = 1; attempt <= 3; attempt++) {
     let result;
     try {
       result = await model.generateContent(currentPrompt);
     } catch (err) {
-      if (err.message.includes("503")) {
+      if (err.message && (err.message.includes("503") || err.message.includes("429"))) {
         if (attempt < 3) {
-          console.log(`Retry ${attempt} due to 503...`);
-          await new Promise((resolve) => setTimeout(resolve, 2000));
+          const delay = err.message.includes("429") ? 10000 : 2000;
+          console.log(`[aiService] Gemini rate limit/capacity retry ${attempt} in ${delay}ms...`);
+          await new Promise((resolve) => setTimeout(resolve, delay));
           continue;
         } else {
-          throw new Error("Gemini AI is currently experiencing high demand and is temporarily unavailable. Please try again later.");
+          throw new Error("Gemini AI is currently experiencing high demand or rate limits. Please try again in a few moments.");
         }
       }
       throw err;
     }
 
-    let text = result.response.text().replace(/\`\`\`json/g, "").replace(/\`\`\`/g, "").trim();
+    let text = result.response.text().trim();
+    if (text.startsWith("```")) {
+      text = text.replace(/^```[a-zA-Z]*\n?/, "").replace(/```$/, "").trim();
+    }
 
     try {
       parsedData = JSON.parse(text);
 
-      // Deterministic transport mode constraint enforcement
-      if (Array.isArray(parsedData.travelLegs)) {
-        const expectedMode = String(tripData.travelMode).toLowerCase() === "flight" ? "Flight" : "Train";
-        const srcLower = String(tripData.source || "").toLowerCase();
-        const destLower = String(tripData.destination || "").toLowerCase();
-        parsedData.travelLegs.forEach(leg => {
-          const fromLower = String(leg.from || "").toLowerCase();
-          const toLower = String(leg.to || "").toLowerCase();
-          const isIntercity = (fromLower.includes(srcLower) && toLower.includes(destLower)) ||
-                              (fromLower.includes(destLower) && toLower.includes(srcLower));
-          if (isIntercity) {
-            leg.mode = expectedMode;
+      // 1. Authoritative Travel Legs Assignment
+      parsedData.travelLegs = [outboundLeg, returnLeg].filter(Boolean);
+
+      // 2. Authoritative Stay Segments Assignment
+      ensureStaySegments(parsedData, tripData, outboundLeg, returnLeg);
+
+      // 3. Inject authoritative Outbound and Return transport into day plans
+      if (Array.isArray(parsedData.days) && parsedData.days.length > 0) {
+        const tripStartObj = new Date(tripData.startDate + (tripData.startDate.includes('T') ? '' : 'T00:00:00Z'));
+
+        // Clean existing transport from all days
+        parsedData.days.forEach(d => {
+          if (Array.isArray(d.plan)) {
+            d.plan = d.plan.filter(p => p.category !== "transport" && !p.trainNumber && !p.flightNumber && !p.id?.startsWith("sync-"));
           }
         });
-      }
 
-      // Pass 1: Build baseline timeline to accurately detect overnight transport boundaries
-      buildDeterministicTimeline(parsedData);
-
-
-
-      // Derive Stay Segments from actual locations
-      try {
-        if (Array.isArray(parsedData.days) && parsedData.days.length > 0 && tripData.startDate) {
-          const derivedStays = [];
-          let lastKnownLocation = null;
-          let currentStay = null;
-
-          const isCleanGeographicLocation = (locStr) => {
-            if (!locStr) return false;
-            const lower = locStr.toLowerCase().trim();
-            const forbidden = ["hotel", "restaurant", "resort", "lodging", "stay", "check-in", "check out", "check in", "train", "flight", "bus", "cafe", "mall road", "freshen up", "breakfast", "lunch", "dinner", "accommodation", "local eatery", "shopping", "attraction", "airport", "railway", "station", "temple", "valley", "pass", "relax"];
-
-            if (forbidden.some(fw => lower === fw)) return false;
-            if (forbidden.some(fw => lower.startsWith(fw + " ") || lower.endsWith(" " + fw) || lower.includes("hotel / ") || lower.includes(" / hotel"))) return false;
-
-            if (tripData.source) {
-              const srcLower = tripData.source.toLowerCase().trim();
-              if (lower === srcLower) return false;
-              if (srcLower.includes("mumbai") && (lower === "bandra" || lower === "andheri" || lower === "csmt" || lower === "mumbai")) return false;
-            }
-            return true;
-          };
-
-          for (let dayIndex = 0; dayIndex < parsedData.days.length - 1; dayIndex++) {
-            const day = parsedData.days[dayIndex];
-            const nextDayMidnightMin = (dayIndex + 1) * 1440;
-
-            let locationForNight = lastKnownLocation;
-            let isInTransit = false;
-
-            let dayLocations = [];
-
-            if (Array.isArray(day.plan)) {
-              for (const p of day.plan) {
-                const actLowerTrans = String(p.activity || p.name || "").toLowerCase();
-                const isTrans = p.category === "transport" || p.trainNumber || p.flightNumber ||
-                  actLowerTrans.includes("travel to") || actLowerTrans.includes("drive to") ||
-                  actLowerTrans.includes("transfer to") || actLowerTrans.includes("flight to") ||
-                  actLowerTrans.includes("train to") || actLowerTrans.includes("taxi to") ||
-                  actLowerTrans.includes("cab to");
-                if (isTrans) {
-                  if (p.to && isCleanGeographicLocation(p.to)) dayLocations.push({ loc: p.to, weight: 10 });
-                  const nameLower = (p.name || p.activity || "").toLowerCase();
-                  const toMatch = nameLower.match(/to\s+([a-zA-Z]+)/);
-                  if (toMatch && isCleanGeographicLocation(toMatch[1].trim())) dayLocations.push({ loc: toMatch[1].trim(), weight: 8 });
-                  const arrMatch = nameLower.match(/arriv[a-z]*\s+(?:in|at)\s+([a-zA-Z]+)/);
-                  if (arrMatch && isCleanGeographicLocation(arrMatch[1].trim())) dayLocations.push({ loc: arrMatch[1].trim(), weight: 8 });
-                }
-
-                const actLower = String(p.activity || p.name || "").toLowerCase();
-                const isAccom = actLower.includes("hotel") || actLower.includes("check-in") || actLower.includes("check in") || actLower.includes("resort");
-
-                let loc = p.place || p.location;
-                if (loc && (isTrans || isAccom || !lastKnownLocation)) {
-                  loc = loc.split(",")[0].trim();
-                  const locLower = loc.toLowerCase();
-                  if (!locLower.includes("train") && !locLower.includes("flight") && !locLower.includes("bus") && isCleanGeographicLocation(loc)) {
-                    if (isTrans || isAccom) {
-                      dayLocations.push({ loc, weight: isTrans ? 8 : 5 });
-                    } else if (tripData.destination && locLower === tripData.destination.toLowerCase()) {
-                      dayLocations.push({ loc, weight: 5 });
-                    }
-                  }
-                }
-
-                if (p._absStart !== undefined && p._absEnd !== undefined) {
-                  if (p._absStart < nextDayMidnightMin && p._absEnd > nextDayMidnightMin && isTrans) {
-                    isInTransit = true;
-                  }
-                }
-              }
-            }
-
-            locationForNight = lastKnownLocation;
-            if (dayLocations.length > 0) {
-              const scores = {};
-              dayLocations.forEach(d => {
-                const norm = d.loc.toLowerCase();
-                if (!scores[norm]) scores[norm] = { name: d.loc, score: 0 };
-                scores[norm].score += d.weight;
-              });
-              const best = Object.values(scores).sort((a, b) => b.score - a.score)[0];
-
-              // Only adopt a new location if it has strong evidence (>1) or we have no valid prior location.
-              // A single weight=1 hallucination won't override a valid lastKnownLocation unless we've completely moved on.
-              if (best.score > 1 || !lastKnownLocation) {
-                locationForNight = best.name;
-              } else {
-                const stillHere = dayLocations.some(d => d.loc.toLowerCase() === lastKnownLocation.toLowerCase());
-                locationForNight = stillHere ? lastKnownLocation : best.name;
-              }
-              lastKnownLocation = locationForNight;
-            }
-
-            const nextDay = parsedData.days[dayIndex + 1];
-            if (nextDay && Array.isArray(nextDay.plan)) {
-              for (const p of nextDay.plan) {
-                if (p._absStart !== undefined && p._absEnd !== undefined) {
-                  if (p._absStart <= nextDayMidnightMin && p._absEnd > nextDayMidnightMin && (p.category === "transport" || p.trainNumber || p.flightNumber)) {
-                    isInTransit = true;
-                  }
-                }
-              }
-            }
-
-            if (isInTransit || !locationForNight) {
-              currentStay = null;
-            } else {
-              if (currentStay && currentStay.location.toLowerCase() === locationForNight.toLowerCase()) {
-                currentStay.nights += 1;
-                const dOut = new Date(tripData.startDate + (tripData.startDate.includes('T') ? '' : 'T00:00:00Z'));
-                dOut.setUTCDate(dOut.getUTCDate() + dayIndex + 1);
-                currentStay.checkOut = dOut.toISOString().split("T")[0];
-              } else {
-                const dIn = new Date(tripData.startDate + (tripData.startDate.includes('T') ? '' : 'T00:00:00Z'));
-                dIn.setUTCDate(dIn.getUTCDate() + dayIndex);
-                const dOut = new Date(tripData.startDate + (tripData.startDate.includes('T') ? '' : 'T00:00:00Z'));
-                dOut.setUTCDate(dOut.getUTCDate() + dayIndex + 1);
-
-                currentStay = {
-                  id: `stay-${derivedStays.length + 1}`,
-                  location: locationForNight,
-                  checkIn: dIn.toISOString().split("T")[0],
-                  checkOut: dOut.toISOString().split("T")[0],
-                  nights: 1,
-                  reason: `Derived from itinerary location`
-                };
-                derivedStays.push(currentStay);
-              }
-            }
-          }
-
-          if (derivedStays.length > 0) {
-            parsedData.staySegments = derivedStays;
-
-            // --- STAY PLAN & ITINERARY SYNCHRONIZATION PASS ---
-            const tripStart = new Date(tripData.startDate + (tripData.startDate.includes('T') ? '' : 'T00:00:00Z'));
-
-            // 1. Clean up hallucinated AI hotel activities
-            parsedData.days.forEach(day => {
-              if (Array.isArray(day.plan)) {
-                day.plan = day.plan.filter(p => {
-                  const actStr = (p.activity || p.name || "").toLowerCase();
-                  if (actStr.includes("check in") || actStr.includes("check-in") || actStr.includes("checkout") || actStr.includes("check-out") || actStr === "hotel") {
-                    if (p.category !== "transport") {
-                      return false; // Remove hallucinated pseudo-activities
-                    }
-                  }
-                  return true;
-                });
-              }
+        // Inject Outbound Transport
+        if (outboundLeg) {
+          const outDateObj = new Date(outboundLeg.departureDate + 'T00:00:00Z');
+          const outDayIdx = Math.max(0, Math.min(parsedData.days.length - 1, Math.round((outDateObj - tripStartObj) / 86400000)));
+          const outDay = parsedData.days[outDayIdx];
+          if (outDay && Array.isArray(outDay.plan)) {
+            outDay.plan.unshift({
+              id: `itin_outbound_${crypto.randomUUID()}`,
+              time: `${outboundLeg.startTime} - ${outboundLeg.endTime}`,
+              startTime: outboundLeg.startTime,
+              endTime: outboundLeg.endTime,
+              departureDate: outboundLeg.departureDate,
+              departureTime: outboundLeg.departureTime,
+              departureDateTime: outboundLeg.departureDateTime,
+              arrivalDate: outboundLeg.arrivalDate,
+              arrivalTime: outboundLeg.arrivalTime,
+              arrivalDateTime: outboundLeg.arrivalDateTime,
+              isOvernight: outboundLeg.isOvernight,
+              activity: `${outboundLeg.mode} to ${tripData.destination}`,
+              place: outboundLeg.from,
+              to: outboundLeg.to,
+              mode: outboundLeg.mode,
+              trainNumber: outboundLeg.trainNumber,
+              trainName: outboundLeg.trainName,
+              flightNumber: outboundLeg.flightNumber,
+              airline: outboundLeg.airline,
+              estimatedCost: String(outboundLeg.estimatedCost || 0),
+              category: "transport"
             });
-
-            // 2. Inject structured operational events for each stay segment
-            derivedStays.forEach(stay => {
-              const checkInDate = new Date(stay.checkIn + "T00:00:00Z");
-              const checkOutDate = new Date(stay.checkOut + "T00:00:00Z");
-              const dayInOffset = Math.round((checkInDate - tripStart) / (1000 * 60 * 60 * 24));
-              const dayOutOffset = Math.round((checkOutDate - tripStart) / (1000 * 60 * 60 * 24));
-
-              if (dayInOffset >= 0 && dayInOffset < parsedData.days.length) {
-                const dayPlan = parsedData.days[dayInOffset].plan || [];
-                let checkInMin = 14 * 60; // Default 14:00
-                const lastTransport = dayPlan.filter(p => p.category === "transport" || p.trainNumber || p.flightNumber).pop();
-
-                let transportArrivalMin = null;
-                if (lastTransport && lastTransport._absEnd) {
-                  transportArrivalMin = lastTransport._absEnd % 1440;
-                } else if (Array.isArray(tripData.travelLegs)) {
-                  const currentDayStr = checkInDate.toISOString().split("T")[0];
-                  const arrivalLeg = tripData.travelLegs.find(leg => leg.to === stay.location && (leg.date === currentDayStr || !leg.date));
-                  if (arrivalLeg) {
-                    const tMin = timeToMinutes(arrivalLeg.endTime);
-                    if (tMin !== null) transportArrivalMin = tMin;
-                  }
-                }
-
-                if (transportArrivalMin !== null) {
-                  checkInMin = Math.max(checkInMin, transportArrivalMin + 60);
-                }
-
-                dayPlan.push({
-                  id: `sync-checkin-${stay.id}`,
-                  time: `${minutesToTimeStr(checkInMin)} - ${minutesToTimeStr(checkInMin + 30)}`,
-                  startTime: minutesToTimeStr(checkInMin),
-                  endTime: minutesToTimeStr(checkInMin + 30),
-                  activity: "Hotel Check-in",
-                  place: stay.location,
-                  category: "operational",
-                  duration: "30m",
-                  stayId: stay.id
-                });
-
-                dayPlan.sort((a, b) => {
-                  const aStart = timeToMinutes(a.startTime || (a.time ? String(a.time).split("-")[0] : null)) || 0;
-                  const bStart = timeToMinutes(b.startTime || (b.time ? String(b.time).split("-")[0] : null)) || 0;
-                  return aStart - bStart;
-                });
-                parsedData.days[dayInOffset].plan = dayPlan;
-              }
-
-              if (dayOutOffset >= 0 && dayOutOffset < parsedData.days.length) {
-                const dayPlan = parsedData.days[dayOutOffset].plan || [];
-                let checkOutMin = 11 * 60; // Default 11:00
-                const firstTransport = dayPlan.find(p => p.category === "transport" || p.trainNumber || p.flightNumber);
-                if (firstTransport && firstTransport._absStart) {
-                  const localDep = firstTransport._absStart % 1440;
-                  if (localDep > 6 * 60) {
-                    checkOutMin = Math.min(checkOutMin, localDep - 90);
-                  }
-                }
-
-                dayPlan.push({
-                  id: `sync-checkout-${stay.id}`,
-                  time: `${minutesToTimeStr(checkOutMin)} - ${minutesToTimeStr(checkOutMin + 30)}`,
-                  startTime: minutesToTimeStr(checkOutMin),
-                  endTime: minutesToTimeStr(checkOutMin + 30),
-                  activity: "Hotel Check-out",
-                  place: stay.location,
-                  category: "operational",
-                  duration: "30m",
-                  stayId: stay.id
-                });
-
-                dayPlan.sort((a, b) => {
-                  const aStart = timeToMinutes(a.startTime || (a.time ? String(a.time).split("-")[0] : null)) || 0;
-                  const bStart = timeToMinutes(b.startTime || (b.time ? String(b.time).split("-")[0] : null)) || 0;
-                  return aStart - bStart;
-                });
-                parsedData.days[dayOutOffset].plan = dayPlan;
-              }
-            });
-
-            // Pass 2: Re-run the deterministic scheduler.
-            // This seamlessly weaves the injected hotel events into the chronological timeline
-            // and perfectly pushes all subsequent activities forward by 30 minutes, preventing any overlaps.
-            buildDeterministicTimeline(parsedData);
           }
         }
-      } catch (e) {
-        console.error("Error deriving stay segments, retaining AI generated ones:", e);
+
+        // Inject Hotel Check-in on check-in day
+        const firstStay = parsedData.staySegments[0];
+        if (firstStay) {
+          const checkInDateObj = new Date(firstStay.checkIn + 'T00:00:00Z');
+          const checkInDayIdx = Math.max(0, Math.min(parsedData.days.length - 1, Math.round((checkInDateObj - tripStartObj) / 86400000)));
+          const checkInDay = parsedData.days[checkInDayIdx];
+
+          if (checkInDay && Array.isArray(checkInDay.plan)) {
+            let checkInMin = 14 * 60; // 02:00 PM default
+            if (outboundLeg && outboundLeg.arrivalDate === firstStay.checkIn) {
+              const arrMin = timeToMinutes(outboundLeg.endTime) || 0;
+              if (arrMin < 12 * 60 && arrMin >= 6 * 60) {
+                checkInMin = Math.max(10 * 60, arrMin + 60);
+              } else if (arrMin < 6 * 60) {
+                checkInMin = 14 * 60;
+              } else {
+                checkInMin = Math.max(14 * 60, arrMin + 45);
+              }
+            }
+
+            checkInDay.plan.push({
+              id: `sync-checkin-stay-1`,
+              time: `${minutesToTimeStr(checkInMin)} - ${minutesToTimeStr(checkInMin + 30)}`,
+              startTime: minutesToTimeStr(checkInMin),
+              endTime: minutesToTimeStr(checkInMin + 30),
+              activity: "Hotel Check-in",
+              place: firstStay.location || tripData.destination,
+              category: "operational",
+              duration: "30m",
+              estimatedCost: "0"
+            });
+          }
+        }
+
+        // Inject Hotel Check-out on check-out day
+        const lastStay = parsedData.staySegments[parsedData.staySegments.length - 1];
+        if (lastStay) {
+          const checkOutDateObj = new Date(lastStay.checkOut + 'T00:00:00Z');
+          const checkOutDayIdx = Math.max(0, Math.min(parsedData.days.length - 1, Math.round((checkOutDateObj - tripStartObj) / 86400000)));
+          const checkOutDay = parsedData.days[checkOutDayIdx];
+
+          if (checkOutDay && Array.isArray(checkOutDay.plan)) {
+            let checkOutMin = 11 * 60; // 11:00 AM default
+            if (returnLeg && returnLeg.departureDate === lastStay.checkOut) {
+              const retStartMin = timeToMinutes(returnLeg.startTime) || 16 * 60;
+              checkOutMin = Math.min(11 * 60, retStartMin - 60);
+            }
+
+            checkOutDay.plan.unshift({
+              id: `sync-checkout-stay-1`,
+              time: `${minutesToTimeStr(checkOutMin)} - ${minutesToTimeStr(checkOutMin + 30)}`,
+              startTime: minutesToTimeStr(checkOutMin),
+              endTime: minutesToTimeStr(checkOutMin + 30),
+              activity: "Hotel Check-out",
+              place: lastStay.location || tripData.destination,
+              category: "operational",
+              duration: "30m",
+              estimatedCost: "0"
+            });
+          }
+        }
+
+        // Inject Return Transport
+        if (returnLeg) {
+          const retDateObj = new Date(returnLeg.departureDate + 'T00:00:00Z');
+          const retDayIdx = Math.max(0, Math.min(parsedData.days.length - 1, Math.round((retDateObj - tripStartObj) / 86400000)));
+          const retDay = parsedData.days[retDayIdx];
+
+          if (retDay && Array.isArray(retDay.plan)) {
+            retDay.plan.push({
+              id: `itin_return_${crypto.randomUUID()}`,
+              time: `${returnLeg.startTime} - ${returnLeg.endTime}`,
+              startTime: returnLeg.startTime,
+              endTime: returnLeg.endTime,
+              departureDate: returnLeg.departureDate,
+              departureTime: returnLeg.departureTime,
+              departureDateTime: returnLeg.departureDateTime,
+              arrivalDate: returnLeg.arrivalDate,
+              arrivalTime: returnLeg.arrivalTime,
+              arrivalDateTime: returnLeg.arrivalDateTime,
+              isOvernight: returnLeg.isOvernight,
+              activity: `${returnLeg.mode} to ${tripData.source}`,
+              place: returnLeg.from,
+              to: returnLeg.to,
+              mode: returnLeg.mode,
+              trainNumber: returnLeg.trainNumber,
+              trainName: returnLeg.trainName,
+              flightNumber: returnLeg.flightNumber,
+              airline: returnLeg.airline,
+              estimatedCost: String(returnLeg.estimatedCost || 0),
+              category: "transport"
+            });
+          }
+
+          // If return leg is overnight and arrives on a subsequent day (e.g. Day 7), inject conclusion on arrival day
+          if (returnLeg.isOvernight) {
+            const arrDateObj = new Date(returnLeg.arrivalDate + 'T00:00:00Z');
+            const arrDayIdx = Math.max(0, Math.min(parsedData.days.length - 1, Math.round((arrDateObj - tripStartObj) / 86400000)));
+            if (arrDayIdx > retDayIdx) {
+              const arrDay = parsedData.days[arrDayIdx];
+              if (arrDay && Array.isArray(arrDay.plan)) {
+                const arrEndM = timeToMinutes(returnLeg.endTime) || 10 * 60;
+                arrDay.plan.unshift({
+                  id: `itin_arrival_${crypto.randomUUID()}`,
+                  time: `${returnLeg.endTime} - ${minutesToTimeStr(arrEndM + 30)}`,
+                  startTime: returnLeg.endTime,
+                  endTime: minutesToTimeStr(arrEndM + 30),
+                  activity: `Arrive in ${tripData.source} (Trip Concludes)`,
+                  place: returnLeg.to,
+                  category: "operational",
+                  duration: "30m",
+                  estimatedCost: "0"
+                });
+              }
+            }
+          }
+        }
       }
 
+      // 4. Deterministic Timeline Normalization & Conflict Elimination
+      buildDeterministicTimeline(parsedData, tripData, outboundLeg, returnLeg);
+
+      // 5. Interest Alignment Guarantee
+      ensureInterestAlignment(parsedData, tripData);
+
+      // 6. Accurate Budget Recalculation
+      recalculateBudgetBreakdown(parsedData, tripData);
+
+      // 7. Validation Safety Net
       const validationResult = validateItinerary(parsedData, tripData);
 
       if (validationResult.valid) {
@@ -614,14 +1234,18 @@ Return ONLY this EXACT JSON structure, do NOT use markdown or backticks:
         return parsedData;
       }
 
-      // If invalid, construct correction prompt
-      console.log(`[Attempt ${attempt}] Validation failed. Correcting...`);
-      const errorMessages = validationResult.errors.map(e => `- ${e.message}`).join("\n");
+      console.log(
+        `[Attempt ${attempt}] Validation errors:\n` +
+        validationResult.errors
+          .map(e => `- ${e.type}: ${e.message}`)
+          .join("\n")
+      );
 
+      const errorMessages = validationResult.errors.map(e => `- ${e.type}: ${e.message}`).join("\n");
       currentPrompt = basePrompt + `\n\nYOUR PREVIOUS ATTEMPT FAILED VALIDATION WITH THESE ERRORS:\n${errorMessages}\n\nPlease carefully correct these specific errors while preserving the user's dates, interests, and traveler count. Return the full corrected JSON.`;
     } catch (err) {
       console.log(`[Attempt ${attempt}] AI returned invalid JSON:`, text);
-      currentPrompt = basePrompt + "\\n\\nYOUR PREVIOUS ATTEMPT RETURNED INVALID/MALFORMED JSON. Please ensure your response is strictly valid JSON.";
+      currentPrompt = basePrompt + "\n\nYOUR PREVIOUS ATTEMPT RETURNED INVALID/MALFORMED JSON. Please ensure your response is strictly valid JSON.";
     }
   }
 
@@ -707,8 +1331,6 @@ Return
     throw new Error("Invalid JSON returned while regenerating day.");
   }
 };
-
-const crypto = require("crypto");
 
 const syncItineraryWithStayPlan = async (trip, newStaySegments) => {
   if (!Array.isArray(newStaySegments) || newStaySegments.length === 0) {

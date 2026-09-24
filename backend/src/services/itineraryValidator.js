@@ -47,12 +47,24 @@ const getDateForDay = (trip, dayNum) => {
 const getStaySegmentsForDate = (trip, date) => {
   if (!trip.staySegments || !date) return [];
   const currTime = date.getTime();
-  return trip.staySegments.filter(stay => {
+  
+  // Active night stay: on or after check-in, and strictly before check-out
+  const active = trip.staySegments.filter(stay => {
     const ci = parseDate(stay.checkIn);
     const co = parseDate(stay.checkOut);
     if (!ci || !co) return false;
-    return currTime >= ci.getTime() && currTime <= co.getTime();
+    return currTime >= ci.getTime() && currTime < co.getTime();
   });
+
+  if (active.length > 0) return active;
+
+  // On check-out day (or final departure date), associate with the departing stay segment
+  const checkoutStay = trip.staySegments.find(stay => {
+    const co = parseDate(stay.checkOut);
+    return co && currTime === co.getTime();
+  });
+
+  return checkoutStay ? [checkoutStay] : [];
 };
 
 const isImmutableTransport = (item) => {
@@ -136,10 +148,8 @@ const detectConflicts = (trip) => {
       const bStart = timeToMinutes(b.startTime || (b.time ? String(b.time).split("-")[0] : null)) || 0;
       return aStart - bStart;
     });
-    
-    sortedPlan.forEach((item) => {
-      if (isDuplicateTransport(item, trip, currentDate)) return;
 
+    sortedPlan.forEach((item) => {
       const tStart = timeToMinutes(item.startTime || (item.time ? String(item.time).split("-")[0] : null));
       const tEnd = timeToMinutes(item.endTime || (item.time ? String(item.time).split("-")[1] : null));
 
@@ -147,19 +157,21 @@ const detectConflicts = (trip) => {
       let absEnd = item._absEnd !== undefined ? item._absEnd : null;
 
       if (absStart === null && tStart !== null) {
-          absStart = currentDayBaseOffset + tStart;
-          if (absStart < prevAbsoluteEnd && (prevAbsoluteEnd - absStart) < 720) {
-              absStart += 1440;
-              currentDayBaseOffset += 1440;
-          }
+        absStart = currentDayBaseOffset + tStart;
       }
       
       if (absEnd === null && tEnd !== null) {
-          absEnd = currentDayBaseOffset + tEnd;
-          if (absEnd < absStart) {
-              absEnd += 1440;
-              currentDayBaseOffset += 1440;
-          }
+        absEnd = currentDayBaseOffset + tEnd;
+        if (absEnd < absStart) {
+          absEnd += 1440; // Crosses midnight
+        }
+      }
+
+      if (isDuplicateTransport(item, trip, currentDate)) {
+        if (absEnd !== null) {
+          prevAbsoluteEnd = Math.max(prevAbsoluteEnd, absEnd);
+        }
+        return;
       }
 
       if (absStart !== null && absEnd !== null) {
@@ -342,6 +354,39 @@ const validateItinerary = (itinerary, tripInput) => {
     });
   }
   
+    // Check uncounted stay segment costs if not already in day plan
+    if (!isCampus && totalHotelCost === 0 && Array.isArray(itinerary.staySegments)) {
+      itinerary.staySegments.forEach(s => {
+        const sCost = parseFloat(s.estimatedCost) || 0;
+        if (sCost > 0) {
+          totalHotelCost += sCost;
+          totalCost += sCost;
+        }
+      });
+    }
+
+    // Check uncounted transport leg costs if not already in day plan
+    let hasTransportInPlan = false;
+    if (Array.isArray(itinerary.days)) {
+      itinerary.days.forEach(day => {
+        if (Array.isArray(day.plan)) {
+          if (day.plan.some(p => {
+            const cat = String(p.category || "").toLowerCase();
+            const act = String(p.activity || p.name || "").toLowerCase();
+            return (cat.includes("transport") || act.includes("travel") || p.trainNumber || p.flightNumber) && parseFloat(p.estimatedCost) > 0;
+          })) {
+            hasTransportInPlan = true;
+          }
+        }
+      });
+    }
+    if (!isCampus && !hasTransportInPlan && Array.isArray(itinerary.travelLegs)) {
+      itinerary.travelLegs.forEach(leg => {
+        const tCost = parseFloat(leg.estimatedCost) || 0;
+        if (tCost > 0) totalCost += tCost;
+      });
+    }
+  
   if (isCampus) {
     const budgetPerStudent = parseFloat(tripInput.campusConfig?.budgetPerStudent) || parseFloat(tripInput.budget) || 0;
     const expectedStudents = parseInt(tripInput.campusConfig?.expectedParticipants, 10) || parseInt(tripInput.travelers, 10) || 1;
@@ -417,38 +462,191 @@ const validateItinerary = (itinerary, tripInput) => {
         addError("STAY_DISCONTIGUOUS", null, `Stay segment ${index + 1} check-in (${checkIn.toISOString().split('T')[0]}) does not align with previous check-out (${previousCheckOut.toISOString().split('T')[0]}).`);
       }
 
-      if (index === 0 && tripStart && checkIn.getTime() !== tripStart.getTime()) {
-        addError("STAY_START_MISMATCH", null, `First stay check-in does not equal trip start date.`);
-      }
-      if (index === itinerary.staySegments.length - 1 && tripEnd && checkOut.getTime() !== tripEnd.getTime()) {
-        addError("STAY_END_MISMATCH", null, `Last stay check-out does not equal trip end date.`);
-      }
-
       previousCheckOut = checkOut;
     });
-    
+
     if (tripStart && tripEnd) {
-      let transitNights = 0;
+      const totalTripNights = Math.round((tripEnd.getTime() - tripStart.getTime()) / (1000 * 60 * 60 * 24));
+
+      // Collect all intercity/overnight transport candidates from travelLegs and day plans
+      const transportCandidates = [];
+      const seenLegKeys = new Set();
+
+      const addCandidate = (leg, defaultDate) => {
+        if (!leg) return;
+        const depDate = leg.departureDate || leg.date || defaultDate;
+        let arrDate = leg.arrivalDate || null;
+        const sTime = leg.departureTime || leg.startTime || (leg.time ? String(leg.time).split("-")[0] : null);
+        const eTime = leg.arrivalTime || leg.endTime || (leg.time ? String(leg.time).split("-")[1] : null);
+        const sMin = timeToMinutes(sTime);
+        const eMin = timeToMinutes(eTime);
+
+        if (!arrDate && depDate) {
+          if (leg.durationMinutes) {
+            const daysAdded = Math.floor(((sMin || 0) + leg.durationMinutes) / 1440);
+            const depDateObj = new Date(depDate + (depDate.includes('T') ? '' : 'T00:00:00Z'));
+            arrDate = new Date(depDateObj.getTime() + daysAdded * 86400000).toISOString().split("T")[0];
+          } else if (sMin !== null && eMin !== null && eMin < sMin) {
+            const depDateObj = new Date(depDate + (depDate.includes('T') ? '' : 'T00:00:00Z'));
+            arrDate = new Date(depDateObj.getTime() + 86400000).toISOString().split("T")[0];
+          } else {
+            arrDate = depDate;
+          }
+        }
+
+        const isOvernight = Boolean(leg.isOvernight || (depDate && arrDate && depDate !== arrDate) || (sMin !== null && eMin !== null && eMin < sMin));
+        const key = `${depDate}_${sTime}_${arrDate}_${eTime}_${leg.trainNumber || leg.flightNumber || leg.mode || ''}`;
+        if (!seenLegKeys.has(key)) {
+          seenLegKeys.add(key);
+          transportCandidates.push({
+            name: leg.name || leg.activity || leg.mode || "Transport",
+            departureDate: depDate,
+            departureTime: sTime,
+            departureDateTime: leg.departureDateTime || (depDate && sTime ? `${depDate}T${sTime}` : null),
+            arrivalDate: arrDate,
+            arrivalTime: eTime,
+            arrivalDateTime: leg.arrivalDateTime || (arrDate && eTime ? `${arrDate}T${eTime}` : null),
+            startTime: sTime,
+            endTime: eTime,
+            durationMinutes: leg.durationMinutes,
+            isOvernight
+          });
+        }
+      };
+
+      if (Array.isArray(itinerary.travelLegs)) {
+        itinerary.travelLegs.forEach(leg => addCandidate(leg, leg.date));
+      }
+
       if (Array.isArray(itinerary.days)) {
         itinerary.days.forEach(day => {
+          const dayNum = day.day || 1;
+          const dayDate = getDateForDay({ startDate: tripInput.startDate || itinerary.startDate }, dayNum);
+          const dayDateStr = dayDate ? dayDate.toISOString().split("T")[0] : null;
+
           if (Array.isArray(day.plan)) {
             day.plan.forEach(item => {
               const cat = String(item.category || "").toLowerCase();
               if (cat.includes("transport") || item.trainNumber || item.flightNumber) {
-                 const tStart = timeToMinutes(item.startTime || (item.time ? String(item.time).split("-")[0] : null));
-                 const tEnd = timeToMinutes(item.endTime || (item.time ? String(item.time).split("-")[1] : null));
-                 // An overnight transport crosses midnight
-                 if (tStart !== null && tEnd !== null && tEnd < tStart) {
-                     transitNights++;
-                 }
+                addCandidate(item, dayDateStr);
               }
             });
           }
         });
       }
-      const expectedTotalNights = Math.round((tripEnd.getTime() - tripStart.getTime()) / (1000 * 60 * 60 * 24)) - transitNights;
-      if (totalNights !== expectedTotalNights) {
-        addError("STAY_TOTAL_NIGHTS_MISMATCH", null, `Total stay nights (${totalNights}) do not equal expected trip nights (${expectedTotalNights}) after accounting for ${transitNights} transit nights.`);
+
+      // Check whether a transport leg covers a given calendar overnight (nightDateStr to nightDateStr + 1 day)
+      const legCoversNight = (leg, nightDateStr, nextDateStr) => {
+        if (!leg.isOvernight) return false;
+        if (leg.departureDate && leg.arrivalDate) {
+          return leg.departureDate <= nightDateStr && leg.arrivalDate >= nextDateStr;
+        }
+        return leg.departureDate === nightDateStr;
+      };
+
+      // Check each calendar night from tripStart to tripEnd
+      let totalAccommodationNights = 0;
+      let actualTransitNights = 0;
+
+      for (let i = 0; i < totalTripNights; i++) {
+        const nightTime = tripStart.getTime() + i * 24 * 60 * 60 * 1000;
+        const nightDate = new Date(nightTime);
+        const nightDateStr = nightDate.toISOString().split("T")[0];
+        const nextDateStr = new Date(nightTime + 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+
+        // Is this night covered by any stay segment?
+        const coveringStays = itinerary.staySegments.filter(stay => {
+          const ci = parseDate(stay.checkIn);
+          const co = parseDate(stay.checkOut);
+          if (!ci || !co) return false;
+          return ci.getTime() <= nightTime && nightTime < co.getTime();
+        });
+
+        if (coveringStays.length > 1) {
+          addError("STAY_OVERLAP", null, `Multiple stay segments cover night ${nightDateStr} (${coveringStays.map(s => s.location).join(", ")}).`);
+        } else if (coveringStays.length === 1) {
+          totalAccommodationNights++;
+        } else {
+          // Not covered by stay: check if covered by overnight transport
+          const hasOvernightTransit = transportCandidates.some(leg => legCoversNight(leg, nightDateStr, nextDateStr));
+          if (hasOvernightTransit) {
+            actualTransitNights++;
+          }
+        }
+      }
+
+      // Diagnostic logging as requested by user
+      console.log("[Stay Debug]", {
+        tripStart: tripInput.startDate,
+        tripEnd: tripInput.endDate,
+        staySegments: itinerary.staySegments.map(s => ({
+          location: s.location,
+          checkIn: s.checkIn,
+          checkOut: s.checkOut,
+          nights: s.nights
+        })),
+        totalTripNights,
+        accommodationNights: totalAccommodationNights,
+        transitNights: actualTransitNights
+      });
+
+      console.log(
+        "[Transit Night Debug]",
+        transportCandidates.filter(t => t.isOvernight).map(t => ({
+          title: t.name,
+          departureDate: t.departureDate,
+          arrivalDate: t.arrivalDate,
+          startTime: t.startTime,
+          endTime: t.endTime
+        }))
+      );
+
+      // Check start date alignment:
+      // If Night 0 is an overnight transit night, first stay begins on Day 2
+      const firstStay = itinerary.staySegments[0];
+      const firstStayIn = parseDate(firstStay.checkIn);
+      const day1Str = tripInput.startDate;
+      const day2Str = new Date(tripStart.getTime() + 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+      const isNight0Transit = transportCandidates.some(leg => legCoversNight(leg, day1Str, day2Str));
+
+      if (isNight0Transit) {
+        const expectedFirstIn = new Date(tripStart.getTime() + 24 * 60 * 60 * 1000);
+        if (firstStayIn && firstStayIn.getTime() !== expectedFirstIn.getTime() && firstStayIn.getTime() !== tripStart.getTime()) {
+          addError("STAY_START_MISMATCH", null, `First stay check-in (${firstStay.checkIn}) must be ${expectedFirstIn.toISOString().split('T')[0]} following overnight travel on trip start date.`);
+        }
+      } else {
+        if (firstStayIn && firstStayIn.getTime() !== tripStart.getTime()) {
+          addError("STAY_START_MISMATCH", null, `First stay check-in does not equal trip start date.`);
+        }
+      }
+
+      // Check end date alignment:
+      // If last night is an overnight return transit night, last stay ends on departure date
+      const lastStay = itinerary.staySegments[itinerary.staySegments.length - 1];
+      const lastStayOut = parseDate(lastStay.checkOut);
+      const lastNightStr = new Date(tripEnd.getTime() - 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+      const tripEndStr = tripInput.endDate;
+      const isLastNightTransit = transportCandidates.some(leg => legCoversNight(leg, lastNightStr, tripEndStr));
+
+      if (isLastNightTransit) {
+        const expectedLastOut = new Date(tripEnd.getTime() - 24 * 60 * 60 * 1000);
+        if (lastStayOut && lastStayOut.getTime() !== expectedLastOut.getTime()) {
+          addError("STAY_END_MISMATCH", null, `Last stay check-out (${lastStay.checkOut}) must be ${expectedLastOut.toISOString().split('T')[0]} prior to return overnight travel arriving on trip end date.`);
+        }
+      } else {
+        if (lastStayOut && lastStayOut.getTime() !== tripEnd.getTime()) {
+          addError("STAY_END_MISMATCH", null, `Last stay check-out does not equal trip end date.`);
+        }
+      }
+
+      // Total nights verification:
+      // totalAccommodationNights + actualTransitNights must equal totalTripNights
+      if (totalAccommodationNights + actualTransitNights !== totalTripNights) {
+        addError(
+          "STAY_TOTAL_NIGHTS_MISMATCH",
+          null,
+          `Total stay nights (${totalAccommodationNights}) do not equal expected trip nights (${totalTripNights}) after accounting for ${actualTransitNights} transit nights.`
+        );
       }
     }
   } else {
@@ -539,7 +737,11 @@ const validateItinerary = (itinerary, tripInput) => {
   const conflicts = detectConflicts(tripForValidation);
   
   conflicts.forEach(c => {
-    addWarning("SCHEDULE_CONFLICT", c.affectedDay, `Activity "${c.itemTitle}" ${c.reason}`);
+    if (c.type === "OVERLAP") {
+      addError("SCHEDULE_CONFLICT", c.affectedDay, `Activity "${c.itemTitle}" ${c.reason}`);
+    } else {
+      addWarning("SCHEDULE_CONFLICT", c.affectedDay, `Activity "${c.itemTitle}" ${c.reason}`);
+    }
   });
 
   return result;
@@ -551,5 +753,6 @@ module.exports = {
   timeToMinutes,
   minutesToTimeStr,
   getTripDurationDays,
-  calculateCampusGroupRoomRate
+  calculateCampusGroupRoomRate,
+  detectConflicts
 };
