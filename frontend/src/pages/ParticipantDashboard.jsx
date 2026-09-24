@@ -442,16 +442,16 @@ export default function ParticipantDashboard() {
 
   return (
     <DashboardLayout trip={trip} setTrip={() => {}}>
-      <div className="min-h-screen bg-[#0a101f] text-slate-300 pb-12 font-sans">
+      <div className="w-full text-slate-900 dark:text-slate-100 transition-colors duration-200 pb-12 font-sans">
         <div className="max-w-5xl mx-auto px-4 md:px-8 pt-6">
           
           {/* Header */}
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-6 mb-8 border-b border-slate-800 pb-6">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-6 mb-8 border-b border-slate-200 dark:border-slate-800 pb-6">
             <div className="min-w-0 flex-1">
-              <h1 className="text-3xl md:text-4xl font-black text-white uppercase tracking-tight mb-2">
+              <h1 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white uppercase tracking-tight mb-2">
                 {title}
               </h1>
-              <div className="flex items-center gap-2 text-indigo-400 font-bold text-sm bg-indigo-900/30 px-3 py-1 rounded-full border border-indigo-500/30 w-fit">
+              <div className="flex items-center gap-2 text-indigo-700 dark:text-indigo-400 font-bold text-sm bg-indigo-50 dark:bg-indigo-900/30 px-3 py-1 rounded-full border border-indigo-200 dark:border-indigo-500/30 w-fit">
                 {trip.organizationDetails?.name || 'Organization'} &bull; Educational Trip / Industrial Visit
               </div>
             </div>
@@ -460,7 +460,7 @@ export default function ParticipantDashboard() {
             <div className="flex items-center gap-3 sm:gap-3.5 shrink-0">
               <button 
                 onClick={() => navigate(`/itinerary/${trip._id}`, { state: { trip, viewOnly: true, relation: "PARTICIPANT" } })}
-                className="h-10 px-4 py-2.5 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 rounded-xl font-bold text-xs inline-flex items-center justify-center gap-2 whitespace-nowrap transition shadow-lg cursor-pointer"
+                className="h-10 px-4 py-2.5 bg-white dark:bg-indigo-600/20 hover:bg-slate-50 dark:hover:bg-indigo-600/30 text-indigo-600 dark:text-indigo-300 border border-slate-200 dark:border-indigo-500/30 rounded-xl font-bold text-xs inline-flex items-center justify-center gap-2 whitespace-nowrap transition shadow-xs cursor-pointer"
                 title="View complete finalized itinerary"
               >
                 <FiMap size={14} /> View Itinerary
@@ -468,7 +468,7 @@ export default function ParticipantDashboard() {
               <button 
                 onClick={handleDownloadItinerary}
                 disabled={downloadingPdf}
-                className="h-10 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs inline-flex items-center justify-center gap-2 whitespace-nowrap transition shadow-lg shadow-indigo-900/40 cursor-pointer disabled:opacity-60"
+                className="h-10 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs inline-flex items-center justify-center gap-2 whitespace-nowrap transition shadow-sm cursor-pointer disabled:opacity-60"
                 title="Download official finalized trip itinerary PDF"
               >
                 <FiDownload size={14} /> {downloadingPdf ? "Generating..." : "Download Itinerary"}
@@ -481,37 +481,37 @@ export default function ParticipantDashboard() {
 
           {/* Banner: IV Overview Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-            <div className="bg-[#131c31] border border-slate-800 p-4 rounded-xl">
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Destination</p>
-              <p className="text-base font-black text-white truncate">{trip.destination}</p>
+            <div className="bg-white dark:bg-[#131c31] border border-slate-200 dark:border-slate-800 p-4 rounded-xl shadow-xs">
+              <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Destination</p>
+              <p className="text-base font-black text-slate-900 dark:text-white truncate">{trip.destination}</p>
             </div>
-            <div className="bg-[#131c31] border border-slate-800 p-4 rounded-xl">
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Duration</p>
-              <p className="text-base font-black text-white">{trip.duration || `${trip.itinerary?.length || 0} Days`}</p>
+            <div className="bg-white dark:bg-[#131c31] border border-slate-200 dark:border-slate-800 p-4 rounded-xl shadow-xs">
+              <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Duration</p>
+              <p className="text-base font-black text-slate-900 dark:text-white">{trip.duration || `${trip.itinerary?.length || 0} Days`}</p>
             </div>
-            <div className="bg-[#131c31] border border-slate-800 p-4 rounded-xl">
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Dates</p>
-              <p className="text-xs font-bold text-white mt-0.5">
+            <div className="bg-white dark:bg-[#131c31] border border-slate-200 dark:border-slate-800 p-4 rounded-xl shadow-xs">
+              <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Dates</p>
+              <p className="text-xs font-bold text-slate-900 dark:text-white mt-0.5">
                 {trip.startDate ? new Date(trip.startDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'TBD'} - {trip.endDate ? new Date(trip.endDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'TBD'}
               </p>
             </div>
             {trip.joinCode && (
-              <div className="bg-[#131c31] border border-slate-800 p-4 rounded-xl">
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">IV Code</p>
-                <p className="text-base font-black text-indigo-400 tracking-widest">{trip.joinCode}</p>
+              <div className="bg-white dark:bg-[#131c31] border border-slate-200 dark:border-slate-800 p-4 rounded-xl shadow-xs">
+                <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">IV Code</p>
+                <p className="text-base font-black text-indigo-600 dark:text-indigo-400 tracking-widest">{trip.joinCode}</p>
               </div>
             )}
           </div>
 
           {/* If NOT completed, show continuous registration wizard */}
           {!isFullyCompleted ? (
-            <div className="bg-[#131c31] border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
-              <div className="bg-slate-900 p-6 border-b border-slate-800 flex justify-between items-center">
-                <h3 className="text-lg font-black text-white uppercase tracking-tight">Registration Process</h3>
+            <div className="bg-white dark:bg-[#131c31] border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
+              <div className="bg-slate-50/80 dark:bg-slate-900 p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
+                <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">Registration Process</h3>
                 <div className="flex gap-2">
-                  <span className={`w-3 h-3 rounded-full ${currentStep >= 1 ? 'bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.8)]' : 'bg-slate-700'}`}></span>
-                  <span className={`w-3 h-3 rounded-full ${currentStep >= 2 ? 'bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.8)]' : 'bg-slate-700'}`}></span>
-                  <span className={`w-3 h-3 rounded-full ${currentStep >= 3 ? 'bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.8)]' : 'bg-slate-700'}`}></span>
+                  <span className={`w-3 h-3 rounded-full ${currentStep >= 1 ? 'bg-indigo-600 shadow-[0_0_8px_rgba(99,102,241,0.6)]' : 'bg-slate-200 dark:bg-slate-700'}`}></span>
+                  <span className={`w-3 h-3 rounded-full ${currentStep >= 2 ? 'bg-indigo-600 shadow-[0_0_8px_rgba(99,102,241,0.6)]' : 'bg-slate-200 dark:bg-slate-700'}`}></span>
+                  <span className={`w-3 h-3 rounded-full ${currentStep >= 3 ? 'bg-indigo-600 shadow-[0_0_8px_rgba(99,102,241,0.6)]' : 'bg-slate-200 dark:bg-slate-700'}`}></span>
                 </div>
               </div>
 
@@ -520,14 +520,14 @@ export default function ParticipantDashboard() {
                 {/* STEP 1: Details */}
                 {currentStep === 1 && (
                   <form onSubmit={handleRegister} className="animate-fade-in space-y-6">
-                    <h4 className="text-sm font-bold text-indigo-400 uppercase tracking-widest flex items-center gap-2 mb-6">
+                    <h4 className="text-sm font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest flex items-center gap-2 mb-6">
                       Step 1 &mdash; Student Details
                     </h4>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       {formFields.map((field, idx) => (
                         <div key={idx} className={field.type === 'textarea' ? 'md:col-span-2' : ''}>
-                          <label className="block text-[10px] font-bold text-slate-400 uppercase mb-2">
+                          <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase mb-2">
                             {field.label} {field.required && <span className="text-rose-500">*</span>}
                           </label>
                           
@@ -536,7 +536,7 @@ export default function ParticipantDashboard() {
                               name={field.name} 
                               required={field.required}
                               defaultValue={getFieldValue(field.name)}
-                              className="w-full bg-[#0a101f] border border-slate-700 rounded-xl p-3 text-sm text-white focus:border-indigo-500 focus:outline-none"
+                              className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-sm text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-500 focus:outline-none transition"
                             >
                               <option value="" disabled>Select {field.label}</option>
                               {field.options?.map((opt, i) => <option key={i} value={opt}>{opt}</option>)}
@@ -548,7 +548,7 @@ export default function ParticipantDashboard() {
                               defaultValue={getFieldValue(field.name)}
                               placeholder={`Enter ${field.label.toLowerCase()}`}
                               rows="3"
-                              className="w-full bg-[#0a101f] border border-slate-700 rounded-xl p-3 text-sm text-white focus:border-indigo-500 focus:outline-none"
+                              className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-sm text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-500 focus:outline-none transition"
                             ></textarea>
                           ) : (
                             <input 
@@ -557,15 +557,15 @@ export default function ParticipantDashboard() {
                               required={field.required}
                               defaultValue={getFieldValue(field.name)}
                               placeholder={`Enter ${field.label.toLowerCase()}`}
-                              className="w-full bg-[#0a101f] border border-slate-700 rounded-xl p-3 text-sm text-white focus:border-indigo-500 focus:outline-none"
+                              className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-sm text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-500 focus:outline-none transition"
                             />
                           )}
                         </div>
                       ))}
                     </div>
 
-                    <div className="pt-6 mt-6 border-t border-slate-800 flex justify-end">
-                      <button type="submit" className="px-8 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl flex items-center gap-2 transition">
+                    <div className="pt-6 mt-6 border-t border-slate-200 dark:border-slate-800 flex justify-end">
+                      <button type="submit" className="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl flex items-center gap-2 transition shadow-xs cursor-pointer">
                         Continue to Documents <FiChevronRight />
                       </button>
                     </div>
@@ -575,7 +575,7 @@ export default function ParticipantDashboard() {
                 {/* STEP 2: Documents */}
                 {currentStep === 2 && (
                   <div className="animate-fade-in space-y-6">
-                    <h4 className="text-sm font-bold text-indigo-400 uppercase tracking-widest flex items-center gap-2 mb-6">
+                    <h4 className="text-sm font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest flex items-center gap-2 mb-6">
                       Step 2 &mdash; Documents
                     </h4>
                     
@@ -583,12 +583,12 @@ export default function ParticipantDashboard() {
                       {requiredDocs.map((doc, idx) => {
                         const uploaded = registration?.documents?.find(d => d.documentType === doc.documentType);
                         return (
-                          <div key={idx} className="flex flex-col p-4 bg-[#0a101f] border border-slate-800 rounded-xl gap-4">
+                          <div key={idx} className="flex flex-col p-4 bg-slate-50/70 dark:bg-[#0a101f] border border-slate-200 dark:border-slate-800 rounded-xl gap-4">
                             <div className="flex justify-between items-start">
                               <div>
-                                <p className="text-sm font-bold text-white mb-1">{doc.documentType} {doc.required && <span className="text-rose-500">*</span>}</p>
-                                <p className="text-[10px] text-slate-400 mb-2">{doc.instruction}</p>
-                                <p className={`text-[10px] font-bold uppercase ${uploaded ? (uploaded.status === 'VERIFIED' ? 'text-emerald-500' : 'text-amber-500') : 'text-slate-500'}`}>
+                                <p className="text-sm font-bold text-slate-900 dark:text-white mb-1">{doc.documentType} {doc.required && <span className="text-rose-500">*</span>}</p>
+                                <p className="text-[10px] text-slate-500 dark:text-slate-400 mb-2">{doc.instruction}</p>
+                                <p className={`text-[10px] font-bold uppercase ${uploaded ? (uploaded.status === 'VERIFIED' ? 'text-indigo-600 dark:text-indigo-400' : 'text-amber-600 dark:text-amber-400') : 'text-slate-400'}`}>
                                   {uploaded ? uploaded.status : (doc.required ? "Required" : "Optional")}
                                 </p>
                               </div>
@@ -598,7 +598,7 @@ export default function ParticipantDashboard() {
                                   download 
                                   target="_blank" 
                                   rel="noreferrer"
-                                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-lg transition border border-slate-700 whitespace-nowrap"
+                                  className="px-4 py-2 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-lg transition border border-slate-200 dark:border-slate-700 whitespace-nowrap shadow-2xs"
                                 >
                                   Download Undertaking Form
                                 </a>
@@ -606,7 +606,7 @@ export default function ParticipantDashboard() {
                             </div>
                             
                             <div className="flex items-center gap-4">
-                              <label className={`cursor-pointer px-4 py-2 flex items-center gap-2 text-xs font-bold rounded-lg transition ${uploaded ? 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700' : 'bg-indigo-600 text-white hover:bg-indigo-500'}`}>
+                              <label className={`cursor-pointer px-4 py-2 flex items-center gap-2 text-xs font-bold rounded-lg transition ${uploaded ? 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}>
                                 <FiUpload /> {uploaded ? "Re-upload" : "Select File"}
                                 <input 
                                   type="file" 
@@ -618,7 +618,7 @@ export default function ParticipantDashboard() {
                               {uploaded && uploaded.fileUrl && (
                                 <button 
                                   onClick={(e) => { e.preventDefault(); handlePreviewDocument(uploaded); }}
-                                  className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold rounded-lg transition"
+                                  className="px-3 py-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-800 dark:text-white text-xs font-bold rounded-lg transition border border-slate-200 dark:border-slate-600"
                                 >
                                   View Uploaded
                                 </button>
@@ -629,16 +629,16 @@ export default function ParticipantDashboard() {
                       })}
                     </div>
 
-                    <div className="pt-6 mt-6 border-t border-slate-800 flex justify-between">
+                    <div className="pt-6 mt-6 border-t border-slate-200 dark:border-slate-800 flex justify-between">
                       <button 
                         onClick={() => setCurrentStep(1)}
-                        className="px-6 py-3 text-slate-400 hover:text-white font-bold transition flex items-center gap-2"
+                        className="px-6 py-3 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-bold transition flex items-center gap-2 cursor-pointer"
                       >
                         <FiChevronRight className="rotate-180" /> Back
                       </button>
                       <button 
                         onClick={handleContinueFromDocuments}
-                        className="px-8 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl flex items-center gap-2 transition"
+                        className="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl flex items-center gap-2 transition shadow-xs cursor-pointer"
                       >
                         Continue to Payment <FiChevronRight />
                       </button>
@@ -649,39 +649,39 @@ export default function ParticipantDashboard() {
                 {/* STEP 3: Confirmation Payment */}
                 {currentStep === 3 && (
                   <div className="animate-fade-in space-y-6">
-                    <h4 className="text-sm font-bold text-indigo-400 uppercase tracking-widest flex items-center gap-2 mb-6">
+                    <h4 className="text-sm font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest flex items-center gap-2 mb-6">
                       Step 3 &mdash; Confirmation Payment
                     </h4>
                     
-                    <div className="p-8 bg-[#0a101f] border border-slate-800 rounded-xl text-center flex flex-col items-center">
-                      <div className="w-16 h-16 bg-indigo-900/30 rounded-full flex items-center justify-center text-indigo-400 text-2xl mb-4">
+                    <div className="p-8 bg-slate-50/70 dark:bg-[#0a101f] border border-slate-200 dark:border-slate-800 rounded-xl text-center flex flex-col items-center">
+                      <div className="w-16 h-16 bg-indigo-50 dark:bg-indigo-900/30 rounded-full flex items-center justify-center text-indigo-600 dark:text-indigo-400 text-2xl mb-4 border border-indigo-100 dark:border-indigo-800/40">
                         <FiDollarSign />
                       </div>
 
                       {/* Fee Breakdown Cards */}
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full max-w-xl mb-6">
-                        <div className="p-4 bg-[#131c31] border border-slate-800 rounded-xl text-center">
-                          <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Confirmation Fee</p>
-                          <p className="text-xl font-black text-emerald-400">₹{(trip.registrationSettings?.confirmationFee || 0).toLocaleString()}</p>
+                        <div className="p-4 bg-white dark:bg-[#131c31] border border-slate-200 dark:border-slate-800 rounded-xl text-center shadow-xs">
+                          <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Confirmation Fee</p>
+                          <p className="text-xl font-black text-indigo-600 dark:text-indigo-400">₹{(trip.registrationSettings?.confirmationFee || 0).toLocaleString()}</p>
                         </div>
-                        <div className="p-4 bg-[#131c31] border border-slate-800 rounded-xl text-center">
-                          <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Total Trip Fee</p>
-                          <p className="text-xl font-black text-white">₹{(trip.registrationSettings?.totalFee || 0).toLocaleString()}</p>
+                        <div className="p-4 bg-white dark:bg-[#131c31] border border-slate-200 dark:border-slate-800 rounded-xl text-center shadow-xs">
+                          <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Total Trip Fee</p>
+                          <p className="text-xl font-black text-slate-900 dark:text-white">₹{(trip.registrationSettings?.totalFee || 0).toLocaleString()}</p>
                         </div>
-                        <div className="p-4 bg-[#131c31] border border-slate-800 rounded-xl text-center">
-                          <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Remaining After Confirmation</p>
-                          <p className="text-xl font-black text-amber-400">₹{Math.max(0, (trip.registrationSettings?.totalFee || 0) - (trip.registrationSettings?.confirmationFee || 0)).toLocaleString()}</p>
+                        <div className="p-4 bg-white dark:bg-[#131c31] border border-slate-200 dark:border-slate-800 rounded-xl text-center shadow-xs">
+                          <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Remaining After Confirmation</p>
+                          <p className="text-xl font-black text-amber-600 dark:text-amber-400">₹{Math.max(0, (trip.registrationSettings?.totalFee || 0) - (trip.registrationSettings?.confirmationFee || 0)).toLocaleString()}</p>
                         </div>
                       </div>
 
-                      <p className="text-xs text-slate-400 mb-6 max-w-md">
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mb-6 max-w-md">
                         Pay the confirmation fee using Razorpay Test Checkout to complete your student registration. Remaining balance will be payable in upcoming installments.
                       </p>
 
                       {/* Payment Error / Cancellation Notice */}
                       {paymentError && (
-                        <div className="w-full max-w-xl p-4 bg-rose-950/40 border border-rose-800/60 rounded-xl text-rose-300 text-xs flex items-center gap-3 text-left mb-6">
-                          <FiAlertCircle className="text-rose-400 text-xl flex-shrink-0" />
+                        <div className="w-full max-w-xl p-4 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 rounded-xl text-rose-700 dark:text-rose-300 text-xs flex items-center gap-3 text-left mb-6">
+                          <FiAlertCircle className="text-rose-500 text-xl flex-shrink-0" />
                           <div className="flex-1 font-medium">{paymentError}</div>
                         </div>
                       )}
@@ -690,14 +690,14 @@ export default function ParticipantDashboard() {
                         <button 
                           onClick={() => setCurrentStep(2)}
                           disabled={paymentLoading}
-                          className="px-6 py-3 text-slate-400 hover:text-white font-bold transition flex items-center gap-2 disabled:opacity-50"
+                          className="px-6 py-3 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-bold transition flex items-center gap-2 disabled:opacity-50 cursor-pointer"
                         >
                           <FiChevronRight className="rotate-180" /> Back
                         </button>
                         <button 
                           onClick={handleRazorpayConfirmationPayment}
                           disabled={paymentLoading}
-                          className="px-8 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-lg shadow-emerald-900/50 transition flex items-center justify-center gap-2 md:w-auto"
+                          className="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-md transition flex items-center justify-center gap-2 md:w-auto cursor-pointer"
                         >
                           {paymentLoading ? (
                             <>
@@ -722,18 +722,18 @@ export default function ParticipantDashboard() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
                 
                 {/* Single Compact Registration Complete / Status Card */}
-                <div className="col-span-1 bg-[#131c31] border border-slate-800 rounded-2xl p-6 shadow-lg h-fit space-y-5">
+                <div className="col-span-1 bg-white dark:bg-[#131c31] border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xs h-fit space-y-5">
                   {/* Status Header Block */}
                   {isApproved ? (
                     <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xl shrink-0">
+                      <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-xl shrink-0">
                         <FiCheckCircle />
                       </div>
                       <div>
-                        <h3 className="text-base font-black text-emerald-400 uppercase tracking-tight">
+                        <h3 className="text-base font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-tight">
                           Registration Complete
                         </h3>
-                        <p className="text-xs text-emerald-100/90 mt-0.5 leading-snug">
+                        <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5 leading-snug">
                           Your participation in this IV has been confirmed.
                         </p>
                       </div>
@@ -741,39 +741,39 @@ export default function ParticipantDashboard() {
                   ) : isRejected ? (
                     <div className="space-y-3">
                       <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center text-xl shrink-0">
+                        <div className="w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-500/20 text-rose-500 dark:text-rose-400 flex items-center justify-center text-xl shrink-0">
                           <FiAlertCircle />
                         </div>
                         <div>
-                          <h3 className="text-base font-black text-rose-400 uppercase tracking-tight">
+                          <h3 className="text-base font-black text-rose-600 dark:text-rose-400 uppercase tracking-tight">
                             Registration Needs Attention
                           </h3>
-                          <p className="text-xs text-rose-200/90 mt-0.5 leading-snug">
+                          <p className="text-xs text-rose-600 dark:text-rose-200/90 mt-0.5 leading-snug">
                             Your registration could not be approved yet.
                           </p>
                         </div>
                       </div>
-                      <div className="p-3 bg-rose-950/40 border border-rose-900/60 rounded-xl text-left">
-                        <p className="text-[10px] font-bold text-rose-400 uppercase tracking-wider mb-1">Reason for Rejection</p>
-                        <p className="text-xs font-semibold text-rose-100">{registration?.coordinatorReview?.rejectionReason || "Please review and re-upload required documents."}</p>
+                      <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-xl text-left">
+                        <p className="text-[10px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider mb-1">Reason for Rejection</p>
+                        <p className="text-xs font-semibold text-rose-900 dark:text-rose-100">{registration?.coordinatorReview?.rejectionReason || "Please review and re-upload required documents."}</p>
                       </div>
                       <button
                         onClick={() => setCurrentStep(2)}
-                        className="w-full py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-xl transition shadow-lg"
+                        className="w-full py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition shadow-xs cursor-pointer"
                       >
                         Update Required Information
                       </button>
                     </div>
                   ) : (
                     <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-xl shrink-0">
+                      <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center text-xl shrink-0">
                         <FiClock />
                       </div>
                       <div>
-                        <h3 className="text-base font-black text-amber-400 uppercase tracking-tight">
+                        <h3 className="text-base font-black text-amber-600 dark:text-amber-400 uppercase tracking-tight">
                           Registration Submitted
                         </h3>
-                        <p className="text-xs text-amber-100/90 mt-0.5 leading-snug">
+                        <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5 leading-snug">
                           Your registration has been successfully submitted and is awaiting coordinator verification.
                         </p>
                       </div>
@@ -781,38 +781,38 @@ export default function ParticipantDashboard() {
                   )}
 
                   {/* Registration Checklist */}
-                  <div className="pt-4 border-t border-slate-800/80">
-                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3.5 flex items-center gap-2">
-                      <FiCheckCircle className="text-indigo-400"/> Registration Checklist
+                  <div className="pt-4 border-t border-slate-200 dark:border-slate-800/80">
+                    <h4 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3.5 flex items-center gap-2">
+                      <FiCheckCircle className="text-indigo-600 dark:text-indigo-400"/> Registration Checklist
                     </h4>
                     <div className="space-y-3">
-                      <div className="flex items-center gap-2.5 text-xs font-bold text-white">
-                        <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-[10px]">✓</span>
+                      <div className="flex items-center gap-2.5 text-xs font-bold text-slate-900 dark:text-white">
+                        <span className="w-5 h-5 rounded-full bg-indigo-50 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-[10px]">✓</span>
                         <span>Details Submitted</span>
                       </div>
-                      <div className="flex items-center gap-2.5 text-xs font-bold text-white">
-                        <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-[10px]">✓</span>
+                      <div className="flex items-center gap-2.5 text-xs font-bold text-slate-900 dark:text-white">
+                        <span className="w-5 h-5 rounded-full bg-indigo-50 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-[10px]">✓</span>
                         <span>{isApproved ? 'Required Documents Verified' : 'Required Documents Submitted'}</span>
                       </div>
-                      <div className="flex items-center gap-2.5 text-xs font-bold text-white">
-                        <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-[10px]">✓</span>
+                      <div className="flex items-center gap-2.5 text-xs font-bold text-slate-900 dark:text-white">
+                        <span className="w-5 h-5 rounded-full bg-indigo-50 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-[10px]">✓</span>
                         <span>Confirmation Fee Paid (₹{(trip.registrationSettings?.confirmationFee || 0).toLocaleString()})</span>
                       </div>
                       <div className="flex items-center gap-2.5 text-xs font-bold">
                         {isApproved ? (
                           <>
-                            <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-[10px]">✓</span>
-                            <span className="text-emerald-400">Coordinator Approved</span>
+                            <span className="w-5 h-5 rounded-full bg-indigo-50 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-[10px]">✓</span>
+                            <span className="text-indigo-600 dark:text-indigo-400">Coordinator Approved</span>
                           </>
                         ) : isRejected ? (
                           <>
-                            <span className="w-5 h-5 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center text-[10px]">✕</span>
-                            <span className="text-rose-400">Action Required</span>
+                            <span className="w-5 h-5 rounded-full bg-rose-50 dark:bg-rose-500/20 text-rose-500 dark:text-rose-400 flex items-center justify-center text-[10px]">✕</span>
+                            <span className="text-rose-600 dark:text-rose-400">Action Required</span>
                           </>
                         ) : (
                           <>
-                            <span className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center text-[10px]">⏳</span>
-                            <span className="text-amber-400">Coordinator Approval Pending</span>
+                            <span className="w-5 h-5 rounded-full bg-amber-50 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center text-[10px]">⏳</span>
+                            <span className="text-amber-600 dark:text-amber-400">Coordinator Approval Pending</span>
                           </>
                         )}
                       </div>
@@ -820,51 +820,51 @@ export default function ParticipantDashboard() {
                   </div>
 
                   {/* Status Footer */}
-                  <div className="pt-3 border-t border-slate-800/80 text-xs text-slate-400">
-                    Status: <span className={`font-bold ${isApproved ? 'text-emerald-400' : isRejected ? 'text-rose-400' : 'text-amber-400'}`}>
+                  <div className="pt-3 border-t border-slate-200 dark:border-slate-800/80 text-xs text-slate-500 dark:text-slate-400">
+                    Status: <span className={`font-bold ${isApproved ? 'text-indigo-600 dark:text-indigo-400' : isRejected ? 'text-rose-600 dark:text-rose-400' : 'text-amber-600 dark:text-amber-400'}`}>
                       {isApproved ? 'Participation Confirmed' : isRejected ? 'Needs Revision' : 'Awaiting Coordinator Verification'}
                     </span>
                   </div>
                 </div>
 
                 {/* Payment & Installment Status */}
-                <div className="col-span-1 md:col-span-2 bg-[#131c31] border border-slate-800 rounded-2xl p-6 shadow-lg flex flex-col">
-                   <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-6 flex items-center gap-2">
-                     <FiDollarSign className="text-indigo-400"/> Payment & Installment Status
+                <div className="col-span-1 md:col-span-2 bg-white dark:bg-[#131c31] border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xs flex flex-col">
+                   <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-6 flex items-center gap-2">
+                     <FiDollarSign className="text-indigo-600 dark:text-indigo-400"/> Payment & Installment Status
                    </h3>
                    
                    <div className="grid grid-cols-3 gap-4 mb-6">
-                     <div className="bg-[#0a101f] p-4 rounded-xl border border-slate-800">
-                       <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Total Fee</p>
-                       <p className="text-lg font-black text-white">₹{trip.registrationSettings?.totalFee?.toLocaleString() || 0}</p>
+                     <div className="bg-slate-50 dark:bg-[#0a101f] p-4 rounded-xl border border-slate-200 dark:border-slate-800">
+                       <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Total Fee</p>
+                       <p className="text-lg font-black text-slate-900 dark:text-white">₹{trip.registrationSettings?.totalFee?.toLocaleString() || 0}</p>
                      </div>
-                     <div className="bg-emerald-900/10 p-4 rounded-xl border border-emerald-900/30">
-                       <p className="text-[10px] font-bold text-emerald-500/70 uppercase mb-1">Paid</p>
-                       <p className="text-lg font-black text-emerald-400">₹{totalPaid.toLocaleString()}</p>
+                     <div className="bg-indigo-50/80 dark:bg-indigo-950/20 p-4 rounded-xl border border-indigo-200/80 dark:border-indigo-900/30">
+                       <p className="text-[10px] font-bold text-indigo-700 dark:text-indigo-300 uppercase mb-1">Paid</p>
+                       <p className="text-lg font-black text-indigo-600 dark:text-indigo-400">₹{totalPaid.toLocaleString()}</p>
                      </div>
-                     <div className="bg-rose-900/10 p-4 rounded-xl border border-rose-900/30">
-                       <p className="text-[10px] font-bold text-rose-500/70 uppercase mb-1">Remaining</p>
-                       <p className="text-lg font-black text-rose-400">₹{Math.max(0, (trip.registrationSettings?.totalFee || 0) - totalPaid).toLocaleString()}</p>
+                     <div className="bg-rose-50/80 dark:bg-rose-950/20 p-4 rounded-xl border border-rose-200/80 dark:border-rose-900/30">
+                       <p className="text-[10px] font-bold text-rose-700 dark:text-rose-300 uppercase mb-1">Remaining</p>
+                       <p className="text-lg font-black text-rose-600 dark:text-rose-400">₹{Math.max(0, (trip.registrationSettings?.totalFee || 0) - totalPaid).toLocaleString()}</p>
                      </div>
                    </div>
 
-                   <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Payment Plan</h4>
+                   <h4 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">Payment Plan</h4>
                    <div className="space-y-2.5">
                      {/* Section 1: Confirmation Fee */}
-                     <div className="flex justify-between items-center p-3.5 bg-[#0a101f] border border-slate-800 rounded-xl">
+                     <div className="flex justify-between items-center p-3.5 bg-slate-50 dark:bg-[#0a101f] border border-slate-200 dark:border-slate-800 rounded-xl">
                         <div>
                           <div className="flex items-center gap-2">
-                            <p className="text-xs font-bold text-white uppercase">Confirmation Fee</p>
-                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">At Registration</span>
+                            <p className="text-xs font-bold text-slate-900 dark:text-white uppercase">Confirmation Fee</p>
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400">At Registration</span>
                           </div>
-                          <p className={`text-[10px] font-bold mt-1 ${isConfirmationPaid ? 'text-emerald-400' : 'text-amber-400'}`}>
+                          <p className={`text-[10px] font-bold mt-1 ${isConfirmationPaid ? 'text-indigo-600 dark:text-indigo-400' : 'text-amber-600 dark:text-amber-400'}`}>
                             {isConfirmationPaid ? '✓ PAID VIA RAZORPAY' : 'AWAITING PAYMENT'}
                           </p>
                         </div>
                         <div className="text-right">
-                          <p className="text-sm font-black text-white">₹{trip.registrationSettings?.confirmationFee?.toLocaleString() || 0}</p>
+                          <p className="text-sm font-black text-slate-900 dark:text-white">₹{trip.registrationSettings?.confirmationFee?.toLocaleString() || 0}</p>
                           <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded mt-0.5 inline-block ${
-                            isConfirmationPaid ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'
+                            isConfirmationPaid ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/20' : 'bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-500/20'
                           }`}>
                             {isConfirmationPaid ? 'PAID' : 'PENDING'}
                           </span>
@@ -880,27 +880,27 @@ export default function ParticipantDashboard() {
                         const formattedDate = dueDateObj ? dueDateObj.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Date not set';
 
                         return (
-                          <div key={i} className="flex justify-between items-center p-3.5 bg-[#0a101f] border border-slate-800 rounded-xl">
+                          <div key={i} className="flex justify-between items-center p-3.5 bg-slate-50 dark:bg-[#0a101f] border border-slate-200 dark:border-slate-800 rounded-xl">
                             <div>
-                              <p className="text-xs font-bold text-white uppercase">{inst.name}</p>
+                              <p className="text-xs font-bold text-slate-900 dark:text-white uppercase">{inst.name}</p>
                               <p className={`text-[10px] font-bold mt-1 ${
                                 isPaid 
-                                  ? 'text-emerald-400' 
+                                  ? 'text-indigo-600 dark:text-indigo-400' 
                                   : isOverdue 
-                                  ? 'text-rose-400' 
-                                  : 'text-slate-400'
+                                  ? 'text-rose-600 dark:text-rose-400' 
+                                  : 'text-slate-500 dark:text-slate-400'
                               }`}>
                                 {isPaid ? '✓ PAID' : isOverdue ? `OVERDUE (Due: ${formattedDate})` : `UPCOMING (Due: ${formattedDate})`}
                               </p>
                             </div>
                             <div className="text-right">
-                              <p className="text-sm font-black text-white">₹{inst.amount?.toLocaleString() || 0}</p>
+                              <p className="text-sm font-black text-slate-900 dark:text-white">₹{inst.amount?.toLocaleString() || 0}</p>
                               <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded mt-0.5 inline-block ${
                                 isPaid 
-                                  ? 'bg-emerald-500/10 text-emerald-400' 
+                                  ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/20' 
                                   : isOverdue 
-                                  ? 'bg-rose-500/10 text-rose-400' 
-                                  : 'bg-slate-800 text-slate-400'
+                                  ? 'bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-500/20' 
+                                  : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
                               }`}>
                                 {isPaid ? 'PAID' : isOverdue ? 'OVERDUE' : 'PENDING'}
                               </span>
@@ -914,12 +914,12 @@ export default function ParticipantDashboard() {
               </div>
 
               {/* Document Status Section */}
-              <div className="bg-[#131c31] border border-slate-800 rounded-2xl p-6 shadow-lg">
+              <div className="bg-white dark:bg-[#131c31] border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xs">
                 <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                    <FiFileText className="text-indigo-400" /> Student Document Status
+                  <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                    <FiFileText className="text-indigo-600 dark:text-indigo-400" /> Student Document Status
                   </h3>
-                  <span className="text-[10px] bg-slate-800 px-2.5 py-1 rounded text-slate-300 font-semibold">
+                  <span className="text-[10px] bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded text-slate-600 dark:text-slate-300 font-semibold border border-slate-200 dark:border-slate-700">
                     {registration?.documents?.length || 0} Uploaded
                   </span>
                 </div>
@@ -929,39 +929,38 @@ export default function ParticipantDashboard() {
                     const uploaded = registration?.documents?.find(d => d.documentType === docItem.documentType);
                     const docStatus = uploaded?.status || "NOT_UPLOADED";
                     const isVerified = docStatus === "VERIFIED";
-                    const isReview = docStatus === "UNDER_REVIEW" || docStatus === "UPLOADED";
                     const isDocRejected = docStatus === "REJECTED";
 
                     return (
-                      <div key={idx} className="p-4 bg-[#0a101f] border border-slate-800 rounded-xl flex flex-col justify-between">
+                      <div key={idx} className="p-4 bg-slate-50 dark:bg-[#0a101f] border border-slate-200 dark:border-slate-800 rounded-xl flex flex-col justify-between">
                         <div>
                           <div className="flex justify-between items-start gap-2 mb-2">
-                            <h4 className="text-xs font-bold text-white leading-snug">{docItem.documentType}</h4>
+                            <h4 className="text-xs font-bold text-slate-900 dark:text-white leading-snug">{docItem.documentType}</h4>
                             <span className={`text-[9px] font-black px-1.5 py-0.5 rounded tracking-wider uppercase shrink-0 ${
-                              isVerified ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' :
-                              isDocRejected ? 'bg-rose-950 text-rose-400 border border-rose-800' :
-                              uploaded ? 'bg-amber-950 text-amber-400 border border-amber-800' :
-                              'bg-slate-800 text-slate-400'
+                              isVerified ? 'bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800' :
+                              isDocRejected ? 'bg-rose-50 dark:bg-rose-950 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-800' :
+                              uploaded ? 'bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800' :
+                              'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
                             }`}>
-                              {isVerified ? 'Verified' : isDocRejected ? 'Rejected' : uploaded ? 'Submitted / Verification Pending' : 'Pending'}
+                              {isVerified ? 'Verified' : isDocRejected ? 'Rejected' : uploaded ? 'Submitted / Pending' : 'Pending'}
                             </span>
                           </div>
-                          <p className="text-[10px] text-slate-400 mb-3">{docItem.instruction || 'Required student document'}</p>
+                          <p className="text-[10px] text-slate-500 dark:text-slate-400 mb-3">{docItem.instruction || 'Required student document'}</p>
                         </div>
 
-                        <div className="pt-3 border-t border-slate-800/80 flex justify-between items-center">
+                        <div className="pt-3 border-t border-slate-200 dark:border-slate-800/80 flex justify-between items-center">
                           {uploaded ? (
                             <button
                               onClick={() => handlePreviewDocument(uploaded)}
-                              className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white text-[11px] font-bold rounded-lg transition"
+                              className="px-3 py-1.5 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-800 dark:text-white text-[11px] font-bold rounded-lg transition border border-slate-200 dark:border-slate-700 cursor-pointer"
                             >
                               View Uploaded
                             </button>
                           ) : (
-                            <span className="text-[10px] text-rose-400 font-semibold">Not uploaded</span>
+                            <span className="text-[10px] text-rose-500 font-semibold">Not uploaded</span>
                           )}
                           {isDocRejected && uploaded?.rejectionReason && (
-                            <span className="text-[10px] text-rose-400 italic truncate max-w-[120px]" title={uploaded.rejectionReason}>
+                            <span className="text-[10px] text-rose-500 dark:text-rose-400 italic truncate max-w-[120px]" title={uploaded.rejectionReason}>
                               {uploaded.rejectionReason}
                             </span>
                           )}
@@ -976,19 +975,19 @@ export default function ParticipantDashboard() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 
                 {/* Message from Coordinator */}
-                <div className="bg-[#131c31] border border-slate-800 rounded-2xl p-6 shadow-lg flex flex-col justify-between">
+                <div className="bg-white dark:bg-[#131c31] border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xs flex flex-col justify-between">
                   <div>
-                    <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
-                      <FiMessageSquare className="text-indigo-400" /> Message from Coordinator
+                    <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-4 flex items-center gap-2">
+                      <FiMessageSquare className="text-indigo-600 dark:text-indigo-400" /> Message from Coordinator
                     </h3>
                     
                     {registration?.coordinatorMessage?.message ? (
-                      <div className="p-4 bg-[#0a101f] border border-slate-800 rounded-xl space-y-2">
-                        <p className="text-xs text-indigo-300 font-bold">Hi {studentName},</p>
-                        <p className="text-xs text-slate-200 whitespace-pre-wrap leading-relaxed">
+                      <div className="p-4 bg-slate-50 dark:bg-[#0a101f] border border-slate-200 dark:border-slate-800 rounded-xl space-y-2">
+                        <p className="text-xs text-indigo-700 dark:text-indigo-300 font-bold">Hi {studentName},</p>
+                        <p className="text-xs text-slate-700 dark:text-slate-200 whitespace-pre-wrap leading-relaxed">
                           {registration.coordinatorMessage.message}
                         </p>
-                        <div className="pt-2 border-t border-slate-800/80 flex justify-between items-center text-[10px] text-slate-500">
+                        <div className="pt-2 border-t border-slate-200 dark:border-slate-800/80 flex justify-between items-center text-[10px] text-slate-400">
                           <span>&mdash; {trip.coordinatorId?.name || "Trip Coordinator"}</span>
                           {registration.coordinatorMessage.updatedAt && (
                             <span>{new Date(registration.coordinatorMessage.updatedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</span>
@@ -996,17 +995,17 @@ export default function ParticipantDashboard() {
                         </div>
                       </div>
                     ) : (
-                      <div className="p-4 bg-[#0a101f] border border-slate-800 rounded-xl text-xs text-slate-400 italic">
+                      <div className="p-4 bg-slate-50 dark:bg-[#0a101f] border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-500 dark:text-slate-400 italic">
                         No personal notes from your coordinator yet. Please refer to announcements for trip-wide notifications.
                       </div>
                     )}
                   </div>
 
-                  <div className="mt-6 pt-4 border-t border-slate-800 flex items-center justify-between">
-                    <span className="text-xs text-slate-400">{trip.coordinatorId?.name || 'Coordinator'}</span>
+                  <div className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                    <span className="text-xs text-slate-600 dark:text-slate-400 font-semibold">{trip.coordinatorId?.name || 'Coordinator'}</span>
                     <a
                       href={`mailto:${trip.coordinatorId?.email || 'coordinator@transix.com'}`}
-                      className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-lg transition flex items-center gap-1.5"
+                      className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-white text-xs font-bold rounded-lg transition border border-slate-200 dark:border-slate-700 flex items-center gap-1.5"
                     >
                       <FiMail /> Contact Coordinator
                     </a>
@@ -1014,39 +1013,39 @@ export default function ParticipantDashboard() {
                 </div>
 
                 {/* Before You Travel */}
-                <div className="bg-[#131c31] border border-slate-800 rounded-2xl p-6 shadow-lg flex flex-col justify-between">
+                <div className="bg-white dark:bg-[#131c31] border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xs flex flex-col justify-between">
                   <div>
-                    <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
-                      <FiBriefcase className="text-indigo-400" /> Before You Travel
+                    <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-4 flex items-center gap-2">
+                      <FiBriefcase className="text-indigo-600 dark:text-indigo-400" /> Before You Travel
                     </h3>
                     <div className="space-y-3 text-xs">
                       <div>
-                        <p className="text-[10px] font-bold text-slate-500 uppercase">Reporting Date & Time</p>
-                        <p className="font-bold text-white">
+                        <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">Reporting Date & Time</p>
+                        <p className="font-bold text-slate-900 dark:text-white">
                           {new Date(trip.startDate).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
                         </p>
                       </div>
                       <div>
-                        <p className="text-[10px] font-bold text-slate-500 uppercase">Reporting Location</p>
-                        <p className="font-bold text-white">{trip.source || 'College Campus / Main Assembly Point'}</p>
+                        <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">Reporting Location</p>
+                        <p className="font-bold text-slate-900 dark:text-white">{trip.source || 'College Campus / Main Assembly Point'}</p>
                       </div>
                       <div>
-                        <p className="text-[10px] font-bold text-slate-500 uppercase">Things to Carry</p>
-                        <p className="text-slate-300 text-[11px] leading-relaxed">
+                        <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">Things to Carry</p>
+                        <p className="text-slate-600 dark:text-slate-300 text-[11px] leading-relaxed">
                           Valid College ID card, printed Parent Consent/Undertaking form, personal medications, and appropriate clothing.
                         </p>
                       </div>
                       <div>
-                        <p className="text-[10px] font-bold text-slate-500 uppercase">Emergency Contact</p>
-                        <p className="text-slate-300 font-semibold text-[11px]">
+                        <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">Emergency Contact</p>
+                        <p className="text-slate-700 dark:text-slate-300 font-semibold text-[11px]">
                           {registration?.studentInfo?.emergencyContactName || 'Guardian'} ({registration?.studentInfo?.emergencyContactNumber || registration?.studentInfo?.parentPhone || 'On File'})
                         </p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="mt-4 pt-3 border-t border-slate-800 text-[10px] text-slate-500 flex items-center gap-1">
-                    <FiInfo className="text-indigo-400" /> Please arrive at least 30 minutes before scheduled departure.
+                  <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-800 text-[10px] text-slate-500 flex items-center gap-1">
+                    <FiInfo className="text-indigo-600 dark:text-indigo-400" /> Please arrive at least 30 minutes before scheduled departure.
                   </div>
                 </div>
 
@@ -1061,25 +1060,25 @@ export default function ParticipantDashboard() {
       {/* Document Preview Modal */}
       {previewModal.isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
-          <div className="bg-[#131c31] border border-slate-800 rounded-2xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
+          <div className="bg-white dark:bg-[#131c31] border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
             {/* Modal Header */}
-            <div className="p-4 sm:p-5 border-b border-slate-800 flex justify-between items-center bg-[#0a101f]">
+            <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-[#0a101f]">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-indigo-900/40 text-indigo-400 flex items-center justify-center">
+                <div className="w-9 h-9 rounded-lg bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
                   <FiFileText size={18} />
                 </div>
                 <div>
-                  <h3 className="text-sm sm:text-base font-bold text-white">
+                  <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
                     Document Preview
                   </h3>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
                     {previewModal.title}
                   </p>
                 </div>
               </div>
               <button
                 onClick={closePreviewModal}
-                className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition"
+                className="p-2 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
                 aria-label="Close Preview"
               >
                 <FiX size={20} />
@@ -1087,22 +1086,22 @@ export default function ParticipantDashboard() {
             </div>
 
             {/* Modal Body */}
-            <div className="p-4 flex-1 overflow-auto flex items-center justify-center min-h-[420px] bg-[#070c18]">
+            <div className="p-4 flex-1 overflow-auto flex items-center justify-center min-h-[420px] bg-slate-100 dark:bg-[#070c18]">
               {previewModal.loading && (
                 <div className="flex flex-col items-center gap-3 py-16">
                   <div className="w-10 h-10 border-3 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-                  <p className="text-xs font-semibold text-slate-400">Loading document securely...</p>
+                  <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Loading document securely...</p>
                 </div>
               )}
 
               {previewModal.error && (
-                <div className="max-w-md p-6 bg-rose-950/40 border border-rose-800/60 rounded-xl text-center">
-                  <FiAlertCircle className="mx-auto text-rose-400 text-3xl mb-2" />
-                  <h4 className="text-sm font-bold text-rose-300 mb-1">Failed to Load Preview</h4>
-                  <p className="text-xs text-rose-400/80 mb-4">{previewModal.error}</p>
+                <div className="max-w-md p-6 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 rounded-xl text-center">
+                  <FiAlertCircle className="mx-auto text-rose-500 text-3xl mb-2" />
+                  <h4 className="text-sm font-bold text-rose-800 dark:text-rose-300 mb-1">Failed to Load Preview</h4>
+                  <p className="text-xs text-rose-600 dark:text-rose-400/80 mb-4">{previewModal.error}</p>
                   <button
                     onClick={closePreviewModal}
-                    className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-bold transition"
+                    className="px-4 py-1.5 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-white rounded-lg text-xs font-bold transition cursor-pointer"
                   >
                     Close
                   </button>
@@ -1115,24 +1114,24 @@ export default function ParticipantDashboard() {
                     <img
                       src={previewModal.blobUrl}
                       alt={previewModal.title}
-                      className="max-h-[70vh] max-w-full rounded-lg object-contain shadow-lg border border-slate-800"
+                      className="max-h-[70vh] max-w-full rounded-lg object-contain shadow-lg border border-slate-200 dark:border-slate-800"
                     />
                   </div>
                 ) : (
                   <iframe
                     src={previewModal.blobUrl}
                     title={previewModal.title}
-                    className="w-full h-[70vh] rounded-xl border border-slate-800 bg-white"
+                    className="w-full h-[70vh] rounded-xl border border-slate-200 dark:border-slate-800 bg-white"
                   />
                 )
               )}
             </div>
 
             {/* Modal Footer */}
-            <div className="p-3 sm:p-4 border-t border-slate-800 bg-[#0a101f] flex justify-end">
+            <div className="p-3 sm:p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0a101f] flex justify-end">
               <button
                 onClick={closePreviewModal}
-                className="px-5 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-lg transition"
+                className="px-5 py-2 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-white text-xs font-bold rounded-lg transition cursor-pointer"
               >
                 Close
               </button>

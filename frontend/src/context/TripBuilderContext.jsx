@@ -637,11 +637,11 @@ export function TripBuilderProvider({ children }) {
     return calculateTripBudgetAnalysis(trip, trip?.staySegments, trip?.itinerary);
   }, [trip]);
 
-  // Validation Engine with Travel Buffers & Conflict Tracking
+  // Validation Engine with Travel Buffers & Overlap Conflict Tracking
   const validationStats = useMemo(() => {
     let totalActivities = 0;
-    let conflictsCount = 0;
-    const conflicts = [];
+    const scheduleConflicts = [];
+    const budgetConflicts = [];
     const warnings = [];
     let totalTravelMinutes = 0;
 
@@ -659,22 +659,48 @@ export function TripBuilderProvider({ children }) {
           dayDurationSum += duration;
 
           const cat = (item.category || "").toLowerCase();
-          if (cat.includes("train") || cat.includes("flight") || cat.includes("bus") || cat.includes("transport")) {
+          const isTransport =
+            cat.includes("train") ||
+            cat.includes("flight") ||
+            cat.includes("bus") ||
+            cat.includes("transport") ||
+            Boolean(item.trainNumber);
+
+          if (isTransport) {
             totalTravelMinutes += duration;
           }
 
           const startMin = timeToMinutes(item.startTime);
-          const endMin = timeToMinutes(item.endTime) || (startMin !== null ? startMin + duration : null);
+          const endMin =
+            timeToMinutes(item.endTime) ||
+            (startMin !== null ? startMin + duration : null);
 
-          // Rule 1: Backward time
+          // Rule 1: Backward time (Start time is after or equal to End time)
           if (startMin !== null && endMin !== null && startMin >= endMin) {
-            conflictsCount++;
-            conflicts.push({
+            scheduleConflicts.push({
               day: dIdx + 1,
+              dayIndex: dIdx,
               itemId: item.id,
               itemTitle: item.name || item.activity,
               type: "invalid_time",
               message: `Invalid timing for "${item.name || item.activity}": Start (${item.startTime}) must be earlier than End (${item.endTime}).`,
+            });
+          }
+
+          // Rule 2: Intra-day Overlap with preceding activity
+          if (
+            startMin !== null &&
+            prevEndMinutes !== null &&
+            startMin < prevEndMinutes
+          ) {
+            const overlapMins = prevEndMinutes - startMin;
+            scheduleConflicts.push({
+              day: dIdx + 1,
+              dayIndex: dIdx,
+              itemId: item.id,
+              itemTitle: item.name || item.activity,
+              type: "overlap",
+              message: `Timing overlap: "${item.name || item.activity}" (starts at ${item.startTime}) overlaps with previous activity "${prevItemTitle}" (ends at ${minutesToTimeStr(prevEndMinutes)}) by ${overlapMins} mins.`,
             });
           }
 
@@ -688,6 +714,7 @@ export function TripBuilderProvider({ children }) {
         if (dayDurationSum > 840) {
           warnings.push({
             day: dIdx + 1,
+            dayIndex: dIdx,
             type: "overpacked",
             message: `Day ${dIdx + 1} schedule is tightly packed (${Math.round(dayDurationSum / 60)} hrs total).`,
           });
@@ -700,8 +727,7 @@ export function TripBuilderProvider({ children }) {
     const formattedTravelTime = `${travelHours}h ${travelMins}m`;
 
     if (budgetStats.isOverBudget) {
-      conflictsCount++;
-      conflicts.push({
+      budgetConflicts.push({
         day: "Budget",
         type: "overbudget",
         message: budgetStats.isCampus
@@ -710,18 +736,109 @@ export function TripBuilderProvider({ children }) {
       });
     }
 
-    const isFeasible = conflictsCount === 0 && !budgetStats.isOverBudget;
+    const conflicts = [...scheduleConflicts, ...budgetConflicts];
+    const scheduleConflictsCount = scheduleConflicts.length;
+    const conflictsCount = conflicts.length;
+    const isFeasible = scheduleConflictsCount === 0;
 
     return {
       totalActivities,
+      scheduleConflicts,
+      scheduleConflictsCount,
+      budgetConflicts,
       conflictsCount,
       conflicts,
       warnings,
       totalTravelMinutes,
       formattedTravelTime,
       isFeasible,
+      isBudgetFeasible: !budgetStats.isOverBudget,
     };
   }, [trip, budgetStats]);
+
+  // Auto-resolve / Cascade timings to eliminate any schedule overlaps
+  const autoFixScheduleOverlaps = useCallback((targetDayIdx = null) => {
+    setTrip((prevTrip) => {
+      if (!prevTrip?.itinerary) return prevTrip;
+      let totalAdjusted = 0;
+
+      const newItinerary = prevTrip.itinerary.map((day, dIdx) => {
+        if (targetDayIdx !== null && dIdx !== targetDayIdx) return day;
+        const plan = [...(day.plan || [])];
+        if (plan.length <= 1) return day;
+
+        let currentTimelineMin = 9 * 60 + 30; // Default starts at 09:30 AM
+        const adjustedPlan = plan.map((item, pIdx) => {
+          const isTransport =
+            (item.category || "").toLowerCase().includes("train") ||
+            (item.category || "").toLowerCase().includes("flight") ||
+            (item.category || "").toLowerCase().includes("bus") ||
+            Boolean(item.trainNumber);
+
+          let startMin = timeToMinutes(item.startTime);
+          let endMin = timeToMinutes(item.endTime);
+          let durationMins =
+            startMin !== null && endMin !== null && endMin > startMin
+              ? endMin - startMin
+              : item.durationMinutes || 90;
+
+          if (pIdx === 0) {
+            // First item of the day
+            if (startMin === null || isNaN(startMin)) {
+              startMin = currentTimelineMin;
+            }
+            endMin = startMin + durationMins;
+            currentTimelineMin = endMin + 20; // 20m buffer
+          } else {
+            // Non-first item: ensure it starts after the previous activity ends + travel buffer
+            if (isTransport && item.departure) {
+              const depMin = timeToMinutes(item.departure);
+              if (depMin !== null) startMin = depMin;
+              endMin = startMin + durationMins;
+              currentTimelineMin = endMin + 20;
+            } else {
+              // If there's an overlap or startMin < currentTimelineMin, shift it forward!
+              if (startMin === null || startMin < currentTimelineMin) {
+                totalAdjusted++;
+                startMin = currentTimelineMin;
+                endMin = startMin + durationMins;
+              }
+              currentTimelineMin = endMin + 20; // 20m buffer for next activity
+            }
+          }
+
+          const newStartTime = minutesToTimeStr(startMin);
+          const newEndTime = minutesToTimeStr(endMin);
+
+          return {
+            ...item,
+            startTime: newStartTime,
+            endTime: newEndTime,
+            time: `${newStartTime} - ${newEndTime}`,
+            durationMinutes: durationMins,
+            duration: `${Math.floor(durationMins / 60)}h ${durationMins % 60}m`,
+          };
+        });
+
+        return { ...day, plan: adjustedPlan };
+      });
+
+      if (totalAdjusted > 0) {
+        toast.success(
+          `Automatically resolved ${totalAdjusted} schedule timing overlap(s)!`,
+          { icon: "⚡" }
+        );
+      } else {
+        toast.success(
+          "Schedule timings are fully aligned without overlaps!",
+          { icon: "✓" }
+        );
+      }
+
+      setIsSaved(false);
+      return { ...prevTrip, itinerary: newItinerary };
+    });
+  }, [setTrip, setIsSaved]);
 
   // Bus Transport Requirements & Preferences
   const busRequirements = useMemo(() => {
@@ -1064,6 +1181,7 @@ export function TripBuilderProvider({ children }) {
         busRequirements,
         saveBusPreferences,
         saveCampusTransportPlan,
+        autoFixScheduleOverlaps,
       }}
     >
       {children}

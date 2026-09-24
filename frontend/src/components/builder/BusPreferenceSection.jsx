@@ -270,15 +270,15 @@ export default function BusPreferenceSection({
           </div>
 
           {/* Single Global Success Confirmation */}
-          <div className="rounded-xl border border-emerald-200 dark:border-emerald-800/70 bg-emerald-50/70 dark:bg-emerald-950/40 p-3.5 flex items-center gap-2.5">
-            <div className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-600 text-white text-xs shrink-0">
+          <div className="rounded-xl border border-indigo-200 dark:border-indigo-800/70 bg-indigo-50/70 dark:bg-indigo-950/40 p-3.5 flex items-center gap-2.5">
+            <div className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-white text-xs shrink-0">
               <FiCheck />
             </div>
             <div>
-              <div className="text-xs font-black uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
+              <div className="text-xs font-black uppercase tracking-wider text-indigo-800 dark:text-indigo-300">
                 ✓ Group Transport Preferences Saved
               </div>
-              <div className="text-[11px] text-emerald-700 dark:text-emerald-400 mt-0.5">
+              <div className="text-[11px] text-indigo-700 dark:text-indigo-400 mt-0.5">
                 Applies to all road movements throughout the trip. Operator will procure the required vehicle fleet.
               </div>
             </div>
@@ -623,14 +623,14 @@ export default function BusPreferenceSection({
 
         {/* Global Arrangement Card */}
         {!isSelfManaged ? (
-          <div className="rounded-xl border border-emerald-200 dark:border-emerald-800/70 bg-emerald-50/70 dark:bg-emerald-950/40 p-4 space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-emerald-200/60 dark:border-emerald-800/60 pb-2.5">
+          <div className="rounded-xl border border-indigo-200 dark:border-indigo-800/70 bg-indigo-50/70 dark:bg-indigo-950/40 p-4 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-indigo-200/60 dark:border-indigo-800/60 pb-2.5">
               <div className="flex items-center gap-2">
-                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-600 text-white text-xs shrink-0">
+                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-white text-xs shrink-0">
                   <FiCheck />
                 </div>
                 <div>
-                  <div className="text-[10px] font-black uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
+                  <div className="text-[10px] font-black uppercase tracking-wider text-indigo-800 dark:text-indigo-300">
                     {isMiniBus ? "PRIVATE MINI BUS ARRANGEMENT" : "PRIVATE CAR ARRANGEMENT"}
                   </div>
                   <div className="text-sm font-black text-slate-900 dark:text-white mt-0.5">
@@ -640,7 +640,7 @@ export default function BusPreferenceSection({
               </div>
 
               <div className="text-left sm:text-right">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-300">
                   Scope
                 </span>
                 <div className="text-xs font-extrabold text-slate-800 dark:text-slate-200">
@@ -663,7 +663,7 @@ export default function BusPreferenceSection({
                 <span className="font-bold text-slate-800 dark:text-slate-200">{personalPreferences.comfort}</span>
               </div>
               {personalPreferences.notes && (
-                <div className="w-full text-[11px] italic text-slate-500 dark:text-slate-400 pt-1 border-t border-emerald-200/40 dark:border-emerald-800/40">
+                <div className="w-full text-[11px] italic text-slate-500 dark:text-slate-400 pt-1 border-t border-indigo-200/40 dark:border-indigo-800/40">
                   Notes: "{personalPreferences.notes}"
                 </div>
               )}

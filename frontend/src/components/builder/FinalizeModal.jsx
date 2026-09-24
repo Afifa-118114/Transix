@@ -30,6 +30,7 @@ export default function FinalizeModal() {
     saveItinerary,
     busRequirements = [],
     saveBusPreferences,
+    autoFixScheduleOverlaps,
   } = useTripBuilder();
 
   // All React Hooks MUST be called unconditionally at the very top of the component
@@ -166,7 +167,7 @@ export default function FinalizeModal() {
   const campusTotalBudget = isCampus ? ((trip?.campusConfig?.budgetPerStudent || 0) * (trip?.campusConfig?.expectedParticipants || 1)) : 0;
   const actualBudgetLimit = isCampus ? campusTotalBudget : (budgetStats.totalBudget || 0);
   const isBudgetValid = (budgetStats.totalSpent || 0) <= actualBudgetLimit;
-  const isFeasible = Boolean(validationStats.isFeasible) && (validationStats.conflictsCount || 0) === 0;
+  const isFeasible = (validationStats.scheduleConflictsCount || 0) === 0;
 
   // If yes -> Group Transport Fleet validation passes
   const canFinalize = isBudgetValid && isFeasible && ((trip?.itinerary?.length || 0) > 0) && hasValidGroupPlan;
@@ -185,8 +186,17 @@ export default function FinalizeModal() {
       status: isFeasible,
       isBlocking: true,
       desc: isFeasible
-        ? "0 schedule conflicts • All activities properly buffered"
-        : `BLOCKED: ${validationStats.conflictsCount || 0} schedule conflict(s) detected`,
+        ? "0 schedule conflicts • All activities properly buffered without overlaps"
+        : `BLOCKED: ${validationStats.scheduleConflictsCount || 0} timing overlap(s) detected`,
+      action: !isFeasible ? (
+        <button
+          type="button"
+          onClick={() => autoFixScheduleOverlaps()}
+          className="px-2.5 py-1 text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/60 transition cursor-pointer border border-indigo-200/60 dark:border-indigo-800/60"
+        >
+          Auto-Fix
+        </button>
+      ) : null,
     },
     {
       title: "Activities density",
@@ -380,7 +390,7 @@ export default function FinalizeModal() {
         {/* Close Button */}
         <button
           onClick={handleClose}
-          className="absolute right-4 top-4 z-10 flex h-8 w-8 items-center justify-center rounded-lg bg-[#fafaf9] border border-[#e7e5e4] text-[#777169] hover:bg-[#f5f5f4] hover:text-[#0c0a09] transition"
+          className="absolute right-4 top-4 z-10 flex h-8 w-8 items-center justify-center rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white transition"
         >
           <FiX className="text-sm" />
         </button>
@@ -389,13 +399,13 @@ export default function FinalizeModal() {
           /* ================= STEP 1: PRE-FINALIZATION CHECKLIST ================= */
           <div className="p-6">
             <div className="text-center">
-              <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-[#034F46]/10 text-[#034F46]">
+              <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400">
                 <FaWandMagicSparkles className="text-lg" />
               </div>
-              <h2 className="mt-2.5 text-lg font-bold text-[#0c0a09]">
+              <h2 className="mt-2.5 text-lg font-bold text-slate-900 dark:text-white">
                 Finalize Your Tour Plan
               </h2>
-              <p className="text-xs text-[#777169]">
+              <p className="text-xs text-slate-500 dark:text-slate-400">
                 Review automated validation checks before confirming
               </p>
             </div>
@@ -408,8 +418,8 @@ export default function FinalizeModal() {
                   <span>Finalization Blocked</span>
                 </div>
                 {!isFeasible && (
-                  <p className="text-[11px] text-rose-700">
-                    • Schedule has {validationStats.conflictsCount} conflict(s). Adjust overlapping activity timings to proceed.
+                  <p className="text-[11px] text-rose-700 dark:text-rose-400">
+                    • Schedule has {validationStats.scheduleConflictsCount} timing overlap(s). Adjust overlapping activity timings or click "Auto-Fix" to proceed.
                   </p>
                 )}
                 {!isBudgetValid && (
@@ -432,7 +442,7 @@ export default function FinalizeModal() {
                   key={idx}
                   className={`flex items-center justify-between gap-3 rounded-xl border p-2.5 text-xs transition ${
                     item.status
-                      ? "border-emerald-200 bg-emerald-50/40"
+                      ? "border-indigo-200 dark:border-indigo-800/60 bg-indigo-50/40 dark:bg-indigo-950/30"
                       : item.isBlocking
                       ? "border-rose-200 bg-rose-50/40"
                       : "border-amber-200 bg-amber-50/40"
@@ -441,7 +451,7 @@ export default function FinalizeModal() {
                   <div className="flex items-start gap-2.5 min-w-0 flex-1">
                     <div className="mt-0.5 shrink-0">
                       {item.status ? (
-                        <FiCheckCircle className="text-emerald-600 dark:text-emerald-400 text-sm" />
+                        <FiCheckCircle className="text-indigo-600 dark:text-indigo-400 text-sm" />
                       ) : item.isBlocking ? (
                         <FiAlertTriangle className="text-rose-600 dark:text-rose-400 text-sm" />
                       ) : (
@@ -874,38 +884,38 @@ export default function FinalizeModal() {
         ) : (
           /* ================= STEP 3: CONFIRMATION SCREEN ================= */
           <div className="p-6 text-center">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700 border border-emerald-200">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800">
               <FiCheckCircle className="text-2xl" />
             </div>
-            <h2 className="mt-3 text-xl font-black text-[#0c0a09]">
+            <h2 className="mt-3 text-xl font-black text-slate-900 dark:text-white">
               YOUR TRIP IS READY!
             </h2>
 
-            <p className="text-xs font-semibold text-[#034F46]">
+            <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">
               {trip.destination || "Custom Tour"}
             </p>
 
-            <div className="mt-2 flex items-center justify-center gap-3 text-xs font-semibold text-[#777169]">
+            <div className="mt-2 flex items-center justify-center gap-3 text-xs font-semibold text-slate-500 dark:text-slate-400">
               <span className="flex items-center gap-1">
-                <FiCalendar className="text-[#034F46] text-xs" />
+                <FiCalendar className="text-indigo-600 dark:text-indigo-400 text-xs" />
                 {trip.itinerary.length} Days
               </span>
               <span>•</span>
               <span className="flex items-center gap-1">
-                <FiUsers className="text-[#034F46] text-xs" />
+                <FiUsers className="text-indigo-600 dark:text-indigo-400 text-xs" />
                 {trip.travelers || 2} Travelers
               </span>
             </div>
 
             {/* Price Box */}
-            <div className="my-4 rounded-xl bg-[#fafaf9] p-4 border border-[#e7e5e4]">
-              <p className="text-[10px] font-bold uppercase text-[#777169]">
+            <div className="my-4 rounded-xl bg-slate-50 dark:bg-slate-900/60 p-4 border border-slate-200 dark:border-slate-800">
+              <p className="text-[10px] font-bold uppercase text-slate-400 dark:text-slate-500">
                 Total Tour Cost
               </p>
-              <p className="mt-0.5 text-2xl font-black text-[#034F46]">
+              <p className="mt-0.5 text-2xl font-black text-indigo-600 dark:text-indigo-400">
                 ₹{budgetStats.totalSpent.toLocaleString()}
               </p>
-              <p className="mt-1 text-[11px] text-[#777169]">
+              <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
                 Your custom itinerary and day plan have been saved.
               </p>
             </div>

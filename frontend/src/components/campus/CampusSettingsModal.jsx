@@ -220,34 +220,32 @@ export default function CampusSettingsModal({ trip, onClose, onRefresh, initialT
     } finally {
       setSaving(false);
     }
-  };
-
-  return (
+  };  return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 overflow-y-auto">
-      <div className="w-full max-w-4xl bg-[#131c31] border border-slate-800 rounded-2xl shadow-2xl my-6 flex flex-col max-h-[92vh] overflow-hidden">
+      <div className="w-full max-w-4xl bg-white dark:bg-[#131c31] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl my-6 flex flex-col max-h-[92vh] overflow-hidden text-slate-900 dark:text-white">
         
         {/* Header */}
-        <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-[#0a101f]">
+        <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-[#0a101f]">
           <div>
-            <h3 className="text-lg font-black text-white flex items-center gap-2">
+            <h3 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
               Campus Registration & Payment Configuration
             </h3>
-            <p className="text-xs text-slate-400 mt-0.5">Manage budget, payment plan, registration form, and documents</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Manage budget, payment plan, registration form, and documents</p>
           </div>
-          <button onClick={onClose} className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition">
+          <button onClick={onClose} className="p-2 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer">
             <FiX className="text-xl" />
           </button>
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex border-b border-slate-800 bg-[#0f172a] px-6 text-xs font-bold">
+        <div className="flex border-b border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-[#0f172a] px-6 text-xs font-bold">
           <button
             type="button"
             onClick={() => setActiveTab("general")}
-            className={`py-3.5 px-4 border-b-2 transition flex items-center gap-2 ${
+            className={`py-3.5 px-4 border-b-2 transition flex items-center gap-2 cursor-pointer ${
               activeTab === "general"
-                ? "border-indigo-500 text-white bg-slate-800/40"
-                : "border-transparent text-slate-400 hover:text-slate-200"
+                ? "border-indigo-600 text-indigo-600 dark:text-white bg-white dark:bg-slate-800/40"
+                : "border-transparent text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
             }`}
           >
             <FiCalendar /> General Settings
@@ -256,10 +254,10 @@ export default function CampusSettingsModal({ trip, onClose, onRefresh, initialT
           <button
             type="button"
             onClick={() => setActiveTab("payment")}
-            className={`py-3.5 px-4 border-b-2 transition flex items-center gap-2 ${
+            className={`py-3.5 px-4 border-b-2 transition flex items-center gap-2 cursor-pointer ${
               activeTab === "payment"
-                ? "border-indigo-500 text-white bg-slate-800/40"
-                : "border-transparent text-slate-400 hover:text-slate-200"
+                ? "border-indigo-600 text-indigo-600 dark:text-white bg-white dark:bg-slate-800/40"
+                : "border-transparent text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
             }`}
           >
             <FiDollarSign /> Budget & Payment Plan
@@ -269,10 +267,10 @@ export default function CampusSettingsModal({ trip, onClose, onRefresh, initialT
           <button
             type="button"
             onClick={() => setActiveTab("fields")}
-            className={`py-3.5 px-4 border-b-2 transition flex items-center gap-2 ${
+            className={`py-3.5 px-4 border-b-2 transition flex items-center gap-2 cursor-pointer ${
               activeTab === "fields"
-                ? "border-indigo-500 text-white bg-slate-800/40"
-                : "border-transparent text-slate-400 hover:text-slate-200"
+                ? "border-indigo-600 text-indigo-600 dark:text-white bg-white dark:bg-slate-800/40"
+                : "border-transparent text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
             }`}
           >
             <FiList /> Registration Form Fields ({formFields.length})
@@ -281,10 +279,10 @@ export default function CampusSettingsModal({ trip, onClose, onRefresh, initialT
           <button
             type="button"
             onClick={() => setActiveTab("documents")}
-            className={`py-3.5 px-4 border-b-2 transition flex items-center gap-2 ${
+            className={`py-3.5 px-4 border-b-2 transition flex items-center gap-2 cursor-pointer ${
               activeTab === "documents"
-                ? "border-indigo-500 text-white bg-slate-800/40"
-                : "border-transparent text-slate-400 hover:text-slate-200"
+                ? "border-indigo-600 text-indigo-600 dark:text-white bg-white dark:bg-slate-800/40"
+                : "border-transparent text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
             }`}
           >
             <FiFileText /> Required Documents ({documentsConfig.length})
@@ -293,50 +291,50 @@ export default function CampusSettingsModal({ trip, onClose, onRefresh, initialT
 
         {/* Error Alert */}
         {saveError && (
-          <div className="mx-6 mt-4 p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-400 text-xs flex items-center gap-2">
+          <div className="mx-6 mt-4 p-3 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 rounded-xl text-rose-600 dark:text-rose-400 text-xs flex items-center gap-2">
             <FiAlertCircle className="shrink-0 text-base" />
             <span className="font-semibold">{saveError}</span>
           </div>
         )}
 
         {/* Tab Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6 text-slate-300">
+        <div className="flex-1 overflow-y-auto p-6 space-y-6 text-slate-700 dark:text-slate-300">
 
           {/* TAB 1: GENERAL SETTINGS */}
           {activeTab === "general" && (
             <div className="space-y-6 animate-fade-in">
-              <div className="bg-[#0a101f] border border-slate-800 rounded-xl p-5 space-y-4">
-                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Registration Timeline & Capacity</h4>
+              <div className="bg-slate-50 dark:bg-[#0a101f] border border-slate-200 dark:border-slate-800 rounded-xl p-5 space-y-4">
+                <h4 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Registration Timeline & Capacity</h4>
                 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Registration Opens</label>
+                    <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase mb-1">Registration Opens</label>
                     <input 
                       type="date" 
                       value={openDate} 
                       onChange={(e) => setOpenDate(e.target.value)} 
-                      className="w-full bg-[#131c31] border border-slate-700 rounded-xl p-2.5 text-sm text-white focus:border-indigo-500 focus:outline-none" 
+                      className="w-full bg-white dark:bg-[#131c31] border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-sm text-slate-900 dark:text-white focus:border-indigo-500 focus:outline-none" 
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Registration Closes</label>
+                    <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase mb-1">Registration Closes</label>
                     <input 
                       type="date" 
                       value={closeDate} 
                       onChange={(e) => setCloseDate(e.target.value)} 
-                      className="w-full bg-[#131c31] border border-slate-700 rounded-xl p-2.5 text-sm text-white focus:border-indigo-500 focus:outline-none" 
+                      className="w-full bg-white dark:bg-[#131c31] border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-sm text-slate-900 dark:text-white focus:border-indigo-500 focus:outline-none" 
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Student Capacity</label>
+                    <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase mb-1">Student Capacity</label>
                     <input 
                       type="number" 
                       min="1"
                       value={capacity} 
                       onChange={(e) => setCapacity(e.target.value)} 
-                      className="w-full bg-[#131c31] border border-slate-700 rounded-xl p-2.5 text-sm text-white focus:border-indigo-500 focus:outline-none" 
+                      className="w-full bg-white dark:bg-[#131c31] border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-sm text-slate-900 dark:text-white focus:border-indigo-500 focus:outline-none" 
                     />
                     <span className="text-[10px] text-slate-500 mt-1 block">Maximum approved participants</span>
                   </div>
@@ -350,45 +348,45 @@ export default function CampusSettingsModal({ trip, onClose, onRefresh, initialT
             <div className="space-y-6 animate-fade-in">
               
               {/* Trip & Budget Summary Widget */}
-              <div className="bg-[#0a101f] border border-slate-800 rounded-xl p-5">
-                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center justify-between">
+              <div className="bg-slate-50 dark:bg-[#0a101f] border border-slate-200 dark:border-slate-800 rounded-xl p-5">
+                <h4 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-4 flex items-center justify-between">
                   <span>Trip & Budget Summary</span>
-                  <span className="text-[10px] text-indigo-400 font-semibold normal-case">Canonical single source of truth</span>
+                  <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold normal-case">Canonical single source of truth</span>
                 </h4>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                  <div className="bg-[#131c31] p-4 rounded-xl border border-slate-700/60">
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Total Fee (per student)</label>
+                  <div className="bg-white dark:bg-[#131c31] p-4 rounded-xl border border-slate-200 dark:border-slate-700/60 shadow-xs">
+                    <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Total Fee (per student)</label>
                     <div className="flex items-center gap-1.5">
-                      <span className="text-sm font-bold text-slate-400">₹</span>
+                      <span className="text-sm font-bold text-slate-500 dark:text-slate-400">₹</span>
                       <input 
                         type="number" 
                         min="0"
                         value={totalFee} 
                         onChange={(e) => setTotalFee(e.target.value)}
-                        className="w-full bg-transparent font-black text-lg text-white border-0 focus:outline-none"
+                        className="w-full bg-transparent font-black text-lg text-slate-900 dark:text-white border-0 focus:outline-none"
                       />
                     </div>
                   </div>
 
-                  <div className="bg-[#131c31] p-4 rounded-xl border border-slate-700/60">
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Confirmation Fee (₹)</label>
+                  <div className="bg-white dark:bg-[#131c31] p-4 rounded-xl border border-slate-200 dark:border-slate-700/60 shadow-xs">
+                    <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Confirmation Fee (₹)</label>
                     <div className="flex items-center gap-1.5">
-                      <span className="text-sm font-bold text-slate-400">₹</span>
+                      <span className="text-sm font-bold text-slate-500 dark:text-slate-400">₹</span>
                       <input 
                         type="number" 
                         min="0"
                         value={confirmationFee} 
                         onChange={(e) => setConfirmationFee(e.target.value)}
-                        className="w-full bg-transparent font-black text-lg text-emerald-400 border-0 focus:outline-none"
+                        className="w-full bg-transparent font-black text-lg text-indigo-600 dark:text-indigo-400 border-0 focus:outline-none"
                       />
                     </div>
-                    <span className="text-[10px] text-emerald-500/80 font-bold block mt-1">Paid at registration via Razorpay</span>
+                    <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold block mt-1">Paid at registration via Razorpay</span>
                   </div>
 
-                  <div className="bg-[#131c31] p-4 rounded-xl border border-slate-700/60">
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Remaining Balance</label>
-                    <p className="text-lg font-black text-indigo-400">
+                  <div className="bg-white dark:bg-[#131c31] p-4 rounded-xl border border-slate-200 dark:border-slate-700/60 shadow-xs">
+                    <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Remaining Balance</label>
+                    <p className="text-lg font-black text-indigo-600 dark:text-indigo-400">
                       ₹{Math.max(0, parsedTotal - parsedConf).toLocaleString()}
                     </p>
                     <span className="text-[10px] text-slate-500 block mt-1">Split across 3 installments</span>
@@ -398,10 +396,10 @@ export default function CampusSettingsModal({ trip, onClose, onRefresh, initialT
                 {/* Balance Status Banner */}
                 <div className={`p-4 rounded-xl border flex items-center justify-between text-xs ${
                   isBalanced
-                    ? "bg-emerald-950/20 border-emerald-500/30 text-emerald-400"
+                    ? "bg-indigo-50 dark:bg-indigo-950/20 border-indigo-200 dark:border-indigo-500/30 text-indigo-700 dark:text-indigo-400"
                     : balanceDiff > 0
-                    ? "bg-amber-950/20 border-amber-500/30 text-amber-400"
-                    : "bg-rose-950/20 border-rose-500/30 text-rose-400"
+                    ? "bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-500/30 text-amber-700 dark:text-amber-400"
+                    : "bg-rose-50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-500/30 text-rose-700 dark:text-rose-400"
                 }`}>
                   <div className="flex items-center gap-2">
                     {isBalanced ? <FiCheckCircle className="text-base" /> : <FiAlertCircle className="text-base" />}
@@ -432,43 +430,43 @@ export default function CampusSettingsModal({ trip, onClose, onRefresh, initialT
               </div>
 
               {/* 4-Section Canonical Plan Configuration */}
-              <div className="bg-[#0a101f] border border-slate-800 rounded-xl p-5 space-y-4">
-                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+              <div className="bg-slate-50 dark:bg-[#0a101f] border border-slate-200 dark:border-slate-800 rounded-xl p-5 space-y-4">
+                <h4 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                   Payment Plan Configuration (Exactly 4 Payment Sections)
                 </h4>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-slate-500 dark:text-slate-400">
                   Confirmation Fee is collected upon registration submission. The remaining balance is distributed across 1st Installment, 2nd Installment, and Final Installment.
                 </p>
 
                 <div className="space-y-3 pt-2">
                   {/* Section 1: Confirmation Fee (Read-only representation from above) */}
-                  <div className="p-4 bg-[#131c31] border border-slate-800 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="p-4 bg-white dark:bg-[#131c31] border border-slate-200 dark:border-slate-800 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xs">
                     <div className="flex items-center gap-3">
-                      <span className="w-7 h-7 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs">1</span>
+                      <span className="w-7 h-7 rounded-full bg-indigo-50 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-xs">1</span>
                       <div>
                         <div className="flex items-center gap-2">
-                          <p className="text-xs font-bold text-white uppercase">Confirmation Fee</p>
-                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                          <p className="text-xs font-bold text-slate-900 dark:text-white uppercase">Confirmation Fee</p>
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/20">
                             At Registration
                           </span>
                         </div>
-                        <p className="text-[11px] text-slate-400 mt-0.5">Collected via Razorpay Test Mode checkout</p>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Collected via Razorpay Test Mode checkout</p>
                       </div>
                     </div>
 
                     <div className="text-right">
-                      <span className="text-sm font-black text-white">₹{parsedConf.toLocaleString()}</span>
+                      <span className="text-sm font-black text-slate-900 dark:text-white">₹{parsedConf.toLocaleString()}</span>
                     </div>
                   </div>
 
                   {/* Sections 2-4: 1st, 2nd, Final Installments */}
                   {installments.map((inst, idx) => (
-                    <div key={idx} className="p-4 bg-[#131c31] border border-slate-800 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div key={idx} className="p-4 bg-white dark:bg-[#131c31] border border-slate-200 dark:border-slate-800 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xs">
                       <div className="flex items-center gap-3">
-                        <span className="w-7 h-7 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold text-xs">{idx + 2}</span>
+                        <span className="w-7 h-7 rounded-full bg-indigo-50 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-xs">{idx + 2}</span>
                         <div>
-                          <p className="text-xs font-bold text-white uppercase">{inst.name}</p>
-                          <p className="text-[11px] text-slate-400 mt-0.5">
+                          <p className="text-xs font-bold text-slate-900 dark:text-white uppercase">{inst.name}</p>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
                             {idx === 0 ? "First scheduled trip installment" : idx === 1 ? "Mid-term trip installment" : "Remaining balance final installment"}
                           </p>
                         </div>
@@ -482,7 +480,7 @@ export default function CampusSettingsModal({ trip, onClose, onRefresh, initialT
                             min="0"
                             value={inst.amount}
                             onChange={(e) => updateInstallment(idx, 'amount', e.target.value)}
-                            className="w-32 bg-[#0a101f] border border-slate-700 rounded-lg p-2 text-xs font-bold text-white focus:border-indigo-500 focus:outline-none"
+                            className="w-32 bg-slate-50 dark:bg-[#0a101f] border border-slate-200 dark:border-slate-700 rounded-lg p-2 text-xs font-bold text-slate-900 dark:text-white focus:border-indigo-500 focus:outline-none"
                           />
                         </div>
 
@@ -492,7 +490,7 @@ export default function CampusSettingsModal({ trip, onClose, onRefresh, initialT
                             type="date"
                             value={inst.dueDate}
                             onChange={(e) => updateInstallment(idx, 'dueDate', e.target.value)}
-                            className="w-40 bg-[#0a101f] border border-slate-700 rounded-lg p-2 text-xs text-white focus:border-indigo-500 focus:outline-none"
+                            className="w-40 bg-slate-50 dark:bg-[#0a101f] border border-slate-200 dark:border-slate-700 rounded-lg p-2 text-xs text-slate-900 dark:text-white focus:border-indigo-500 focus:outline-none"
                           />
                         </div>
                       </div>
@@ -507,15 +505,15 @@ export default function CampusSettingsModal({ trip, onClose, onRefresh, initialT
           {/* TAB 3: REGISTRATION FORM FIELDS */}
           {activeTab === "fields" && (
             <div className="space-y-4 animate-fade-in">
-              <div className="flex justify-between items-center bg-[#0a101f] border border-slate-800 p-4 rounded-xl">
+              <div className="flex justify-between items-center bg-slate-50 dark:bg-[#0a101f] border border-slate-200 dark:border-slate-800 p-4 rounded-xl">
                 <div>
-                  <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Configure Student Registration Fields</h4>
-                  <p className="text-[11px] text-slate-400 mt-0.5">Control field labels, order, input types, and required status seen by students</p>
+                  <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Configure Student Registration Fields</h4>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Control field labels, order, input types, and required status seen by students</p>
                 </div>
                 <button 
                   type="button" 
                   onClick={addField} 
-                  className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition shadow-lg"
+                  className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition shadow-xs cursor-pointer"
                 >
                   <FiPlus /> Add Field
                 </button>
@@ -523,13 +521,13 @@ export default function CampusSettingsModal({ trip, onClose, onRefresh, initialT
 
               <div className="space-y-3">
                 {formFields.map((field, idx) => (
-                  <div key={idx} className="flex flex-col md:flex-row gap-3 p-4 bg-[#0a101f] border border-slate-800 rounded-xl items-start">
+                  <div key={idx} className="flex flex-col md:flex-row gap-3 p-4 bg-slate-50 dark:bg-[#0a101f] border border-slate-200 dark:border-slate-800 rounded-xl items-start">
                     {/* Reorder Buttons */}
                     <div className="flex flex-col gap-1 mt-1 shrink-0">
                       <button 
                         type="button" 
                         onClick={() => moveField(idx, -1)} 
-                        className="p-1 rounded bg-[#131c31] text-slate-400 hover:text-white disabled:opacity-20" 
+                        className="p-1 rounded bg-white dark:bg-[#131c31] text-slate-500 hover:text-slate-900 dark:hover:text-white disabled:opacity-20 border border-slate-200 dark:border-slate-700 cursor-pointer" 
                         disabled={idx === 0}
                         title="Move Up"
                       >
@@ -538,7 +536,7 @@ export default function CampusSettingsModal({ trip, onClose, onRefresh, initialT
                       <button 
                         type="button" 
                         onClick={() => moveField(idx, 1)} 
-                        className="p-1 rounded bg-[#131c31] text-slate-400 hover:text-white disabled:opacity-20" 
+                        className="p-1 rounded bg-white dark:bg-[#131c31] text-slate-500 hover:text-slate-900 dark:hover:text-white disabled:opacity-20 border border-slate-200 dark:border-slate-700 cursor-pointer" 
                         disabled={idx === formFields.length - 1}
                         title="Move Down"
                       >
@@ -554,7 +552,7 @@ export default function CampusSettingsModal({ trip, onClose, onRefresh, initialT
                           type="text" 
                           value={field.label} 
                           onChange={(e) => updateField(idx, 'label', e.target.value)} 
-                          className="w-full bg-[#131c31] border border-slate-700 rounded-lg p-2 text-xs font-semibold text-white focus:border-indigo-500 focus:outline-none" 
+                          className="w-full bg-white dark:bg-[#131c31] border border-slate-200 dark:border-slate-700 rounded-lg p-2 text-xs font-semibold text-slate-900 dark:text-white focus:border-indigo-500 focus:outline-none" 
                         />
                       </div>
 
@@ -563,7 +561,7 @@ export default function CampusSettingsModal({ trip, onClose, onRefresh, initialT
                         <select 
                           value={field.type || 'text'} 
                           onChange={(e) => updateField(idx, 'type', e.target.value)} 
-                          className="w-full bg-[#131c31] border border-slate-700 rounded-lg p-2 text-xs text-white focus:border-indigo-500 focus:outline-none"
+                          className="w-full bg-white dark:bg-[#131c31] border border-slate-200 dark:border-slate-700 rounded-lg p-2 text-xs text-slate-900 dark:text-white focus:border-indigo-500 focus:outline-none"
                         >
                           <option value="text">Text Input</option>
                           <option value="email">Email</option>
@@ -579,16 +577,16 @@ export default function CampusSettingsModal({ trip, onClose, onRefresh, initialT
                           id={`req_${idx}`}
                           checked={field.required} 
                           onChange={(e) => updateField(idx, 'required', e.target.checked)} 
-                          className="rounded bg-[#131c31] border-slate-700 text-indigo-600 focus:ring-0" 
+                          className="rounded bg-white dark:bg-[#131c31] border-slate-300 dark:border-slate-700 text-indigo-600 focus:ring-0" 
                         />
-                        <label htmlFor={`req_${idx}`} className="text-[10px] font-bold text-slate-400 cursor-pointer">
+                        <label htmlFor={`req_${idx}`} className="text-[10px] font-bold text-slate-600 dark:text-slate-400 cursor-pointer">
                           Required Field
                         </label>
                       </div>
 
                       {field.type === 'select' && (
-                        <div className="md:col-span-4 mt-1 bg-[#131c31] p-3 rounded-lg border border-slate-800">
-                          <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">
+                        <div className="md:col-span-4 mt-1 bg-white dark:bg-[#131c31] p-3 rounded-lg border border-slate-200 dark:border-slate-800">
+                          <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">
                             Dropdown Options (comma-separated)
                           </label>
                           <input 
@@ -596,7 +594,7 @@ export default function CampusSettingsModal({ trip, onClose, onRefresh, initialT
                             value={Array.isArray(field.options) ? field.options.join(", ") : ""} 
                             onChange={(e) => updateField(idx, 'options', e.target.value.split(',').map(s => s.trim()).filter(Boolean))} 
                             placeholder="e.g. Option 1, Option 2, Option 3"
-                            className="w-full bg-[#0a101f] border border-slate-700 rounded-lg p-2 text-xs text-white focus:border-indigo-500 focus:outline-none" 
+                            className="w-full bg-slate-50 dark:bg-[#0a101f] border border-slate-200 dark:border-slate-700 rounded-lg p-2 text-xs text-slate-900 dark:text-white focus:border-indigo-500 focus:outline-none" 
                           />
                         </div>
                       )}
@@ -605,7 +603,7 @@ export default function CampusSettingsModal({ trip, onClose, onRefresh, initialT
                     <button 
                       type="button" 
                       onClick={() => removeField(idx)} 
-                      className="p-2 text-slate-500 hover:text-rose-400 mt-5 transition"
+                      className="p-2 text-slate-400 hover:text-rose-500 mt-5 transition cursor-pointer"
                       title="Remove Field"
                     >
                       <FiTrash2 />
@@ -619,15 +617,15 @@ export default function CampusSettingsModal({ trip, onClose, onRefresh, initialT
           {/* TAB 4: REQUIRED DOCUMENTS */}
           {activeTab === "documents" && (
             <div className="space-y-4 animate-fade-in">
-              <div className="flex justify-between items-center bg-[#0a101f] border border-slate-800 p-4 rounded-xl">
+              <div className="flex justify-between items-center bg-slate-50 dark:bg-[#0a101f] border border-slate-200 dark:border-slate-800 p-4 rounded-xl">
                 <div>
-                  <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Required Student Documents</h4>
-                  <p className="text-[11px] text-slate-400 mt-0.5">Documents students must upload to complete registration verification</p>
+                  <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Required Student Documents</h4>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Documents students must upload to complete registration verification</p>
                 </div>
                 <button 
                   type="button" 
                   onClick={addDocument} 
-                  className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition shadow-lg"
+                  className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition shadow-xs cursor-pointer"
                 >
                   <FiPlus /> Add Document
                 </button>
@@ -635,7 +633,7 @@ export default function CampusSettingsModal({ trip, onClose, onRefresh, initialT
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {documentsConfig.map((doc, idx) => (
-                  <div key={idx} className="p-4 bg-[#0a101f] border border-slate-800 rounded-xl flex items-start justify-between gap-4">
+                  <div key={idx} className="p-4 bg-slate-50 dark:bg-[#0a101f] border border-slate-200 dark:border-slate-800 rounded-xl flex items-start justify-between gap-4">
                     <div className="flex-1 space-y-3">
                       <div>
                         <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Document Name *</label>
@@ -643,7 +641,7 @@ export default function CampusSettingsModal({ trip, onClose, onRefresh, initialT
                           type="text" 
                           value={doc.documentType} 
                           onChange={(e) => updateDocument(idx, 'documentType', e.target.value)} 
-                          className="w-full bg-[#131c31] border border-slate-700 rounded-lg p-2 text-xs text-white font-semibold focus:border-indigo-500 focus:outline-none" 
+                          className="w-full bg-white dark:bg-[#131c31] border border-slate-200 dark:border-slate-700 rounded-lg p-2 text-xs text-slate-900 dark:text-white font-semibold focus:border-indigo-500 focus:outline-none" 
                         />
                       </div>
                       <div className="flex items-center gap-2">
@@ -652,9 +650,9 @@ export default function CampusSettingsModal({ trip, onClose, onRefresh, initialT
                           id={`doc_req_${idx}`}
                           checked={doc.required} 
                           onChange={(e) => updateDocument(idx, 'required', e.target.checked)} 
-                          className="rounded bg-[#131c31] border-slate-700 text-indigo-600" 
+                          className="rounded bg-white dark:bg-[#131c31] border-slate-300 dark:border-slate-700 text-indigo-600" 
                         />
-                        <label htmlFor={`doc_req_${idx}`} className="text-[10px] font-bold text-slate-400 cursor-pointer">
+                        <label htmlFor={`doc_req_${idx}`} className="text-[10px] font-bold text-slate-600 dark:text-slate-400 cursor-pointer">
                           Strictly Required for Approval
                         </label>
                       </div>
@@ -662,7 +660,7 @@ export default function CampusSettingsModal({ trip, onClose, onRefresh, initialT
                     <button 
                       type="button" 
                       onClick={() => removeDocument(idx)} 
-                      className="text-slate-500 hover:text-rose-400 mt-5 p-2 transition"
+                      className="text-slate-400 hover:text-rose-500 mt-5 p-2 transition cursor-pointer"
                       title="Remove Document"
                     >
                       <FiTrash2 />
@@ -676,10 +674,10 @@ export default function CampusSettingsModal({ trip, onClose, onRefresh, initialT
         </div>
 
         {/* Footer */}
-        <div className="p-6 border-t border-slate-800 bg-[#0a101f] flex justify-between items-center">
-          <div className="text-xs text-slate-400">
+        <div className="p-6 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0a101f] flex justify-between items-center">
+          <div className="text-xs text-slate-500 dark:text-slate-400">
             {activeTab === "payment" && (
-              <span className={isBalanced ? "text-emerald-400 font-bold" : "text-amber-400 font-bold"}>
+              <span className={isBalanced ? "text-indigo-600 dark:text-indigo-400 font-bold" : "text-amber-600 dark:text-amber-400 font-bold"}>
                 {isBalanced ? "✓ Ready to save: Plan is balanced" : "⚠️ Plan must be balanced before saving"}
               </span>
             )}
@@ -689,15 +687,15 @@ export default function CampusSettingsModal({ trip, onClose, onRefresh, initialT
             <button 
               type="button" 
               onClick={onClose} 
-              className="px-5 py-2.5 rounded-xl text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-800 transition"
+              className="px-5 py-2.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-800 transition cursor-pointer"
             >
               Cancel
             </button>
             <button 
-              type="button"
+              type="button" 
               onClick={handleSave} 
               disabled={saving}
-              className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-indigo-900/40 transition disabled:opacity-50 cursor-pointer"
+              className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs transition disabled:opacity-50 cursor-pointer"
             >
               {saving ? "Saving Configuration..." : "Save Settings"}
             </button>

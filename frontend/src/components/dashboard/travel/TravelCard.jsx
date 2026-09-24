@@ -98,7 +98,7 @@ export default function TravelCard({ option, source, destination, tripId, startD
           </div>
 
           {option.isSelected && (
-            <span className="rounded-md bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800/60 px-2 py-0.5 text-[9px] font-bold text-emerald-700 dark:text-emerald-300">
+            <span className="rounded-md bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800/60 px-2 py-0.5 text-[9px] font-bold text-indigo-700 dark:text-indigo-300">
               Selected in Itinerary
             </span>
           )}

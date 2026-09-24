@@ -24,7 +24,7 @@ export default function HotelsPreview({ trip }) {
               {staySegments.length} Segments
             </span>
             {selectedCount > 0 && (
-              <span className="rounded-full bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-100 dark:border-emerald-800/60 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-400">
+              <span className="rounded-full bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-100 dark:border-indigo-800/60 px-2 py-0.5 text-[10px] font-bold text-indigo-700 dark:text-indigo-400">
                 {selectedCount} Selected
               </span>
             )}
@@ -61,8 +61,8 @@ export default function HotelsPreview({ trip }) {
 
             <div className="mt-auto">
               {segment.selectedHotel ? (
-                <div className="rounded-lg bg-emerald-100/50 dark:bg-emerald-900/20 px-3 py-2 border border-emerald-200 dark:border-emerald-800/30">
-                  <span className="block text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase mb-0.5">✓ Selected</span>
+                <div className="rounded-lg bg-indigo-50 dark:bg-indigo-950/40 px-3 py-2 border border-indigo-200/80 dark:border-indigo-800/40">
+                  <span className="block text-[10px] font-bold text-indigo-700 dark:text-indigo-300 uppercase mb-0.5">✓ Selected</span>
                   <span className="block text-xs font-semibold text-slate-700 dark:text-slate-300 line-clamp-1">{segment.selectedHotel.name}</span>
                 </div>
               ) : (

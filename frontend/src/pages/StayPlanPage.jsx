@@ -1122,14 +1122,14 @@ export default function StayPlanPage() {
 
       {/* Sticky Action Bar */}
       {!viewOnly && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-[#0f1525]/90 border-t border-slate-200 dark:border-slate-800 shadow-[0_-4px_20px_-5px_rgba(0,0,0,0.1)] z-40 backdrop-blur-md pb-safe">
-          <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-4 flex flex-col md:flex-row items-center justify-between gap-4 transition-all">
-            <div className="flex flex-col sm:flex-row items-center gap-4 text-xs font-bold text-slate-600 dark:text-slate-400">
-              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border ${totalStayNights === expectedTripNights ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400' : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400'}`}>
+        <div className="sticky bottom-0 -mx-4 sm:-mx-6 lg:-mx-8 -mb-4 sm:-mb-6 lg:-mb-8 mt-8 bg-white/95 dark:bg-[#0f1525]/95 border-t border-slate-200 dark:border-slate-800 shadow-[0_-4px_20px_-5px_rgba(0,0,0,0.1)] z-20 backdrop-blur-md pb-safe">
+          <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-3.5 flex flex-col md:flex-row items-center justify-between gap-4 transition-all">
+            <div className="flex flex-col sm:flex-row items-center gap-3 text-xs font-bold text-slate-600 dark:text-slate-400">
+              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border ${totalStayNights === expectedTripNights ? 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300' : 'bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300'}`}>
                 <FiMoon />
                 <span>{totalStayNights}/{expectedTripNights} nights covered</span>
               </div>
-              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border ${selectedHotelsCount === staySegments.length ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400' : 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400'}`}>
+              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border ${selectedHotelsCount === staySegments.length ? 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300' : 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300'}`}>
                 <FiCheck />
                 <span>{selectedHotelsCount}/{staySegments.length} hotels selected</span>
               </div>
@@ -1137,7 +1137,7 @@ export default function StayPlanPage() {
             <button 
               onClick={handleSaveStayPlan} 
               disabled={isSyncing || !isStayPlanValid} 
-              className="w-full md:w-auto px-8 py-3 bg-indigo-600 text-white font-black rounded-xl hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-indigo-600/20 transition-all flex items-center justify-center gap-2 uppercase tracking-wide text-sm"
+              className="w-full md:w-auto px-8 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-indigo-600/20 transition-all flex items-center justify-center gap-2 uppercase tracking-wide text-xs cursor-pointer active:scale-98"
             >
               {isSyncing ? "Saving & Updating Itinerary..." : "Save Plan & Update Itinerary"}
             </button>

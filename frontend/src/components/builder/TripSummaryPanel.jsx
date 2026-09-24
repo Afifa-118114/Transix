@@ -30,6 +30,7 @@ export default function TripSummaryPanel() {
     setIsFinalizeModalOpen,
     isSaved,
     setIsSaved,
+    autoFixScheduleOverlaps,
   } = useTripBuilder();
 
   const [isEditingBudget, setIsEditingBudget] = useState(false);
@@ -113,44 +114,50 @@ export default function TripSummaryPanel() {
   };
 
   return (
-    <div className="flex h-full flex-col justify-between rounded-2xl border border-[#e7e5e4] bg-white p-4 shadow-xs transition-colors">
+    <div className="flex h-full flex-col justify-between rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131b2e] p-4 shadow-xs transition-colors">
       <div className="space-y-3.5 overflow-y-auto pr-1">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-[#e7e5e4] pb-2.5">
+        <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2.5">
           <div>
-            <h2 className="text-base font-bold text-[#0c0a09]">Trip Summary</h2>
-            <p className="text-[11px] text-[#777169]">Live budget &amp; feasibility engine</p>
+            <h2 className="text-base font-bold text-slate-900 dark:text-white">Trip Summary</h2>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">Live budget &amp; feasibility engine</p>
           </div>
           <span
             className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${
-              validationStats.isFeasible
-                ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
-                : "bg-rose-50 text-rose-800 border border-rose-200"
+              validationStats.scheduleConflictsCount > 0
+                ? "bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60"
+                : !validationStats.isBudgetFeasible
+                ? "bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/60"
+                : "bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60"
             }`}
           >
-            {validationStats.isFeasible ? (
+            {validationStats.scheduleConflictsCount > 0 ? (
               <>
-                <FiCheckCircle className="text-xs text-emerald-700" /> Feasible
+                <FiAlertTriangle className="text-xs text-amber-600 dark:text-amber-400" /> {validationStats.scheduleConflictsCount} Timing Overlap(s)
+              </>
+            ) : !validationStats.isBudgetFeasible ? (
+              <>
+                <FiAlertTriangle className="text-xs text-rose-600 dark:text-rose-400" /> Over Budget
               </>
             ) : (
               <>
-                <FiAlertTriangle className="text-xs text-rose-700" /> {validationStats.conflictsCount} Conflicts
+                <FiCheckCircle className="text-xs text-indigo-600 dark:text-indigo-400" /> Feasible
               </>
             )}
           </span>
         </div>
 
         {/* Trip Meta Card */}
-        <div className="rounded-xl bg-[#fafaf9] p-2.5 border border-[#e7e5e4]">
+        <div className="rounded-xl bg-slate-50 dark:bg-slate-900/60 p-2.5 border border-slate-200 dark:border-slate-800">
           <div className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#034F46] text-white font-bold text-xs shadow-xs">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-600 text-white font-bold text-xs shadow-xs">
               <FiMapPin />
             </div>
             <div>
-              <h3 className="text-xs font-bold text-[#0c0a09]">
+              <h3 className="text-xs font-bold text-slate-900 dark:text-white">
                 {trip.source} → {trip.destination}
               </h3>
-              <p className="text-[10px] text-[#777169]">
+              <p className="text-[10px] text-slate-500 dark:text-slate-400">
                 {trip.itinerary.length} Days • {trip.travelers || 2} Travelers
               </p>
             </div>
@@ -243,7 +250,7 @@ export default function TripSummaryPanel() {
               <div className="mt-2.5">
                 <div className="flex items-center justify-between text-[10px] font-semibold text-slate-500 dark:text-slate-400">
                   <span>{budgetStats.spentPercentage}% utilized</span>
-                  <span className={budgetStats.isOverBudget ? "text-rose-600 dark:text-rose-400 font-bold" : "text-emerald-700 dark:text-emerald-400 font-bold"}>
+                  <span className={budgetStats.isOverBudget ? "text-rose-600 dark:text-rose-400 font-bold" : "text-indigo-600 dark:text-indigo-400 font-bold"}>
                     {budgetStats.isOverBudget
                       ? `₹${budgetStats.overAmount?.toLocaleString()} over`
                       : `₹${budgetStats.remaining?.toLocaleString()} left`}
@@ -291,23 +298,23 @@ export default function TripSummaryPanel() {
         </div>
 
         {/* ================= SCHEDULE STATS ================= */}
-        <div className="rounded-xl border border-[#e7e5e4] bg-[#fafaf9] p-3">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/50 p-3">
           <div className="flex items-center gap-1.5">
-            <FiClock className="text-[#034F46] text-sm font-bold" />
-            <h3 className="text-xs font-bold text-[#0c0a09]">Schedule &amp; Timing</h3>
+            <FiClock className="text-indigo-600 dark:text-indigo-400 text-sm font-bold" />
+            <h3 className="text-xs font-bold text-slate-900 dark:text-white">Schedule &amp; Timing</h3>
           </div>
 
           <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
-            <div className="rounded-lg bg-white p-2 border border-[#e7e5e4]">
-              <p className="text-[9px] uppercase font-bold text-[#a8a29e]">Activities</p>
-              <p className="mt-0.5 text-xs font-bold text-[#0c0a09]">
+            <div className="rounded-lg bg-white dark:bg-[#131b2e] p-2 border border-slate-200 dark:border-slate-800">
+              <p className="text-[9px] uppercase font-bold text-slate-400 dark:text-slate-500">Activities</p>
+              <p className="mt-0.5 text-xs font-bold text-slate-900 dark:text-white">
                 {validationStats.totalActivities} items
               </p>
             </div>
 
-            <div className="rounded-lg bg-white p-2 border border-[#e7e5e4]">
-              <p className="text-[9px] uppercase font-bold text-[#a8a29e]">Travel Time</p>
-              <p className="mt-0.5 text-xs font-bold text-[#0c0a09]">
+            <div className="rounded-lg bg-white dark:bg-[#131b2e] p-2 border border-slate-200 dark:border-slate-800">
+              <p className="text-[9px] uppercase font-bold text-slate-400 dark:text-slate-500">Travel Time</p>
+              <p className="mt-0.5 text-xs font-bold text-slate-900 dark:text-white">
                 {validationStats.formattedTravelTime}
               </p>
             </div>
@@ -315,21 +322,31 @@ export default function TripSummaryPanel() {
 
           {/* Schedule Status & Conflicts List */}
           <div className="mt-2">
-            {validationStats.isFeasible && validationStats.warnings?.length === 0 ? (
-              <div className="flex items-center gap-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 p-1.5 text-[11px] font-semibold text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-700/50">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                <span>🟢 All days feasible with proper buffers</span>
+            {validationStats.scheduleConflictsCount === 0 && validationStats.warnings?.length === 0 ? (
+              <div className="flex items-center gap-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 p-1.5 text-[11px] font-semibold text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60">
+                <FiCheckCircle className="text-indigo-600 dark:text-indigo-400 text-xs shrink-0" />
+                <span>All timings feasible &amp; aligned (No overlaps)</span>
               </div>
             ) : null}
 
-            {validationStats.conflictsCount > 0 && (
-              <div className="space-y-1 rounded-lg bg-amber-50 dark:bg-amber-950/30 p-2 text-xs text-amber-900 dark:text-amber-300 border border-amber-200 dark:border-amber-700/50">
-                <div className="flex items-center gap-1 font-bold text-amber-800 dark:text-amber-300">
-                  <FiAlertTriangle className="text-amber-600 dark:text-amber-400 text-xs" />
-                  <span>{validationStats.conflictsCount} Schedule Conflict(s)</span>
+            {validationStats.scheduleConflictsCount > 0 && (
+              <div className="space-y-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/30 p-2 text-xs text-amber-900 dark:text-amber-300 border border-amber-200 dark:border-amber-700/50">
+                <div className="flex items-center justify-between gap-1 font-bold text-amber-800 dark:text-amber-300">
+                  <div className="flex items-center gap-1">
+                    <FiAlertTriangle className="text-amber-600 dark:text-amber-400 text-xs shrink-0" />
+                    <span>{validationStats.scheduleConflictsCount} Timing Overlap(s)</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => autoFixScheduleOverlaps()}
+                    className="flex items-center gap-1 rounded-md bg-amber-600 hover:bg-amber-700 text-white px-2 py-0.5 text-[10px] font-bold transition shadow-2xs cursor-pointer active:scale-95"
+                    title="Automatically adjust start and end times to eliminate overlaps"
+                  >
+                    <span>⚡ Auto-Fix</span>
+                  </button>
                 </div>
-                {validationStats.conflicts.slice(0, 2).map((c, idx) => (
-                  <p key={idx} className="text-[10px] text-amber-700">
+                {validationStats.scheduleConflicts.slice(0, 2).map((c, idx) => (
+                  <p key={idx} className="text-[10px] text-amber-700 dark:text-amber-400 leading-tight">
                     • {c.message}
                   </p>
                 ))}
@@ -354,25 +371,25 @@ export default function TripSummaryPanel() {
       </div>
 
       {/* Action Buttons Footer */}
-      <div className="mt-3 space-y-2 border-t border-[#e7e5e4] pt-2.5">
+      <div className="mt-3 space-y-2 border-t border-slate-200 dark:border-slate-800 pt-2.5">
         {/* Save & Reset Row */}
         <div className="flex gap-2">
           <button
             onClick={saveItinerary}
             className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl border py-2 text-xs font-bold transition ${
               isSaved
-                ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                : "border-[#e7e5e4] bg-white text-[#0c0a09] hover:bg-[#fafaf9] hover:border-[#0c0a09]"
+                ? "border-indigo-300 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300"
+                : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
             }`}
           >
-            {isSaved ? <FiCheck className="text-xs text-emerald-600" /> : <FiSave className="text-xs" />}
+            {isSaved ? <FiCheck className="text-xs text-indigo-600 dark:text-indigo-400" /> : <FiSave className="text-xs" />}
             <span>{isSaved ? "Saved" : "Save Plan"}</span>
           </button>
 
           <button
             onClick={resetToSample}
             title={`Reset Itinerary for ${trip.destination || "Trip"}`}
-            className="flex items-center gap-1 rounded-xl border border-[#e7e5e4] bg-white px-2.5 py-2 text-xs font-semibold text-[#57534e] hover:bg-[#fafaf9] hover:text-[#0c0a09]"
+            className="flex items-center gap-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white transition"
           >
             <FiRefreshCw className="text-xs" />
             <span>Reset</span>
@@ -382,7 +399,7 @@ export default function TripSummaryPanel() {
         {/* Master FINALIZE MY TRIP Button */}
         <button
           onClick={() => setIsFinalizeModalOpen(true)}
-          className="flex w-full items-center justify-center gap-2 rounded-full bg-[#0c0a09] py-3 text-xs font-bold text-white shadow-xs transition hover:bg-[#292524] active:scale-98"
+          className="flex w-full items-center justify-center gap-2 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 text-xs font-bold shadow-md shadow-indigo-600/20 transition active:scale-98"
         >
           <span>FINALIZE MY TRIP</span>
           <FiArrowRight className="text-xs" />

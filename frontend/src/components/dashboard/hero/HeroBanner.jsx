@@ -47,7 +47,7 @@ export default function HeroBanner({ trip, onResetTrip }) {
         {/* Hero Top Actions Bar */}
         <div className="absolute top-5 left-5 right-5 flex items-center justify-between z-10">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-white/25 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-white backdrop-blur-md border border-white/30 shadow-xs">
-            <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="h-2 w-2 rounded-full bg-sky-400 animate-pulse" />
             Synthesized Masterplan
           </span>
 
