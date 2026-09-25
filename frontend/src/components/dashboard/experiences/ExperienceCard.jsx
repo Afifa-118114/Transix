@@ -18,9 +18,9 @@ export default function ExperienceCard({ experience }) {
   }, [experience.place, experience.title]);
 
   return (
-    <div className="group w-52 shrink-0 flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-[0_4px_16px_rgba(0,0,0,0.04)] transition-all duration-200 hover:-translate-y-1 hover:border-indigo-300 hover:shadow-xl">
+    <div className="group w-52 shrink-0 flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-[#131b2e] shadow-xs transition-all duration-200 hover:-translate-y-1 hover:border-indigo-400 dark:hover:border-indigo-500 hover:shadow-md">
       <div>
-        <div className="relative h-28 w-full overflow-hidden bg-slate-100">
+        <div className="relative h-28 w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
           {image ? (
             <img
               src={image}
@@ -29,7 +29,7 @@ export default function ExperienceCard({ experience }) {
               loading="lazy"
             />
           ) : (
-            <div className="h-full w-full animate-pulse bg-stone-200 dark:bg-stone-700" />
+            <div className="h-full w-full animate-pulse bg-slate-200 dark:bg-slate-700" />
           )}
 
           <div className="absolute right-2 top-2 flex items-center gap-1 rounded-full bg-amber-500 px-2.5 py-0.5 text-[10px] font-bold text-white shadow-xs">
@@ -39,11 +39,11 @@ export default function ExperienceCard({ experience }) {
         </div>
 
         <div className="p-3.5">
-          <h4 className="text-xs font-bold text-[#0c0a09] dark:text-white line-clamp-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition">
+          <h4 className="text-xs font-bold text-slate-900 dark:text-white line-clamp-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition">
             {experience.title}
           </h4>
 
-          <div className="mt-1 flex items-center gap-1 text-[11px] text-[#777169] dark:text-stone-400">
+          <div className="mt-1 flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400">
             <FiMapPin className="shrink-0 text-rose-500 text-[10px]" />
             <span className="truncate">{experience.place}</span>
           </div>

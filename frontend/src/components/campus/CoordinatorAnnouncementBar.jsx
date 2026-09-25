@@ -181,27 +181,27 @@ export default function CoordinatorAnnouncementBar({ tripId, announcements = [],
   return (
     <>
       {/* COMPACT DASHBOARD ANNOUNCEMENT CARD (ONE LAYER ONLY) */}
-      <div className="bg-indigo-50 border border-indigo-100/80 text-indigo-950 p-3.5 rounded-xl mb-6 shadow-sm">
+      <div className="bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-800/40 text-indigo-950 dark:text-indigo-200 p-3.5 rounded-xl mb-6 shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           {/* Left: Bell Icon + Badge + Message Preview */}
           <div className="flex items-center gap-3 min-w-0 flex-1">
-            <div className="bg-indigo-200/80 text-indigo-800 p-2 rounded-lg shrink-0">
+            <div className="bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 p-2 rounded-lg shrink-0">
               <FiBell className="w-4 h-4" />
             </div>
             <div className="flex flex-wrap items-center gap-2 min-w-0 flex-1">
-              <span className="font-bold text-xs bg-indigo-200/70 px-2 py-0.5 rounded text-indigo-900 shrink-0">
+              <span className="font-bold text-xs bg-indigo-200/70 dark:bg-indigo-900/60 px-2 py-0.5 rounded text-indigo-900 dark:text-indigo-200 shrink-0">
                 Announcement
               </span>
-              <span className="text-sm font-medium text-indigo-950 truncate max-w-full sm:max-w-md lg:max-w-xl">
+              <span className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate max-w-full sm:max-w-md lg:max-w-xl">
                 {latestAnnouncement ? latestAnnouncement.message : "No announcements yet"}
               </span>
             </div>
           </div>
 
           {/* Right: Date + Action Icons */}
-          <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 text-xs font-semibold pt-1 sm:pt-0 border-t sm:border-t-0 border-indigo-100">
+          <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 text-xs font-semibold pt-1 sm:pt-0 border-t sm:border-t-0 border-indigo-200/50 dark:border-indigo-800/40">
             {latestAnnouncement && (
-              <span className="text-indigo-700 text-xs whitespace-nowrap">
+              <span className="text-indigo-600 dark:text-indigo-400 text-xs whitespace-nowrap">
                 Posted on {formatDate(latestAnnouncement.createdAt)}
               </span>
             )}
@@ -211,7 +211,7 @@ export default function CoordinatorAnnouncementBar({ tripId, announcements = [],
                 type="button"
                 onClick={handleOpenCreate}
                 title="Create Announcement"
-                className="p-1.5 text-indigo-700 hover:text-indigo-950 hover:bg-indigo-200/70 rounded-lg transition-colors"
+                className="p-1.5 text-indigo-700 dark:text-indigo-300 hover:text-indigo-950 dark:hover:text-white hover:bg-indigo-200/60 dark:hover:bg-indigo-900/50 rounded-lg transition-colors cursor-pointer"
                 aria-label="Create Announcement"
               >
                 <FiPlus className="w-4 h-4" />
@@ -228,7 +228,7 @@ export default function CoordinatorAnnouncementBar({ tripId, announcements = [],
                       setShowReadModal(true);
                     }}
                     title="View Announcements"
-                    className="p-1.5 text-indigo-700 hover:text-indigo-950 hover:bg-indigo-200/70 rounded-lg transition-colors"
+                    className="p-1.5 text-indigo-700 dark:text-indigo-300 hover:text-indigo-950 dark:hover:text-white hover:bg-indigo-200/60 dark:hover:bg-indigo-900/50 rounded-lg transition-colors cursor-pointer"
                     aria-label="View Announcements"
                   >
                     <FiEye className="w-4 h-4" />
@@ -239,7 +239,7 @@ export default function CoordinatorAnnouncementBar({ tripId, announcements = [],
                     type="button"
                     onClick={() => handleOpenEdit(latestAnnouncement)}
                     title="Edit Current Announcement"
-                    className="p-1.5 text-indigo-700 hover:text-indigo-950 hover:bg-indigo-200/70 rounded-lg transition-colors"
+                    className="p-1.5 text-indigo-700 dark:text-indigo-300 hover:text-indigo-950 dark:hover:text-white hover:bg-indigo-200/60 dark:hover:bg-indigo-900/50 rounded-lg transition-colors cursor-pointer"
                     aria-label="Edit Current Announcement"
                   >
                     <FiEdit2 className="w-4 h-4" />
@@ -250,7 +250,7 @@ export default function CoordinatorAnnouncementBar({ tripId, announcements = [],
                     type="button"
                     onClick={() => handleOpenDelete(latestAnnouncement)}
                     title="Delete Current Announcement"
-                    className="p-1.5 text-rose-600 hover:text-rose-800 hover:bg-rose-100 rounded-lg transition-colors"
+                    className="p-1.5 text-rose-600 dark:text-rose-400 hover:text-rose-800 dark:hover:text-rose-200 hover:bg-rose-100 dark:hover:bg-rose-950/50 rounded-lg transition-colors cursor-pointer"
                     aria-label="Delete Current Announcement"
                   >
                     <FiTrash2 className="w-4 h-4" />
@@ -265,15 +265,15 @@ export default function CoordinatorAnnouncementBar({ tripId, announcements = [],
       {/* 1. CREATE ANNOUNCEMENT MODAL */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-150">
-          <div className="w-full max-w-lg bg-[#131c31] border border-slate-800 rounded-2xl p-6 shadow-2xl text-white">
-            <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-800">
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <FiBell className="text-indigo-400" />
+          <div className="w-full max-w-lg bg-white dark:bg-[#131c31] border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-2xl text-slate-900 dark:text-white">
+            <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-200 dark:border-slate-800">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <FiBell className="text-indigo-600 dark:text-indigo-400" />
                 Create Announcement
               </h3>
               <button
                 onClick={() => setShowCreateModal(false)}
-                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors"
+                className="text-slate-400 hover:text-slate-700 dark:hover:text-white p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
               >
                 <FiX className="w-5 h-5" />
               </button>
@@ -281,7 +281,7 @@ export default function CoordinatorAnnouncementBar({ tripId, announcements = [],
 
             <form onSubmit={handleCreateSubmit}>
               <div className="mb-5">
-                <label className="block text-xs font-semibold text-slate-300 mb-2 uppercase tracking-wider">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-wider">
                   Announcement
                 </label>
                 <textarea
@@ -290,7 +290,7 @@ export default function CoordinatorAnnouncementBar({ tripId, announcements = [],
                   value={createMessage}
                   onChange={(e) => setCreateMessage(e.target.value)}
                   placeholder="Enter announcement..."
-                  className="w-full bg-[#0a101f] border border-slate-700 rounded-xl p-3.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all resize-none"
+                  className="w-full bg-slate-50 dark:bg-[#0a101f] border border-slate-200 dark:border-slate-700 rounded-xl p-3.5 text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all resize-none"
                   required
                   autoFocus
                 />
@@ -301,14 +301,14 @@ export default function CoordinatorAnnouncementBar({ tripId, announcements = [],
                   type="button"
                   onClick={() => setShowCreateModal(false)}
                   disabled={createLoading}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={createLoading || !createMessage.trim()}
-                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-colors disabled:opacity-50 flex items-center gap-2"
+                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-colors disabled:opacity-50 flex items-center gap-2 cursor-pointer shadow-xs"
                 >
                   {createLoading ? (
                     <>
@@ -328,23 +328,23 @@ export default function CoordinatorAnnouncementBar({ tripId, announcements = [],
       {/* 2. READ / VIEW ANNOUNCEMENTS MODAL (HISTORY INSIDE MODAL ONLY) */}
       {showReadModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-150">
-          <div className="w-full max-w-xl bg-[#131c31] border border-slate-800 rounded-2xl p-6 shadow-2xl text-white max-h-[90vh] flex flex-col">
+          <div className="w-full max-w-xl bg-white dark:bg-[#131c31] border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-2xl text-slate-900 dark:text-white max-h-[90vh] flex flex-col">
             {/* Modal Header */}
-            <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-800 shrink-0">
+            <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-200 dark:border-slate-800 shrink-0">
               <div className="flex items-center gap-2">
                 {selectedAnnouncement ? (
                   <button
                     type="button"
                     onClick={() => setSelectedAnnouncement(null)}
-                    className="mr-1 p-1 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
+                    className="mr-1 p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
                     title="Back to all announcements"
                   >
                     <FiArrowLeft className="w-5 h-5" />
                   </button>
                 ) : (
-                  <FiBell className="text-indigo-400" />
+                  <FiBell className="text-indigo-600 dark:text-indigo-400" />
                 )}
-                <h3 className="text-base font-bold text-white">
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">
                   {selectedAnnouncement ? "Announcement" : "Announcements"}
                 </h3>
               </div>
@@ -353,7 +353,7 @@ export default function CoordinatorAnnouncementBar({ tripId, announcements = [],
                   setShowReadModal(false);
                   setSelectedAnnouncement(null);
                 }}
-                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors"
+                className="text-slate-400 hover:text-slate-700 dark:hover:text-white p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
               >
                 <FiX className="w-5 h-5" />
               </button>
@@ -364,17 +364,17 @@ export default function CoordinatorAnnouncementBar({ tripId, announcements = [],
               {/* Detailed View of a Selected Announcement */}
               {selectedAnnouncement ? (
                 <div className="space-y-4">
-                  <div className="bg-[#0a101f] border border-slate-800 rounded-xl p-4">
-                    <p className="text-sm text-slate-200 leading-relaxed whitespace-pre-wrap">
+                  <div className="bg-slate-50 dark:bg-[#0a101f] border border-slate-200 dark:border-slate-800 rounded-xl p-4">
+                    <p className="text-sm text-slate-800 dark:text-slate-200 leading-relaxed whitespace-pre-wrap">
                       {selectedAnnouncement.message}
                     </p>
-                    <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
+                    <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-800/80 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
                       <span>Posted on {formatDate(selectedAnnouncement.createdAt)}</span>
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
                           onClick={() => handleOpenEdit(selectedAnnouncement)}
-                          className="flex items-center gap-1 px-2.5 py-1 text-indigo-400 hover:text-indigo-300 hover:bg-indigo-950/50 rounded-lg transition-colors font-semibold"
+                          className="flex items-center gap-1 px-2.5 py-1 text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 rounded-lg transition-colors font-semibold cursor-pointer"
                           title="Edit this announcement"
                         >
                           <FiEdit2 className="w-3.5 h-3.5" />
@@ -383,7 +383,7 @@ export default function CoordinatorAnnouncementBar({ tripId, announcements = [],
                         <button
                           type="button"
                           onClick={() => handleOpenDelete(selectedAnnouncement)}
-                          className="flex items-center gap-1 px-2.5 py-1 text-rose-400 hover:text-rose-300 hover:bg-rose-950/50 rounded-lg transition-colors font-semibold"
+                          className="flex items-center gap-1 px-2.5 py-1 text-rose-600 dark:text-rose-400 hover:text-rose-800 dark:hover:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg transition-colors font-semibold cursor-pointer"
                           title="Delete this announcement"
                         >
                           <FiTrash2 className="w-3.5 h-3.5" />
@@ -396,7 +396,7 @@ export default function CoordinatorAnnouncementBar({ tripId, announcements = [],
                   <button
                     type="button"
                     onClick={() => setSelectedAnnouncement(null)}
-                    className="text-xs text-indigo-400 hover:text-indigo-300 underline underline-offset-4 flex items-center gap-1"
+                    className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 underline underline-offset-4 flex items-center gap-1 cursor-pointer"
                   >
                     <FiArrowLeft className="w-3.5 h-3.5" />
                     Back to all announcements
@@ -406,23 +406,23 @@ export default function CoordinatorAnnouncementBar({ tripId, announcements = [],
                 <>
                   {/* Current / Latest Announcement */}
                   <div className="space-y-2">
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                       Current Announcement
                     </h4>
                     {latestAnnouncement ? (
-                      <div className="bg-[#0a101f] border border-indigo-900/40 rounded-xl p-4">
-                        <p className="text-sm text-slate-200 leading-relaxed whitespace-pre-wrap">
+                      <div className="bg-slate-50 dark:bg-[#0a101f] border border-indigo-200 dark:border-indigo-900/40 rounded-xl p-4">
+                        <p className="text-sm text-slate-800 dark:text-slate-200 leading-relaxed whitespace-pre-wrap">
                           {latestAnnouncement.message}
                         </p>
-                        <div className="mt-3 pt-3 border-t border-slate-800 flex items-center justify-between text-xs">
-                          <span className="text-indigo-300">
+                        <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
+                          <span className="text-indigo-600 dark:text-indigo-300">
                             Posted on {formatDate(latestAnnouncement.createdAt)}
                           </span>
                           <div className="flex items-center gap-2">
                             <button
                               type="button"
                               onClick={() => handleOpenEdit(latestAnnouncement)}
-                              className="p-1.5 text-indigo-400 hover:text-indigo-300 hover:bg-indigo-950/50 rounded-lg transition-colors"
+                              className="p-1.5 text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 rounded-lg transition-colors cursor-pointer"
                               title="Edit Current Announcement"
                             >
                               <FiEdit2 className="w-4 h-4" />
@@ -430,7 +430,7 @@ export default function CoordinatorAnnouncementBar({ tripId, announcements = [],
                             <button
                               type="button"
                               onClick={() => handleOpenDelete(latestAnnouncement)}
-                              className="p-1.5 text-rose-400 hover:text-rose-300 hover:bg-rose-950/50 rounded-lg transition-colors"
+                              className="p-1.5 text-rose-600 dark:text-rose-400 hover:text-rose-800 dark:hover:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg transition-colors cursor-pointer"
                               title="Delete Current Announcement"
                             >
                               <FiTrash2 className="w-4 h-4" />
@@ -444,8 +444,8 @@ export default function CoordinatorAnnouncementBar({ tripId, announcements = [],
                   </div>
 
                   {/* Previous Announcements */}
-                  <div className="space-y-2 pt-2 border-t border-slate-800">
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                  <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                       Previous Announcements
                     </h4>
                     {previousAnnouncements.length > 0 ? (
@@ -453,13 +453,13 @@ export default function CoordinatorAnnouncementBar({ tripId, announcements = [],
                         {previousAnnouncements.map((ann) => (
                           <div
                             key={ann._id}
-                            className="bg-[#0a101f]/60 hover:bg-[#0a101f] border border-slate-800 rounded-xl p-3 flex items-center justify-between gap-3 transition-colors"
+                            className="bg-slate-50 dark:bg-[#0a101f]/60 hover:bg-slate-100 dark:hover:bg-[#0a101f] border border-slate-200 dark:border-slate-800 rounded-xl p-3 flex items-center justify-between gap-3 transition-colors"
                           >
                             <div className="min-w-0 flex-1">
-                              <span className="text-xs font-semibold text-slate-300 block">
+                              <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 block">
                                 {formatDate(ann.createdAt)}
                               </span>
-                              <p className="text-xs text-slate-400 truncate mt-0.5">
+                              <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">
                                 {ann.message}
                               </p>
                             </div>
@@ -467,14 +467,14 @@ export default function CoordinatorAnnouncementBar({ tripId, announcements = [],
                               <button
                                 type="button"
                                 onClick={() => setSelectedAnnouncement(ann)}
-                                className="px-2.5 py-1 text-xs font-semibold text-indigo-400 hover:text-indigo-300 bg-indigo-950/30 hover:bg-indigo-950/60 rounded-lg transition-colors"
+                                className="px-2.5 py-1 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/30 hover:bg-indigo-100 dark:hover:bg-indigo-950/60 rounded-lg transition-colors cursor-pointer"
                               >
                                 View →
                               </button>
                               <button
                                 type="button"
                                 onClick={() => handleOpenEdit(ann)}
-                                className="p-1.5 text-slate-400 hover:text-indigo-400 hover:bg-slate-800 rounded-lg transition-colors"
+                                className="p-1.5 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
                                 title="Edit"
                               >
                                 <FiEdit2 className="w-3.5 h-3.5" />
@@ -482,7 +482,7 @@ export default function CoordinatorAnnouncementBar({ tripId, announcements = [],
                               <button
                                 type="button"
                                 onClick={() => handleOpenDelete(ann)}
-                                className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition-colors"
+                                className="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
                                 title="Delete"
                               >
                                 <FiTrash2 className="w-3.5 h-3.5" />
@@ -507,10 +507,10 @@ export default function CoordinatorAnnouncementBar({ tripId, announcements = [],
       {/* 3. EDIT ANNOUNCEMENT MODAL */}
       {editingAnnouncement && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-150">
-          <div className="w-full max-w-lg bg-[#131c31] border border-slate-800 rounded-2xl p-6 shadow-2xl text-white">
-            <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-800">
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <FiEdit2 className="text-indigo-400" />
+          <div className="w-full max-w-lg bg-white dark:bg-[#131c31] border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-2xl text-slate-900 dark:text-white">
+            <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-200 dark:border-slate-800">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <FiEdit2 className="text-indigo-600 dark:text-indigo-400" />
                 Edit Announcement
               </h3>
               <button
@@ -518,7 +518,7 @@ export default function CoordinatorAnnouncementBar({ tripId, announcements = [],
                   setEditingAnnouncement(null);
                   setEditMessage("");
                 }}
-                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors"
+                className="text-slate-400 hover:text-slate-700 dark:hover:text-white p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
               >
                 <FiX className="w-5 h-5" />
               </button>
@@ -526,7 +526,7 @@ export default function CoordinatorAnnouncementBar({ tripId, announcements = [],
 
             <form onSubmit={handleEditSubmit}>
               <div className="mb-5">
-                <label className="block text-xs font-semibold text-slate-300 mb-2 uppercase tracking-wider">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-wider">
                   Announcement
                 </label>
                 <textarea
@@ -535,7 +535,7 @@ export default function CoordinatorAnnouncementBar({ tripId, announcements = [],
                   value={editMessage}
                   onChange={(e) => setEditMessage(e.target.value)}
                   placeholder="Existing announcement text..."
-                  className="w-full bg-[#0a101f] border border-slate-700 rounded-xl p-3.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all resize-none"
+                  className="w-full bg-slate-50 dark:bg-[#0a101f] border border-slate-200 dark:border-slate-700 rounded-xl p-3.5 text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all resize-none"
                   required
                   autoFocus
                 />
@@ -549,14 +549,14 @@ export default function CoordinatorAnnouncementBar({ tripId, announcements = [],
                     setEditMessage("");
                   }}
                   disabled={editLoading}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={editLoading || !editMessage.trim()}
-                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-colors disabled:opacity-50 flex items-center gap-2"
+                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-colors disabled:opacity-50 flex items-center gap-2 cursor-pointer shadow-xs"
                 >
                   {editLoading ? (
                     <>
@@ -576,25 +576,25 @@ export default function CoordinatorAnnouncementBar({ tripId, announcements = [],
       {/* 4. DELETE ANNOUNCEMENT CONFIRMATION MODAL */}
       {deletingAnnouncement && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-150">
-          <div className="w-full max-w-md bg-[#131c31] border border-slate-800 rounded-2xl p-6 shadow-2xl text-white">
-            <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-800">
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <FiTrash2 className="text-rose-400" />
+          <div className="w-full max-w-md bg-white dark:bg-[#131c31] border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-2xl text-slate-900 dark:text-white">
+            <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-200 dark:border-slate-800">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <FiTrash2 className="text-rose-500" />
                 Delete Announcement
               </h3>
               <button
                 onClick={() => setDeletingAnnouncement(null)}
-                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors"
+                className="text-slate-400 hover:text-slate-700 dark:hover:text-white p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
               >
                 <FiX className="w-5 h-5" />
               </button>
             </div>
 
             <div className="space-y-3 mb-6">
-              <p className="text-sm text-slate-300">
+              <p className="text-sm text-slate-600 dark:text-slate-300">
                 Are you sure you want to delete this announcement?
               </p>
-              <div className="bg-[#0a101f] border border-slate-800 rounded-xl p-3 text-xs text-slate-400 italic line-clamp-3">
+              <div className="bg-slate-50 dark:bg-[#0a101f] border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-xs text-slate-600 dark:text-slate-400 italic line-clamp-3">
                 "{deletingAnnouncement.message}"
               </div>
             </div>
@@ -604,7 +604,7 @@ export default function CoordinatorAnnouncementBar({ tripId, announcements = [],
                 type="button"
                 onClick={() => setDeletingAnnouncement(null)}
                 disabled={deleteLoading}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
               >
                 Cancel
               </button>
@@ -612,7 +612,7 @@ export default function CoordinatorAnnouncementBar({ tripId, announcements = [],
                 type="button"
                 onClick={handleDeleteConfirm}
                 disabled={deleteLoading}
-                className="px-5 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-bold transition-colors disabled:opacity-50 flex items-center gap-2"
+                className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-colors disabled:opacity-50 flex items-center gap-2 cursor-pointer shadow-xs"
               >
                 {deleteLoading ? (
                   <>

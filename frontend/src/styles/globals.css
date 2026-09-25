@@ -315,3 +315,10 @@ html.dark .hero-gradient-text .hero-char {
 .animate-fadeIn {
   animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
+
+/* Keyless High-Contrast Dark Map Tile Filter */
+.leaflet-tile-dark,
+.leaflet-tile-dark img,
+img.leaflet-tile-dark {
+  filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
+}

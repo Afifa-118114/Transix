@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#431407" />
+      <stop offset="40%" stop-color="#7c2d12" />
+      <stop offset="70%" stop-color="#c2410c" />
+      <stop offset="100%" stop-color="#ea580c" />
+    </linearGradient>
+    <linearGradient id="lanternGlow" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#fef08a" stop-opacity="0.9" />
+      <stop offset="100%" stop-color="#f97316" stop-opacity="0.2" />
+    </linearGradient>
+    <radialGradient id="sunGlow" cx="50%" cy="30%" r="50%">
+      <stop offset="0%" stop-color="#fbbf24" stop-opacity="0.6" />
+      <stop offset="100%" stop-color="#7c2d12" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="800" height="600" fill="url(#bgGrad)" />
+  <circle cx="400" cy="180" r="300" fill="url(#sunGlow)" />
+
+  <!-- Decorative Bazaar Arch Canopy -->
+  <path d="M 0 0 L 800 0 L 800 140 Q 600 220 400 130 Q 200 220 0 140 Z" fill="#292524" opacity="0.85" />
+  <path d="M 0 0 L 800 0 L 800 100 Q 600 170 400 90 Q 200 170 0 100 Z" fill="#44403c" opacity="0.6" />
+
+  <!-- Hanging Bazaar Lanterns -->
+  <g>
+    <!-- Left Lantern -->
+    <line x1="200" y1="0" x2="200" y2="150" stroke="#f59e0b" stroke-width="2.5" />
+    <path d="M 175 150 L 225 150 L 210 200 L 190 200 Z" fill="#b45309" />
+    <ellipse cx="200" cy="175" rx="35" ry="40" fill="url(#lanternGlow)" />
+    <circle cx="200" cy="175" r="14" fill="#fef08a" opacity="0.9" />
+    <line x1="200" y1="215" x2="200" y2="240" stroke="#f59e0b" stroke-width="2" />
+
+    <!-- Center Lantern -->
+    <line x1="400" y1="0" x2="400" y2="120" stroke="#f59e0b" stroke-width="3" />
+    <path d="M 370 120 L 430 120 L 415 180 L 385 180 Z" fill="#b45309" />
+    <ellipse cx="400" cy="150" rx="45" ry="50" fill="url(#lanternGlow)" />
+    <circle cx="400" cy="150" r="18" fill="#fef08a" opacity="0.9" />
+    <line x1="400" y1="200" x2="400" y2="230" stroke="#f59e0b" stroke-width="2" />
+
+    <!-- Right Lantern -->
+    <line x1="600" y1="0" x2="600" y2="150" stroke="#f59e0b" stroke-width="2.5" />
+    <path d="M 575 150 L 625 150 L 610 200 L 590 200 Z" fill="#b45309" />
+    <ellipse cx="600" cy="175" rx="35" ry="40" fill="url(#lanternGlow)" />
+    <circle cx="600" cy="175" r="14" fill="#fef08a" opacity="0.9" />
+    <line x1="600" y1="215" x2="600" y2="240" stroke="#f59e0b" stroke-width="2" />
+  </g>
+
+  <!-- Market Stalls Silhouette Layer -->
+  <g fill="#1c1917" opacity="0.95">
+    <rect x="60" y="340" width="200" height="260" rx="8" />
+    <polygon points="40,340 160,260 280,340" fill="#9a3412" />
+    
+    <rect x="300" y="310" width="200" height="290" rx="8" />
+    <polygon points="280,310 400,230 520,310" fill="#c2410c" />
+
+    <rect x="540" y="340" width="200" height="260" rx="8" />
+    <polygon points="520,340 640,260 760,340" fill="#9a3412" />
+  </g>
+
+  <!-- Shopping Bags & Artisan Display -->
+  <g transform="translate(320, 360)">
+    <!-- Bag 1 -->
+    <rect x="25" y="50" width="90" height="110" rx="10" fill="#ea580c" stroke="#fed7aa" stroke-width="3" />
+    <path d="M 50 50 Q 70 10 90 50" fill="none" stroke="#fed7aa" stroke-width="4" stroke-linecap="round" />
+    <path d="M 40 85 L 100 85 M 40 105 L 85 105" stroke="#fef08a" stroke-width="3" stroke-linecap="round" opacity="0.8" />
+
+    <!-- Bag 2 -->
+    <rect x="85" y="80" width="80" height="95" rx="8" fill="#ca8a04" stroke="#fef08a" stroke-width="3" />
+    <path d="M 105 80 Q 125 45 145 80" fill="none" stroke="#fef08a" stroke-width="4" stroke-linecap="round" />
+  </g>
+
+  <!-- Banner Card Label -->
+  <rect x="250" y="510" width="300" height="52" rx="26" fill="#0c0a09" opacity="0.8" stroke="#f59e0b" stroke-width="1.5" />
+  <text x="400" y="542" font-family="'Outfit', 'Inter', system-ui, sans-serif" font-size="20" font-weight="800" fill="#fed7aa" text-anchor="middle" letter-spacing="2">
+    LOCAL BAZAAR &amp; SHOPPING
+  </text>
+</svg>

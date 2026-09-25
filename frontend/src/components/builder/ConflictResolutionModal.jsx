@@ -88,15 +88,15 @@ export default function ConflictResolutionModal({ pendingAlternatives, onApply, 
             {/* POSSIBLE ALTERNATIVES */}
             {freeSlots.length > 0 && (
               <section>
-                <h4 className="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                <h4 className="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
                   Possible Alternatives
                 </h4>
                 <div className="space-y-3">
                   {freeSlots.map((alt, idx) => {
                     const action = alt.actions[0];
                     return (
-                      <div key={idx} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-zinc-800/40 rounded-xl p-4 border border-emerald-500/20 hover:border-emerald-500/40 transition-colors">
+                      <div key={idx} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-zinc-800/40 rounded-xl p-4 border border-indigo-500/20 hover:border-indigo-500/40 transition-colors">
                         <div>
                           <p className="text-sm text-white font-medium mb-1">Option {idx + 1}</p>
                           <div className="flex items-center gap-3 text-xs text-zinc-400">
@@ -106,7 +106,7 @@ export default function ConflictResolutionModal({ pendingAlternatives, onApply, 
                         </div>
                         <button
                           onClick={() => onApply(alt)}
-                          className="px-5 py-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-colors whitespace-nowrap"
+                          className="px-5 py-2 text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-colors whitespace-nowrap"
                         >
                           Apply
                         </button>

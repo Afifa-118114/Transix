@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="100%" height="100%">
+  <defs>
+    <linearGradient id="relaxSunset" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1e1b4b" />
+      <stop offset="35%" stop-color="#4338ca" />
+      <stop offset="65%" stop-color="#be185d" />
+      <stop offset="85%" stop-color="#f97316" />
+      <stop offset="100%" stop-color="#fde047" />
+    </linearGradient>
+    <radialGradient id="sunDisk" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="50%" stop-color="#fef08a" />
+      <stop offset="100%" stop-color="#f97316" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+
+  <!-- Twilight Sky Background -->
+  <rect width="800" height="600" fill="url(#relaxSunset)" />
+
+  <!-- Sunset Glowing Sun -->
+  <circle cx="400" cy="380" r="140" fill="url(#sunDisk)" />
+  <circle cx="400" cy="380" r="60" fill="#ffffff" opacity="0.9" />
+
+  <!-- Calm Horizon Waves -->
+  <rect x="0" y="420" width="800" height="180" fill="#0f172a" opacity="0.85" />
+  <path d="M 0 420 Q 200 415 400 420 T 800 420 L 800 435 L 0 435 Z" fill="#fde047" opacity="0.4" />
+  <path d="M 0 440 Q 250 435 500 440 T 800 440 L 800 448 L 0 448 Z" fill="#fb923c" opacity="0.3" />
+
+  <!-- Shoreline Promenade Silhouette -->
+  <path d="M 0 480 Q 300 460 800 500 L 800 600 L 0 600 Z" fill="#090d16" />
+
+  <!-- Elegant Coconut Palm Silhouettes -->
+  <!-- Left Palms -->
+  <g fill="#090d16">
+    <path d="M 70 600 Q 110 400 90 230 Q 80 400 60 600 Z" />
+    <!-- Fronds -->
+    <path d="M 90 230 Q 20 180 -20 220 Q 30 200 90 230" stroke="#090d16" stroke-width="4" />
+    <path d="M 90 230 Q 30 140 10 130 Q 50 160 90 230" stroke="#090d16" stroke-width="4" />
+    <path d="M 90 230 Q 120 120 130 90 Q 115 150 90 230" stroke="#090d16" stroke-width="4" />
+    <path d="M 90 230 Q 180 140 220 170 Q 160 180 90 230" stroke="#090d16" stroke-width="4" />
+    <path d="M 90 230 Q 180 230 230 290 Q 160 250 90 230" stroke="#090d16" stroke-width="4" />
+  </g>
+
+  <!-- Right Palms -->
+  <g fill="#090d16">
+    <path d="M 740 600 Q 700 380 720 210 Q 725 380 750 600 Z" />
+    <!-- Fronds -->
+    <path d="M 720 210 Q 790 160 830 200 Q 780 180 720 210" stroke="#090d16" stroke-width="4" />
+    <path d="M 720 210 Q 780 120 800 110 Q 760 140 720 210" stroke="#090d16" stroke-width="4" />
+    <path d="M 720 210 Q 690 100 680 70 Q 695 130 720 210" stroke="#090d16" stroke-width="4" />
+    <path d="M 720 210 Q 630 120 590 150 Q 650 160 720 210" stroke="#090d16" stroke-width="4" />
+  </g>
+
+  <!-- Relaxing Hammock / Silhouette Accent -->
+  <g stroke="#f43f5e" stroke-width="2" fill="none" opacity="0.7">
+    <circle cx="380" cy="180" r="1.5" fill="#ffffff" />
+    <circle cx="450" cy="140" r="2" fill="#ffffff" />
+    <circle cx="280" cy="120" r="1.5" fill="#ffffff" />
+    <circle cx="520" cy="110" r="2" fill="#ffffff" />
+  </g>
+
+  <!-- Banner Card Label -->
+  <rect x="250" y="510" width="300" height="52" rx="26" fill="#030712" opacity="0.85" stroke="#f472b6" stroke-width="1.5" />
+  <text x="400" y="542" font-family="'Outfit', 'Inter', system-ui, sans-serif" font-size="20" font-weight="800" fill="#fbcfe8" text-anchor="middle" letter-spacing="2">
+    LEISURE, WALK &amp; RELAXATION
+  </text>
+</svg>

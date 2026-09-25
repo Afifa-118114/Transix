@@ -1,22 +1,48 @@
-import { useLocation, useParams, Link, Navigate } from "react-router-dom";
-import { useState, useEffect } from "react";
-import { FiCompass, FiPlus, FiRefreshCw } from "react-icons/fi";
+import { useLocation, useParams, Link, useNavigate } from "react-router-dom";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import {
+  FiCompass,
+  FiPlus,
+  FiRefreshCw,
+  FiArrowLeft,
+  FiArrowRight,
+  FiCalendar,
+  FiUsers,
+  FiDownload,
+  FiLayers,
+  FiShare2,
+  FiMap,
+  FiList,
+  FiGrid,
+  FiHome,
+  FiMapPin,
+  FiAlertTriangle,
+  FiEye,
+  FiEyeOff,
+  FiColumns,
+  FiRotateCcw,
+} from "react-icons/fi";
+import { FaTrainSubway, FaPlaneDeparture, FaBus, FaCar, FaRupeeSign } from "react-icons/fa6";
 import toast from "react-hot-toast";
 import DashboardLayout from "../layouts/DashboardLayout";
 import { useTripBuilder } from "../context/TripBuilderContext";
 import { useAuth } from "../context/AuthContext";
-import ItineraryHero from "../components/itinerary/ItineraryHero";
 import StayPlan from "../components/itinerary/StayPlan";
 import TransportDetails from "../components/itinerary/TransportDetails";
 import DayTabs from "../components/itinerary/DayTabs";
 import Timeline from "../components/itinerary/Timeline";
 import BottomNav from "../components/itinerary/BottomNav";
+import ItineraryMap from "../components/itinerary/ItineraryMap";
 import { getTripById, regenerateDay } from "../api/tripApi";
 import { generateTripItineraryPdf } from "../utils/itineraryPdfGenerator";
+import { formatBudget, getDuration, formatDate } from "../utils/formatTrip";
+import { resolveJourneyLocations } from "../utils/itineraryLocationHelper";
+import { SAMPLE_TRIPS } from "../data/sampleTripsData";
 
 export default function DetailedItinerary() {
   const { tripId } = useParams();
   const { state } = useLocation();
+  const navigate = useNavigate();
   const { token, user } = useAuth();
   const {
     trip: contextTrip,
@@ -37,13 +63,150 @@ export default function DetailedItinerary() {
   const [fetchingTrip, setFetchingTrip] = useState(!initialTrip && Boolean(tripId));
   const [authError, setAuthError] = useState(null);
 
-  const trip = fetchedTrip || initialTrip;
+  // Fallback to sample trip if ID matches
+  const trip =
+    fetchedTrip ||
+    initialTrip ||
+    (tripId ? SAMPLE_TRIPS.find((s) => s.id === tripId || s._id === tripId) : null);
+
   const initialDay = state?.dayIndex ?? 0;
   const viewOnly = state?.viewOnly === true;
+
+  // Selected Day state: "all" or 0, 1, 2...
+  const [selectedDay, setSelectedDay] = useState(initialDay);
+  const [itinerary, setItinerary] = useState(trip?.itinerary || []);
+  const [regenerating, setRegenerating] = useState(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+
+  // Map & Location Resolution State
+  const [locationData, setLocationData] = useState({
+    allLocations: [],
+    mappableLocations: [],
+    locationsByDay: {},
+    dayPolylines: {},
+    allDaysPolyline: [],
+    unmappableCount: 0,
+    mappableCount: 0,
+    categoryCounts: { attraction: 0, hotel: 0, transport: 0, start_end: 0, activity: 0 },
+  });
+  const [mapLoading, setMapLoading] = useState(true);
+  const [selectedLocationId, setSelectedLocationId] = useState(null);
+
+  // Responsive view mode for tablet/mobile: "split" | "map" | "itinerary"
+  const [viewMode, setViewMode] = useState("split");
+
+  // Adjustable Resizable & Toggleable Panels State
+  const [showMapPanel, setShowMapPanel] = useState(true);
+  const [showItineraryPanel, setShowItineraryPanel] = useState(true);
+  const [mapWidthPercent, setMapWidthPercent] = useState(55);
+  const [isDragging, setIsDragging] = useState(false);
+  const [activeSpecialTab, setActiveSpecialTab] = useState(null);
+
+  const splitContainerRef = useRef(null);
+  const itineraryScrollRef = useRef(null);
+  const stayPlanRef = useRef(null);
+  const transportPlanRef = useRef(null);
+
+  // Divider dragging logic with min/max clamp
+  const handlePointerDown = (e) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const handlePointerMove = (e) => {
+      if (!splitContainerRef.current) return;
+      const rect = splitContainerRef.current.getBoundingClientRect();
+      const rawPercent = ((e.clientX - rect.left) / rect.width) * 100;
+      // Clamp between 25% and 75%
+      const clamped = Math.max(25, Math.min(75, Math.round(rawPercent)));
+      setMapWidthPercent(clamped);
+    };
+
+    const handlePointerUp = () => {
+      setIsDragging(false);
+      setTimeout(() => {
+        window.dispatchEvent(new Event("resize"));
+      }, 50);
+    };
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+    };
+  }, [isDragging]);
+
+  // Trigger Leaflet resize event when panels toggle or resize
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      window.dispatchEvent(new Event("resize"));
+    }, 120);
+    return () => clearTimeout(timer);
+  }, [showMapPanel, showItineraryPanel, mapWidthPercent]);
+
+  // Scroll to Stay Plan Section
+  const handleScrollToStayPlan = () => {
+    setActiveSpecialTab("stay");
+    if (!showItineraryPanel) setShowItineraryPanel(true);
+    setTimeout(() => {
+      const el = document.getElementById("stay-plan-section");
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }, 60);
+  };
+
+  // Scroll to Transport Details Section
+  const handleScrollToTransportPlan = () => {
+    setActiveSpecialTab("transport");
+    if (!showItineraryPanel) setShowItineraryPanel(true);
+    setTimeout(() => {
+      const el = document.getElementById("transport-details-section");
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }, 60);
+  };
+
+  // Handle Day Selection from Tabs or Map Labels
+  const handleSelectDayTab = (day) => {
+    setActiveSpecialTab(null);
+    setSelectedLocationId(null);
+    setSelectedDay(day);
+    if (!showItineraryPanel) setShowItineraryPanel(true);
+    setTimeout(() => {
+      if (day === "all") {
+        if (itineraryScrollRef.current) {
+          itineraryScrollRef.current.scrollTo({ top: 0, behavior: "smooth" });
+        }
+      } else {
+        const dayNum = typeof day === "number" ? day + 1 : Number(day) + 1;
+        const el = document.getElementById(`day-section-${dayNum}`);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "start" });
+        } else if (itineraryScrollRef.current) {
+          itineraryScrollRef.current.scrollTo({ top: 0, behavior: "smooth" });
+        }
+      }
+    }, 80);
+  };
 
   // Fallback direct trip fetch if landing directly or reloading without context/state
   useEffect(() => {
     if (!initialTrip && tripId) {
+      // Check if it is a sample trip first
+      const sampleMatch = SAMPLE_TRIPS.find((s) => s.id === tripId || s._id === tripId);
+      if (sampleMatch) {
+        setFetchedTrip(sampleMatch);
+        setFetchingTrip(false);
+        return;
+      }
+
       let isMounted = true;
       setFetchingTrip(true);
       setAuthError(null);
@@ -76,7 +239,6 @@ export default function DetailedItinerary() {
                 if (isMounted && pData?.success && pData?.trip) {
                   setFetchedTrip(pData.trip);
                 } else if (isMounted) {
-                  // Final attempt with getTripById
                   getTripById(tripId, authToken)
                     .then((res) => {
                       if (isMounted && res?.trip) setFetchedTrip(res.trip);
@@ -101,24 +263,189 @@ export default function DetailedItinerary() {
     }
   }, [initialTrip, tripId, token]);
 
-  const [selectedDay, setSelectedDay] = useState(initialDay);
-  const [itinerary, setItinerary] = useState(trip?.itinerary || []);
-  const [regenerating, setRegenerating] = useState(false);
-  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
-
-  // Synchronize local itinerary state whenever the canonical trip changes
+  // Synchronize local itinerary state whenever canonical trip changes
   useEffect(() => {
     if (trip?.itinerary) {
       setItinerary(trip.itinerary);
     }
   }, [trip?.itinerary]);
 
+  // Geocode and resolve all journey locations on trip load
+  useEffect(() => {
+    if (!trip) return;
+
+    let isMounted = true;
+    async function loadMapCoordinates() {
+      setMapLoading(true);
+      try {
+        const resolved = await resolveJourneyLocations(trip);
+        if (isMounted) {
+          setLocationData(resolved);
+        }
+      } catch (err) {
+        console.error("Failed to resolve journey locations:", err);
+      } finally {
+        if (isMounted) setMapLoading(false);
+      }
+    }
+
+    loadMapCoordinates();
+    return () => {
+      isMounted = false;
+    };
+  }, [trip]);
+
+  // Helper to calculate accommodations for any specific day
+  const getAccommodationsForDay = useCallback(
+    (dayIdx) => {
+      const accommodations = [];
+      if (trip?.staySegments?.length > 0 && trip?.startDate) {
+        const tripStart = new Date(trip.startDate);
+        tripStart.setHours(0, 0, 0, 0);
+        const currentDateMs = tripStart.getTime() + dayIdx * 86400000;
+
+        trip.staySegments.forEach((segment) => {
+          if (!segment.selectedHotel) return;
+          const checkInMs = new Date(segment.checkIn).setHours(0, 0, 0, 0);
+          const checkOutMs = new Date(segment.checkOut).setHours(0, 0, 0, 0);
+
+          if (currentDateMs >= checkInMs && currentDateMs <= checkOutMs) {
+            let status = "Staying at";
+            let dayOfStay = Math.round((currentDateMs - checkInMs) / 86400000) + 1;
+
+            if (currentDateMs === checkInMs) {
+              status = "Check-in";
+            } else if (currentDateMs === checkOutMs) {
+              status = "Check-out";
+            } else {
+              status = `Night ${dayOfStay} of ${segment.nights}`;
+            }
+
+            accommodations.push({
+              ...segment.selectedHotel,
+              segmentLocation: segment.location,
+              nights: segment.nights,
+              status,
+            });
+          }
+        });
+      }
+      return accommodations;
+    },
+    [trip?.staySegments, trip?.startDate]
+  );
+
+  // Sync: Selecting a marker on the map highlights and scrolls to itinerary activity
+  const handleSelectMapLocation = useCallback(
+    (location) => {
+      setSelectedLocationId(location.id);
+
+      // If marker is on another day and we are in individual day mode, switch day
+      if (
+        typeof location.day === "number" &&
+        location.day > 0 &&
+        selectedDay !== "all" &&
+        selectedDay !== location.day - 1
+      ) {
+        setSelectedDay(location.day - 1);
+      }
+
+      // Smooth scroll to corresponding itinerary item
+      setTimeout(() => {
+        const el = document.getElementById(`itinerary-item-${location.id}`);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }, 120);
+    },
+    [selectedDay]
+  );
+
+  // Sync: Clicking an activity in the itinerary focuses the marker on the map
+  const handleSelectItineraryActivity = useCallback(
+    (activity, activityId, mapLocation) => {
+      if (mapLocation && mapLocation.coordinates) {
+        setSelectedLocationId(mapLocation.id);
+      } else {
+        setSelectedLocationId(activityId);
+        toast("No verified map pin for this activity", {
+          icon: "📍",
+          duration: 2500,
+        });
+      }
+    },
+    []
+  );
+
+  // Focus action from map popup
+  const handleViewInItinerary = useCallback(
+    (location) => {
+      if (
+        typeof location.day === "number" &&
+        location.day > 0 &&
+        selectedDay !== "all" &&
+        selectedDay !== location.day - 1
+      ) {
+        setSelectedDay(location.day - 1);
+      }
+
+      setTimeout(() => {
+        const el = document.getElementById(`itinerary-item-${location.id}`);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }, 120);
+    },
+    [selectedDay]
+  );
+
+  const handleShare = () => {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(window.location.href);
+      toast.success("Itinerary link copied to clipboard!");
+    }
+  };
+
+  const handleDownloadPdf = async () => {
+    try {
+      setIsGeneratingPdf(true);
+      await generateTripItineraryPdf(trip);
+    } catch (err) {
+      console.error("Failed to generate PDF:", err);
+      toast.error("Could not generate PDF. Please try again.");
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
+  const handleRegenerate = async () => {
+    if (!trip?._id || selectedDay === "all") return;
+    try {
+      setRegenerating(true);
+      const authToken = token || localStorage.getItem("token");
+      const res = await regenerateDay(trip._id, selectedDay + 1, authToken);
+
+      const updated = [...itinerary];
+      updated[selectedDay] = res.day;
+
+      setItinerary(updated);
+      toast.success(`Day ${selectedDay + 1} regenerated with AI!`);
+    } catch (err) {
+      console.error(err);
+      toast.error("Could not regenerate this day.");
+    } finally {
+      setRegenerating(false);
+    }
+  };
+
   if (fetchingTrip) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f8faff] dark:bg-[#0b0f19]">
         <div className="flex flex-col items-center gap-3">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Loading itinerary details...</p>
+          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+            Loading itinerary and map details...
+          </p>
         </div>
       </div>
     );
@@ -186,7 +513,7 @@ export default function DetailedItinerary() {
       }
     })();
 
-  const isCampus = trip?.tripCategory === "CAMPUS";
+  const isCampus = trip?.tripCategory === "CAMPUS" || Boolean(trip?.campusConfig?.expectedParticipants);
   const isOperator = currentUser?.role === "operator" || localStorage.getItem("role") === "operator";
 
   const coordinatorId = trip?.coordinatorId?._id?.toString() || trip?.coordinatorId?.toString();
@@ -202,86 +529,242 @@ export default function DetailedItinerary() {
       currentUser?.role === "coordinator");
 
   const canViewStayPlan = !isOperator || isCoordinator;
-  const currentDay = itinerary[selectedDay] || itinerary[0] || { plan: [] };
 
-  // Calculate accommodation context for the current day
-  const accommodationsToday = [];
-  if (trip?.staySegments?.length > 0 && trip?.startDate) {
-    const tripStart = new Date(trip.startDate);
-    tripStart.setHours(0, 0, 0, 0);
-    const currentDateMs = tripStart.getTime() + selectedDay * 86400000;
-
-    trip.staySegments.forEach((segment) => {
-      if (!segment.selectedHotel) return;
-      const checkInMs = new Date(segment.checkIn).setHours(0, 0, 0, 0);
-      const checkOutMs = new Date(segment.checkOut).setHours(0, 0, 0, 0);
-
-      if (currentDateMs >= checkInMs && currentDateMs <= checkOutMs) {
-        let status = "Staying at";
-        let dayOfStay = Math.round((currentDateMs - checkInMs) / 86400000) + 1;
-
-        if (currentDateMs === checkInMs) {
-          status = "Check-in";
-        } else if (currentDateMs === checkOutMs) {
-          status = "Check-out";
-        } else {
-          status = `Night ${dayOfStay} of ${segment.nights}`;
-        }
-
-        accommodationsToday.push({
-          ...segment.selectedHotel,
-          segmentLocation: segment.location,
-          nights: segment.nights,
-          status,
-        });
-      }
-    });
-  }
-
-  const handleRegenerate = async () => {
-    if (!trip?._id) return;
-    try {
-      setRegenerating(true);
-      const authToken = token || localStorage.getItem("token");
-      const res = await regenerateDay(trip._id, selectedDay + 1, authToken);
-
-      const updated = [...itinerary];
-      updated[selectedDay] = res.day;
-
-      setItinerary(updated);
-      toast.success(`Day ${selectedDay + 1} regenerated with AI!`);
-    } catch (err) {
-      console.error(err);
-      toast.error("Could not regenerate this day.");
-    } finally {
-      setRegenerating(false);
+  // Transit mode icon helper
+  const getTransitIcon = (mode) => {
+    switch (mode?.toLowerCase()) {
+      case "flight":
+        return <FaPlaneDeparture className="text-xs" />;
+      case "bus":
+        return <FaBus className="text-xs" />;
+      case "car":
+        return <FaCar className="text-xs" />;
+      case "train":
+      default:
+        return <FaTrainSubway className="text-xs" />;
     }
   };
 
-  const handleDownloadPdf = async () => {
-    try {
-      setIsGeneratingPdf(true);
-      await generateTripItineraryPdf(trip);
-    } catch (err) {
-      console.error("Failed to generate PDF:", err);
-      toast.error("Could not generate PDF. Please try again.");
-    } finally {
-      setIsGeneratingPdf(false);
-    }
-  };
+  const durationText =
+    getDuration(trip) ||
+    (trip?.duration
+      ? typeof trip.duration === "number"
+        ? `${trip.duration} Days`
+        : trip.duration
+      : `${trip?.itinerary?.length || 5} Days`);
 
+  const budgetVal = trip?.campusConfig?.budgetPerStudent || trip?.budget;
+  const budgetText = budgetVal ? formatBudget(budgetVal) : null;
+  const travelersCount =
+    trip?.campusConfig?.expectedParticipants ||
+    trip?.registrationSettings?.capacity ||
+    trip?.travelers ||
+    2;
+
+  // Content of the Interactive Itinerary Page
   const itineraryContent = (
-    <div className="mx-auto flex max-w-6xl flex-col items-center px-4 sm:px-6 py-6 sm:py-8 gap-6">
-      {/* 1. Trip Summary Hero with Download Itinerary */}
-      <ItineraryHero
-        trip={trip}
-        onDownloadPdf={handleDownloadPdf}
-        isGeneratingPdf={isGeneratingPdf}
-      />
+    <div className="flex flex-col gap-4 w-full max-w-[1700px] mx-auto px-3 sm:px-6 py-4">
+      {/* ================= 1. UNIFIED JOURNEY TOP BAR ================= */}
+      <header className="w-full rounded-2xl border border-slate-200/90 dark:border-slate-800/90 bg-white dark:bg-[#131b2e] p-4 sm:p-5 shadow-xs transition-colors">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800/80 pb-3.5">
+          {/* Back & Breadcrumb */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate(-1)}
+              className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-400 transition hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer"
+            >
+              <FiArrowLeft className="text-xs" />
+              <span>Back</span>
+            </button>
+            <span className="text-slate-300 dark:text-slate-700">|</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/60 px-2 py-0.5 rounded-md">
+              Interactive Itinerary Map
+            </span>
+          </div>
 
-      {/* 2. Conflict Section — ONLY when 1+ conflicts exist */}
+          {/* Action Buttons */}
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={handleShare}
+              className="flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 px-3 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer shadow-2xs"
+            >
+              <FiShare2 className="text-xs" />
+              <span>Share</span>
+            </button>
+
+            <button
+              onClick={handleDownloadPdf}
+              disabled={isGeneratingPdf}
+              id="download-itinerary-pdf-btn"
+              className="flex items-center gap-2 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-xl text-xs font-bold shadow-xs transition cursor-pointer"
+            >
+              {isGeneratingPdf ? (
+                <>
+                  <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>Generating PDF...</span>
+                </>
+              ) : (
+                <>
+                  <FiDownload className="text-xs" />
+                  <span>Download PDF</span>
+                </>
+              )}
+            </button>
+
+            {!viewOnly && (
+              <Link
+                to="/builder"
+                className="flex items-center gap-1.5 rounded-xl bg-slate-900 dark:bg-indigo-600 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-slate-800 dark:hover:bg-indigo-700 transition shadow-xs"
+              >
+                <FiLayers className="text-xs" />
+                <span>Customize in Builder</span>
+              </Link>
+            )}
+          </div>
+        </div>
+
+        {/* Journey Name & Route */}
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+              <h1 className="text-xl sm:text-2xl font-black capitalize text-slate-900 dark:text-white">
+                {trip?.title || trip?.source || "Origin"}
+              </h1>
+              {trip?.destination && (
+                <>
+                  <FiArrowRight className="text-lg text-indigo-600 dark:text-indigo-400" />
+                  <h1 className="text-xl sm:text-2xl font-black capitalize text-indigo-600 dark:text-indigo-400">
+                    {trip?.destination}
+                  </h1>
+                </>
+              )}
+            </div>
+
+            {/* Metadata Strip */}
+            <div className="mt-1.5 flex flex-wrap items-center gap-3 sm:gap-4 text-xs font-semibold text-slate-500 dark:text-slate-400">
+              {trip?.startDate && trip?.endDate && (
+                <div className="flex items-center gap-1.5">
+                  <FiCalendar className="text-indigo-600 dark:text-indigo-400" />
+                  <span>
+                    {formatDate(trip.startDate)} – {formatDate(trip.endDate)}
+                  </span>
+                </div>
+              )}
+
+              {durationText && (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-slate-300 dark:text-slate-700">•</span>
+                  <span>{durationText}</span>
+                </div>
+              )}
+
+              {budgetText && (
+                <div className="flex items-center gap-1.5">
+                  <FaRupeeSign className="text-indigo-600 dark:text-indigo-400" />
+                  <span>{budgetText}</span>
+                </div>
+              )}
+
+              {travelersCount ? (
+                <div className="flex items-center gap-1.5">
+                  <FiUsers className="text-indigo-600 dark:text-indigo-400" />
+                  <span>
+                    {travelersCount} Travelers{!isCampus && trip?.tripType ? ` (${trip.tripType})` : ""}
+                  </span>
+                </div>
+              ) : null}
+
+              {trip?.travelMode && (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-indigo-600 dark:text-indigo-400">
+                    {getTransitIcon(trip.travelMode)}
+                  </span>
+                  <span>{trip.travelMode}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ================= PANEL TOGGLE & SUMMARY STATS ROW ================= */}
+        <div className="mt-3.5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 dark:border-slate-800/80 pt-3">
+          {/* Left: Map & Timeline View Toggle Buttons */}
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setShowMapPanel((prev) => !prev)}
+              title={showMapPanel ? "Hide Map Panel" : "Show Map Panel"}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                showMapPanel
+                  ? "bg-indigo-600 text-white shadow-2xs"
+                  : "border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#131b2e] text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+              }`}
+            >
+              <FiMap className="text-xs" />
+              <span>Map</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowItineraryPanel((prev) => !prev)}
+              title={showItineraryPanel ? "Hide Itinerary Timeline" : "Show Itinerary Timeline"}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                showItineraryPanel
+                  ? "bg-indigo-600 text-white shadow-2xs"
+                  : "border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#131b2e] text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+              }`}
+            >
+              <FiList className="text-xs" />
+              <span>Timeline</span>
+            </button>
+
+            {(mapWidthPercent !== 55 || !showMapPanel || !showItineraryPanel) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setShowMapPanel(true);
+                  setShowItineraryPanel(true);
+                  setMapWidthPercent(55);
+                }}
+                title="Reset Layout to Default 55% / 45%"
+                className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold text-slate-500 hover:text-indigo-600 dark:text-slate-400 transition cursor-pointer"
+              >
+                <FiRotateCcw className="text-[11px]" />
+                <span className="hidden sm:inline">Reset</span>
+              </button>
+            )}
+          </div>
+
+          {/* Right: Summary Badges */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-xl">
+              {locationData.mappableCount} Mappable Stops
+            </span>
+            <span className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/60 px-3 py-1 rounded-xl">
+              {itinerary.length} Days Planned
+            </span>
+          </div>
+        </div>
+
+        {/* Top Day & Section Selector Bar */}
+        <div className="mt-2.5 border-t border-slate-100 dark:border-slate-800 pt-2.5">
+          <DayTabs
+            itinerary={itinerary}
+            selectedDay={selectedDay}
+            setSelectedDay={handleSelectDayTab}
+            showAllDaysOption={true}
+            onSelectStayPlan={handleScrollToStayPlan}
+            onSelectTransportPlan={handleScrollToTransportPlan}
+            activeSpecialTab={activeSpecialTab}
+            stayCount={trip?.staySegments?.length || 0}
+          />
+        </div>
+      </header>
+
+      {/* ================= 2. CONFLICT SECTION (IF ANY) ================= */}
       {schedulingConflicts?.length > 0 && (
-        <div className="mx-auto w-full max-w-3xl bg-white dark:bg-[#131b2e] border border-rose-200 dark:border-rose-900/50 rounded-2xl shadow-xs overflow-hidden">
+        <div className="w-full bg-white dark:bg-[#131b2e] border border-rose-200 dark:border-rose-900/50 rounded-2xl shadow-xs overflow-hidden">
           <div className="bg-rose-50/80 dark:bg-rose-950/40 px-4 py-2.5 border-b border-rose-200/80 dark:border-rose-800/40 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="text-base">⚠️</span>
@@ -355,38 +838,242 @@ export default function DetailedItinerary() {
         </div>
       )}
 
-      {/* 3. Day Tabs */}
-      <DayTabs
-        itinerary={itinerary}
-        selectedDay={selectedDay}
-        setSelectedDay={setSelectedDay}
-      />
+      {/* ================= 3. ADJUSTABLE SPLIT MAIN VIEW: LEFT MAP / RIGHT ITINERARY ================= */}
+      {!showMapPanel && !showItineraryPanel ? (
+        <div className="w-full py-16 px-6 rounded-2xl border border-dashed border-slate-300 dark:border-slate-800 bg-white/50 dark:bg-[#131b2e]/50 flex flex-col items-center justify-center text-center">
+          <div className="w-14 h-14 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/60 flex items-center justify-center text-indigo-600 dark:text-indigo-400 text-2xl mb-3 shadow-xs">
+            <FiEyeOff />
+          </div>
+          <h3 className="text-base font-bold text-slate-900 dark:text-white">
+            Both Panels Are Hidden
+          </h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mt-1">
+            Display either panel or restore both using the controls above or quick action buttons below.
+          </p>
+          <div className="flex items-center gap-2.5 mt-5">
+            <button
+              type="button"
+              onClick={() => setShowMapPanel(true)}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 shadow-xs cursor-pointer"
+            >
+              <FiMap className="text-xs" />
+              <span>Show Map</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowItineraryPanel(true)}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 shadow-xs cursor-pointer"
+            >
+              <FiList className="text-xs" />
+              <span>Show Timeline</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowMapPanel(true);
+                setShowItineraryPanel(true);
+                setMapWidthPercent(55);
+              }}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer"
+            >
+              <FiRotateCcw className="text-xs" />
+              <span>Restore Both</span>
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div
+          ref={splitContainerRef}
+          className={`w-full relative flex flex-col lg:flex-row items-stretch gap-4 lg:gap-0 ${
+            isDragging ? "select-none cursor-col-resize" : ""
+          }`}
+        >
+          {/* LEFT / CENTER: INTERACTIVE MAP */}
+          {showMapPanel && (
+            <div
+              style={{
+                width: showItineraryPanel ? `${mapWidthPercent}%` : "100%",
+              }}
+              className="w-full lg:w-auto transition-[width] duration-75 shrink-0"
+            >
+              <div className="h-[520px] sm:h-[600px] lg:h-[calc(100vh-210px)] min-h-[460px] sticky top-4">
+                <ItineraryMap
+                  trip={trip}
+                  selectedDay={selectedDay}
+                  selectedLocationId={selectedLocationId}
+                  onSelectLocation={handleSelectMapLocation}
+                  onSelectDay={handleSelectDayTab}
+                  mappableLocations={locationData.mappableLocations}
+                  dayPolylines={locationData.dayPolylines}
+                  dayRouteSegments={locationData.dayRouteSegments}
+                  interDayConnections={locationData.interDayConnections}
+                  dayStartLocations={locationData.dayStartLocations}
+                  allDaysPolyline={locationData.allDaysPolyline}
+                  loading={mapLoading}
+                  unmappableCount={locationData.unmappableCount}
+                  onViewInItinerary={handleViewInItinerary}
+                />
+              </div>
+            </div>
+          )}
 
-      {/* 4. Day-wise Itinerary (Timeline) */}
-      <Timeline
-        plan={currentDay?.plan}
-        destination={trip.destination}
-        accommodations={accommodationsToday}
-        viewOnly={viewOnly}
-      />
+          {/* Resizable Divider (Visible on Desktop when both panels are active) */}
+          {showMapPanel && showItineraryPanel && (
+            <div
+              onPointerDown={handlePointerDown}
+              className={`hidden lg:flex w-3.5 hover:w-3.5 items-center justify-center cursor-col-resize group shrink-0 relative z-30 transition-colors mx-1 ${
+                isDragging ? "bg-indigo-600/30 rounded-lg" : "hover:bg-indigo-500/20 rounded-lg"
+              }`}
+              title="Drag to resize Map and Timeline panels"
+            >
+              <div className="w-1 h-14 rounded-full bg-slate-300 dark:bg-slate-700 group-hover:bg-indigo-500 group-hover:w-1.5 transition-all flex flex-col items-center justify-center gap-1 shadow-2xs">
+                <span className="w-0.5 h-0.5 rounded-full bg-slate-500 dark:bg-slate-400" />
+                <span className="w-0.5 h-0.5 rounded-full bg-slate-500 dark:bg-slate-400" />
+                <span className="w-0.5 h-0.5 rounded-full bg-slate-500 dark:bg-slate-400" />
+              </div>
+            </div>
+          )}
 
-      {/* 5. Stay Plan */}
-      {canViewStayPlan && (
-        <StayPlan trip={trip} staySegments={trip.staySegments} viewOnly={viewOnly} />
-      )}
+          {/* RIGHT: ITINERARY PANEL (ACTIVITIES, ACCOMMODATION, TRANSPORT) */}
+          {showItineraryPanel && (
+            <div
+              style={{
+                width: showMapPanel ? `calc(${100 - mapWidthPercent}% - 22px)` : "100%",
+              }}
+              className="w-full lg:w-auto transition-[width] duration-75 flex-1 min-w-0"
+            >
+              <div
+                ref={itineraryScrollRef}
+                className="lg:h-[calc(100vh-210px)] lg:overflow-y-auto lg:pr-2 space-y-5"
+              >
+                {/* If "All Days" mode selected: Show All Days sequentially */}
+                {selectedDay === "all" ? (
+                  <div className="space-y-6">
+                    <div className="rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-800/60 p-3.5 flex items-center justify-between">
+                      <div>
+                        <h3 className="text-xs font-black uppercase tracking-wider text-indigo-900 dark:text-indigo-200">
+                          Complete Journey Overview
+                        </h3>
+                        <p className="text-[11px] text-indigo-700 dark:text-indigo-300 font-medium mt-0.5">
+                          Displaying all {itinerary.length} days and {locationData.mappableCount} mapped highlights
+                        </p>
+                      </div>
+                      <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-indigo-600 text-white shadow-xs">
+                        All Days
+                      </span>
+                    </div>
 
-      {/* 6. Transport Details */}
-      <TransportDetails trip={trip} />
+                    {itinerary.map((day, dIdx) => {
+                      const dayNum = day.day || dIdx + 1;
+                      const dayAccommodations = getAccommodationsForDay(dIdx);
+                      return (
+                        <div
+                          key={dayNum}
+                          id={`day-section-${dayNum}`}
+                          className="scroll-mt-28 rounded-2xl border border-slate-200/90 dark:border-slate-800/90 bg-white dark:bg-[#131b2e] p-3.5 sm:p-4 shadow-xs"
+                        >
+                          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2.5 mb-2">
+                            <div>
+                              <span className="text-[10px] font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+                                DAY {dayNum}
+                              </span>
+                              <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                                {day.title || `Day ${dayNum} Exploration`}
+                              </h3>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleSelectDayTab(dIdx)}
+                              className="text-xs font-bold text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 cursor-pointer"
+                            >
+                              Focus Day {dayNum} →
+                            </button>
+                          </div>
 
-      {/* 7. Bottom Actions */}
-      {!viewOnly && (
-        <BottomNav
-          selectedDay={selectedDay}
-          totalDays={itinerary.length}
-          setSelectedDay={setSelectedDay}
-          onRegenerate={handleRegenerate}
-          loading={regenerating}
-        />
+                          <Timeline
+                            plan={day.plan}
+                            destination={trip.destination}
+                            accommodations={dayAccommodations}
+                            viewOnly={viewOnly}
+                            dayNumber={dayNum}
+                            selectedActivityId={selectedLocationId}
+                            onSelectActivity={handleSelectItineraryActivity}
+                            mappableLocations={locationData.mappableLocations}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  /* Individual Day Mode */
+                  <div className="space-y-4">
+                    <div
+                      id={`day-section-${selectedDay + 1}`}
+                      className="scroll-mt-28 rounded-2xl border border-slate-200/90 dark:border-slate-800/90 bg-white dark:bg-[#131b2e] p-3.5 sm:p-4 shadow-xs"
+                    >
+                      <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2.5">
+                        <div>
+                          <span className="text-[10px] font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+                            DAY {selectedDay + 1} OF {itinerary.length}
+                          </span>
+                          <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white mt-0.5">
+                            {itinerary[selectedDay]?.title || `Day ${selectedDay + 1} Activities`}
+                          </h3>
+                        </div>
+
+                        <span className="rounded-full bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/60 text-indigo-700 dark:text-indigo-300 font-black text-xs px-2.5 py-0.5">
+                          {itinerary[selectedDay]?.plan?.length || 0} Stops
+                        </span>
+                      </div>
+
+                      <Timeline
+                        plan={itinerary[selectedDay]?.plan}
+                        destination={trip.destination}
+                        accommodations={getAccommodationsForDay(selectedDay)}
+                        viewOnly={viewOnly}
+                        dayNumber={selectedDay + 1}
+                        selectedActivityId={selectedLocationId}
+                        onSelectActivity={handleSelectItineraryActivity}
+                        mappableLocations={locationData.mappableLocations}
+                      />
+                    </div>
+
+                    {/* Bottom Day Pagination for Individual Day Mode */}
+                    {!viewOnly && (
+                      <BottomNav
+                        selectedDay={selectedDay}
+                        totalDays={itinerary.length}
+                        setSelectedDay={setSelectedDay}
+                        onRegenerate={handleRegenerate}
+                        loading={regenerating}
+                      />
+                    )}
+                  </div>
+                )}
+
+                {/* Stay Plan Section */}
+                {canViewStayPlan && (
+                  <div
+                    id="stay-plan-section"
+                    ref={stayPlanRef}
+                    className="scroll-mt-28 rounded-2xl border border-slate-200/90 dark:border-slate-800/90 bg-white dark:bg-[#131b2e] p-4 sm:p-5 shadow-xs"
+                  >
+                    <StayPlan trip={trip} staySegments={trip.staySegments} viewOnly={viewOnly} />
+                  </div>
+                )}
+
+                {/* Transport Details Section */}
+                <div
+                  id="transport-details-section"
+                  ref={transportPlanRef}
+                  className="scroll-mt-28 rounded-2xl border border-slate-200/90 dark:border-slate-800/90 bg-white dark:bg-[#131b2e] p-4 sm:p-5 shadow-xs"
+                >
+                  <TransportDetails trip={trip} />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

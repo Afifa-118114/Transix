@@ -74,7 +74,7 @@ export const addItemToTourBuilder = (item, dayIndex = 0, navigate = null) => {
       durationMinutes: item.durationMinutes || 120,
       rating: item.rating || 4.8,
       dnaMatch: item.dnaMatch || 94,
-      image: item.image || item.heroImage || "https://images.unsplash.com/photo-1474487548417-781cb71495f3?w=600",
+      image: item.image || null,
       notes: item.notes || item.description || (item.departure && item.arrival ? `Departs ${item.departure} • Arrives ${item.arrival} (${item.duration || ""})` : "Added from discovery"),
       time: item.time || (item.departure && item.arrival ? `${item.departure} - ${item.arrival}` : "10:00 AM - 12:00 PM"),
     };

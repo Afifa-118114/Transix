@@ -124,13 +124,13 @@ export default function AvailableOptionsPanel({ onClose }) {
   };
 
   return (
-    <div className="flex h-full flex-col rounded-2xl border border-[#e7e5e4] bg-white p-4 shadow-xs transition-colors">
+    <div className="flex h-full flex-col rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131b2e] p-4 shadow-xs transition-colors">
       {/* Header */}
       <div className="mb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <h2 className="text-base font-bold text-[#0c0a09]">Available Options</h2>
-            <span className="rounded-full bg-[#034F46]/10 px-2 py-0.5 text-[10px] font-bold text-[#034F46]">
+            <h2 className="text-base font-bold text-slate-900 dark:text-white">Available Options</h2>
+            <span className="rounded-full bg-indigo-50 dark:bg-indigo-950/60 px-2 py-0.5 text-[10px] font-bold text-indigo-700 dark:text-indigo-300 border border-indigo-200/50 dark:border-indigo-800/50">
               {filteredItems.length}
             </span>
           </div>
@@ -138,32 +138,32 @@ export default function AvailableOptionsPanel({ onClose }) {
             <button
               type="button"
               onClick={onClose}
-              className="flex h-7 w-7 items-center justify-center rounded-lg border border-[#e7e5e4] bg-[#fafaf9] text-[#777169] hover:bg-[#f5f5f4] hover:text-[#0c0a09] transition"
+              className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white transition"
               title="Close Panel"
             >
               <FiX className="text-xs" />
             </button>
           )}
         </div>
-        <p className="text-[11px] text-[#777169]">
+        <p className="text-[11px] text-slate-500 dark:text-slate-400">
           Real inventory for {trip.destination || "Destination"}
         </p>
       </div>
 
       {/* Search Input */}
       <div className="relative mb-2.5">
-        <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-[#a8a29e] text-xs" />
+        <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 text-xs" />
         <input
           type="text"
           placeholder="Search places, hotels, trains..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full rounded-xl border border-[#e7e5e4] bg-[#fafaf9] py-2 pl-8 pr-7 text-xs text-[#0c0a09] placeholder-[#a8a29e] outline-none transition focus:border-[#0c0a09] focus:bg-white"
+          className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 py-2 pl-8 pr-7 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 outline-none transition focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-900"
         />
         {searchTerm && (
           <button
             onClick={() => setSearchTerm("")}
-            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#a8a29e] hover:text-[#0c0a09]"
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 dark:hover:text-white"
           >
             <FiX className="text-xs" />
           </button>
@@ -181,17 +181,19 @@ export default function AvailableOptionsPanel({ onClose }) {
               onClick={() => setSelectedCategory(cat.id)}
               className={`flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] font-semibold transition ${
                 isSelected
-                  ? "bg-[#0c0a09] text-white shadow-xs"
-                  : "border border-[#e7e5e4] bg-[#fafaf9] text-[#57534e] hover:bg-[#f0efed] hover:text-[#0c0a09]"
+                  ? "bg-indigo-600 text-white shadow-xs"
+                  : "border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/80 hover:text-slate-900 dark:hover:text-white"
               }`}
             >
-              <span className={isSelected ? "text-white" : "text-[#777169]"}>
+              <span className={isSelected ? "text-white" : "text-slate-500 dark:text-slate-400"}>
                 {getCategoryIcon(cat.id)}
               </span>
               <span>{cat.label}</span>
               <span
                 className={`text-[9px] px-1.5 py-0.2 rounded-full ${
-                  isSelected ? "bg-white/20 text-white" : "bg-[#e7e5e4] text-[#57534e]"
+                  isSelected
+                    ? "bg-white/20 text-white"
+                    : "bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300"
                 }`}
               >
                 {count}
@@ -206,13 +208,13 @@ export default function AvailableOptionsPanel({ onClose }) {
         {isLoadingInventory ? (
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-32 animate-pulse rounded-xl bg-[#f5f5f4] border border-[#e7e5e4]" />
+              <div key={i} className="h-32 animate-pulse rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700" />
             ))}
           </div>
         ) : filteredItems.length === 0 ? (
-          <div className="flex h-36 flex-col items-center justify-center rounded-xl border border-dashed border-[#e7e5e4] p-4 text-center">
-            <p className="text-xs font-semibold text-[#57534e]">No matching options</p>
-            <p className="mt-0.5 text-[10px] text-[#a8a29e]">Try adjusting category or search term</p>
+          <div className="flex h-36 flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 dark:border-slate-800 p-4 text-center">
+            <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">No matching options</p>
+            <p className="mt-0.5 text-[10px] text-slate-400 dark:text-slate-500">Try adjusting category or search term</p>
           </div>
         ) : (
           filteredItems.map((item) => (
@@ -221,10 +223,10 @@ export default function AvailableOptionsPanel({ onClose }) {
               draggable
               onDragStart={(e) => handleDragStart(e, item)}
               onDragEnd={handleDragEnd}
-              className="group relative cursor-grab overflow-hidden rounded-xl border border-[#e7e5e4] bg-[#fafaf9] p-2.5 shadow-xs transition-all duration-200 hover:border-[#0c0a09] hover:bg-white hover:shadow-sm active:cursor-grabbing"
+              className="group relative cursor-grab overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131b2e] p-2.5 shadow-xs transition-all duration-200 hover:border-indigo-400 dark:hover:border-indigo-500 hover:shadow-sm active:cursor-grabbing"
             >
               {/* Thumbnail & Badges */}
-              <div className="relative h-24 w-full overflow-hidden rounded-lg bg-[#e7e5e4]">
+              <div className="relative h-24 w-full overflow-hidden rounded-lg bg-slate-200 dark:bg-slate-800">
                 <img
                   src={item.image || "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600"}
                   alt={item.name}
@@ -233,14 +235,14 @@ export default function AvailableOptionsPanel({ onClose }) {
                 />
 
                 {/* Category Pill */}
-                <div className="absolute left-2 top-2 flex items-center gap-1.5 rounded-full bg-black/70 px-2 py-0.5 text-[9px] font-bold text-white backdrop-blur-xs">
+                <div className="absolute left-2 top-2 flex items-center gap-1.5 rounded-full bg-slate-900/80 px-2 py-0.5 text-[9px] font-bold text-white backdrop-blur-xs">
                   {getCategoryIcon(item.category)}
                   <span>{item.categoryLabel}</span>
                 </div>
 
                 {/* Rating on image bottom right */}
                 {item.rating && (
-                  <div className="absolute bottom-1.5 right-2 flex items-center gap-1 rounded-md bg-black/70 px-1.5 py-0.5 text-[10px] font-bold text-amber-300 backdrop-blur-xs">
+                  <div className="absolute bottom-1.5 right-2 flex items-center gap-1 rounded-md bg-slate-900/80 px-1.5 py-0.5 text-[10px] font-bold text-amber-300 backdrop-blur-xs">
                     <FiStar className="fill-amber-400 text-amber-400 text-[9px]" />
                     <span>{item.rating}</span>
                   </div>
@@ -250,10 +252,10 @@ export default function AvailableOptionsPanel({ onClose }) {
               {/* Info Body */}
               <div className="mt-2">
                 <div className="flex items-start justify-between gap-1">
-                  <h3 className="text-xs font-bold text-[#0c0a09] line-clamp-1 group-hover:text-[#034F46] transition">
+                  <h3 className="text-xs font-bold text-slate-900 dark:text-white line-clamp-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition">
                     {item.name}
                   </h3>
-                  <span className="shrink-0 text-xs font-bold text-[#034F46]">
+                  <span className="shrink-0 text-xs font-bold text-indigo-600 dark:text-indigo-400">
                     {item.displayPrice ||
                       (typeof item.price === "number" && item.price > 0
                         ? `₹${item.price.toLocaleString()}`
@@ -261,12 +263,12 @@ export default function AvailableOptionsPanel({ onClose }) {
                   </span>
                 </div>
 
-                <div className="mt-0.5 flex items-center justify-between text-[10px] text-[#777169]">
+                <div className="mt-0.5 flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400">
                   <span className="flex items-center gap-0.5 truncate">
-                    <FiMapPin className="text-[#a8a29e] text-[9px] shrink-0" />
+                    <FiMapPin className="text-slate-400 dark:text-slate-500 text-[9px] shrink-0" />
                     <span className="truncate">{item.location || trip.destination}</span>
                   </span>
-                  <span className="flex items-center gap-0.5 shrink-0 text-[#a8a29e] ml-1">
+                  <span className="flex items-center gap-0.5 shrink-0 text-slate-400 dark:text-slate-500 ml-1">
                     <FiClock className="text-[9px]" />
                     {item.duration || "Flexible"}
                   </span>
@@ -276,7 +278,7 @@ export default function AvailableOptionsPanel({ onClose }) {
                 <div className="mt-2 flex gap-1.5">
                   <button
                     onClick={() => addItemToDay(activeDayIndex, item)}
-                    className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-white border border-[#e7e5e4] py-1 text-[11px] font-semibold text-[#0c0a09] transition hover:bg-[#0c0a09] hover:text-white"
+                    className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 py-1 text-[11px] font-semibold text-slate-800 dark:text-slate-200 transition hover:bg-indigo-600 hover:border-indigo-600 hover:text-white dark:hover:bg-indigo-600 dark:hover:border-indigo-600 dark:hover:text-white"
                   >
                     <FiPlus className="text-xs" />
                     <span>Add to Day {activeDayIndex + 1}</span>
@@ -288,14 +290,14 @@ export default function AvailableOptionsPanel({ onClose }) {
                         setActiveMenuId(activeMenuId === item.id ? null : item.id)
                       }
                       title="Select Day"
-                      className="flex h-full items-center rounded-lg border border-[#e7e5e4] bg-white px-1.5 text-[#57534e] hover:bg-[#f5f5f4]"
+                      className="flex h-full items-center rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-1.5 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
                     >
                       <FiChevronDown className="text-xs" />
                     </button>
 
                     {activeMenuId === item.id && (
-                      <div className="absolute bottom-full right-0 z-30 mb-1 w-36 rounded-xl border border-[#e7e5e4] bg-white p-1 shadow-lg">
-                        <p className="px-2 py-0.5 text-[9px] font-bold uppercase text-[#a8a29e]">
+                      <div className="absolute bottom-full right-0 z-30 mb-1 w-36 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1a233a] p-1 shadow-lg">
+                        <p className="px-2 py-0.5 text-[9px] font-bold uppercase text-slate-400 dark:text-slate-500">
                           Select Target Day:
                         </p>
                         {trip.itinerary.map((d, dIdx) => (
@@ -305,10 +307,10 @@ export default function AvailableOptionsPanel({ onClose }) {
                               addItemToDay(dIdx, item);
                               setActiveMenuId(null);
                             }}
-                            className="flex w-full items-center justify-between rounded-md px-2 py-1 text-left text-[11px] font-semibold text-[#57534e] hover:bg-[#fafaf9] hover:text-[#0c0a09]"
+                            className="flex w-full items-center justify-between rounded-md px-2 py-1 text-left text-[11px] font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-indigo-600 dark:hover:text-indigo-400"
                           >
                             <span>Day {dIdx + 1}</span>
-                            <span className="text-[9px] text-[#a8a29e]">
+                            <span className="text-[9px] text-slate-400 dark:text-slate-500">
                               {d.plan?.length || 0} items
                             </span>
                           </button>

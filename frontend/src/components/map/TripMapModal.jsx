@@ -31,31 +31,42 @@ import { useTripBuilder } from "../../context/TripBuilderContext";
 import { getPlaceCoordinates } from "../../services/geocodeService";
 import { getDuration, formatDate, formatBudget } from "../../utils/formatTrip";
 
-// Verified 100% Keyless, Public Map Tile Layer Providers
+const cartoApiKey = import.meta.env.VITE_CARTO_API_KEY || "";
+
+// Verified Map Tile Layer Providers (OpenStreetMap Default, Keyless Alternatives)
 const MAP_STYLES = {
-  dark: {
-    name: "Dark",
-    url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-    subdomains: "abcd",
-    attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-  },
-  satellite: {
-    name: "Satellite",
-    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-    subdomains: "abc",
-    attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP',
-  },
-  voyager: {
-    name: "Voyager",
-    url: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
-    subdomains: "abcd",
-    attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-  },
   standard: {
     name: "Standard",
     url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
     subdomains: "abc",
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  },
+  voyager: {
+    name: "Voyager",
+    url: cartoApiKey
+      ? `https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?api_key=${cartoApiKey}`
+      : "https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png",
+    subdomains: cartoApiKey ? "abcd" : "abc",
+    attribution: cartoApiKey
+      ? '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+      : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, Tiles by <a href="https://www.hotosm.org/">Humanitarian OSM</a>',
+  },
+  dark: {
+    name: "Dark",
+    url: cartoApiKey
+      ? `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?api_key=${cartoApiKey}`
+      : "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+    subdomains: cartoApiKey ? "abcd" : "abc",
+    className: cartoApiKey ? "" : "leaflet-tile-dark",
+    attribution: cartoApiKey
+      ? '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+      : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  },
+  satellite: {
+    name: "Satellite",
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    subdomains: "abc",
+    attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS',
   },
 };
 
@@ -158,7 +169,7 @@ export default function TripMapModal({ isOpen, onClose }) {
   const [focusCoord, setFocusCoord] = useState(null);
   const [resetCount, setResetCount] = useState(0);
   const [showMobileList, setShowMobileList] = useState(false);
-  const [currentMapStyle, setCurrentMapStyle] = useState("dark");
+  const [currentMapStyle, setCurrentMapStyle] = useState("standard");
 
   // Close on ESC key
   useEffect(() => {
@@ -560,6 +571,7 @@ export default function TripMapModal({ isOpen, onClose }) {
                     attribution={MAP_STYLES[currentMapStyle]?.attribution || MAP_STYLES.standard.attribution}
                     url={MAP_STYLES[currentMapStyle]?.url || MAP_STYLES.standard.url}
                     subdomains={MAP_STYLES[currentMapStyle]?.subdomains || "abc"}
+                    className={MAP_STYLES[currentMapStyle]?.className || ""}
                     maxZoom={19}
                   />
 

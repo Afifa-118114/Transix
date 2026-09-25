@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="100%" height="100%">
+  <defs>
+    <linearGradient id="attrGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="40%" stop-color="#1e1b4b" />
+      <stop offset="75%" stop-color="#312e81" />
+      <stop offset="100%" stop-color="#4338ca" />
+    </linearGradient>
+    <radialGradient id="auroraGlow" cx="50%" cy="40%" r="50%">
+      <stop offset="0%" stop-color="#818cf8" stop-opacity="0.5" />
+      <stop offset="100%" stop-color="#1e1b4b" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="800" height="600" fill="url(#attrGrad)" />
+  <circle cx="400" cy="260" r="280" fill="url(#auroraGlow)" />
+
+  <!-- Stars -->
+  <g fill="#ffffff" opacity="0.6">
+    <circle cx="150" cy="80" r="1.5" />
+    <circle cx="280" cy="130" r="2" />
+    <circle cx="650" cy="90" r="1.5" />
+    <circle cx="520" cy="140" r="2" />
+    <circle cx="720" cy="160" r="1.5" />
+    <circle cx="90" cy="170" r="1" />
+  </g>
+
+  <!-- Majestic Monument / Palace / Dome Silhouette -->
+  <g fill="#0b0f19" stroke="#6366f1" stroke-width="1.5">
+    <!-- Outer Walls & Minarets -->
+    <rect x="180" y="240" width="24" height="260" rx="3" />
+    <polygon points="175,240 192,190 209,240" />
+    <circle cx="192" cy="180" r="4" fill="#a5b4fc" />
+
+    <rect x="596" y="240" width="24" height="260" rx="3" />
+    <polygon points="591,240 608,190 625,240" />
+    <circle cx="608" cy="180" r="4" fill="#a5b4fc" />
+
+    <!-- Main Temple / Palace Body -->
+    <rect x="230" y="320" width="340" height="180" rx="4" />
+    
+    <!-- Grand Central Heritage Dome -->
+    <path d="M 330 320 Q 330 200 400 160 Q 470 200 470 320 Z" fill="#0f172a" />
+    <line x1="400" y1="160" x2="400" y2="125" stroke="#a5b4fc" stroke-width="3" />
+    <circle cx="400" cy="120" r="6" fill="#fbbf24" />
+
+    <!-- Side Domes -->
+    <path d="M 260 320 Q 260 250 300 220 Q 340 250 340 320 Z" fill="#0b0f19" />
+    <path d="M 460 320 Q 460 250 500 220 Q 540 250 540 320 Z" fill="#0b0f19" />
+
+    <!-- Archways -->
+    <path d="M 370 500 L 370 410 Q 400 375 430 410 L 430 500 Z" fill="#1e1b4b" stroke="#818cf8" stroke-width="2" />
+    <path d="M 280 500 L 280 435 Q 300 410 320 435 L 320 500 Z" fill="#1e1b4b" stroke="#818cf8" stroke-width="1.5" />
+    <path d="M 480 500 L 480 435 Q 500 410 520 435 L 520 500 Z" fill="#1e1b4b" stroke="#818cf8" stroke-width="1.5" />
+  </g>
+
+  <!-- Foreground Terrace Base -->
+  <rect x="0" y="500" width="800" height="100" fill="#030712" />
+
+  <!-- Compass / Pin Decorative Emblem -->
+  <circle cx="400" cy="290" r="28" fill="#4f46e5" opacity="0.9" stroke="#c7d2fe" stroke-width="2" />
+  <polygon points="400,270 406,290 400,310 394,290" fill="#f8fafc" />
+  <polygon points="380,290 400,284 420,290 400,296" fill="#f8fafc" />
+
+  <!-- Banner Card Label -->
+  <rect x="250" y="525" width="300" height="48" rx="24" fill="#0f172a" opacity="0.9" stroke="#818cf8" stroke-width="1.5" />
+  <text x="400" y="555" font-family="'Outfit', 'Inter', system-ui, sans-serif" font-size="19" font-weight="800" fill="#e0e7ff" text-anchor="middle" letter-spacing="2">
+    DESTINATION LANDMARK
+  </text>
+</svg>

@@ -218,7 +218,7 @@ export function normalizeTrip(rawTrip) {
         rating: p.rating || 4.7,
         dnaMatch: p.dnaMatch || 94,
         icon: p.icon || (isTrain ? "🚆" : "✨"),
-        image: p.image || rawTrip.heroImage || null,
+        image: p.image || null,
         trainNumber: p.trainNumber || null,
         trainName: p.trainName || null,
         type: p.type || (isTrain ? "Express" : null),

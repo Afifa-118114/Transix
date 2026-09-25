@@ -727,27 +727,58 @@ exports.updateCampusConfig = async (req, res) => {
   }
 };
 
-// Helper to evaluate and update status
+// Helpers to evaluate campus documents and registration status
+const getRequiredDocsForTrip = (trip) => {
+  const defaultRequiredDocs = [
+    { documentType: "Aadhaar Card", name: "Aadhaar Card", required: true },
+    { documentType: "College ID", name: "College ID", required: true },
+    { documentType: "Parent Consent / Undertaking Form", name: "Parent Consent / Undertaking Form", required: true }
+  ];
+
+  if (!trip?.documentsConfig || trip.documentsConfig.length === 0) {
+    return defaultRequiredDocs;
+  }
+
+  const configured = trip.documentsConfig.filter(d => d.required);
+  return configured.length > 0 ? configured : defaultRequiredDocs;
+};
+
+const isDocumentSatisfied = (uploadedDoc, reqDoc) => {
+  if (!uploadedDoc) return false;
+  const reqName = (reqDoc.documentType || reqDoc.name || "").trim().toLowerCase();
+  const uploadType = (uploadedDoc.documentType || "").trim().toLowerCase();
+  if (uploadType === reqName) return true;
+  if (reqName.includes("parent consent") && (uploadType.includes("parent consent") || uploadType.includes("undertaking"))) return true;
+  if (reqName.includes("aadhaar") && uploadType.includes("aadhaar")) return true;
+  if (reqName.includes("college id") && uploadType.includes("college id")) return true;
+  return false;
+};
+
 const evaluateRegistrationStatus = (reg, trip) => {
-  if (["CANCELLED", "REJECTED", "WAITLISTED"].includes(reg.status)) return reg.status;
+  if (["CANCELLED", "WAITLISTED"].includes(reg.status)) return reg.status;
+  if (reg.coordinatorReview?.status === "APPROVED") return "COMPLETED";
+  if (reg.coordinatorReview?.status === "REJECTED") return "REJECTED";
 
   const hasDetails = reg.studentInfo && (reg.studentInfo instanceof Map ? reg.studentInfo.size > 0 : Object.keys(reg.studentInfo).length > 0);
   if (!hasDetails) return "DRAFT";
 
-  const requiredDocs = trip.documentsConfig?.filter(d => d.required) || [];
-  const hasAllDocs = requiredDocs.every(d => 
-    reg.documents?.some(rd => rd.documentType === d.documentType && ["UNDER_REVIEW", "VERIFIED"].includes(rd.status))
+  const requiredDocs = getRequiredDocsForTrip(trip);
+  const hasAllDocs = requiredDocs.every(reqDoc => 
+    reg.documents?.some(rd => isDocumentSatisfied(rd, reqDoc) && ["UPLOADED", "UNDER_REVIEW", "VERIFIED"].includes(rd.status))
   );
 
-  if (requiredDocs.length > 0 && !hasAllDocs) return "DOCUMENTS_PENDING";
+  if (!hasAllDocs) return "DOCUMENTS_PENDING";
 
-  const confirmationFee = trip.registrationSettings?.confirmationFee || 0;
-  const totalPaid = (reg.payments?.filter(p => p.status === "PAID").reduce((sum, p) => sum + p.amount, 0) || 0) +
-    (reg.confirmationPayment?.status === "PAID" && !reg.payments?.some(p => p.name === "Confirmation Fee" && p.status === "PAID") ? (reg.confirmationPayment.amount || 0) : 0);
+  const confirmationFee = (trip?.registrationSettings?.confirmationFee !== undefined && trip?.registrationSettings?.confirmationFee !== null && trip?.registrationSettings?.confirmationFee > 0)
+    ? trip.registrationSettings.confirmationFee
+    : 1000;
 
-  if (confirmationFee > 0 && totalPaid < confirmationFee) return "PAYMENT_PENDING";
+  const isConfirmationPaid = (reg.confirmationPayment?.status === "PAID") ||
+    (reg.payments?.some(p => (p.name === "Confirmation Fee" || p.installmentId === "CONFIRMATION") && p.status === "PAID"));
 
-  return "COMPLETED";
+  if (confirmationFee > 0 && !isConfirmationPaid) return "PAYMENT_PENDING";
+
+  return "UNDER_REVIEW";
 };
 
 // 10. Submit Participant Registration Details
@@ -947,20 +978,22 @@ exports.createPaymentOrder = async (req, res) => {
       return res.status(400).json({ success: false, message: "Please submit student registration details first" });
     }
 
-    const requiredDocs = trip.documentsConfig?.filter(d => d.required) || [];
-    const hasAllDocs = requiredDocs.every(d => 
-      reg.documents?.some(rd => rd.documentType === d.documentType && ["UNDER_REVIEW", "VERIFIED"].includes(rd.status))
+    const requiredDocs = getRequiredDocsForTrip(trip);
+    const hasAllDocs = requiredDocs.every(reqDoc => 
+      reg.documents?.some(rd => isDocumentSatisfied(rd, reqDoc) && ["UPLOADED", "UNDER_REVIEW", "VERIFIED"].includes(rd.status))
     );
-    if (requiredDocs.length > 0 && !hasAllDocs) {
+    if (!hasAllDocs) {
       return res.status(400).json({ success: false, message: "Please upload all required documents before paying the confirmation fee" });
     }
 
     // Check if already paid
-    if (reg.confirmationPayment?.status === "PAID" || reg.payments?.some(p => p.name === "Confirmation Fee" && p.status === "PAID")) {
+    if (reg.confirmationPayment?.status === "PAID" || reg.payments?.some(p => (p.name === "Confirmation Fee" || p.installmentId === "CONFIRMATION") && p.status === "PAID")) {
       return res.status(400).json({ success: false, message: "Confirmation fee has already been paid" });
     }
 
-    const confirmationFee = trip.registrationSettings?.confirmationFee || 0;
+    const confirmationFee = (trip.registrationSettings?.confirmationFee !== undefined && trip.registrationSettings?.confirmationFee !== null && trip.registrationSettings?.confirmationFee > 0)
+      ? trip.registrationSettings.confirmationFee
+      : 1000;
     if (confirmationFee <= 0) {
       return res.status(400).json({ success: false, message: "No confirmation fee is required for this trip" });
     }
@@ -1126,25 +1159,16 @@ exports.approveRegistration = async (req, res) => {
     }
 
     // Validation 2: Required documents uploaded and verified
-    const requiredDocs = trip.documentsConfig?.filter(d => d.required) || [];
+    const requiredDocs = getRequiredDocsForTrip(trip);
     const missingOrUnverifiedDocs = [];
 
-    if (requiredDocs.length > 0) {
-      for (const reqDoc of requiredDocs) {
-        const typeName = reqDoc.name || reqDoc.documentType;
-        const uploaded = reg.documents?.find(d => d.documentType === typeName);
-        if (!uploaded) {
-          missingOrUnverifiedDocs.push(`${typeName} (Not uploaded)`);
-        } else if (uploaded.status !== "VERIFIED") {
-          missingOrUnverifiedDocs.push(`${typeName} (${uploaded.status})`);
-        }
-      }
-    } else if (reg.documents && reg.documents.length > 0) {
-      // If trip doesn't have documentsConfig predefined, all submitted student documents must be verified
-      for (const doc of reg.documents) {
-        if (doc.status !== "VERIFIED") {
-          missingOrUnverifiedDocs.push(`${doc.documentType} (${doc.status})`);
-        }
+    for (const reqDoc of requiredDocs) {
+      const typeName = reqDoc.documentType || reqDoc.name;
+      const uploaded = reg.documents?.find(d => isDocumentSatisfied(d, reqDoc));
+      if (!uploaded) {
+        missingOrUnverifiedDocs.push(`${typeName} (Not uploaded)`);
+      } else if (uploaded.status !== "VERIFIED") {
+        missingOrUnverifiedDocs.push(`${typeName} (${uploaded.status})`);
       }
     }
 
@@ -1156,9 +1180,11 @@ exports.approveRegistration = async (req, res) => {
     }
 
     // Validation 3: Confirmation payment verified
-    const confirmationFee = trip.registrationSettings?.confirmationFee || 0;
+    const confirmationFee = (trip.registrationSettings?.confirmationFee !== undefined && trip.registrationSettings?.confirmationFee !== null && trip.registrationSettings?.confirmationFee > 0)
+      ? trip.registrationSettings.confirmationFee
+      : 1000;
     if (confirmationFee > 0) {
-      const isPaid = reg.confirmationPayment?.status === "PAID" || reg.payments?.some(p => p.name === "Confirmation Fee" && p.status === "PAID");
+      const isPaid = reg.confirmationPayment?.status === "PAID" || reg.payments?.some(p => (p.name === "Confirmation Fee" || p.installmentId === "CONFIRMATION") && p.status === "PAID");
       if (!isPaid) {
         return res.status(400).json({
           success: false,
@@ -1174,6 +1200,7 @@ exports.approveRegistration = async (req, res) => {
       reviewedAt: new Date(),
       rejectionReason: undefined
     };
+    reg.status = "COMPLETED";
 
     await reg.save();
 
@@ -1215,6 +1242,7 @@ exports.rejectRegistration = async (req, res) => {
       reviewedBy: coordinatorId,
       reviewedAt: new Date()
     };
+    reg.status = "REJECTED";
 
     await reg.save();
 

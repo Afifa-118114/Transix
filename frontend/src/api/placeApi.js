@@ -35,3 +35,16 @@ export const getPlaceImage = async (query) => {
 
   return res.data?.url;
 };
+
+export const getAttractionPhoto = async (place, destination, city) => {
+  try {
+    const res = await axios.get(`${API}/places/attraction-photo`, {
+      params: { place, destination, city },
+    });
+    return res.data?.data || null;
+  } catch (err) {
+    console.error("getAttractionPhoto API error:", err.message);
+    return null;
+  }
+};
+

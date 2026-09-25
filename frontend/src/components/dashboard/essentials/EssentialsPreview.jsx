@@ -15,54 +15,42 @@ export default function EssentialsPreview({ trip }) {
 
   const items = [
     {
-      icon: <FaHospital className="text-xl text-rose-600 dark:text-rose-400" />,
+      icon: <FaHospital className="text-lg" />,
       name: "Hospitals",
-      bg: "bg-rose-50/90 dark:bg-rose-950/30",
-      border: "border-rose-200/80 dark:border-rose-800/50 hover:border-rose-400",
-      iconBg: "bg-white dark:bg-stone-900 shadow-xs",
+      desc: "Emergency Care",
     },
     {
-      icon: <FaPills className="text-xl text-teal-600 dark:text-teal-400" />,
+      icon: <FaPills className="text-lg" />,
       name: "Pharmacy",
-      bg: "bg-teal-50/90 dark:bg-teal-950/30",
-      border: "border-teal-200/80 dark:border-teal-800/50 hover:border-teal-400",
-      iconBg: "bg-white dark:bg-stone-900 shadow-xs",
+      desc: "24/7 Med Stores",
     },
     {
-      icon: <FaMoneyBillWave className="text-xl text-emerald-600 dark:text-emerald-400" />,
+      icon: <FaMoneyBillWave className="text-lg" />,
       name: "ATM",
-      bg: "bg-emerald-50/90 dark:bg-emerald-950/30",
-      border: "border-emerald-200/80 dark:border-emerald-800/50 hover:border-emerald-400",
-      iconBg: "bg-white dark:bg-stone-900 shadow-xs",
+      desc: "Cash & Banks",
     },
     {
-      icon: <FaGasPump className="text-xl text-amber-600 dark:text-amber-400" />,
+      icon: <FaGasPump className="text-lg" />,
       name: "Petrol Pump",
-      bg: "bg-amber-50/90 dark:bg-amber-950/30",
-      border: "border-amber-200/80 dark:border-amber-800/50 hover:border-amber-400",
-      iconBg: "bg-white dark:bg-stone-900 shadow-xs",
+      desc: "Fuel & EV Station",
     },
     {
-      icon: <FaShieldHalved className="text-xl text-indigo-600 dark:text-indigo-400" />,
+      icon: <FaShieldHalved className="text-lg" />,
       name: "Police",
-      bg: "bg-indigo-50/90 dark:bg-indigo-950/30",
-      border: "border-indigo-200/80 dark:border-indigo-800/50 hover:border-indigo-400",
-      iconBg: "bg-white dark:bg-stone-900 shadow-xs",
+      desc: "Help & Security",
     },
     {
-      icon: <FaWrench className="text-xl text-violet-600 dark:text-violet-400" />,
+      icon: <FaWrench className="text-lg" />,
       name: "Mechanic",
-      bg: "bg-violet-50/90 dark:bg-violet-950/30",
-      border: "border-violet-200/80 dark:border-violet-800/50 hover:border-violet-400",
-      iconBg: "bg-white dark:bg-stone-900 shadow-xs",
+      desc: "Roadside Assist",
     },
   ];
 
   return (
-    <section className="rounded-2xl border border-slate-200/90 bg-white p-5 md:p-6 shadow-[0_4px_20px_rgba(0,0,0,0.03)] transition-colors">
+    <section className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-[#131b2e] p-5 md:p-6 shadow-xs transition-colors">
       <div className="mb-5">
-        <h2 className="text-xl font-serif font-light text-slate-900">Essentials &amp; Emergency Services</h2>
-        <p className="text-xs text-slate-500 mt-0.5">
+        <h2 className="text-lg font-bold text-slate-900 dark:text-white">Essentials &amp; Emergency Services</h2>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
           Emergency contacts, medical, ATMs &amp; fuel stations in {trip.destination}
         </p>
       </div>
@@ -79,12 +67,17 @@ export default function EssentialsPreview({ trip }) {
                 },
               })
             }
-            className={`group flex flex-col items-center justify-center rounded-2xl border ${item.border} ${item.bg} p-4 text-center transition-all duration-200 hover:-translate-y-1 hover:shadow-md cursor-pointer`}
+            className="group flex flex-col items-center justify-center rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/50 p-4 text-center transition-all duration-200 hover:-translate-y-1 hover:border-indigo-400 dark:hover:border-indigo-500 hover:bg-white dark:hover:bg-slate-800/80 hover:shadow-sm cursor-pointer"
           >
-            <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${item.iconBg} transition group-hover:scale-110`}>
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white dark:bg-slate-800 border border-slate-200/70 dark:border-slate-700 text-indigo-600 dark:text-indigo-400 group-hover:scale-105 group-hover:bg-indigo-600 group-hover:text-white dark:group-hover:bg-indigo-600 dark:group-hover:text-white transition-all duration-200 shadow-2xs">
               {item.icon}
             </div>
-            <span className="mt-2.5 text-xs font-semibold text-[#0c0a09] dark:text-stone-100">{item.name}</span>
+            <span className="mt-2.5 text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+              {item.name}
+            </span>
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5 font-medium truncate max-w-full">
+              {item.desc}
+            </span>
           </button>
         ))}
       </div>

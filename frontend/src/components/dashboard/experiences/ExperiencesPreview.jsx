@@ -20,11 +20,11 @@ export default function ExperiencesPreview({ trip }) {
     .slice(0, 6);
 
   return (
-    <section className="rounded-2xl border border-slate-200/90 bg-white p-5 md:p-6 shadow-[0_4px_20px_rgba(0,0,0,0.03)] transition-colors">
+    <section className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-[#131b2e] p-5 md:p-6 shadow-xs transition-colors">
       <div className="mb-5 flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-serif font-light text-slate-900">Local Experiences &amp; Activities</h2>
-          <p className="text-xs text-slate-500 mt-0.5">Popular sights and things to do</p>
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white">Local Experiences &amp; Activities</h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Popular sights and things to do in {trip.destination}</p>
         </div>
       </div>
 

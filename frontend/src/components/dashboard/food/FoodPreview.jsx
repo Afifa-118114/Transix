@@ -15,56 +15,44 @@ export default function FoodPreview({ trip }) {
 
   const items = [
     {
-      icon: <FaUtensils className="text-xl text-amber-600 dark:text-amber-400" />,
+      icon: <FaUtensils className="text-lg" />,
       name: "Restaurants",
-      bg: "bg-amber-50/90 dark:bg-amber-950/30",
-      border: "border-amber-200/80 dark:border-amber-800/50 hover:border-amber-400",
-      iconBg: "bg-white dark:bg-stone-900 shadow-xs",
+      desc: "Top Regional Dining",
     },
     {
-      icon: <FaMugHot className="text-xl text-rose-600 dark:text-rose-400" />,
+      icon: <FaMugHot className="text-lg" />,
       name: "Cafe",
-      bg: "bg-rose-50/90 dark:bg-rose-950/30",
-      border: "border-rose-200/80 dark:border-rose-800/50 hover:border-rose-400",
-      iconBg: "bg-white dark:bg-stone-900 shadow-xs",
+      desc: "Artisanal & Coffee",
     },
     {
-      icon: <FaBurger className="text-xl text-orange-600 dark:text-orange-400" />,
+      icon: <FaBurger className="text-lg" />,
       name: "Fast Food",
-      bg: "bg-orange-50/90 dark:bg-orange-950/30",
-      border: "border-orange-200/80 dark:border-orange-800/50 hover:border-orange-400",
-      iconBg: "bg-white dark:bg-stone-900 shadow-xs",
+      desc: "Quick Bites & Grills",
     },
     {
-      icon: <FaBreadSlice className="text-xl text-yellow-600 dark:text-yellow-400" />,
+      icon: <FaBreadSlice className="text-lg" />,
       name: "Bakery",
-      bg: "bg-yellow-50/90 dark:bg-yellow-950/30",
-      border: "border-yellow-200/80 dark:border-yellow-800/50 hover:border-yellow-400",
-      iconBg: "bg-white dark:bg-stone-900 shadow-xs",
+      desc: "Fresh Bakes & Sweets",
     },
     {
-      icon: <FaPizzaSlice className="text-xl text-red-600 dark:text-red-400" />,
+      icon: <FaPizzaSlice className="text-lg" />,
       name: "Pizza",
-      bg: "bg-red-50/90 dark:bg-red-950/30",
-      border: "border-red-200/80 dark:border-red-800/50 hover:border-red-400",
-      iconBg: "bg-white dark:bg-stone-900 shadow-xs",
+      desc: "Woodfired & Italian",
     },
     {
-      icon: <FaBowlFood className="text-xl text-emerald-600 dark:text-emerald-400" />,
+      icon: <FaBowlFood className="text-lg" />,
       name: "Street Food",
-      bg: "bg-emerald-50/90 dark:bg-emerald-950/30",
-      border: "border-emerald-200/80 dark:border-emerald-800/50 hover:border-emerald-400",
-      iconBg: "bg-white dark:bg-stone-900 shadow-xs",
+      desc: "Local Iconic Flavors",
     },
   ];
 
   return (
-    <section className="rounded-2xl border border-slate-200/90 bg-white p-5 md:p-6 shadow-[0_4px_20px_rgba(0,0,0,0.03)] transition-colors">
+    <section className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-[#131b2e] p-5 md:p-6 shadow-xs transition-colors">
       <div className="mb-5 flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-serif font-light text-slate-900">Food &amp; Dining</h2>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Top curated culinary spots around {trip.destination}
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white">Food &amp; Dining</h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            Curated culinary spots and local food recommendations in {trip.destination}
           </p>
         </div>
       </div>
@@ -81,12 +69,17 @@ export default function FoodPreview({ trip }) {
                 },
               })
             }
-            className={`group flex flex-col items-center justify-center rounded-2xl border ${item.border} ${item.bg} p-4 text-center transition-all duration-200 hover:-translate-y-1 hover:shadow-md cursor-pointer`}
+            className="group flex flex-col items-center justify-center rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/50 p-4 text-center transition-all duration-200 hover:-translate-y-1 hover:border-indigo-400 dark:hover:border-indigo-500 hover:bg-white dark:hover:bg-slate-800/80 hover:shadow-sm cursor-pointer"
           >
-            <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${item.iconBg} transition group-hover:scale-110`}>
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white dark:bg-slate-800 border border-slate-200/70 dark:border-slate-700 text-indigo-600 dark:text-indigo-400 group-hover:scale-105 group-hover:bg-indigo-600 group-hover:text-white dark:group-hover:bg-indigo-600 dark:group-hover:text-white transition-all duration-200 shadow-2xs">
               {item.icon}
             </div>
-            <span className="mt-2.5 text-xs font-semibold text-[#0c0a09] dark:text-stone-100">{item.name}</span>
+            <span className="mt-2.5 text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+              {item.name}
+            </span>
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5 font-medium truncate max-w-full">
+              {item.desc}
+            </span>
           </button>
         ))}
       </div>
