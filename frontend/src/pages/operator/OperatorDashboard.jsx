@@ -8,7 +8,7 @@ import {
   FiActivity, FiCalendar, FiClock, FiAlertCircle, FiCheckCircle, 
   FiArrowRight, FiShield, FiBriefcase, FiUsers,
   FiZap, FiMenu, FiX, FiCheck, FiUser,
-  FiAlertTriangle, FiCompass, FiSend
+  FiAlertTriangle, FiCompass, FiSend, FiChevronDown, FiChevronUp
 } from "react-icons/fi";
 import { GraduationCap } from "lucide-react";
 
@@ -22,6 +22,7 @@ export default function OperatorDashboard() {
   const [vendorRequests, setVendorRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showAllActions, setShowAllActions] = useState(false);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -311,10 +312,21 @@ export default function OperatorDashboard() {
                   <span className="flex items-center gap-2 text-xs font-bold text-[#F5330F]">
                     <FiAlertCircle size={15} /> Immediate Action Items ({actionItems.length})
                   </span>
-                  <span className="text-[11px] text-[#666666]">Requires operator confirmation</span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-[11px] text-[#666666]">Requires operator confirmation</span>
+                    {actionItems.length > 5 && (
+                      <button
+                        type="button"
+                        onClick={() => setShowAllActions(!showAllActions)}
+                        className="text-xs font-semibold text-[#0064D2] hover:text-[#0052B4] hover:underline transition"
+                      >
+                        {showAllActions ? "Show less" : `See all (${actionItems.length})`}
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {actionItems.map((item) => (
+                  {(showAllActions ? actionItems : actionItems.slice(0, 5)).map((item) => (
                     <div 
                       key={item.id} 
                       className="p-3 bg-white border border-[#EBEBEB] hover:border-[#0064D2]/40 rounded-lg flex items-center justify-between gap-3 shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:-translate-y-0.5 transition-all duration-150"
@@ -335,7 +347,33 @@ export default function OperatorDashboard() {
                       </Link>
                     </div>
                   ))}
+
+                  {/* 6th slot: See More card when collapsed to top 5 */}
+                  {!showAllActions && actionItems.length > 5 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowAllActions(true)}
+                      className="p-3 bg-white hover:bg-[#FFF2EA] border border-dashed border-[#FFB28A] hover:border-[#F5330F] rounded-lg flex items-center justify-center gap-2 text-xs font-semibold text-[#0064D2] hover:text-[#0052B4] transition shadow-[0_1px_2px_rgba(0,0,0,0.04)] group"
+                    >
+                      <span>See more ({actionItems.length - 5} remaining)</span>
+                      <FiChevronDown className="transition-transform group-hover:translate-y-0.5" />
+                    </button>
+                  )}
                 </div>
+
+                {/* Show Less button when expanded */}
+                {showAllActions && actionItems.length > 5 && (
+                  <div className="pt-1 flex justify-center border-t border-[#FFD0B8]/40">
+                    <button
+                      type="button"
+                      onClick={() => setShowAllActions(false)}
+                      className="text-xs font-semibold text-[#0064D2] hover:text-[#0052B4] flex items-center gap-1.5 py-1 px-3 rounded-md hover:bg-[#FFEADA] transition"
+                    >
+                      <span>Show top 5 only</span>
+                      <FiChevronUp />
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </section>
