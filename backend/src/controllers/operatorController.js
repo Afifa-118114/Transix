@@ -11,6 +11,41 @@ const { findMatchingFleetVendors } = require("../services/vendorMatchingService"
 const { resolveCityToState } = require("../services/locationService");
 const AppError = require("../utils/AppError");
 
+// Single-Operator Mode: All operators access the centralized operations pool
+const buildOperatorTripQuery = (user, scope = "all", extraQuery = {}) => {
+  // In single operator mode, return all trips shared with operations
+  return { "operatorAccess.enabled": true, ...extraQuery };
+
+  /* --- MULTI-TENANT OPERATOR ISOLATION (COMMENTED OUT FOR NOW) ---
+  const base = { "operatorAccess.enabled": true, status: "Finalized", ...extraQuery };
+  if (user?.role === "admin") {
+    return base;
+  }
+  const userId = user?._id || user?.id;
+  if (scope === "my") {
+    return { ...base, "operatorAccess.operatorId": userId };
+  }
+  if (scope === "unassigned") {
+    return {
+      ...base,
+      $or: [
+        { "operatorAccess.operatorId": null },
+        { "operatorAccess.operatorId": { $exists: false } },
+      ],
+    };
+  }
+  return {
+    ...base,
+    $or: [
+      { "operatorAccess.operatorId": userId },
+      { "operatorAccess.operatorId": null },
+      { "operatorAccess.operatorId": { $exists: false } },
+    ],
+  };
+  --------------------------------------------------------------- */
+};
+
+
 // Synchronize canonical trip data with operator BookingRequirement collection
 const syncTripRequirements = async (trip) => {
   if (!trip || trip.status === "Draft") return;
@@ -299,8 +334,10 @@ const syncTripRequirements = async (trip) => {
 };
 
 const getDashboardStats = asyncHandler(async (req, res) => {
-  const operatorQuery = { "operatorAccess.enabled": true, status: "Finalized" };
-  const trips = await Trip.find(operatorQuery).populate("user", "name email");
+  const operatorQuery = buildOperatorTripQuery(req.user, "all");
+  const trips = await Trip.find(operatorQuery)
+    .sort({ "operatorAccess.grantedAt": -1, updatedAt: -1 })
+    .populate("user", "name email");
 
   // Sync requirements for all shared finalized trips
   for (const trip of trips) {
@@ -446,8 +483,27 @@ const getDashboardStats = asyncHandler(async (req, res) => {
 
   // Recent operational updates from persisted records and history
   const recentUpdates = [];
+
+  // 1. Include newly shared itineraries in the feed
+  for (const trip of trips) {
+    if (trip.operatorAccess?.grantedAt) {
+      const travelerName = trip.user?.name || "Traveler";
+      const tripLabel = trip.organizationDetails?.name 
+        ? `${trip.organizationDetails.name} • ${trip.destination}`
+        : `${trip.source} → ${trip.destination}`;
+
+      recentUpdates.push({
+        id: `trip-shared-${trip._id}`,
+        title: `New itinerary shared by ${travelerName}`,
+        subtitle: `${tripLabel} · Ready for review`,
+        status: "ACTION_REQUIRED",
+        timestamp: trip.operatorAccess.grantedAt,
+      });
+    }
+  }
+
+  // 2. Include booking status changes
   for (const b of allBookings) {
-    if (recentUpdates.length >= 6) break;
     const matchingTrip = trips.find(t => t._id.toString() === b.tripId.toString());
     const tripName = matchingTrip?.organizationDetails?.name 
       ? `${matchingTrip.organizationDetails.name} • ${matchingTrip.destination}`
@@ -473,11 +529,18 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     }
   }
 
+  // Sort descending by timestamp so newest events are always at the top
+  recentUpdates.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+  const userId = (req.user._id || req.user.id).toString();
+
   res.status(200).json({
     success: true,
     stats: {
       personalTrips: personalTrips.length,
       campusTrips: campusTrips.length,
+      myAssignedCount: trips.filter(t => (t.operatorAccess?.operatorId?._id || t.operatorAccess?.operatorId)?.toString() === userId).length,
+      openPoolCount: trips.filter(t => !t.operatorAccess?.operatorId).length,
       activeTripsCount: activeTrips.length,
       upcomingTripsCount: upcomingTrips.length,
       completedTripsCount: completedTrips.length,
@@ -493,14 +556,27 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     actionItems,
     recentUpdates,
   });
+
 });
 
 const getOperatorTrips = asyncHandler(async (req, res) => {
-  const trips = await Trip.find({ "operatorAccess.enabled": true, status: "Finalized" })
+  const { scope = "all", type } = req.query;
+  const operatorQuery = buildOperatorTripQuery(req.user, scope);
+
+  if (type === "personal") {
+    operatorQuery.tripCategory = { $ne: "CAMPUS" };
+  } else if (type === "campus") {
+    operatorQuery.tripCategory = "CAMPUS";
+  }
+
+  const trips = await Trip.find(operatorQuery)
+    .sort({ "operatorAccess.grantedAt": -1, updatedAt: -1 })
     .populate("user", "name email")
-    .populate("coordinatorId", "name email phone");
+    .populate("coordinatorId", "name email phone")
+    .populate("operatorAccess.operatorId", "name email companyName phone city");
 
   const now = new Date();
+  const userId = (req.user._id || req.user.id).toString();
 
   // Fetch booking requirements per trip to compute progress
   const tripsWithBookings = await Promise.all(
@@ -521,10 +597,6 @@ const getOperatorTrips = asyncHandler(async (req, res) => {
       const visitTotal = visitBookings.length || (trip.campusConfig?.educationalRequirements?.length || 0);
       const visitConfirmed = visitBookings.filter(b => b.status === "CONFIRMED").length;
 
-      // Timing Classification:
-      // ACTIVE = now between startDate and endDate
-      // UPCOMING = startDate > now
-      // COMPLETED = endDate < now
       const s = new Date(trip.startDate);
       const e = new Date(trip.endDate);
       e.setHours(23, 59, 59, 999);
@@ -544,10 +616,30 @@ const getOperatorTrips = asyncHandler(async (req, res) => {
       else if (allConfirmed) operationalStatus = "Confirmed";
       else if (bookings.every(b => b.status === "NOT_BOOKED")) operationalStatus = "Not Booked";
 
+      // Multi-Operator Ownership Flags (Single operator mode: all trips directly manageable)
+      const isAssignedToMe = true;
+      const isUnassigned = false;
+      const isAssignedToOther = false;
+      // Read populated operator details safely (may be null in single-operator mode)
+      const assignedOp = trip.operatorAccess?.operatorId && typeof trip.operatorAccess.operatorId === "object"
+        ? trip.operatorAccess.operatorId
+        : null;
+
       return {
         ...trip.toObject(),
         timingStatus,
         operationalStatus,
+        isAssignedToMe,
+        isUnassigned,
+        isAssignedToOther,
+        assignedOperatorName: assignedOp?.companyName || assignedOp?.name || null,
+        assignedOperatorDetails: assignedOp ? {
+          id: assignedOp._id,
+          name: assignedOp.name,
+          companyName: assignedOp.companyName || assignedOp.name,
+          phone: assignedOp.phone || "",
+          city: assignedOp.city || "",
+        } : null,
         readiness: {
           accommodation: { confirmed: accConfirmed, total: accTotal },
           transport: { confirmed: transConfirmed, total: transTotal },
@@ -571,6 +663,93 @@ const getOperatorTrips = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * Claim an unassigned trip from the Open Operator Pool
+ * POST /api/operator/trips/:tripId/claim
+ */
+const claimOperatorTrip = asyncHandler(async (req, res) => {
+  const { tripId } = req.params;
+  const userId = (req.user._id || req.user.id).toString();
+
+  const trip = await Trip.findOne({
+    _id: tripId,
+    "operatorAccess.enabled": true,
+    status: "Finalized",
+  });
+
+  if (!trip) {
+    throw new AppError("Trip not found or not available for tour operations", 404);
+  }
+
+  const currentOpId = (trip.operatorAccess?.operatorId?._id || trip.operatorAccess?.operatorId)?.toString();
+
+  if (currentOpId && currentOpId !== userId && req.user.role !== "admin") {
+    const existingOp = await User.findById(currentOpId).select("name companyName");
+    throw new AppError(
+      `This journey is already claimed by ${existingOp?.companyName || existingOp?.name || "another operator"}.`,
+      400
+    );
+  }
+
+  trip.operatorAccess = {
+    ...(trip.operatorAccess || {}),
+    enabled: true,
+    operatorId: req.user._id || req.user.id,
+    grantedAt: trip.operatorAccess?.grantedAt || new Date(),
+    claimedAt: new Date(),
+  };
+
+  await trip.save();
+  await trip.populate("operatorAccess.operatorId", "name email companyName phone city");
+
+  res.status(200).json({
+    success: true,
+    message: "Tour successfully claimed! You are now the managing operator for this journey.",
+    trip,
+  });
+});
+
+/**
+ * Release an assigned trip back to the Open Operator Pool
+ * POST /api/operator/trips/:tripId/release
+ */
+const releaseOperatorTrip = asyncHandler(async (req, res) => {
+  const { tripId } = req.params;
+  const userId = (req.user._id || req.user.id).toString();
+
+  const trip = await Trip.findOne({
+    _id: tripId,
+    "operatorAccess.enabled": true,
+    status: "Finalized",
+  });
+
+  if (!trip) {
+    throw new AppError("Trip not found", 404);
+  }
+
+  const currentOpId = (trip.operatorAccess?.operatorId?._id || trip.operatorAccess?.operatorId)?.toString();
+
+  if (req.user.role !== "admin" && currentOpId !== userId) {
+    throw new AppError("You can only release tours currently assigned to your organization.", 403);
+  }
+
+  trip.operatorAccess = {
+    ...(trip.operatorAccess || {}),
+    enabled: true,
+    operatorId: null,
+    releasedAt: new Date(),
+  };
+
+  await trip.save();
+
+  res.status(200).json({
+    success: true,
+    message: "Tour released back to the Open Tour Pool.",
+    trip,
+  });
+});
+
+
 const VALID_STATUS_TRANSITIONS = {
   NOT_BOOKED: ["PROCESSING", "ACTION_REQUIRED", "CONFIRMED"],
   PROCESSING: ["ACTION_REQUIRED", "CONFIRMED", "CANCELLED", "NOT_BOOKED"],
@@ -580,7 +759,7 @@ const VALID_STATUS_TRANSITIONS = {
 };
 
 const getOperatorTripDetails = asyncHandler(async (req, res) => {
-  const trip = await Trip.findOne({ _id: req.params.tripId, "operatorAccess.enabled": true, status: "Finalized" })
+  const trip = await Trip.findOne({ _id: req.params.tripId, "operatorAccess.enabled": true })
     .populate("user", "name email")
     .populate("coordinatorId", "name email phone");
   if (!trip) throw new AppError("Trip not found or access not granted", 404);
@@ -1345,7 +1524,7 @@ const getAllVendorsDirectory = asyncHandler(async (req, res) => {
 });
 
 const getOperatorBookings = asyncHandler(async (req, res) => {
-  const operatorQuery = { "operatorAccess.enabled": true, status: "Finalized" };
+  const operatorQuery = buildOperatorTripQuery(req.user, req.query?.scope || "all");
   const trips = await Trip.find(operatorQuery).populate("user", "name email");
 
   for (const trip of trips) {
@@ -1387,7 +1566,7 @@ const getOperatorBookings = asyncHandler(async (req, res) => {
 });
 
 const getOperatorAllVendorRequests = asyncHandler(async (req, res) => {
-  const operatorQuery = { "operatorAccess.enabled": true, status: "Finalized" };
+  const operatorQuery = buildOperatorTripQuery(req.user, req.query?.scope || "all");
   const trips = await Trip.find(operatorQuery).select("source destination startDate endDate duration travelers tripCategory organizationDetails");
 
   const tripIds = trips.map(t => t._id);
@@ -1424,7 +1603,7 @@ const getOperatorAllVendorRequests = asyncHandler(async (req, res) => {
 });
 
 const getOperatorConversations = asyncHandler(async (req, res) => {
-  const operatorQuery = { "operatorAccess.enabled": true, status: "Finalized" };
+  const operatorQuery = buildOperatorTripQuery(req.user, req.query?.scope || "all");
   const trips = await Trip.find(operatorQuery)
     .populate("user", "name email role")
     .populate("coordinatorId", "name email phone role")
@@ -1512,6 +1691,8 @@ module.exports = {
   getDashboardStats,
   getOperatorTrips,
   getOperatorTripDetails,
+  claimOperatorTrip,
+  releaseOperatorTrip,
   getTripMessages,
   sendTripMessage,
   getUnreadMessageCount,
@@ -1530,3 +1711,4 @@ module.exports = {
   getOperatorAllVendorRequests,
   getOperatorConversations,
 };
+

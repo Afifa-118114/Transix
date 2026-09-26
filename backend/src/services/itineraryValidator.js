@@ -112,13 +112,25 @@ const getActivityLogicalWindow = (item) => {
       return { start: 0, end: 1440 * 10 }; // Transport can happen anytime, and span across days seamlessly
   }
 
-  if (title.includes("dinner")) return { start: 17 * 60, end: 23 * 60 + 30 };
-  if (title.includes("lunch")) return { start: 11 * 60, end: 16 * 60 };
-  if (title.includes("breakfast")) return { start: 6 * 60, end: 11 * 60 };
+  const isPureMeal = (cat.includes("meal") || cat.includes("food")) && !title.includes("tour") && !title.includes("trek") && !title.includes("walk") && !title.includes("gallery") && !title.includes("show") && !title.includes("cruise");
 
-  if (cat.includes("museum") || cat.includes("fort") || cat.includes("attraction")) return { start: 8 * 60, end: 20 * 60 };
-  if (cat.includes("shopping") || cat.includes("market")) return { start: 9 * 60, end: 22 * 60 };
-  if (cat.includes("sightseeing")) return { start: 6 * 60, end: 22 * 60 };
+  if (isPureMeal) {
+    if (title.includes("breakfast")) return { start: 6 * 60, end: 12 * 60 };
+    if (title.includes("lunch")) return { start: 10 * 60 + 30, end: 18 * 60 };
+    if (title.includes("dinner")) return { start: 17 * 60, end: 23 * 60 + 59 };
+  } else {
+    if (title.includes("breakfast")) return { start: 6 * 60, end: 13 * 60 };
+    if (title.includes("lunch")) return { start: 10 * 60, end: 19 * 60 };
+    if (title.includes("dinner")) return { start: 16 * 60, end: 23 * 60 + 59 };
+  }
+
+  if (cat.includes("hotel") || cat.includes("stay") || cat.includes("operational") || title.includes("checkout") || title.includes("check-out") || title.includes("check out") || title.includes("check-in") || title.includes("check in")) {
+    return { start: 0, end: 1440 * 10 };
+  }
+
+  if (cat.includes("museum") || cat.includes("fort") || cat.includes("attraction")) return { start: 7 * 60, end: 21 * 60 };
+  if (cat.includes("shopping") || cat.includes("market")) return { start: 8 * 60, end: 23 * 60 };
+  if (cat.includes("sightseeing")) return { start: 5 * 60, end: 23 * 60 };
   
   return { start: 6 * 60, end: 23 * 60 + 59 };
 };
@@ -144,8 +156,8 @@ const detectConflicts = (trip) => {
     let currentDayBaseOffset = (dayNum - 1) * 1440;
     
     let sortedPlan = [...(day.plan || [])].sort((a, b) => {
-      const aStart = timeToMinutes(a.startTime || (a.time ? String(a.time).split("-")[0] : null)) || 0;
-      const bStart = timeToMinutes(b.startTime || (b.time ? String(b.time).split("-")[0] : null)) || 0;
+      const aStart = a._absStart !== undefined ? a._absStart : (timeToMinutes(a.startTime || (a.time ? String(a.time).split("-")[0] : null)) || 0);
+      const bStart = b._absStart !== undefined ? b._absStart : (timeToMinutes(b.startTime || (b.time ? String(b.time).split("-")[0] : null)) || 0);
       return aStart - bStart;
     });
 
@@ -393,11 +405,7 @@ const validateItinerary = (itinerary, tripInput) => {
     const totalGroupBudget = budgetPerStudent * expectedStudents;
 
     const tripDurationDays = getTripDurationDays(tripInput);
-    const accommodationAllocationPerStudent = Math.min(
-      budgetPerStudent > 0 ? budgetPerStudent : 10000,
-      tripDurationDays * 1000,
-      10000
-    );
+    const accommodationAllocationPerStudent = Math.round(budgetPerStudent * 0.60);
     const accommodationGroupAllocation = accommodationAllocationPerStudent * expectedStudents;
 
     // Accommodation Allocation Check (Separate from overall trip budget)

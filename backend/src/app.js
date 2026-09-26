@@ -14,7 +14,11 @@ const campusRoutes = require("./routes/campusRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const vendorRoutes = require("./routes/vendorRoutes");
 const guideRoutes = require("./routes/guideRoutes");
+const hotelRoutes = require("./routes/hotelRoutes");
+const bookingOrchestratorRoutes = require("./routes/bookingOrchestratorRoutes");
 const app = express();
+
+const path = require("path");
 
 const corsOptions = {
   origin: process.env.FRONTEND_URL
@@ -25,6 +29,7 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.use(express.json());
+app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
 app.get("/", (req, res) => {
   res.send("API is running..");
@@ -50,6 +55,8 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/vendor", vendorRoutes);
 app.use("/api/guide", guideRoutes);
 app.use("/api/guides", guideRoutes);
+app.use("/api/hotels", hotelRoutes);
+app.use("/api/bookings/orchestrator", bookingOrchestratorRoutes);
 app.use(errorHandler);
 
 module.exports = app;

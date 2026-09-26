@@ -9,70 +9,6 @@ const {
 const { generateHeroImage } = require("../services/imageService");
 const crypto = require("crypto");
 
-const generateAssistantChat = asyncHandler(async (req, res) => {
-  const { message, language = "auto", trip = null, history = [] } = req.body || {};
-  const cleanMessage = typeof message === "string" ? message.trim() : "";
-
-  if (!cleanMessage) {
-    const error = new Error("Please enter a message.");
-    error.statusCode = 400;
-    throw error;
-  }
-
-  const reply = await generateAssistantReply({
-    message: cleanMessage,
-    language,
-    trip,
-    history,
-  });
-
-  res.status(200).json({
-    success: true,
-    reply,
-  });
-});
-
-const transcribeAssistantAudio = asyncHandler(async (req, res) => {
-  if (!req.file || !req.file.buffer?.length) {
-    const error = new Error("No audio recording was received. Please record a message and try again.");
-    error.statusCode = 400;
-    throw error;
-  }
-
-  const mimeType = String(req.file.mimetype || "").split(";")[0].toLowerCase();
-  const extension = String(req.file.originalname || "").split(".").pop().toLowerCase();
-  const formatByMimeType = {
-    "audio/webm": "webm",
-    "audio/mp4": "m4a",
-    "audio/m4a": "m4a",
-    "audio/ogg": "ogg",
-    "audio/wav": "wav",
-    "audio/x-wav": "wav",
-    "audio/mpeg": "mp3",
-    "audio/flac": "flac",
-    "audio/aac": "aac",
-  };
-  const format = formatByMimeType[mimeType] || extension;
-  const transcript = await transcribeAudio({
-    audioBuffer: req.file.buffer,
-    format,
-    language: req.body?.language || "auto",
-  });
-
-  res.status(200).json({ success: true, transcript });
-});
-
-const generateAssistantSpeech = asyncHandler(async (req, res) => {
-  const { text = "", language = "auto" } = req.body || {};
-  const speech = await synthesizeSpeech({ text, language });
-
-  res.status(200)
-    .set("Content-Type", speech.contentType)
-    .set("Cache-Control", "no-store")
-    .set("X-Content-Type-Options", "nosniff")
-    .send(speech.audio);
-});
-
 const generateAITrip = asyncHandler(async (req, res) => {
   const tripData = req.body;
   const tStart = Date.now();
@@ -148,13 +84,60 @@ const generateAITrip = asyncHandler(async (req, res) => {
         id: p.id || `itin_${crypto.randomUUID()}`
       }))
     })),
-    staySegments: aiData.staySegments || [],
+    staySegments: (aiData.staySegments || []).map((seg, sIdx) => {
+      const hotelPhotos = [
+        "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1582719508461-905c673771fd?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1540541338287-41700207dee6?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1571896349842-33c89424de2d?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&w=800&q=80"
+      ];
+      const photo = hotelPhotos[sIdx % hotelPhotos.length];
+
+      if (seg.selectedHotel && seg.selectedHotel.name) {
+        if (!seg.selectedHotel.image) seg.selectedHotel.image = photo;
+        return seg;
+      }
+      const hotelName = seg.hotelName || `${seg.location || tripData.destination} Grand Resort & Spa`;
+      const nightly = Number(seg.nightlyPrice) || 2800;
+      const nights = Number(seg.nights) || 1;
+      return {
+        ...seg,
+        hotelName,
+        nightlyPrice: nightly,
+        selectedHotel: {
+          id: `htl_auto_${sIdx}`,
+          name: hotelName,
+          rating: 4.6,
+          nightlyPrice: nightly,
+          pricePerNight: nightly,
+          price: nightly * nights,
+          groupPrice: nightly * nights,
+          roomType: "Deluxe King Room",
+          location: seg.location || tripData.destination,
+          address: `${seg.location || tripData.destination}, Central Area`,
+          image: photo,
+          amenities: ["Free High-Speed WiFi", "Breakfast Included", "Air Conditioning", "Swimming Pool"],
+          isAutoAssigned: true,
+          isEstimatedPrice: false
+        }
+      };
+    }),
     travelLegs: aiData.travelLegs || [],
     validation: aiData.validation || null,
     budgetBreakdown: aiData.budgetBreakdown,
     tips: aiData.tips,
     summary: aiData.summary,
   });
+
+  // Automatically sync booking requirements for the new trip
+  try {
+    const { syncBookingRequirements } = require("./tripController");
+    await syncBookingRequirements(savedTrip);
+  } catch (err) {
+    console.warn("[aiController] Warning: Could not auto-sync booking requirements:", err.message);
+  }
+
   const tDb = Date.now();
   console.log(`[Backend Trace] DB Save: ${tDb - tAi}ms`);
   console.log(`[Backend Trace] Total Backend Execution: ${tDb - tStart}ms`);
@@ -164,6 +147,70 @@ const generateAITrip = asyncHandler(async (req, res) => {
     message: "AI trip generated & saved successfully",
     trip: savedTrip,
   });
+});
+
+const generateAssistantChat = asyncHandler(async (req, res) => {
+  const { message, language = "auto", trip = null, history = [] } = req.body || {};
+  const cleanMessage = typeof message === "string" ? message.trim() : "";
+
+  if (!cleanMessage) {
+    const error = new Error("Please enter a message.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const reply = await generateAssistantReply({
+    message: cleanMessage,
+    language,
+    trip,
+    history,
+  });
+
+  res.status(200).json({
+    success: true,
+    reply,
+  });
+});
+
+const transcribeAssistantAudio = asyncHandler(async (req, res) => {
+  if (!req.file || !req.file.buffer?.length) {
+    const error = new Error("No audio recording was received. Please record a message and try again.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const mimeType = String(req.file.mimetype || "").split(";")[0].toLowerCase();
+  const extension = String(req.file.originalname || "").split(".").pop().toLowerCase();
+  const formatByMimeType = {
+    "audio/webm": "webm",
+    "audio/mp4": "m4a",
+    "audio/m4a": "m4a",
+    "audio/ogg": "ogg",
+    "audio/wav": "wav",
+    "audio/x-wav": "wav",
+    "audio/mpeg": "mp3",
+    "audio/flac": "flac",
+    "audio/aac": "aac",
+  };
+  const format = formatByMimeType[mimeType] || extension;
+  const transcript = await transcribeAudio({
+    audioBuffer: req.file.buffer,
+    format,
+    language: req.body?.language || "auto",
+  });
+
+  res.status(200).json({ success: true, transcript });
+});
+
+const generateAssistantSpeech = asyncHandler(async (req, res) => {
+  const { text = "", language = "auto" } = req.body || {};
+  const speech = await synthesizeSpeech({ text, language });
+
+  res.status(200)
+    .set("Content-Type", speech.contentType)
+    .set("Cache-Control", "no-store")
+    .set("X-Content-Type-Options", "nosniff")
+    .send(speech.audio);
 });
 
 module.exports = {

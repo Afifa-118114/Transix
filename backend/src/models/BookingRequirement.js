@@ -10,7 +10,7 @@ const bookingRequirementSchema = new mongoose.Schema(
     travelerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      required: false,
     },
     staySegmentId: {
       type: String, // from staySegments[].id
@@ -25,7 +25,7 @@ const bookingRequirementSchema = new mongoose.Schema(
     },
     title: {
       type: String,
-      required: true,
+      default: "Booking Requirement",
     },
     location: {
       type: String,

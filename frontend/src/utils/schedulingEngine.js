@@ -83,20 +83,27 @@ export const getActivityLogicalWindow = (item) => {
   const title = String(item.name || item.activity || "").toLowerCase();
 
   if (isImmutableTransport(item)) return { start: 0, end: 1440 }; // Transport can be anytime
-  if (title.includes("dinner")) return { start: 17 * 60, end: 23 * 60 + 30 }; // 5 PM to 11:30 PM
-  if (title.includes("lunch")) return { start: 11 * 60, end: 16 * 60 }; // 11 AM to 4 PM
-  if (title.includes("breakfast")) return { start: 6 * 60, end: 11 * 60 }; // 6 AM to 11 AM
 
-  if (cat.includes("hotel") || cat.includes("stay") || cat.includes("operational") || title.includes("checkout") || title.includes("check-out") || title.includes("check out")) {
-    return { start: 4 * 60, end: 23 * 60 + 59 }; // Permits early morning checkout from 4 AM onwards
-  }
-  if (title.includes("check-in") || title.includes("check in")) {
-    return { start: 6 * 60, end: 23 * 60 + 59 };
+  const isPureMeal = (cat.includes("meal") || cat.includes("food")) && !title.includes("tour") && !title.includes("trek") && !title.includes("walk") && !title.includes("gallery") && !title.includes("show") && !title.includes("cruise");
+
+  if (isPureMeal) {
+    if (title.includes("breakfast")) return { start: 6 * 60, end: 12 * 60 }; // 6 AM to 12 PM
+    if (title.includes("lunch")) return { start: 10 * 60 + 30, end: 18 * 60 }; // 10:30 AM to 6 PM (flexible lunch/afternoon dining)
+    if (title.includes("dinner")) return { start: 17 * 60, end: 23 * 60 + 59 }; // 5 PM to midnight
+  } else {
+    // If it's a tour/activity with a meal or general activity
+    if (title.includes("breakfast")) return { start: 6 * 60, end: 13 * 60 };
+    if (title.includes("lunch")) return { start: 10 * 60, end: 19 * 60 }; // 10 AM to 7 PM
+    if (title.includes("dinner")) return { start: 16 * 60, end: 23 * 60 + 59 };
   }
 
-  if (cat.includes("museum") || cat.includes("fort") || cat.includes("attraction")) return { start: 8 * 60, end: 20 * 60 }; // 8 AM to 8 PM
-  if (cat.includes("shopping") || cat.includes("market")) return { start: 9 * 60, end: 22 * 60 }; // 9 AM to 10 PM
-  if (cat.includes("sightseeing")) return { start: 6 * 60, end: 22 * 60 }; // 6 AM to 10 PM
+  if (cat.includes("hotel") || cat.includes("stay") || cat.includes("operational") || title.includes("checkout") || title.includes("check-out") || title.includes("check out") || title.includes("check-in") || title.includes("check in")) {
+    return { start: 0, end: 1440 }; // Check-in/out can happen anytime
+  }
+
+  if (cat.includes("museum") || cat.includes("fort") || cat.includes("attraction")) return { start: 7 * 60, end: 21 * 60 }; // 7 AM to 9 PM
+  if (cat.includes("shopping") || cat.includes("market")) return { start: 8 * 60, end: 23 * 60 }; // 8 AM to 11 PM
+  if (cat.includes("sightseeing")) return { start: 5 * 60, end: 23 * 60 }; // 5 AM to 11 PM
   
   return { start: 6 * 60, end: 23 * 60 + 59 }; // Default 6 AM to Midnight
 };
@@ -193,41 +200,7 @@ export const getDayConstraints = (trip, dayNum) => {
     }
   });
 
-  // Hotel Stay Constraints
-  const currentDate = getDateForDay(trip, dayNum);
-  if (currentDate) {
-    const activeStays = getStaySegmentsForDate(trip, currentDate);
-    activeStays.forEach(activeStay => {
-      if (activeStay && activeStay.selectedHotel) {
-        const checkInDate = parseDate(activeStay.checkIn);
-        const checkOutDate = parseDate(activeStay.checkOut);
-        const hotelName = activeStay.selectedHotel.name || activeStay.location;
-
-        if (checkInDate && checkInDate.getTime() === currentDate.getTime()) {
-          const defaultCheckInMin = timeToMinutes(activeStay.selectedHotel.checkInTime || "14:00");
-          let absCheckIn = baseOffset + defaultCheckInMin;
-          constraints.push({
-            startMin: absCheckIn,
-            endMin: absCheckIn + BUFFERS.HOTEL_CHECK_IN,
-            type: "hotel_checkin",
-            reason: `hotel check-in at ${hotelName}`,
-          });
-        }
-
-        if (checkOutDate && checkOutDate.getTime() === currentDate.getTime()) {
-          const checkoutMin = timeToMinutes(activeStay.selectedHotel.checkOutTime || "11:00");
-          let absCheckOut = baseOffset + checkoutMin;
-          constraints.push({
-            startMin: Math.max(baseOffset, absCheckOut - 30),
-            endMin: absCheckOut,
-            type: "hotel_checkout",
-            reason: `hotel check-out from ${hotelName}`,
-          });
-        }
-      }
-    });
-  }
-
+  // Hotel check-in/check-out operational activities are handled directly within the day's chronological plan (day.plan)
   return constraints;
 };
 

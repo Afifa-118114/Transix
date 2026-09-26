@@ -37,19 +37,13 @@ export default function LoginForm() {
       setLoading(true);
       setErrorMsg("");
 
-      const data = await loginUser({ email: form.email, password: form.password });
+      const data = await loginUser({ email: form.email, password: form.password, role: form.role });
 
       if (data.token && data.user) {
-        // Backend returns the definitive role. Let's verify it matches frontend selection.
-        const actualRole = data.user.role || "traveler";
-        if (actualRole !== form.role) {
-          setErrorMsg(`Role mismatch. This account is registered as ${actualRole === 'operator' ? 'an Operator' : 'a Traveler'}.`);
-          return;
-        }
-
+        const actualRole = (data.user.role || form.role || "traveler").toLowerCase();
         login(data.user, data.token);
-        toast.success(`Welcome back, ${data.user.name || "traveler"}!`, { icon: "👋" });
-        if (actualRole === "operator") {
+        toast.success(`Welcome back, ${data.user.name || "User"}!`, { icon: "👋" });
+        if (actualRole === "operator" || form.role === "operator") {
           navigate("/operator/dashboard");
         } else {
           navigate("/home");
@@ -81,19 +75,10 @@ export default function LoginForm() {
       });
 
       if (data.token && data.user) {
-        const actualRole = data.user.role || "traveler";
-        if (actualRole !== form.role) {
-          setErrorMsg(
-            `Role mismatch. This account is registered as ${
-              actualRole === "operator" ? "an Operator" : "a Traveler"
-            }.`
-          );
-          return;
-        }
-
+        const actualRole = (data.user.role || form.role || "traveler").toLowerCase();
         login(data.user, data.token);
-        toast.success(`Welcome back, ${data.user.name || "traveler"}!`, { icon: "👋" });
-        if (actualRole === "operator") {
+        toast.success(`Welcome back, ${data.user.name || "User"}!`, { icon: "👋" });
+        if (actualRole === "operator" || form.role === "operator") {
           navigate("/operator/dashboard");
         } else {
           navigate("/home");

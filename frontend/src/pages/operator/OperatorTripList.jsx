@@ -1,11 +1,13 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
-import { getOperatorTrips, getDashboardStats } from "../../api/operatorApi";
+import { getOperatorTrips, getDashboardStats, claimOperatorTrip, releaseOperatorTrip } from "../../api/operatorApi";
 import { formatDate } from "../../utils/formatTrip";
 import OperatorSidebar from "../../components/operator/OperatorSidebar";
+import toast from "react-hot-toast";
 import { 
   FiArrowRight, FiUsers, FiCalendar, FiArrowLeft, 
-  FiBriefcase, FiMenu, FiX, FiClock, FiCheckCircle, FiCompass
+  FiBriefcase, FiMenu, FiX, FiClock, FiCheckCircle, FiCompass,
+  FiZap, FiLock, FiUnlock
 } from "react-icons/fi";
 import { GraduationCap } from "lucide-react";
 
@@ -13,32 +15,35 @@ export default function OperatorTripList() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const filterType = searchParams.get("type"); // "personal" | "campus" | null
+  const scopeFilter = searchParams.get("scope") || "all"; // "all" | "my" | "unassigned"
 
   const [trips, setTrips] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [actionLoadingId, setActionLoadingId] = useState(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        const [tripsData, statsData] = await Promise.all([
-          getOperatorTrips(token),
-          getDashboardStats(token)
-        ]);
-        if (tripsData?.success) {
-          setTrips(tripsData.trips || []);
-        }
-        if (statsData?.success) {
-          setStats(statsData.stats);
-        }
-      } catch (err) {
-        console.error("Failed to load operator trips", err);
-      } finally {
-        setLoading(false);
+  const fetchData = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const [tripsData, statsData] = await Promise.all([
+        getOperatorTrips(token, scopeFilter, filterType),
+        getDashboardStats(token)
+      ]);
+      if (tripsData?.success) {
+        setTrips(tripsData.trips || []);
       }
-    };
+      if (statsData?.success) {
+        setStats(statsData.stats);
+      }
+    } catch (err) {
+      console.error("Failed to load operator trips", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchData();
 
     const interval = setInterval(fetchData, 10000);
@@ -49,7 +54,36 @@ export default function OperatorTripList() {
       clearInterval(interval);
       window.removeEventListener("focus", onFocus);
     };
-  }, []);
+  }, [scopeFilter, filterType]);
+
+  const handleClaim = async (tripId) => {
+    try {
+      setActionLoadingId(tripId);
+      const token = localStorage.getItem("token");
+      const res = await claimOperatorTrip(tripId, token);
+      toast.success(res.message || "Tour claimed successfully! You are now managing this trip.");
+      await fetchData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to claim tour.");
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleRelease = async (tripId) => {
+    if (!window.confirm("Are you sure you want to release this tour back to the open marketplace?")) return;
+    try {
+      setActionLoadingId(tripId);
+      const token = localStorage.getItem("token");
+      const res = await releaseOperatorTrip(tripId, token);
+      toast.success(res.message || "Tour released back to the open pool.");
+      await fetchData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to release tour.");
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
 
   // Filter trips according to ?type=
   const filteredTrips = useMemo(() => {
@@ -142,40 +176,64 @@ export default function OperatorTripList() {
             </div>
 
             {/* Quick Filter Tabs */}
-            <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
-              <button
-                onClick={() => setSearchParams({})}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
-                  !filterType 
-                    ? "bg-indigo-600 text-white shadow-xs" 
-                    : "text-slate-400 hover:text-white"
-                }`}
-              >
-                All ({trips.length})
-              </button>
-              <button
-                onClick={() => setSearchParams({ type: "personal" })}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
-                  filterType === "personal" 
-                    ? "bg-indigo-600 text-white shadow-xs" 
-                    : "text-slate-400 hover:text-white"
-                }`}
-              >
-                <FiCompass size={12} /> Personal ({stats?.personalTrips || 0})
-              </button>
-              <button
-                onClick={() => setSearchParams({ type: "campus" })}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
-                  filterType === "campus" 
-                    ? "bg-indigo-600 text-white shadow-xs" 
-                    : "text-slate-400 hover:text-white"
-                }`}
-              >
-                <GraduationCap size={14} /> Campus ({stats?.campusTrips || 0})
-              </button>
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Category Filters */}
+              <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
+                <button
+                  onClick={() => {
+                    const next = new URLSearchParams(searchParams);
+                    next.delete("type");
+                    setSearchParams(next);
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                    !filterType 
+                      ? "bg-indigo-600 text-white shadow-xs" 
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  All ({trips.length})
+                </button>
+                <button
+                  onClick={() => {
+                    const next = new URLSearchParams(searchParams);
+                    next.set("type", "personal");
+                    setSearchParams(next);
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                    filterType === "personal" 
+                      ? "bg-indigo-600 text-white shadow-xs" 
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  <FiCompass size={12} /> Personal ({stats?.personalTrips || 0})
+                </button>
+                <button
+                  onClick={() => {
+                    const next = new URLSearchParams(searchParams);
+                    next.set("type", "campus");
+                    setSearchParams(next);
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                    filterType === "campus" 
+                      ? "bg-indigo-600 text-white shadow-xs" 
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  <GraduationCap size={14} /> Campus ({stats?.campusTrips || 0})
+                </button>
+              </div>
+
+              {/* Multi-Tenant Scope Filters (Commented out for Single Operator mode)
+              <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
+                <button onClick={() => { ... }}>All Tours</button>
+                <button onClick={() => { ... }}>My Tours</button>
+                <button onClick={() => { ... }}>Open Pool</button>
+              </div>
+              */}
             </div>
           </div>
         </header>
+
 
         {/* Content Body */}
         <main className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
@@ -184,7 +242,11 @@ export default function OperatorTripList() {
               <FiBriefcase className="mx-auto text-slate-700 mb-3" size={36} />
               <h2 className="text-sm font-bold text-white mb-1">No trips found</h2>
               <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                No finalized {filterType || ""} trips have been shared with this operator account yet.
+                {scopeFilter === "unassigned" 
+                  ? "There are currently no unclaimed trips in the Open Marketplace pool."
+                  : scopeFilter === "my"
+                  ? "You have not claimed any tours yet. Switch to 'Open Pool' to claim tours!"
+                  : "No finalized trips match the selected criteria."}
               </p>
             </div>
           ) : (
@@ -192,12 +254,25 @@ export default function OperatorTripList() {
               {filteredTrips.map((trip) => (
                 <div 
                   key={trip._id} 
-                  className="bg-slate-900 rounded-2xl border border-slate-800 p-5 shadow-xs hover:border-slate-700/80 transition"
+                  className={`bg-slate-900 rounded-2xl border p-5 shadow-xs transition ${
+                    trip.isAssignedToMe
+                      ? "border-emerald-900/50 hover:border-emerald-700/60"
+                      : trip.isUnassigned
+                      ? "border-amber-900/40 hover:border-amber-700/60 bg-amber-950/5"
+                      : "border-slate-800 hover:border-slate-700/80"
+                  }`}
                 >
                   <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
                     <div className="flex-1 min-w-0">
                       {/* Top Badges */}
                       <div className="flex flex-wrap items-center gap-2 mb-2">
+                        {/* Multi-Tenant Badges (Commented out for Single Operator mode)
+                        {trip.isUnassigned && (...)}
+                        {trip.isAssignedToMe && (...)}
+                        {trip.isAssignedToOther && (...)}
+                        */}
+
+
                         <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border ${
                           trip.tripCategory === 'CAMPUS'
                             ? 'bg-indigo-950/60 text-indigo-300 border-indigo-800/60'
@@ -268,6 +343,7 @@ export default function OperatorTripList() {
                           {trip.operationalStatus}
                         </span>
                       </div>
+
                       <Link 
                         to={`/operator/trips/${trip._id}`}
                         className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition shadow-sm flex items-center gap-1.5"
@@ -276,12 +352,14 @@ export default function OperatorTripList() {
                         <FiArrowRight size={13} />
                       </Link>
                     </div>
+
                   </div>
                 </div>
               ))}
             </div>
           )}
         </main>
+
       </div>
     </div>
   );

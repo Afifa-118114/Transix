@@ -5,7 +5,17 @@ const User = require("../models/User");
 
 const registerUser = async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
+    const {
+      name,
+      email,
+      password,
+      role,
+      companyName,
+      phone,
+      licenseNumber,
+      city,
+      operatorSpecialties,
+    } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({
@@ -30,12 +40,22 @@ const registerUser = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const user = await User.create({
+    const userData = {
       name,
       email,
       password: hashedPassword,
       role: finalRole,
-    });
+    };
+
+    if (finalRole === "operator") {
+      userData.companyName = companyName || `${name} Travels`;
+      userData.phone = phone || "";
+      userData.licenseNumber = licenseNumber || "";
+      userData.city = city || "";
+      userData.operatorSpecialties = Array.isArray(operatorSpecialties) ? operatorSpecialties : [];
+    }
+
+    const user = await User.create(userData);
 
     res.status(201).json({
       success: true,
@@ -45,6 +65,8 @@ const registerUser = async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        companyName: user.companyName,
+        phone: user.phone,
       },
     });
   } catch (error) {
@@ -55,14 +77,14 @@ const registerUser = async (req, res) => {
   }
 };
 
+
 const loginUser = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, role } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({
         success: false,
-
         message: "Email and password are required",
       });
     }
@@ -72,7 +94,6 @@ const loginUser = async (req, res) => {
     if (!user) {
       return res.status(400).json({
         success: false,
-
         message: "Invalid credentials",
       });
     }
@@ -82,9 +103,18 @@ const loginUser = async (req, res) => {
     if (!isMatch) {
       return res.status(400).json({
         success: false,
-
         message: "Invalid credentials",
       });
+    }
+
+    // If operator role is explicitly requested or user role is undefined, assign cleanly
+    if (role === "operator" && user.role !== "operator" && user.role !== "admin") {
+      user.role = "operator";
+      user.companyName = user.companyName || `${user.name} Travels`;
+      await user.save();
+    } else if (!user.role) {
+      user.role = "traveler";
+      await user.save();
     }
 
     const token = jwt.sign(
@@ -95,17 +125,18 @@ const loginUser = async (req, res) => {
 
     res.status(200).json({
       success: true,
-
       message: "Login successful",
-
       token,
-
       user: {
         id: user._id,
-
         name: user.name,
         email: user.email,
         role: user.role,
+        companyName: user.companyName || user.name,
+        phone: user.phone || "",
+        licenseNumber: user.licenseNumber || "",
+        city: user.city || "",
+        avatar: user.avatar || "",
       },
     });
   } catch (error) {
@@ -235,10 +266,14 @@ const googleAuth = async (req, res) => {
         user.avatar = picture;
         updated = true;
       }
+      if (requestedRole === "operator" && user.role !== "operator" && user.role !== "admin") {
+        user.role = "operator";
+        user.companyName = user.companyName || `${user.name} Travels`;
+        updated = true;
+      }
       if (updated) {
         await user.save();
       }
-      // Note: user.role is strictly preserved for existing users
     } else {
       // Create new user for first-time Google signin
       user = await User.create({
@@ -278,8 +313,116 @@ const googleAuth = async (req, res) => {
   }
 };
 
+/**
+ * Public/Traveler Directory of Registered Tour Operators
+ * Allows travelers or platform admins to select an operator to manage their trip
+ */
+const getOperatorsDirectory = async (req, res) => {
+  try {
+    const operators = await User.find({ role: "operator" })
+      .select("name email companyName phone licenseNumber city operatorSpecialties avatar createdAt")
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: operators.length,
+      operators: operators.map((op) => ({
+        id: op._id,
+        name: op.name,
+        companyName: op.companyName || op.name,
+        email: op.email,
+        phone: op.phone || "",
+        licenseNumber: op.licenseNumber || "",
+        city: op.city || "Pan India",
+        specialties: op.operatorSpecialties || [],
+        avatar: op.avatar || "",
+      })),
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to fetch operator directory",
+    });
+  }
+};
+
+/**
+ * Get current operator's business profile
+ */
+const getOperatorProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id || req.user._id).select("-password");
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    res.status(200).json({
+      success: true,
+      profile: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        companyName: user.companyName || user.name,
+        phone: user.phone || "",
+        licenseNumber: user.licenseNumber || "",
+        city: user.city || "",
+        operatorSpecialties: user.operatorSpecialties || [],
+        avatar: user.avatar || "",
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * Update current operator's business profile
+ */
+const updateOperatorProfile = async (req, res) => {
+  try {
+    const { companyName, phone, licenseNumber, city, operatorSpecialties, name } = req.body;
+    const user = await User.findById(req.user.id || req.user._id);
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    if (name) user.name = name;
+    if (companyName) user.companyName = companyName;
+    if (phone !== undefined) user.phone = phone;
+    if (licenseNumber !== undefined) user.licenseNumber = licenseNumber;
+    if (city !== undefined) user.city = city;
+    if (Array.isArray(operatorSpecialties)) user.operatorSpecialties = operatorSpecialties;
+
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Operator profile updated successfully",
+      profile: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        companyName: user.companyName,
+        phone: user.phone,
+        licenseNumber: user.licenseNumber,
+        city: user.city,
+        operatorSpecialties: user.operatorSpecialties,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
   googleAuth,
+  getOperatorsDirectory,
+  getOperatorProfile,
+  updateOperatorProfile,
 };
+

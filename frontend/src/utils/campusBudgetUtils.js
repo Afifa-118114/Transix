@@ -9,6 +9,24 @@
  */
 
 /**
+ * Detects whether a trip is a Campus Educational Trip.
+ * Strictly distinguishes campus trips from personal trips.
+ * Does NOT infer campus from traveler count alone.
+ *
+ * @param {Object} trip - The trip object
+ * @returns {boolean} True if campus trip
+ */
+export function isCampusTrip(trip) {
+  if (!trip) return false;
+  return (
+    String(trip.tripCategory || "").toUpperCase() === "CAMPUS" ||
+    String(trip.tripType || "").toLowerCase() === "campus" ||
+    Boolean(trip.campusConfig?.expectedParticipants) ||
+    Boolean(trip.campusConfig?.budgetPerStudent)
+  );
+}
+
+/**
  * Computes estimated institutional group room rate for Campus trips
  * based on retail base rate and bulk institutional booking size.
  *
@@ -36,12 +54,6 @@ export function calculateCampusGroupRoomRate(baseRate, requiredRooms = 1) {
 
   let discountedRate = Math.round(baseRate * (1 - discount));
 
-  // Institutional group tier normalization:
-  // Educational tour packages negotiate standardized institutional group room blocks,
-  // typically capped at ₹2,500/room/night for standard/twin sharing (approx ₹1,250/student/night).
-  if (discountedRate > 2500) {
-    discountedRate = 2500;
-  }
   if (discountedRate < 1200) {
     discountedRate = Math.min(baseRate, 1200);
   }
@@ -70,7 +82,7 @@ export function calculateStayAccommodation(segment, trip) {
     };
   }
 
-  const isCampus = trip?.tripCategory === "CAMPUS";
+  const isCampus = isCampusTrip(trip);
   const nights = Math.max(1, parseInt(segment.nights || 1, 10));
 
   if (!segment.selectedHotel) {
@@ -112,49 +124,86 @@ export function calculateStayAccommodation(segment, trip) {
       parseInt(trip?.campusConfig?.studentsPerRoom, 10) || 2;
     const requiredRooms = Math.max(1, Math.ceil(expectedStudents / studentsPerRoom));
 
-    // Determine baseline nightly rate for 1 room
+    let groupCost = 0;
+    let perStudentCost = 0;
+    let groupNightlyRate = 0;
     let baseNightlyRate = 0;
-    let isExplicitGroupPrice = false;
-    if (hotel.groupPrice && Number(hotel.groupPrice) > 0) {
-      baseNightlyRate = Math.round(Number(hotel.groupPrice) / (requiredRooms * nights));
-      isExplicitGroupPrice = true;
-    } else if (hotel.nightlyPrice && Number(hotel.nightlyPrice) > 0) {
-      baseNightlyRate = Number(hotel.nightlyPrice);
-    } else if (hotel.nuitee?.nightlyPrice && Number(hotel.nuitee.nightlyPrice) > 0) {
-      baseNightlyRate = Number(hotel.nuitee.nightlyPrice);
-    } else if (hotel.pricePerNight && Number(hotel.pricePerNight) > 0) {
-      baseNightlyRate = Number(hotel.pricePerNight);
-    } else if (hotel.price && Number(hotel.price) > 0) {
-      const rawPrice = Number(hotel.price);
-      // Check if price was already scaled to group size
-      if (hotel.rooms && Number(hotel.rooms) > 1) {
-        baseNightlyRate = Math.round(rawPrice / (Number(hotel.rooms) * nights));
-        isExplicitGroupPrice = true;
-      } else if (rawPrice > 50000 && rawPrice >= requiredRooms * 1000 * nights * 0.5) {
-        // Likely already a group cost
-        baseNightlyRate = Math.round(rawPrice / (requiredRooms * nights));
-        isExplicitGroupPrice = true;
-      } else {
-        // Single room price for nights
-        baseNightlyRate = Math.round(rawPrice / nights);
+    let requiresVerification = false;
+    let pricingUnit = "per_room";
+
+    const rawUnit =
+      hotel.priceUnit ||
+      segment.priceUnit ||
+      hotel.unit ||
+      segment.unit ||
+      (hotel.isTotalGroupPrice || segment.isTotalGroupPrice ? "total_group" : null) ||
+      (hotel.isPerStudentPrice || segment.isPerStudentPrice ? "per_student" : null) ||
+      (hotel.isPerRoomPrice || segment.isPerRoomPrice ? "per_room" : null);
+    const normalizedUnit = String(rawUnit || "").toLowerCase().trim();
+
+    // 1. Explicit Group Price already computed for the entire group
+    if (
+      normalizedUnit === "total_group" ||
+      normalizedUnit === "group" ||
+      normalizedUnit === "total" ||
+      hotel.isTotalGroupPrice === true ||
+      segment.isTotalGroupPrice === true ||
+      hotel.isGroupPrice === true ||
+      (hotel.rooms && Number(hotel.rooms) === requiredRooms && hotel.groupPrice) ||
+      (hotel.groupPrice && Number(hotel.groupPrice) > 0) ||
+      (hotel.rooms && Number(hotel.rooms) > 1 && (hotel.price || segment.estimatedCost))
+    ) {
+      pricingUnit = "total_group";
+      groupCost = Number(hotel.groupPrice || hotel.price || segment.estimatedCost || hotel.estimatedCost || segment.price || 0);
+      groupNightlyRate = Math.round(groupCost / (requiredRooms * nights));
+      baseNightlyRate = groupNightlyRate;
+      perStudentCost = Math.round(groupCost / expectedStudents);
+    }
+    // 2. Explicit Per-Student Price
+    else if (
+      normalizedUnit === "per_student" ||
+      normalizedUnit === "student" ||
+      hotel.isPerStudentPrice === true ||
+      segment.isPerStudentPrice === true ||
+      (hotel.perStudentPrice && Number(hotel.perStudentPrice) > 0 && !hotel.groupPrice && !hotel.rooms)
+    ) {
+      pricingUnit = "per_student";
+      perStudentCost = Number(hotel.perStudentPrice || hotel.price || segment.estimatedCost || hotel.estimatedCost || segment.price || 0);
+      groupCost = perStudentCost * expectedStudents;
+      groupNightlyRate = Math.round(groupCost / (requiredRooms * nights));
+      baseNightlyRate = groupNightlyRate;
+    }
+    // 3. Standard Per-Room or Nightly Price
+    else {
+      pricingUnit = "per_room";
+      let nightlyRate = 0;
+      if (hotel.nightlyPrice && Number(hotel.nightlyPrice) > 0) {
+        nightlyRate = Number(hotel.nightlyPrice);
+      } else if (hotel.nuitee?.nightlyPrice && Number(hotel.nuitee.nightlyPrice) > 0) {
+        nightlyRate = Number(hotel.nuitee.nightlyPrice);
+      } else if (hotel.pricePerNight && Number(hotel.pricePerNight) > 0) {
+        nightlyRate = Number(hotel.pricePerNight);
+      } else if (hotel.price && Number(hotel.price) > 0) {
+        nightlyRate = Math.round(Number(hotel.price) / nights);
+      } else if (hotel.nuitee?.totalPrice && Number(hotel.nuitee.totalPrice) > 0) {
+        nightlyRate = Math.round(Number(hotel.nuitee.totalPrice) / nights);
+      } else if (segment.estimatedCost && Number(segment.estimatedCost) > 0) {
+        nightlyRate = Math.round(Number(segment.estimatedCost) / nights);
       }
+
+      if (!nightlyRate || isNaN(nightlyRate) || nightlyRate < 1000) {
+        requiresVerification = true;
+        const nameStr = hotel.name || "";
+        const locStr = segment.location || "";
+        const seed = (nameStr + locStr).length || 10;
+        nightlyRate = 3500 + (seed % 10) * 500;
+      }
+
+      baseNightlyRate = nightlyRate;
+      groupNightlyRate = calculateCampusGroupRoomRate(baseNightlyRate, requiredRooms);
+      groupCost = requiredRooms * groupNightlyRate * nights;
+      perStudentCost = Math.round(groupCost / expectedStudents);
     }
-
-    // Realistic fallback if rate is still missing or unreasonably low (< 1000)
-    if (!baseNightlyRate || isNaN(baseNightlyRate) || baseNightlyRate < 1000) {
-      const nameStr = hotel.name || "";
-      const locStr = segment.location || "";
-      const seed = (nameStr + locStr).length || 10;
-      baseNightlyRate = 3500 + (seed % 10) * 500;
-    }
-
-    // Apply Campus educational group discount & bulk pricing logic
-    const groupNightlyRate = (isExplicitGroupPrice && baseNightlyRate <= 2500)
-      ? baseNightlyRate
-      : calculateCampusGroupRoomRate(baseNightlyRate, requiredRooms);
-
-    const groupCost = requiredRooms * groupNightlyRate * nights;
-    const perStudentCost = Math.round(groupCost / expectedStudents);
 
     return {
       hasHotel: true,
@@ -168,8 +217,10 @@ export function calculateStayAccommodation(segment, trip) {
       expectedStudents,
       groupCost,
       perStudentCost,
+      pricingUnit,
       isCampus: true,
-      isEstimated: true, // Always labeled as estimated planning cost
+      isEstimated: true,
+      requiresVerification,
       included: trip?.campusConfig?.inclusions?.accommodation !== false,
     };
   } else {
@@ -213,14 +264,87 @@ export function calculateStayAccommodation(segment, trip) {
  * @param {Object} trip - The trip object
  * @returns {Object} Aggregated accommodation metrics
  */
+/**
+ * Calculates proportional accommodation budget allocation for a single stay segment
+ * based on nights ratio across all stay segments.
+ *
+ * @param {Object} segment - The stay segment
+ * @param {Array} staySegments - Array of all stay segments
+ * @param {Object} trip - The trip object
+ * @returns {Object} Proportional budget allocation details
+ */
+export function calculateSegmentBudgetAllocation(segment, staySegments = [], trip) {
+  const budgetConfig = getCampusAccommodationBudget(trip);
+  if (!budgetConfig.isCampus) {
+    return { isCampus: false };
+  }
+
+  const totalNights = (staySegments || []).reduce((sum, s) => sum + (parseInt(s.nights, 10) || 0), 0);
+  const nights = parseInt(segment?.nights, 10) || 1;
+  const ratio = totalNights > 0 ? nights / totalNights : 0;
+
+  // Segment accommodation budget: proportionally distributed across total nights (Section 2 formula)
+  const segmentAccommodationBudgetPerStudent = Math.round((budgetConfig.totalAccommodationBudgetPerStudent * ratio) * 100) / 100;
+  const segmentAccommodationBudgetGroup = Math.round(segmentAccommodationBudgetPerStudent * budgetConfig.expectedStudents);
+
+  const segmentPlannedBudgetPerStudent = Math.round((budgetConfig.maxPlannedAccommodationBudgetPerStudent * ratio) * 100) / 100;
+  const segmentPlannedBudgetGroup = Math.round(segmentPlannedBudgetPerStudent * budgetConfig.expectedStudents);
+
+  const pricing = calculateStayAccommodation(segment, trip);
+  const estimatedCostPerStudent = pricing.hasHotel ? pricing.perStudentCost : 0;
+  const estimatedCostGroup = pricing.hasHotel ? pricing.groupCost : 0;
+
+  const remainingSegmentBudgetPerStudent = Math.round((segmentAccommodationBudgetPerStudent - estimatedCostPerStudent) * 100) / 100;
+  const remainingSegmentBudgetGroup = segmentAccommodationBudgetGroup - estimatedCostGroup;
+
+  const isOverBudget = pricing.hasHotel && (estimatedCostPerStudent > segmentAccommodationBudgetPerStudent);
+  const excessPerStudent = Math.max(0, Math.round((estimatedCostPerStudent - segmentAccommodationBudgetPerStudent) * 100) / 100);
+  const excessGroup = Math.max(0, estimatedCostGroup - segmentAccommodationBudgetGroup);
+
+  return {
+    isCampus: true,
+    nights,
+    totalNights,
+    ratio,
+    segmentAccommodationBudgetPerStudent,
+    segmentAccommodationBudgetGroup,
+    segmentBudgetPerStudent: segmentAccommodationBudgetPerStudent,
+    segmentBudgetGroup: segmentAccommodationBudgetGroup,
+    segmentMaxBudgetPerStudent: segmentAccommodationBudgetPerStudent,
+    segmentMaxBudgetGroup: segmentAccommodationBudgetGroup,
+    segmentPlannedBudgetPerStudent,
+    segmentPlannedBudgetGroup,
+    segmentTargetBudgetPerStudent: segmentPlannedBudgetPerStudent,
+    segmentTargetBudgetGroup: segmentPlannedBudgetGroup,
+    estimatedCostPerStudent,
+    estimatedCostGroup,
+    remainingSegmentBudgetPerStudent,
+    remainingSegmentBudgetGroup,
+    isOverBudget,
+    excessPerStudent,
+    excessGroup,
+    pricing,
+  };
+}
+
+/**
+ * Calculates total accommodation summary across all stay segments
+ * @param {Array} staySegments - Array of stay segments
+ * @param {Object} trip - The trip object
+ * @returns {Object} Aggregated accommodation metrics
+ */
 export function calculateAccommodationSummary(staySegments = [], trip) {
-  const isCampus = trip?.tripCategory === "CAMPUS";
+  const isCampus = isCampusTrip(trip);
+
   const expectedStudents = isCampus
     ? parseInt(trip?.campusConfig?.expectedParticipants, 10) || parseInt(trip?.travelers, 10) || 1
     : 1;
 
   let totalGroupAccommodation = 0;
   let selectedCount = 0;
+  const totalNights = (staySegments || []).reduce((acc, seg) => acc + (parseInt(seg.nights, 10) || 0), 0);
+
+  const budgetConfig = getCampusAccommodationBudget(trip);
 
   const items = (staySegments || []).map((segment, index) => {
     const pricing = calculateStayAccommodation(segment, trip);
@@ -228,27 +352,59 @@ export function calculateAccommodationSummary(staySegments = [], trip) {
       selectedCount++;
       totalGroupAccommodation += pricing.groupCost;
     }
+
+    const segmentAllocation = isCampus
+      ? calculateSegmentBudgetAllocation(segment, staySegments, trip)
+      : null;
+
+    let pricingStatus = "Not Selected";
+    if (pricing.hasHotel) {
+      if (pricing.requiresVerification) {
+        pricingStatus = "Requires Verification";
+      } else if (segmentAllocation && pricing.perStudentCost > segmentAllocation.segmentMaxBudgetPerStudent) {
+        pricingStatus = "Exceeds Segment Allocation";
+      } else {
+        pricingStatus = "Estimated";
+      }
+    }
+
     return {
       index,
       id: segment.id || `stay-${index}`,
       location: segment.location,
+      hotelName: pricing.hasHotel ? pricing.hotelName : "No hotel selected",
+      checkIn: segment.checkIn,
+      checkOut: segment.checkOut,
       nights: pricing.nights,
       pricing,
+      segmentAllocation,
+      pricingStatus,
     };
   });
 
   const totalPerStudentAccommodation = Math.round(totalGroupAccommodation / expectedStudents);
+  const overallGroupBudget = budgetConfig.overallGroupBudget;
+  const utilizationPercentage = overallGroupBudget > 0
+    ? Math.round((totalGroupAccommodation / overallGroupBudget) * 100)
+    : 0;
 
   return {
     items,
     selectedCount,
     totalSegments: staySegments.length,
+    totalNights,
     allSelected: staySegments.length > 0 && selectedCount === staySegments.length,
     totalGroupAccommodation,
     totalSelectedPrice: totalGroupAccommodation,
     totalPerStudentAccommodation,
+    totalTravelers: expectedStudents,
+    accommodationPerStudent: totalPerStudentAccommodation,
+    totalAccommodationCost: totalGroupAccommodation,
+    accommodationBudgetUtilization: utilizationPercentage,
+    utilizationPercentage,
     isCampus,
     expectedStudents,
+    budgetConfig,
   };
 }
 
@@ -291,22 +447,25 @@ export function getTripDurationDays(trip) {
       if (days > 0) return days;
     }
   }
-  return trip?.tripCategory === "CAMPUS" ? 10 : 5;
+  return isCampusTrip(trip) ? 10 : 5;
 }
 
 /**
  * Resolves the canonical accommodation budget configuration for a trip.
- * For Campus Educational Trips, accommodation has a separate derived allocation:
- * accommodationBudgetPerStudent = MIN(overallBudgetPerStudent, tripDurationDays * 1000, 10000)
- * accommodationGroupBudget = accommodationBudgetPerStudent * expectedStudents
+ * For Campus Educational Trips, accommodation is allocated dynamically:
+ * - Target accommodation budget = 50% of per-student budget
+ * - Maximum accommodation allocation = 60% of per-student budget
+ * - Target Group Budget = Target accommodation budget * expectedStudents
+ * - Maximum Total Group Budget = Maximum accommodation budget * expectedStudents
  * 
- * For Personal Trips, this returns the total trip budget.
+ * For Personal Trips, this returns the total trip budget without modification.
  *
  * @param {Object} trip - The trip object
  * @returns {Object} Canonical accommodation budget parameters
  */
 export function getCampusAccommodationBudget(trip) {
-  const isCampus = trip?.tripCategory === "CAMPUS";
+  const isCampus = isCampusTrip(trip);
+
   if (!isCampus) {
     const totalBudget = Number(trip?.budget) || 60000;
     return {
@@ -335,24 +494,70 @@ export function getCampusAccommodationBudget(trip) {
 
   const tripDurationDays = getTripDurationDays(trip);
 
-  // Canonical Accommodation Allocation Rule:
-  // MIN(Overall Trip Budget Per Student, Trip Duration In Days * ₹1,000, ₹10,000)
-  const accommodationBudgetPerStudent = Math.min(
-    overallBudgetPerStudent > 0 ? overallBudgetPerStudent : 10000,
-    tripDurationDays * 1000,
-    10000
-  );
+  // Dynamic Campus Trip Budget Allocation:
+  // Internal Category Allocations (Section 1):
+  // Accommodation: 50% internal allocation
+  // Transportation: 30% internal allocation
+  // Activities: 20% internal allocation
+  const accommodationAllocationPerStudent = Math.round(overallBudgetPerStudent * 0.50);
+  const transportationAllocationPerStudent = Math.round(overallBudgetPerStudent * 0.30);
+  const activitiesAllocationPerStudent = Math.round(overallBudgetPerStudent * 0.20);
 
-  const accommodationBudgetGroup = accommodationBudgetPerStudent * expectedStudents;
+  // Maximum Planned Spending with 2-percentage-point safety buffer (Section 1):
+  // Accommodation: 48% planned spending
+  // Transportation: 28% planned spending
+  // Activities: 18% planned spending
+  // Remaining 6% kept unallocated as safety buffer
+  const maxPlannedAccommodationBudgetPerStudent = Math.round(overallBudgetPerStudent * 0.48);
+  const maxPlannedTransportationBudgetPerStudent = Math.round(overallBudgetPerStudent * 0.28);
+  const maxPlannedActivitiesBudgetPerStudent = Math.round(overallBudgetPerStudent * 0.18);
+  const unallocatedBufferPerStudent = Math.round(overallBudgetPerStudent * 0.06);
+
+  // Group totals
+  const accommodationAllocationGroup = accommodationAllocationPerStudent * expectedStudents;
+  const transportationAllocationGroup = transportationAllocationPerStudent * expectedStudents;
+  const activitiesAllocationGroup = activitiesAllocationPerStudent * expectedStudents;
+
+  const maxPlannedAccommodationBudgetGroup = maxPlannedAccommodationBudgetPerStudent * expectedStudents;
+  const maxPlannedTransportationBudgetGroup = maxPlannedTransportationBudgetPerStudent * expectedStudents;
+  const maxPlannedActivitiesBudgetGroup = maxPlannedActivitiesBudgetPerStudent * expectedStudents;
+  const unallocatedBufferGroup = unallocatedBufferPerStudent * expectedStudents;
 
   return {
     isCampus: true,
     expectedStudents,
     tripDurationDays,
-    accommodationBudgetPerStudent,
-    accommodationAllocationPerStudent: accommodationBudgetPerStudent,
-    accommodationBudgetGroup,
-    accommodationAllocationGroup: accommodationBudgetGroup,
+
+    // Internal Category Allocations (50% / 30% / 20%)
+    accommodationAllocationPerStudent,
+    transportationAllocationPerStudent,
+    activitiesAllocationPerStudent,
+    accommodationAllocationGroup,
+    transportationAllocationGroup,
+    activitiesAllocationGroup,
+
+    // Maximum Planned Spending (48% / 28% / 18%)
+    maxPlannedAccommodationBudgetPerStudent,
+    maxPlannedTransportationBudgetPerStudent,
+    maxPlannedActivitiesBudgetPerStudent,
+    maxPlannedAccommodationBudgetGroup,
+    maxPlannedTransportationBudgetGroup,
+    maxPlannedActivitiesBudgetGroup,
+
+    // Unallocated 6% buffer
+    unallocatedBufferPerStudent,
+    unallocatedBufferGroup,
+
+    // Canonical accommodation budget aliases
+    totalAccommodationBudgetPerStudent: accommodationAllocationPerStudent,
+    totalAccommodationBudgetGroup: accommodationAllocationGroup,
+    targetAccommodationBudgetPerStudent: maxPlannedAccommodationBudgetPerStudent,
+    targetAccommodationBudgetGroup: maxPlannedAccommodationBudgetGroup,
+    maxAccommodationBudgetPerStudent: accommodationAllocationPerStudent,
+    maxAccommodationBudgetGroup: accommodationAllocationGroup,
+    accommodationBudgetPerStudent: accommodationAllocationPerStudent,
+    accommodationBudgetGroup: accommodationAllocationGroup,
+
     overallBudgetPerStudent,
     overallGroupBudget,
   };
@@ -377,62 +582,129 @@ export function calculateAccommodationBudgetAnalysis(trip, staySegments = []) {
   if (budgetConfig.isCampus) {
     const overallBudgetPerStudent = budgetConfig.overallBudgetPerStudent;
     const overallGroupBudget = budgetConfig.overallGroupBudget;
+    const expectedStudents = budgetConfig.expectedStudents;
 
-    // User-facing metrics based on OVERALL trip budget
+    // Total accommodation budget (50% internal allocation)
+    const totalAccommodationBudgetPerStudent = budgetConfig.totalAccommodationBudgetPerStudent;
+    const totalAccommodationBudgetGroup = budgetConfig.totalAccommodationBudgetGroup;
+
+    // Maximum planned accommodation budget (48% with 2% buffer)
+    const maxPlannedAccommodationBudgetPerStudent = budgetConfig.maxPlannedAccommodationBudgetPerStudent;
+    const maxPlannedAccommodationBudgetGroup = budgetConfig.maxPlannedAccommodationBudgetGroup;
+
+    // Remaining accommodation budget based on maximum planned budget (Section 3 formula: Maximum Planned - Estimated)
+    const remainingAccommodationBudgetPerStudent = maxPlannedAccommodationBudgetPerStudent - estimatedAccommodationPerStudent;
+    const remainingAccommodationBudgetGroup = maxPlannedAccommodationBudgetGroup - estimatedAccommodationGroup;
+
+    // Remaining budgets based on OVERALL trip budget
     const remainingOverallGroupBudget = overallGroupBudget - estimatedAccommodationGroup;
     const remainingOverallPerStudentBudget = overallBudgetPerStudent - estimatedAccommodationPerStudent;
 
-    // Internal accommodation planning limit (never exposed directly in UI)
-    const internalAccommodationLimitPerStudent = budgetConfig.accommodationBudgetPerStudent;
-    const internalAccommodationLimitGroup = budgetConfig.accommodationBudgetGroup;
-
     const isExcluded = trip?.campusConfig?.inclusions?.accommodation === false;
 
-    // Validation conditions
-    const exceedsInternalLimit = !isExcluded && (estimatedAccommodationGroup > internalAccommodationLimitGroup);
-    const exceedsOverallBudget = !isExcluded && (estimatedAccommodationGroup > overallGroupBudget);
+    // Validation conditions:
+    // Case 1: Within target planned budget (<= 48%)
+    // Case 2: In buffer zone (between 48% and 50%)
+    // Case 3: Exceeds total accommodation allocation (> 50%) or overall budget
+    const exceedsAllocation = !isExcluded && estimatedAccommodationPerStudent > totalAccommodationBudgetPerStudent;
+    const exceedsPlanned = !isExcluded && estimatedAccommodationPerStudent > maxPlannedAccommodationBudgetPerStudent;
+    const exceedsOverallBudget = !isExcluded && estimatedAccommodationGroup > overallGroupBudget;
+
+    let validationCase = 1;
+    if (exceedsAllocation || exceedsOverallBudget) {
+      validationCase = 3;
+    } else if (exceedsPlanned) {
+      validationCase = 2;
+    }
+
+    const excessPerStudent = Math.max(0, estimatedAccommodationPerStudent - totalAccommodationBudgetPerStudent);
+    const excessGroup = Math.max(0, estimatedAccommodationGroup - totalAccommodationBudgetGroup);
 
     const overOverallAmountGroup = Math.max(0, -remainingOverallGroupBudget);
     const overOverallAmountPerStudent = Math.max(0, -remainingOverallPerStudentBudget);
 
-    const overInternalLimitGroup = Math.max(0, estimatedAccommodationGroup - internalAccommodationLimitGroup);
-    const overInternalLimitPerStudent = Math.max(0, estimatedAccommodationPerStudent - internalAccommodationLimitPerStudent);
+    const utilizationPercentage = overallGroupBudget > 0
+      ? Math.round((estimatedAccommodationGroup / overallGroupBudget) * 100)
+      : 0;
 
     return {
       isCampus: true,
-      expectedStudents: budgetConfig.expectedStudents,
+      expectedStudents,
       tripDurationDays: budgetConfig.tripDurationDays,
 
-      // User-facing display fields (OVERALL TRIP BUDGET)
+      // Budget Overview
       overallTripBudgetPerStudent: overallBudgetPerStudent,
       overallTripBudgetGroup: overallGroupBudget,
       overallBudgetPerStudent,
       overallGroupBudget,
+
+      // Accommodation Summary
+      totalSegments: staySegments.length,
+      totalNights: accommodationSummary.totalNights,
+      totalAccommodationBudgetPerStudent,
+      totalAccommodationBudgetGroup,
+      maxPlannedAccommodationBudgetPerStudent,
+      maxPlannedAccommodationBudgetGroup,
+      targetAccommodationBudgetPerStudent: maxPlannedAccommodationBudgetPerStudent,
+      targetAccommodationBudgetGroup: maxPlannedAccommodationBudgetGroup,
+      maxAccommodationBudgetPerStudent: totalAccommodationBudgetPerStudent,
+      maxAccommodationBudgetGroup: totalAccommodationBudgetGroup,
+      accommodationBudgetPerStudent: totalAccommodationBudgetPerStudent,
+      accommodationBudgetGroup: totalAccommodationBudgetGroup,
+
+      // Estimated Accommodation Costs
       estimatedAccommodationPerStudent,
       estimatedAccommodationGroup,
+      totalEstimatedAccommodationCost: estimatedAccommodationGroup,
+
+      // Remaining Accommodation Budget (Formula: Maximum Planned - Estimated)
+      remainingAccommodationBudgetPerStudent,
+      remainingAccommodationBudgetGroup,
+
+      // Remaining Overall Budgets
       remainingOverallPerStudentBudget,
       remainingOverallGroupBudget,
+      remainingPerStudentBudget: remainingAccommodationBudgetPerStudent,
+      remainingGroupBudget: remainingAccommodationBudgetGroup,
+      remainingAccomPerStudentBudget: remainingAccommodationBudgetPerStudent,
+      remainingAccomGroupBudget: remainingAccommodationBudgetGroup,
 
-      // Internal limits (kept in object for validator/logic, never shown in UI)
-      internalAccommodationLimitPerStudent,
-      internalAccommodationLimitGroup,
+      // Category internal allocations (for Trip Builder inspection)
+      internalAllocations: {
+        accommodation: budgetConfig.accommodationAllocationPerStudent,
+        transportation: budgetConfig.transportationAllocationPerStudent,
+        activities: budgetConfig.activitiesAllocationPerStudent,
+        unallocatedBuffer: budgetConfig.unallocatedBufferPerStudent,
+      },
+      plannedSpending: {
+        maxPlannedAccommodation: maxPlannedAccommodationBudgetPerStudent,
+        maxPlannedTransportation: budgetConfig.maxPlannedTransportationBudgetPerStudent,
+        maxPlannedActivities: budgetConfig.maxPlannedActivitiesBudgetPerStudent,
+        unallocatedBuffer: budgetConfig.unallocatedBufferPerStudent,
+      },
 
-      // Validation flags
-      isOverBudget: exceedsInternalLimit || exceedsOverallBudget,
-      exceedsInternalLimit,
+      // Budget Utilization
+      utilizationPercentage,
+      accommodationBudgetUtilization: utilizationPercentage,
+
+      // Validation Cases & Flags
+      validationCase,
+      isWithinTarget: validationCase === 1,
+      isApproachingLimit: validationCase === 2,
+      exceedsMaxAllocation: validationCase === 3,
+      exceedsInternalLimit: validationCase === 3,
       exceedsOverallBudget,
+      isOverBudget: validationCase === 3 || exceedsOverallBudget,
+
+      // Excess amounts
+      excessPerStudent,
+      excessGroup,
+      overAmountPerStudent: excessPerStudent,
+      overAmountGroup: excessGroup,
+      overInternalLimitPerStudent: excessPerStudent,
+      overInternalLimitGroup: excessGroup,
       overOverallAmountPerStudent,
       overOverallAmountGroup,
-      overInternalLimitPerStudent,
-      overInternalLimitGroup,
-
-      // Backward-compatibility aliases
-      accommodationBudgetPerStudent: internalAccommodationLimitPerStudent,
-      accommodationBudgetGroup: internalAccommodationLimitGroup,
-      remainingPerStudentBudget: remainingOverallPerStudentBudget,
-      remainingGroupBudget: remainingOverallGroupBudget,
-      overAmountPerStudent: overOverallAmountPerStudent,
-      overAmountGroup: overOverallAmountGroup,
 
       isExcluded,
       accommodationSummary,
@@ -441,7 +713,7 @@ export function calculateAccommodationBudgetAnalysis(trip, staySegments = []) {
     };
   }
 
-  // Personal Trip
+  // Personal Trip (UNCHANGED)
   const totalBudget = budgetConfig.accommodationBudgetGroup;
   const remaining = totalBudget - estimatedAccommodationGroup;
   const isOverBudget = remaining < 0;
@@ -469,7 +741,7 @@ export function calculateAccommodationBudgetAnalysis(trip, staySegments = []) {
  * @returns {Object} Complete dual-level budget analysis
  */
 export function calculateTripBudgetAnalysis(trip, staySegments = [], itinerary = []) {
-  const isCampus = trip?.tripCategory === "CAMPUS";
+  const isCampus = isCampusTrip(trip);
   const expectedStudents = isCampus
     ? parseInt(trip?.campusConfig?.expectedParticipants, 10) || parseInt(trip?.travelers, 10) || 1
     : 1;
@@ -654,7 +926,7 @@ export function calculateTripBudgetAnalysis(trip, staySegments = [], itinerary =
  * @returns {Object} Structured category budget analysis
  */
 export function calculateCampusCategoryBudgetAnalysis(trip, staySegments = [], itinerary = []) {
-  const isCampus = trip?.tripCategory === "CAMPUS";
+  const isCampus = isCampusTrip(trip);
   const expectedStudents = isCampus
     ? parseInt(trip?.campusConfig?.expectedParticipants, 10) || parseInt(trip?.travelers, 10) || 1
     : 1;
@@ -907,7 +1179,7 @@ export function calculateCampusCategoryBudgetAnalysis(trip, staySegments = [], i
  * @returns {Object} Deterministic budget prediction result
  */
 export function calculateCampusBudgetPrediction(trip, categoryBudget = null, staySegments = [], itinerary = []) {
-  if (trip?.tripCategory !== "CAMPUS") {
+  if (!isCampusTrip(trip)) {
     return { isCampus: false };
   }
 
@@ -1055,7 +1327,7 @@ export function calculateCampusBudgetPrediction(trip, categoryBudget = null, sta
  * @returns {Object} Real cost reduction scenarios and metadata
  */
 export function getCampusCostReductionScenarios(trip, staySegments = [], itinerary = []) {
-  if (trip?.tripCategory !== "CAMPUS") {
+  if (!isCampusTrip(trip)) {
     return { isCampus: false };
   }
 
@@ -1250,7 +1522,7 @@ export function getCampusCostReductionScenarios(trip, staySegments = [], itinera
  * @returns {Object} Simulation analysis result
  */
 export function simulateCampusReductionScenario(trip, removedActivityIds = []) {
-  if (trip?.tripCategory !== "CAMPUS") {
+  if (!isCampusTrip(trip)) {
     return { isCampus: false };
   }
 

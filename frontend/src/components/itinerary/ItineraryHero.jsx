@@ -13,10 +13,11 @@ import { FaRupeeSign } from "react-icons/fa";
 import toast from "react-hot-toast";
 import { formatBudget, getDuration } from "../../utils/formatTrip";
 
-export default function ItineraryHero({ trip, onDownloadPdf, isGeneratingPdf = false }) {
+export default function ItineraryHero({ trip, onDownloadPdf, isGeneratingPdf = false, onOpenBooking }) {
   const navigate = useNavigate();
 
   const isCampus = trip?.tripCategory === "CAMPUS" || Boolean(trip?.campusConfig?.expectedParticipants);
+  const isBooked = trip?.isBooked || trip?.status === "BOOKED";
 
   // Dynamic values
   const durationText = getDuration(trip) || (trip?.duration ? (typeof trip.duration === "number" ? `${trip.duration} Days` : trip.duration) : `${trip?.itinerary?.length || 5} Days`);
@@ -86,6 +87,23 @@ export default function ItineraryHero({ trip, onDownloadPdf, isGeneratingPdf = f
                 </>
               )}
             </button>
+          )}
+
+          {isBooked ? (
+            <span className="flex items-center gap-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-3.5 py-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-300 shadow-2xs">
+              ✓ Tour Booked & Confirmed
+            </span>
+          ) : (
+            onOpenBooking && (
+              <button
+                type="button"
+                onClick={onOpenBooking}
+                className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 px-4 py-1.5 text-xs font-bold text-white transition shadow-sm cursor-pointer"
+              >
+                <span>⚡</span>
+                <span>Book Entire Tour</span>
+              </button>
+            )
           )}
 
           <Link

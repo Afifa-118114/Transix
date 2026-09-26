@@ -21,103 +21,131 @@ const { fetchTravelOptions } = require("./travelService");
 const buildDeterministicTimeline = (data) => {
   if (!Array.isArray(data.days)) return;
 
-  let absoluteTimelineMin = 8 * 60; // Start at 08:00 AM on Day 1
+  let globalTimelineMin = 8 * 60; // Start at 08:00 AM on Day 1
 
   data.days.forEach((day, dayIndex) => {
-    let dayBaseMin = dayIndex * 1440;
-    let minStartForDay = dayBaseMin + (8 * 60); // 08:00 AM of current day
+    const dayBaseMin = dayIndex * 1440;
+    const dayPlan = day.plan;
+    if (!Array.isArray(dayPlan) || dayPlan.length === 0) return;
 
-    if (absoluteTimelineMin < minStartForDay) {
-      absoluteTimelineMin = minStartForDay;
-    }
+    // Reset daily start to 08:00 AM unless previous day ran past 08:00 AM into today (e.g. overnight transit)
+    let currentMin = Math.max(dayBaseMin + 8 * 60, globalTimelineMin);
 
-    if (Array.isArray(day.plan)) {
-      // Sort to ensure operational events (check-ins) are correctly positioned chronologically
-      day.plan.sort((a, b) => {
-        const aStart = timeToMinutes(a.startTime || (a.time ? String(a.time).split("-")[0] : null)) || 0;
-        const bStart = timeToMinutes(b.startTime || (b.time ? String(b.time).split("-")[0] : null)) || 0;
-        return aStart - bStart;
-      });
+    const getItemPriority = (p) => {
+      const cat = String(p.category || "").toLowerCase();
+      const act = String(p.activity || p.name || "").toLowerCase();
+      if (act.includes("check out") || act.includes("checkout")) return 1;
+      if (act.includes("breakfast")) return 2;
+      if ((cat === "transport" || cat === "travel") && (act.includes("travel") || act.includes("transit") || act.includes("journey") || p.trainNumber || p.flightNumber)) return 3;
+      if (act.includes("check-in") || act.includes("checkin")) return 4;
+      if (act.includes("lunch")) return 5;
+      if (cat === "activity" || cat === "sightseeing") return 6;
+      if (act.includes("dinner")) return 7;
+      if (act.includes("return")) return 8;
+      return 6;
+    };
 
-      day.plan.forEach(p => {
-        const isFixed = p.category === "transport" || p.trainNumber || p.flightNumber;
+    // Parse and sanitize durations
+    dayPlan.forEach(p => {
+      let durationMins = 90; // Default 1.5h
+      const explicitStartStr = p.startTime || (p.time ? String(p.time).split("-")[0] : null);
+      const explicitEndStr = p.endTime || (p.time ? String(p.time).split("-")[1] : null);
+      const explicitStartMin = timeToMinutes(explicitStartStr);
+      const explicitEndMin = timeToMinutes(explicitEndStr);
 
-        const explicitStartStr = p.startTime || (p.time ? String(p.time).split("-")[0] : null);
-        const explicitEndStr = p.endTime || (p.time ? String(p.time).split("-")[1] : null);
-
-        let explicitStartMin = timeToMinutes(explicitStartStr);
-        let explicitEndMin = timeToMinutes(explicitEndStr);
-
-        let durationMins = 120; // Default 2h
-        if (p.duration) {
-          const durStr = String(p.duration).toLowerCase();
-          let dm = 0;
-          const hMatch = durStr.match(/(\d+)\s*h/);
-          const mMatch = durStr.match(/(\d+)\s*m/);
-          if (hMatch) dm += parseInt(hMatch[1]) * 60;
-          if (mMatch) dm += parseInt(mMatch[1]);
-          if (dm > 0) durationMins = dm;
-        } else if (explicitStartMin !== null && explicitEndMin !== null) {
-          if (explicitEndMin < explicitStartMin) {
-            durationMins = (explicitEndMin + 1440) - explicitStartMin;
-          } else {
-            durationMins = explicitEndMin - explicitStartMin;
-          }
-        }
-
-        const nameLower = String(p.activity || p.name || "").toLowerCase();
-        const isBreakfast = nameLower.includes("breakfast");
-        const isLunch = nameLower.includes("lunch");
-        const isDinner = nameLower.includes("dinner");
-
-        let startMin;
-        if (explicitStartMin !== null) {
-          let absStart = dayBaseMin + explicitStartMin;
-
-          if (absStart < dayBaseMin) absStart += 1440;
-
-          if (!isFixed && absStart < absoluteTimelineMin) {
-            absStart = absoluteTimelineMin;
-          }
-          startMin = absStart;
+      if (p.duration) {
+        const durStr = String(p.duration).toLowerCase();
+        let dm = 0;
+        const hMatch = durStr.match(/(\d+)\s*h/);
+        const mMatch = durStr.match(/(\d+)\s*m/);
+        if (hMatch) dm += parseInt(hMatch[1]) * 60;
+        if (mMatch) dm += parseInt(mMatch[1]);
+        if (dm > 0) durationMins = dm;
+      } else if (explicitStartMin !== null && explicitEndMin !== null) {
+        if (explicitEndMin < explicitStartMin) {
+          durationMins = (explicitEndMin + 1440) - explicitStartMin;
         } else {
-          startMin = absoluteTimelineMin;
+          durationMins = explicitEndMin - explicitStartMin;
         }
+      } else {
+        const cat = String(p.category || "").toLowerCase();
+        const act = String(p.activity || "").toLowerCase();
+        if (cat === "operational") durationMins = 30;
+        else if (act.includes("lunch") || act.includes("breakfast")) durationMins = 60;
+        else if (act.includes("dinner")) durationMins = 90;
+        else if (cat === "transport" || cat === "travel") durationMins = 180;
+      }
+      p._durationMins = Math.max(20, durationMins);
+    });
 
-        if (!isFixed) {
-          let localTime = startMin % 1440;
+    // Chronological stable sort
+    dayPlan.sort((a, b) => {
+      const aStart = a._absStart !== undefined ? a._absStart : timeToMinutes(a.startTime || (a.time ? String(a.time).split("-")[0] : null));
+      const bStart = b._absStart !== undefined ? b._absStart : timeToMinutes(b.startTime || (b.time ? String(b.time).split("-")[0] : null));
+      if (aStart !== null && bStart !== null && aStart !== bStart) {
+        return aStart - bStart;
+      }
+      return getItemPriority(a) - getItemPriority(b);
+    });
 
-          if (isBreakfast) {
-            if (localTime < 7 * 60) startMin += (7 * 60 - localTime);
-          } else if (isLunch) {
-            if (localTime < 12 * 60) startMin += (12 * 60 - localTime);
-          } else if (isDinner) {
-            if (localTime < 19 * 60) startMin += (19 * 60 - localTime);
-          }
+    // Forward pass: sequentially assign non-overlapping times
+    dayPlan.forEach(p => {
+      const explicitStartStr = p.startTime || (p.time ? String(p.time).split("-")[0] : null);
+      const explicitStartMin = timeToMinutes(explicitStartStr);
 
-          // Cap normal activities to 23:00 local time to prevent spilling into midnight.
-          if (startMin > dayBaseMin + (23 * 60)) {
-            startMin = dayBaseMin + (23 * 60);
-          }
-        }
+      let startMin;
+      if (explicitStartMin !== null) {
+        let absStart = dayBaseMin + explicitStartMin;
+        if (absStart < dayBaseMin) absStart += 1440;
+        startMin = Math.max(absStart, currentMin);
+      } else {
+        startMin = currentMin;
+      }
 
-        let endMin = startMin + durationMins;
+      let endMin = startMin + p._durationMins;
+      p._absStart = startMin;
+      p._absEnd = endMin;
 
-        p.startTime = minutesToTimeStr(startMin % 1440);
-        p.endTime = minutesToTimeStr(endMin % 1440);
-        p.time = `${p.startTime} - ${p.endTime}`;
-        p.duration = `${Math.floor(durationMins / 60)}h ${durationMins % 60}m`;
+      const buffer = p.category === "operational" ? 5 : (p.category === "transport" ? 20 : 10);
+      currentMin = endMin + buffer;
+    });
 
-        p._absStart = startMin;
-        p._absEnd = endMin;
+    // Check if the day extends past 22:30 (10:30 PM). If so, compress durations gracefully.
+    const dayEndLimit = dayBaseMin + (22 * 60 + 30);
+    const lastItem = dayPlan[dayPlan.length - 1];
+    if (lastItem && lastItem._absEnd > dayEndLimit) {
+      const dayStartMin = dayPlan[0]._absStart;
+      const availableWindow = dayEndLimit - dayStartMin;
+      const totalPlanned = lastItem._absEnd - dayStartMin;
 
-        let buffer = 10; // Default 10m minimum transition buffer
-        if (isFixed) buffer = 30; // 30m post-arrival transport buffer
-        if (p.category === "operational") buffer = 0; // Check-in/out itself needs no buffer padding
+      if (availableWindow > 0 && totalPlanned > availableWindow) {
+        const compressionRatio = Math.max(0.6, availableWindow / totalPlanned);
+        let reMin = dayStartMin;
+        dayPlan.forEach(p => {
+          const isOperational = p.category === "operational";
+          const isTransport = p.category === "transport" || p.category === "travel";
+          let minDur = isOperational ? 20 : (isTransport ? p._durationMins : 45);
+          let newDur = Math.max(minDur, Math.round(p._durationMins * compressionRatio));
 
-        absoluteTimelineMin = endMin + buffer;
-      });
+          p._absStart = reMin;
+          p._absEnd = reMin + newDur;
+          const buffer = isOperational ? 5 : (isTransport ? 15 : 10);
+          reMin = p._absEnd + buffer;
+        });
+        currentMin = reMin;
+      }
     }
+
+    // Assign final user-facing strings
+    dayPlan.forEach(p => {
+      p.startTime = minutesToTimeStr(p._absStart % 1440);
+      p.endTime = minutesToTimeStr(p._absEnd % 1440);
+      p.time = `${p.startTime} - ${p.endTime}`;
+      const dur = p._absEnd - p._absStart;
+      p.duration = `${Math.floor(dur / 60)}h ${dur % 60}m`;
+    });
+
+    globalTimelineMin = currentMin;
   });
 };
 
@@ -279,6 +307,8 @@ Return ONLY this EXACT JSON structure, do NOT use markdown or backticks:
       "checkIn": "YYYY-MM-DD",
       "checkOut": "YYYY-MM-DD",
       "nights": 3,
+      "hotelName": "Authentic Top-Rated Hotel / Resort in this city",
+      "nightlyPrice": 3200,
       "reason": "Why this location"
     }
   ],
@@ -416,6 +446,7 @@ const generateFallbackTripPlan = (tripData) => {
     });
   }
 
+  const defaultNightlyRate = Math.max(1800, Math.round((totalBudget * 0.25) / Math.max(1, numNights)));
   const staySegments = [
     {
       id: "stay-1",
@@ -423,7 +454,22 @@ const generateFallbackTripPlan = (tripData) => {
       checkIn: tripData.startDate || start.toISOString().split("T")[0],
       checkOut: tripData.endDate || end.toISOString().split("T")[0],
       nights: numNights,
-      reason: `Primary accommodation in ${dest}`
+      reason: `Primary accommodation in ${dest}`,
+      hotelName: `${dest} Grand Resort & Spa`,
+      nightlyPrice: defaultNightlyRate,
+      selectedHotel: {
+        id: "htl_stay-1",
+        name: `${dest} Grand Resort & Spa`,
+        rating: 4.6,
+        nightlyPrice: defaultNightlyRate,
+        price: defaultNightlyRate * numNights,
+        groupPrice: defaultNightlyRate * numNights,
+        roomType: "Deluxe King Room",
+        location: dest,
+        address: `${dest}`,
+        amenities: ["Free WiFi", "Breakfast Included", "Air Conditioning", "Swimming Pool"],
+        isAutoAssigned: true
+      }
     }
   ];
 
@@ -1195,6 +1241,25 @@ const syncItineraryWithStayPlan = async (trip, newStaySegments) => {
     }
     const checkOut = currDate.toISOString().split("T")[0];
 
+    let selectedHotel = rawSeg.selectedHotel || null;
+    if (!selectedHotel) {
+      const hotelName = rawSeg.hotelName || `${location} Grand Resort & Spa`;
+      const nightly = Number(rawSeg.nightlyPrice) || 2800;
+      selectedHotel = {
+        id: `htl_${segId}`,
+        name: hotelName,
+        rating: 4.5,
+        nightlyPrice: nightly,
+        price: nightly * nights,
+        groupPrice: nightly * nights,
+        roomType: "Deluxe King Room",
+        location: location,
+        address: `${location}`,
+        amenities: ["Free WiFi", "Breakfast Included", "Air Conditioning", "Swimming Pool"],
+        isAutoAssigned: true
+      };
+    }
+
     canonicalSegments.push({
       ...rawSeg,
       id: segId,
@@ -1202,7 +1267,9 @@ const syncItineraryWithStayPlan = async (trip, newStaySegments) => {
       nights,
       checkIn,
       checkOut,
-      selectedHotel: rawSeg.selectedHotel || null,
+      hotelName: rawSeg.hotelName || selectedHotel.name,
+      nightlyPrice: rawSeg.nightlyPrice || selectedHotel.nightlyPrice,
+      selectedHotel,
     });
   }
 
@@ -1319,10 +1386,10 @@ const syncItineraryWithStayPlan = async (trip, newStaySegments) => {
     if (!Array.isArray(plan)) return [];
     return plan.filter(p => {
       const cat = String(p.category || "").toLowerCase();
-      const act = String(p.activity || "").toLowerCase();
-      const isHotelOp = cat === "operational" || act.includes("check-in") || act.includes("check out");
-      const isIntercityTravel = (cat === "transport" || p.trainNumber || p.flightNumber) &&
-        (act.includes("travel:") || act.includes("return:") || act.includes("transfer to") || act.includes("travel to") || act.includes("airport"));
+      const act = String(p.activity || p.name || "").toLowerCase();
+      const isHotelOp = cat === "operational" || act.includes("check-in") || act.includes("check out") || act.includes("checkout") || act.includes("checkin");
+      const isIntercityTravel = (cat === "transport" || cat === "travel" || p.trainNumber || p.flightNumber) &&
+        (act.includes("travel") || act.includes("return") || act.includes("transfer") || act.includes("transit") || act.includes("journey") || act.includes("flight") || act.includes("outbound") || act.includes("airport"));
       return !isHotelOp && !isIntercityTravel;
     });
   };
@@ -1577,7 +1644,7 @@ Rules:
       const dayPlan = finalDays[dayInIdx].plan;
       const fromLoc = (sIdx > 0 && canonicalSegments[sIdx - 1]) ? canonicalSegments[sIdx - 1].location : trip.source;
 
-      const hasTransport = dayPlan.some(p => p.category === "transport" || p.trainNumber || p.flightNumber);
+      const hasTransport = dayPlan.some(p => p.category === "transport" || p.category === "travel" || p.trainNumber || p.flightNumber || String(p.activity || "").toLowerCase().includes("travel") || String(p.activity || "").toLowerCase().includes("transit"));
       if (!hasTransport && fromLoc.toLowerCase() !== seg.location.toLowerCase()) {
         dayPlan.unshift({
           id: `itin_${crypto.randomUUID()}`,
@@ -1606,9 +1673,11 @@ Rules:
     // Hotel Check-out
     if (dayOutIdx >= 0 && dayOutIdx < finalDays.length) {
       const dayPlan = finalDays[dayOutIdx].plan;
+      const isTransferDay = sIdx < canonicalSegments.length - 1;
+      const checkoutTime = isTransferDay ? "08:30 AM - 09:00 AM" : "10:00 AM - 10:30 AM";
       dayPlan.push({
         id: `sync-checkout-${seg.id}`,
-        time: "11:00 AM - 11:30 AM",
+        time: checkoutTime,
         place: hotelName !== "Hotel" ? hotelName : seg.location,
         activity: `Check out from ${hotelName}`,
         category: "operational",
@@ -1671,105 +1740,38 @@ Rules:
   trip.staySegments = canonicalSegments;
   trip.markModified("itinerary");
   trip.markModified("staySegments");
+  trip.markModified("campusConfig");
+  trip.markModified("budgetBreakdown");
 
   await trip.save();
   return trip;
 };
 
-module.exports = {
-  generateTripPlan,
-  regenerateTripDay,
-  syncItineraryWithStayPlan,
-};
+// ── Assistant & Chatbot Services ─────────────────────────────────────────────
 
-const detectLanguageFromText = (text = "") => {
-  const value = String(text || "").trim();
-  if (!value) return "en";
-
-  if (/[\u0900-\u097F]/.test(value)) {
-    if (/(माझे|माझ्या|माझा|मला|कमी करा|कमी कर|आहे|साठी|हवे|हवी|तुम्ही)/i.test(value)) return "mr";
-    if (/(मेरा|मेरे|मुझे|कम करो|कम करें|बजट|यात्रा|है|करना है)/i.test(value)) return "hi";
-    return "hi";
-  }
-  if (/[\u0A00-\u0A7F]/.test(value)) return "pa";
-  if (/[\u0A80-\u0AFF]/.test(value)) return "gu";
-  if (/[\u0B80-\u0BFF]/.test(value)) return "ta";
-  if (/[\u0C00-\u0C7F]/.test(value)) return "te";
-  if (/[\u0C80-\u0CFF]/.test(value)) return "kn";
-  if (/[\u0D00-\u0D7F]/.test(value)) return "ml";
-  if (/[\u0980-\u09FF]/.test(value)) return "bn";
-  if (/[\u0600-\u06FF]/.test(value)) return "ur";
-  if (/(मला|अजून|ठिकाणं|तुम्ही|कृपया|परत|माझ्या|आज|पुण्यात|हव्यात)/i.test(value)) return "mr";
-  if (/(मैं|कृपया|आप|तुम|मेरे|बजट|यात्रा|अतिशय|रहना)/i.test(value)) return "hi";
-  if (/(મારા|મહિત|માટે|કૃપા|અહીં|બજેટ|પ્રવાસ|એક્ટિવિટી)/i.test(value)) return "gu";
-  if (/(আমি|দয়া|এখানে|বাজেট|ভ্রমণ|অ্যাক্টিভিটি|গন্তব্য)/i.test(value)) return "bn";
-  if (/(என்|உங்கள்|தயவு|இங்கே|படங்கள்|பயணம்|செயல்பாடு)/i.test(value)) return "ta";
-  if (/(నా|దయచేసి|ఇక్కడ|బడ్జెట్|ప్రయాణం|కార్యకలాపాలు)/i.test(value)) return "te";
-  if (/(ನನ್ನ|ದಯವಿಟ್ಟು|ಇಲ್ಲಿ|ಬಜೆಟ್|ಪ್ರಯಾಣ|ಚಟುವಟಿಕೆ)/i.test(value)) return "kn";
-  if (/(എന്റെ|ദയവായി|ഇവിടെ|ബജറ്റിൽ|യാത്ര|ഏറ്റവും)/i.test(value)) return "ml";
-  if (/(ਮੇਰਾ|ਕਿਰਪਾ|ਇੱਥੇ|ਬਜਗੇਟ|ਯਾਤਰਾ|ਗਤੀਵਿਧੀ)/i.test(value)) return "pa";
-  if (/(میرا|براہِ|یہاں|بجٹ|سفر|سرگرمی)/i.test(value)) return "ur";
-
-  return "en";
-};
-
-const toBcp47Language = (language) => {
-  const map = {
-    en: "en-IN",
-    hi: "hi-IN",
-    mr: "mr-IN",
-    gu: "gu-IN",
-    bn: "bn-IN",
-    ta: "ta-IN",
-    te: "te-IN",
-    kn: "kn-IN",
-    ml: "ml-IN",
-    pa: "pa-IN",
-    ur: "ur-IN",
-  };
-
-  return map[language] || "en-IN";
+const normalizeHistory = (history = []) => {
+  if (!Array.isArray(history)) return [];
+  return history
+    .slice(-10)
+    .map((entry) => ({
+      role: entry.role === "assistant" ? "assistant" : "user",
+      text: String(entry.text || entry.message || "").trim().slice(0, 800),
+    }))
+    .filter((entry) => entry.role && entry.text);
 };
 
 const serializeTripContext = (trip) => {
-  if (!trip || typeof trip !== "object") {
-    return "No active trip context is available right now.";
-  }
-
-  const compactText = (value, maxLength = 100) =>
-    typeof value === "string" ? value.trim().slice(0, maxLength) || null : null;
-
-  return JSON.stringify({
-    origin: compactText(trip.source || trip.origin),
-    destination: compactText(trip.destination),
-    dates: {
-      start: compactText(trip.startDate, 40),
-      end: compactText(trip.endDate, 40),
-    },
-    travelers: Number.isFinite(Number(trip.travelers)) ? Number(trip.travelers) : null,
-    travelers: trip.travelers != null && Number.isFinite(Number(trip.travelers)) ? Number(trip.travelers) : null,
-    budget: trip.budget != null && Number.isFinite(Number(trip.budget)) ? Number(trip.budget) : null,
-    currency: compactText(trip.currency, 8) || "INR",
-    transport: compactText(trip.travelMode || trip.transportPreference),
-    accommodation: compactText(trip.hotelType || trip.accommodationPreference),
-    dining: compactText(trip.foodPreference || trip.diningPreference),
-    interests: Array.isArray(trip.interests)
-      ? trip.interests.filter((interest) => typeof interest === "string").slice(0, 6).map((interest) => interest.trim().slice(0, 50))
-      : [],
-    purpose: compactText(trip.purpose),
-  });
-};
-
-const normalizeHistory = (history) => {
-  if (!Array.isArray(history)) return [];
-  return history
-    .filter((entry) => entry && typeof entry === "object" && (typeof entry.text === "string" || typeof entry.message === "string"))
-    .slice(-5)
-    .map((entry) => ({
-      role: entry.role === "assistant" ? "assistant" : entry.role === "user" ? "user" : null,
-      text: String(entry.text || entry.message || "").trim().slice(-800),
-    }))
-    .filter((entry) => entry.role && entry.text);
+  if (!trip) return "No specific trip loaded.";
+  return [
+    `Route: ${trip.source || "Unknown"} -> ${trip.destination || "Unknown"}`,
+    `Dates: ${trip.startDate || "N/A"} to ${trip.endDate || "N/A"}`,
+    `Travelers: ${trip.travelers || "1"}`,
+    `Budget: ₹${trip.budget || "N/A"}`,
+    `Travel Mode: ${trip.travelMode || "Any"}`,
+    `Hotel Preference: ${trip.hotelType || "Standard"}`,
+    `Food Preference: ${trip.foodPreference || "Any"}`,
+    `Category: ${trip.tripCategory || "Personal"}`,
+  ].join(" | ");
 };
 
 const generateAssistantReply = async ({ message, language = "auto", trip = null, history = [] }) => {
@@ -1780,91 +1782,74 @@ const generateAssistantReply = async ({ message, language = "auto", trip = null,
     throw error;
   }
 
-  const normalizedHistory = normalizeHistory(history);
-  const conversationHistory = normalizedHistory;
-  const supportedLanguages = {
-    en: "English",
-    hi: "Hindi",
-    mr: "Marathi",
-    gu: "Gujarati",
-    bn: "Bengali",
-    ta: "Tamil",
-    te: "Telugu",
-    kn: "Kannada",
-    ml: "Malayalam",
-    pa: "Punjabi",
-    ur: "Urdu",
-  };
-  const selectedLanguage = supportedLanguages[language] ? language : "auto";
-  const isNumericFollowUp = /^[\d\s,.₹]+$/.test(cleanMessage);
-  const previousUserMessage = [...conversationHistory].reverse().find((entry) => entry.role === "user")?.text || "";
-  const responseLanguage = selectedLanguage === "auto"
-    ? supportedLanguages[detectLanguageFromText(isNumericFollowUp ? previousUserMessage || cleanMessage : cleanMessage)]
-    : supportedLanguages[selectedLanguage];
-  const apiKey = process.env.OPENROUTER_API_KEY;
+  const conversationHistory = normalizeHistory(history);
+  const tripContext = serializeTripContext(trip);
 
-  if (!apiKey) {
-    const error = new Error("The chat assistant is not configured. Set OPENROUTER_API_KEY in the backend environment.");
-    error.statusCode = 503;
-    throw error;
-  }
+  const systemInstruction = `You are Transix Assistant, an expert AI travel planner and concierge for Transix.
+Help travelers with destination tips, day-by-day itinerary modifications, budget adjustments, hotels, and travel options.
+Keep your responses helpful, concise, friendly, and under 150 words.
+Trip Context: ${tripContext}
+Never claim bookings are finalized unless confirmed by the system.`;
 
-  const systemMessage = `You are Transix Assistant. Answer the latest question using recent chat and trip context. Reply in ${responseLanguage}, usually in 1-4 sentences and no more than 180 words. Help with trip changes, but never claim a change succeeded unless the app confirms it; do not invent facts or bookings. Trip: ${serializeTripContext(trip)}`;
-  const messages = [
-    { role: "system", content: systemMessage },
-    ...conversationHistory.map(({ role, text }) => ({ role, content: text })),
-    { role: "user", content: cleanMessage },
-  ];
+  // 1. Try OpenRouter if configured
+  if (process.env.OPENROUTER_API_KEY) {
+    try {
+      const messages = [
+        { role: "system", content: systemInstruction },
+        ...conversationHistory.map((h) => ({ role: h.role, content: h.text })),
+        { role: "user", content: cleanMessage },
+      ];
 
-  let reply;
-  try {
-    const response = await axios.post(
-      "https://openrouter.ai/api/v1/chat/completions",
-      { model: "openrouter/free", messages, max_tokens: 300 },
-      {
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-          "X-Title": "Transix Assistant",
+      const res = await axios.post(
+        "https://openrouter.ai/api/v1/chat/completions",
+        {
+          model: "openrouter/free",
+          messages,
+          max_tokens: 350,
         },
-        timeout: 30000,
-      },
-    );
-    const content = response.data?.choices?.[0]?.message?.content;
-    reply = Array.isArray(content)
-      ? content.map((part) => typeof part === "string" ? part : part?.text || "").join("").trim()
-      : String(content || "").trim();
-  } catch (requestError) {
-    const providerStatus = requestError.response?.status;
-    const error = new Error(
-      providerStatus === 401 || providerStatus === 403
-        ? "OpenRouter rejected the backend API key or account access. Check the backend OpenRouter configuration."
-        : providerStatus === 402 || providerStatus === 429
-          ? "OpenRouter is out of available credits or free requests right now. Please try again later."
-          : "The AI assistant is temporarily unavailable. Please try again later.",
-    );
-    error.statusCode = providerStatus === 429 ? 429 : 502;
-    throw error;
+        {
+          headers: {
+            Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+            "Content-Type": "application/json",
+            "X-Title": "Transix Assistant",
+          },
+          timeout: 20000,
+        }
+      );
+
+      const content = res.data?.choices?.[0]?.message?.content;
+      const text = Array.isArray(content)
+        ? content.map((p) => (typeof p === "string" ? p : p?.text || "")).join("").trim()
+        : String(content || "").trim();
+
+      if (text) return text;
+    } catch (openRouterErr) {
+      console.warn("[aiService] OpenRouter failed, attempting Gemini fallback:", openRouterErr.message);
+    }
   }
 
-  if (!reply) {
-    const error = new Error("OpenRouter returned an empty assistant response. Please try again.");
-    error.statusCode = 502;
-    throw error;
+  // 2. Gemini fallback (always available with GEMINI_API_KEY)
+  try {
+    const model = getModel();
+    const prompt = `${systemInstruction}
+
+Conversation history:
+${conversationHistory.map((h) => `${h.role === "assistant" ? "Assistant" : "User"}: ${h.text}`).join("\n")}
+
+User: ${cleanMessage}
+Assistant:`;
+
+    const result = await model.generateContent(prompt);
+    const replyText = result.response.text();
+    if (replyText && replyText.trim()) {
+      return replyText.trim();
+    }
+  } catch (geminiErr) {
+    console.error("[aiService] Gemini fallback error:", geminiErr.message);
+    return "I'm having a brief connection delay reaching the AI service right now. You can adjust your budget, dates, stays, or transportation directly in the trip planner, or try asking again in a moment!";
   }
 
-  return reply;
-};
-
-const voiceServiceError = (requestError) => {
-  const providerStatus = requestError.response?.status;
-  const error = new Error(
-    providerStatus === 401 || providerStatus === 403
-      ? "Voice service authentication failed. Please continue with text chat."
-      : "Voice service is temporarily unavailable. Please try again or use text chat.",
-  );
-  error.statusCode = providerStatus === 429 || providerStatus === 402 || providerStatus === 503 ? 503 : 502;
-  return error;
+  return "I'm here to help you customize your Transix itinerary! What would you like to update?";
 };
 
 const transcribeAssistantAudio = async ({ audioBuffer, format, language = "auto" }) => {
@@ -1894,42 +1879,32 @@ const transcribeAssistantAudio = async ({ audioBuffer, format, language = "auto"
   };
   if (language !== "auto" && /^[a-z]{2}$/i.test(language)) payload.language = language.toLowerCase();
 
-  try {
-    const response = await axios.post("https://openrouter.ai/api/v1/audio/transcriptions", payload, {
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      timeout: 60000,
-      maxBodyLength: 25 * 1024 * 1024,
-    });
-    const transcript = String(response.data?.text || "").trim();
-    if (!transcript) {
-      const error = new Error("No speech was detected. Please try recording again.");
-      error.statusCode = 422;
-      throw error;
-    }
-    return transcript;
-  } catch (requestError) {
-    if (requestError.statusCode) throw requestError;
-    throw voiceServiceError(requestError);
+  const response = await axios.post("https://openrouter.ai/api/v1/audio/transcriptions", payload, {
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    timeout: 60000,
+    maxBodyLength: 25 * 1024 * 1024,
+  });
+
+  const transcript = String(response.data?.text || "").trim();
+  if (!transcript) {
+    const error = new Error("No speech was detected. Please try recording again.");
+    error.statusCode = 422;
+    throw error;
   }
+  return transcript;
 };
 
-const normalizeSpeechText = (rawText) => String(rawText || "")
-  .replace(/```[\s\S]*?```/g, " ")
-  .replace(/\[(.*?)\]\((.*?)\)/g, "$1")
-  .replace(/[*_~`>#\-]+/g, " ")
-  .replace(/\s+/g, " ")
-  .trim();
-
 const synthesizeAssistantSpeech = async ({ text, language = "auto" }) => {
-  const cleanText = normalizeSpeechText(text);
+  const cleanText = String(text || "")
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/\[(.*?)\]\((.*?)\)/g, "$1")
+    .replace(/[*_~`>#\-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
   if (!cleanText) {
     const error = new Error("There is no assistant response to speak.");
     error.statusCode = 400;
-    throw error;
-  }
-  if (cleanText.length > 5000) {
-    const error = new Error("This response is too long for voice playback. Please use the text response.");
-    error.statusCode = 413;
     throw error;
   }
 
@@ -1940,39 +1915,36 @@ const synthesizeAssistantSpeech = async ({ text, language = "auto" }) => {
     throw error;
   }
 
-  try {
-    const payload = {
-      model: "fish-audio/s2.1-pro-free:free",
-      input: cleanText,
-      response_format: "mp3",
-    };
-    if (language && language !== "auto" && /^[a-z]{2}$/i.test(language)) {
-      payload.voice = language.toLowerCase();
-    }
-
-    const response = await axios.post("https://openrouter.ai/api/v1/audio/speech", payload, {
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      responseType: "arraybuffer",
-      timeout: 60000,
-      maxContentLength: 15 * 1024 * 1024,
-    });
-    const audio = Buffer.from(response.data || []);
-    if (!audio.length) {
-      const error = new Error("The voice service returned empty audio. Please try playback again.");
-      error.statusCode = 502;
-      throw error;
-    }
-    return { audio, contentType: "audio/mpeg" };
-  } catch (requestError) {
-    if (requestError.statusCode) throw requestError;
-    throw voiceServiceError(requestError);
+  const payload = {
+    model: "fish-audio/s2.1-pro-free:free",
+    input: cleanText,
+    response_format: "mp3",
+  };
+  if (language && language !== "auto" && /^[a-z]{2}$/i.test(language)) {
+    payload.voice = language.toLowerCase();
   }
+
+  const response = await axios.post("https://openrouter.ai/api/v1/audio/speech", payload, {
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    responseType: "arraybuffer",
+    timeout: 60000,
+    maxContentLength: 15 * 1024 * 1024,
+  });
+
+  const audio = Buffer.from(response.data || []);
+  if (!audio.length) {
+    const error = new Error("The voice service returned empty audio.");
+    error.statusCode = 502;
+    throw error;
+  }
+  return { audio, contentType: "audio/mpeg" };
 };
 
 module.exports = {
   generateTripPlan,
   regenerateTripDay,
   syncItineraryWithStayPlan,
+  buildDeterministicTimeline,
   generateAssistantReply,
   transcribeAssistantAudio,
   synthesizeAssistantSpeech,

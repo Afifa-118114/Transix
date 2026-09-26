@@ -44,12 +44,39 @@ const userSchema = new mongoose.Schema(
     role: {
       type: String,
       enum: ["traveler", "operator", "admin"],
-      default: "traveler"
+      default: "traveler",
+    },
+
+    // Tour Operator Specific Fields
+    companyName: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    phone: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    licenseNumber: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    city: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    operatorSpecialties: {
+      type: [String],
+      default: [],
     },
   },
   {
     timestamps: true,
   },
 );
+
 
 module.exports = mongoose.model("User", userSchema);

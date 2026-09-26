@@ -67,7 +67,7 @@ const getHotels = asyncHandler(async (req, res) => {
   // Match Google hotels to Nuitee with bounded concurrency
   const matchTasks = hotels.map((h) => () => 
     h.coordinates 
-      ? matchGoogleHotelToNuitee(h.name, h.coordinates.lat, h.coordinates.lng) 
+      ? matchGoogleHotelToNuitee(h.name, h.coordinates.lat, h.coordinates.lng, h.address) 
       : Promise.resolve({ matched: false, reason: "no_coordinates" })
   );
   

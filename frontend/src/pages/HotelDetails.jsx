@@ -2,10 +2,12 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useState, useMemo, useRef } from "react";
 import DashboardLayout from "../layouts/DashboardLayout";
 import { useTripBuilder } from "../context/TripBuilderContext";
+import { useAuth } from "../context/AuthContext";
 import HotelTabs from "../components/hotels/HotelTabs.jsx";
 import HotelGallery from "../components/hotels/HotelGallery";
 import HotelInfo from "../components/hotels/HotelInfo";
 import HotelActionButtons from "../components/hotels/HotelActionButtons";
+import HotelBookingModal from "../components/hotels/HotelBookingModal";
 import { FiArrowLeft, FiInfo, FiTrendingDown, FiMapPin, FiStar, FiCheck } from "react-icons/fi";
 import { calculatePriceIntelligence } from "../utils/priceIntelligence";
 import { calculateStayAccommodation } from "../utils/campusBudgetUtils";
@@ -14,7 +16,12 @@ export default function HotelDetails() {
   const navigate = useNavigate();
   const { state } = useLocation();
   const { trip, setTrip, selectHotelForSegment } = useTripBuilder();
+  const { user, token } = useAuth();
   const detailSectionRef = useRef(null);
+
+  // Booking modal state
+  const [showBookingModal, setShowBookingModal] = useState(false);
+  const [bookingHotel, setBookingHotel] = useState(null);
 
   // Extract stay context if present
   const stayContext = state?.stayContext;
@@ -58,6 +65,11 @@ export default function HotelDetails() {
     if (detailSectionRef.current) {
       detailSectionRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
     }
+  };
+
+  const handleReserve = (hotelData) => {
+    setBookingHotel(hotelData);
+    setShowBookingModal(true);
   };
 
   const handleSelectForStay = (hotelData) => {
@@ -106,6 +118,7 @@ export default function HotelDetails() {
   const hotel = hotelsList[activeHotel] || hotelsList[0];
 
   return (
+    <>
     <DashboardLayout trip={trip} setTrip={setTrip}>
       <div className="flex flex-col gap-6 pb-12">
         {/* Page Header */}
@@ -305,7 +318,7 @@ export default function HotelDetails() {
           </div>
 
           <div className="mt-6 flex flex-col gap-4">
-            <HotelActionButtons hotel={hotel} />
+            <HotelActionButtons hotel={hotel} onReserve={() => handleReserve(hotel)} />
             
             {isStaySelection && (
               <div className="flex justify-end p-4 bg-indigo-50/50 dark:bg-indigo-900/20 rounded-xl border border-indigo-100 dark:border-indigo-800/40">
@@ -322,5 +335,28 @@ export default function HotelDetails() {
         </section>
       </div>
     </DashboardLayout>
+
+    {/* Hotel Booking Modal */}
+    <HotelBookingModal
+      isOpen={showBookingModal}
+      onClose={() => setShowBookingModal(false)}
+      hotel={bookingHotel}
+      stayContext={{
+        tripId: trip?._id,
+        staySegmentId: stayContext?.staySegmentId,
+        checkIn: stayContext?.checkIn,
+        checkOut: stayContext?.checkOut,
+        location: stayContext?.location,
+        nights: stayContext?.nights,
+        travelers: stayContext?.travelers || trip?.travelers,
+      }}
+      token={token}
+      user={user}
+      onBookingSuccess={(data) => {
+        // Optionally update trip state or navigate away after booking
+        setTimeout(() => setShowBookingModal(false), 3000);
+      }}
+    />
+    </>
   );
 }

@@ -20,10 +20,6 @@ const TripDashboard = ({ trip, setTrip }) => {
 
   const handleToggleAccess = async () => {
     const currentAccess = trip.operatorAccess?.enabled || false;
-    if (!currentAccess && trip.status !== "Finalized") {
-      toast.error("Trip must be finalized before sharing with an operator.", { icon: "⚠️" });
-      return;
-    }
     setIsProcessingAccess(true);
     try {
       const token = localStorage.getItem("token");

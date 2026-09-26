@@ -5,6 +5,8 @@ const {
   getDashboardStats,
   getOperatorTrips,
   getOperatorTripDetails,
+  claimOperatorTrip,
+  releaseOperatorTrip,
   getTripMessages,
   sendTripMessage,
   getUnreadMessageCount,
@@ -24,12 +26,23 @@ const {
   getOperatorConversations,
 } = require("../controllers/operatorController");
 
+const {
+  getOperatorProfile,
+  updateOperatorProfile,
+} = require("../controllers/authController");
+
 router.use(authMiddleware);
 router.use(authorizeRoles("operator", "admin"));
+
+// Profile management
+router.get("/profile", getOperatorProfile);
+router.put("/profile", updateOperatorProfile);
 
 router.get("/dashboard", getDashboardStats);
 router.get("/trips", getOperatorTrips);
 router.get("/trips/:tripId", getOperatorTripDetails);
+router.post("/trips/:tripId/claim", claimOperatorTrip);
+router.post("/trips/:tripId/release", releaseOperatorTrip);
 router.get("/trips/:tripId/messages", getTripMessages);
 router.post("/trips/:tripId/messages", sendTripMessage);
 router.get("/trips/:tripId/messages/unread", getUnreadMessageCount);
@@ -39,6 +52,7 @@ router.get("/bookings", getOperatorBookings);
 router.patch("/bookings/:bookingId/status", updateBookingStatus);
 router.get("/all-vendor-requests", getOperatorAllVendorRequests);
 router.get("/conversations", getOperatorConversations);
+
 
 // Fleet Vendor Management Routes
 router.get("/vendors", getAllVendorsDirectory);

@@ -173,8 +173,18 @@ const tripSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["Draft", "Generated", "Booked", "Finalized"],
+      enum: ["Draft", "Generated", "Booked", "BOOKED", "Finalized", "Confirmed", "CONFIRMED"],
       default: "Draft",
+    },
+
+    isBooked: {
+      type: Boolean,
+      default: false,
+    },
+
+    bookingSummary: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
     },
 
     operatorAccess: {

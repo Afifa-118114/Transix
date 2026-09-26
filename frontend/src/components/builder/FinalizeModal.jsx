@@ -14,8 +14,10 @@ import {
 } from "react-icons/fi";
 import { FaWandMagicSparkles } from "react-icons/fa6";
 import { useTripBuilder } from "../../context/TripBuilderContext";
+import { useAuth } from "../../context/AuthContext";
 import { updateOperatorAccess, finalizeTrip, updateTrip } from "../../api/tripApi";
 import BusPreferenceSection from "./BusPreferenceSection";
+import TourBookingModal from "../booking/TourBookingModal";
 import toast from "react-hot-toast";
 
 export default function FinalizeModal() {
@@ -32,10 +34,12 @@ export default function FinalizeModal() {
     saveBusPreferences,
     autoFixScheduleOverlaps,
   } = useTripBuilder();
+  const { token, user } = useAuth();
 
   // All React Hooks MUST be called unconditionally at the very top of the component
   const [step, setStep] = useState("checklist"); // 'checklist' | 'bus_preferences' | 'guide_prompt' | 'consent' | 'confirmed'
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [busPreferencesSaved, setBusPreferencesSaved] = useState(false);
   const [savedLocalPlan, setSavedLocalPlan] = useState(null);
 
@@ -319,19 +323,20 @@ export default function FinalizeModal() {
       }
 
       if (isCampus) {
-        const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/campus-trips/${trip._id}/finalize`, {
-          method: 'POST',
+        const apiUrl = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/+$/, "");
+        const res = await fetch(`${apiUrl}/campus-trips/${trip._id}/finalize`, {
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({ guideRequirement: guideReqData }),
         });
 
+        const data = await res.json().catch(() => ({}));
         if (!res.ok) {
-          throw new Error("Failed to finalize campus trip");
+          throw new Error(data?.message || "Failed to finalize campus trip");
         }
-        const data = await res.json();
         if (data?.trip && setTrip) {
           setTrip({
             ...data.trip,
@@ -838,46 +843,92 @@ export default function FinalizeModal() {
             )}
           </div>
         ) : step === "consent" ? (
-          /* ================= STEP 2: OPERATOR CONSENT ================= */
-          <div className="p-6 text-center">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-2xl text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-700/50">
-              🤝
-            </div>
+          /* ================= STEP 2: DUAL BOOKING PATHWAYS ================= */
+          <div className="p-6">
+            <div className="text-center mb-5">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-2xl text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800">
+                🚀
+              </div>
 
-            <h2 className="mt-4 text-xl font-black text-slate-900 dark:text-white uppercase">
-              Trip Finalized Successfully
-            </h2>
-            <p className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">
-              Your itinerary is saved.
-            </p>
-
-            <div className="my-6 rounded-xl bg-slate-50 dark:bg-slate-800/60 p-5 border border-slate-200 dark:border-slate-700 text-left">
-              <p className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-3">
-                Would you like to share this trip with your tour operator?
+              <h2 className="mt-3 text-lg font-black text-slate-900 dark:text-white uppercase tracking-wider">
+                Choose Booking Pathway
+              </h2>
+              <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                How would you like to confirm accommodations and transit for this tour?
               </p>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">This allows the operator to:</p>
-              <ul className="text-xs text-slate-600 dark:text-slate-300 space-y-1.5 list-disc pl-4">
-                <li>monitor your journey</li>
-                <li>coordinate trip requirements</li>
-                <li>track booking status</li>
-                <li>respond to operational issues</li>
-              </ul>
             </div>
 
-            <div className="flex gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 mb-5">
+              {/* Pathway A: Self-Serve Automated Booking */}
+              <div className="relative flex flex-col justify-between rounded-2xl border-2 border-indigo-500/80 bg-gradient-to-b from-indigo-50/70 to-white dark:from-indigo-950/40 dark:to-slate-900 p-4 shadow-sm transition hover:shadow-md">
+                <span className="absolute -top-2.5 right-3 rounded-full bg-indigo-600 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-white shadow-xs">
+                  ⚡ Recommended
+                </span>
+
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">⚡</span>
+                    <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">
+                      Instant Auto-Booking
+                    </h3>
+                  </div>
+                  <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
+                    Directly lock LiteAPI hotel rates and generate Travelport / Indian Railway tickets in 1 single unified checkout.
+                  </p>
+                  <ul className="text-[10px] text-slate-500 dark:text-slate-400 space-y-1 pt-1">
+                    <li>✓ Live room vouchers (PDF)</li>
+                    <li>✓ Verified 10-digit rail/air PNRs</li>
+                    <li>✓ Instant UPI / Card checkout</li>
+                  </ul>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIsBookingModalOpen(true)}
+                  className="mt-4 w-full flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 py-2.5 text-xs font-bold text-white shadow-xs transition active:scale-98 cursor-pointer"
+                >
+                  <span>⚡ Book Automatically</span>
+                  <FiArrowRight className="text-xs" />
+                </button>
+              </div>
+
+              {/* Pathway B: Tour Operator Assisted Operations */}
+              <div className="flex flex-col justify-between rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/60 p-4 shadow-2xs transition hover:border-slate-300 dark:hover:border-slate-700">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">📋</span>
+                    <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">
+                      Send to Tour Operator
+                    </h3>
+                  </div>
+                  <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
+                    Delegate your itinerary to the certified Transix operations desk for manual group negotiation, local fleet dispatch, and dedicated trip monitoring.
+                  </p>
+                  <ul className="text-[10px] text-slate-500 dark:text-slate-400 space-y-1 pt-1">
+                    <li>✓ Operator fleet negotiation</li>
+                    <li>✓ Verified guide assignment</li>
+                    <li>✓ Operational disruption support</li>
+                  </ul>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleOperatorConsent(true)}
+                  disabled={isProcessing}
+                  className="mt-4 w-full flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 py-2.5 text-xs font-bold text-slate-800 dark:text-slate-200 transition active:scale-98 cursor-pointer"
+                >
+                  {isProcessing ? "Assigning..." : "Delegate to Operator"}
+                </button>
+              </div>
+            </div>
+
+            <div className="text-center pt-2 border-t border-slate-100 dark:border-slate-800">
               <button
+                type="button"
                 onClick={() => handleOperatorConsent(false)}
-                disabled={isProcessing}
-                className="flex-1 rounded-xl border border-slate-200 dark:border-slate-700 py-3 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+                className="text-[11px] font-semibold text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 underline cursor-pointer"
               >
-                Not Now
-              </button>
-              <button
-                onClick={() => handleOperatorConsent(true)}
-                disabled={isProcessing}
-                className="flex-[2] rounded-xl bg-indigo-600 py-3 text-xs font-bold text-white shadow-sm hover:bg-indigo-700 active:scale-98 transition flex items-center justify-center"
-              >
-                {isProcessing ? "Sharing..." : "Share with Operator"}
+                Skip for now, save as draft itinerary
               </button>
             </div>
           </div>
@@ -998,6 +1049,27 @@ export default function FinalizeModal() {
             </div>
           </div>
         )}
+
+        {/* Automated Tour Booking Modal */}
+        <TourBookingModal
+          isOpen={isBookingModalOpen}
+          onClose={() => setIsBookingModalOpen(false)}
+          trip={trip}
+          token={token}
+          user={user}
+          onBookingSuccess={(confirmedData) => {
+            if (setTrip) {
+              setTrip((prev) => ({
+                ...prev,
+                isBooked: true,
+                status: "BOOKED",
+                bookingSummary: confirmedData,
+              }));
+            }
+            setIsBookingModalOpen(false);
+            setStep("confirmed");
+          }}
+        />
       </div>
     </div>
   );

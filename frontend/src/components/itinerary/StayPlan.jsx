@@ -54,14 +54,35 @@ export default function StayPlan({ trip, staySegments, viewOnly = false }) {
               )}
             </div>
             
-            <div className="mt-4 sm:mt-0 sm:ml-4">
+            <div className="mt-4 sm:mt-0 sm:ml-4 flex items-center justify-end">
               {segment.selectedHotel ? (
-                <div className="text-right">
-                  <div className="text-xs font-bold text-emerald-600 dark:text-emerald-400">✓ Stay Selected</div>
-                  <div className="text-[10px] font-semibold text-slate-500 line-clamp-1 max-w-[150px]">{segment.selectedHotel.name}</div>
+                <div className="flex items-center gap-3 bg-white dark:bg-[#131b2e] p-2.5 rounded-xl border border-emerald-200/80 dark:border-emerald-800/80 shadow-2xs">
+                  {segment.selectedHotel.image && (
+                    <img 
+                      src={segment.selectedHotel.image} 
+                      alt={segment.selectedHotel.name} 
+                      className="w-12 h-12 rounded-lg object-cover border border-emerald-100 dark:border-emerald-900/50 shrink-0" 
+                    />
+                  )}
+                  <div className="text-left sm:text-right">
+                    <div className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                      <span>✓ Stay Selected</span>
+                      {segment.selectedHotel.rating && (
+                        <span className="text-[10px] bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 px-1.5 py-0.5 rounded font-black">
+                          ★ {segment.selectedHotel.rating}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs font-bold text-slate-800 dark:text-slate-200 line-clamp-1 max-w-[180px]">
+                      {segment.selectedHotel.name}
+                    </div>
+                    <div className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">
+                      ₹{(segment.selectedHotel.nightlyPrice || segment.selectedHotel.pricePerNight || segment.selectedHotel.price || 2800).toLocaleString()}/night
+                    </div>
+                  </div>
                 </div>
               ) : (
-                <span className="text-[10px] font-bold text-slate-400 italic">No hotel selected</span>
+                <span className="text-[11px] font-semibold text-slate-400 italic">No hotel selected</span>
               )}
             </div>
           </div>

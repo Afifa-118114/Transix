@@ -40,6 +40,7 @@ import {
 import { GraduationCap } from "lucide-react";
 import { findExistingTransportRecord } from "../../utils/schedulingEngine";
 import { detectBusRequirements, resolveLocalTransportArrangement, calculateDayDate } from "../../utils/busRequirementDetector";
+import OperatorAutoBookCard from "../../components/operator/OperatorAutoBookCard";
 
 export default function OperatorTripDetails() {
   const { tripId } = useParams();
@@ -971,6 +972,26 @@ export default function OperatorTripDetails() {
               </div>
             </div>
           </div>
+
+          {/* One-Click Automated Booking Action Card */}
+          <OperatorAutoBookCard
+            trip={trip}
+            bookings={bookings}
+            onBookingSuccess={(data) => {
+              setTrip(prev => ({
+                ...prev,
+                isBooked: true,
+                status: "BOOKED",
+                bookingSummary: {
+                  ...prev?.bookingSummary,
+                  confirmedBookings: data.confirmedBookings
+                }
+              }));
+              if (data.requirements) {
+                setBookings(data.requirements);
+              }
+            }}
+          />
 
           {/* Operational Views Tabs */}
           <div className="flex items-center gap-2 border-b border-slate-800 pb-2 overflow-x-auto">

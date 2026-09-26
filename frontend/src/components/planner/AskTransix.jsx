@@ -213,7 +213,7 @@ export default function AskTransix({ trip, setTrip }) {
   }, []);
 
   const appendMessage = (role, text) => {
-    const id = `assistant-message-${++messageSequenceRef.current}`;
+    const id = `msg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     setMessages((prev) => [
       ...prev,
       {
@@ -745,9 +745,9 @@ export default function AskTransix({ trip, setTrip }) {
             )}
 
             <div className="space-y-3">
-              {messages.map((message) => (
+              {messages.map((message, idx) => (
                 <div
-                  key={message.id}
+                  key={message.id ? `${message.id}-${idx}` : `msg-${idx}`}
                   className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
                 >
                   <div

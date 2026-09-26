@@ -15,7 +15,10 @@ export default function RegisterForm() {
     email: "",
     password: "",
     role: "traveler", // default role
+    companyName: "",
+    phone: "",
   });
+
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -154,19 +157,61 @@ export default function RegisterForm() {
               htmlFor="name"
               className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5"
             >
-              Full Name
+              {form.role === "operator" ? "Operator / Representative Name" : "Full Name"}
             </label>
             <input
               id="name"
               name="name"
               type="text"
               value={form.name}
-              placeholder="Enter your full name"
+              placeholder="Enter your name"
               onChange={handleChange}
               required
               className="w-full rounded-[14px] border-[1.5px] border-slate-200 dark:border-slate-700/80 bg-slate-50/50 dark:bg-slate-800/50 px-4 py-3.5 text-sm text-slate-900 dark:text-white placeholder-slate-400/80 dark:placeholder-slate-500 outline-none transition-all duration-300 hover:border-blue-300 dark:hover:border-slate-500 focus:border-blue-600 dark:focus:border-blue-500 focus:ring-4 focus:ring-blue-600/10 dark:focus:ring-blue-900/40 focus:bg-white dark:focus:bg-[#131b2e]"
             />
           </div>
+
+          {form.role === "operator" && (
+            <>
+              <div>
+                <label
+                  htmlFor="companyName"
+                  className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5"
+                >
+                  Agency / Tour Company Name
+                </label>
+                <input
+                  id="companyName"
+                  name="companyName"
+                  type="text"
+                  value={form.companyName}
+                  placeholder="e.g. Royal Travels & Tours"
+                  onChange={handleChange}
+                  required
+                  className="w-full rounded-[14px] border-[1.5px] border-slate-200 dark:border-slate-700/80 bg-slate-50/50 dark:bg-slate-800/50 px-4 py-3.5 text-sm text-slate-900 dark:text-white placeholder-slate-400/80 dark:placeholder-slate-500 outline-none transition-all duration-300 hover:border-blue-300 dark:hover:border-slate-500 focus:border-blue-600 dark:focus:border-blue-500 focus:ring-4 focus:ring-blue-600/10 dark:focus:ring-blue-900/40 focus:bg-white dark:focus:bg-[#131b2e]"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="phone"
+                  className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5"
+                >
+                  Official Contact Phone
+                </label>
+                <input
+                  id="phone"
+                  name="phone"
+                  type="tel"
+                  value={form.phone}
+                  placeholder="+91 98765 43210"
+                  onChange={handleChange}
+                  className="w-full rounded-[14px] border-[1.5px] border-slate-200 dark:border-slate-700/80 bg-slate-50/50 dark:bg-slate-800/50 px-4 py-3.5 text-sm text-slate-900 dark:text-white placeholder-slate-400/80 dark:placeholder-slate-500 outline-none transition-all duration-300 hover:border-blue-300 dark:hover:border-slate-500 focus:border-blue-600 dark:focus:border-blue-500 focus:ring-4 focus:ring-blue-600/10 dark:focus:ring-blue-900/40 focus:bg-white dark:focus:bg-[#131b2e]"
+                />
+              </div>
+            </>
+          )}
+
 
           <div>
             <label

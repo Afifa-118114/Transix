@@ -9,8 +9,39 @@ export const getDashboardStats = async (token) => {
   return res.data;
 };
 
-export const getOperatorTrips = async (token) => {
+export const getOperatorTrips = async (token, scope = "all", type = null) => {
+  const params = { scope };
+  if (type) params.type = type;
   const res = await axios.get(`${API}/operator/trips`, {
+    headers: { Authorization: `Bearer ${token}` },
+    params,
+  });
+  return res.data;
+};
+
+export const claimOperatorTrip = async (tripId, token) => {
+  const res = await axios.post(`${API}/operator/trips/${tripId}/claim`, {}, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return res.data;
+};
+
+export const releaseOperatorTrip = async (tripId, token) => {
+  const res = await axios.post(`${API}/operator/trips/${tripId}/release`, {}, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return res.data;
+};
+
+export const getOperatorProfile = async (token) => {
+  const res = await axios.get(`${API}/operator/profile`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return res.data;
+};
+
+export const updateOperatorProfile = async (profileData, token) => {
+  const res = await axios.put(`${API}/operator/profile`, profileData, {
     headers: { Authorization: `Bearer ${token}` },
   });
   return res.data;
@@ -22,6 +53,7 @@ export const getOperatorTripDetails = async (tripId, token) => {
   });
   return res.data;
 };
+
 
 export const getOperatorBookings = async (token) => {
   const res = await axios.get(`${API}/operator/bookings`, {

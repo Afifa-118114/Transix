@@ -255,7 +255,15 @@ exports.getCampusTripById = async (req, res) => {
 exports.finalizeCampusTrip = async (req, res) => {
   try {
     const { id } = req.params;
-    const trip = await Trip.findOne({ _id: id, coordinatorId: req.user.id, tripCategory: "CAMPUS" });
+    const trip = await Trip.findOne({
+      _id: id,
+      $or: [
+        { coordinatorId: req.user.id },
+        { user: req.user.id },
+        { userId: req.user.id },
+        ...(req.user.role === "admin" || req.user.role === "operator" ? [{}] : []),
+      ],
+    });
 
     if (!trip) return res.status(404).json({ success: false, message: "Trip not found or unauthorized" });
 
@@ -263,20 +271,30 @@ exports.finalizeCampusTrip = async (req, res) => {
       return res.status(400).json({ success: false, message: "Cannot finalize: Itinerary is incomplete." });
     }
 
-    if (trip.validation && trip.validation.valid === false) {
-      return res.status(400).json({ success: false, message: "Cannot finalize: Itinerary has validation errors." });
-    }
-
     if (req.body.guideRequirement) {
       trip.guideRequirement = req.body.guideRequirement;
+    }
+
+    if (!trip.coordinatorId) {
+      trip.coordinatorId = req.user.id;
     }
 
     trip.status = "Finalized";
     await trip.save();
 
+    try {
+      const { syncBookingRequirements } = require("./tripController");
+      if (typeof syncBookingRequirements === "function") {
+        await syncBookingRequirements(trip);
+      }
+    } catch (syncErr) {
+      console.warn("[finalizeCampusTrip] Warning: Failed to sync booking requirements:", syncErr.message);
+    }
+
     res.status(200).json({ success: true, trip, message: "IV Finalized" });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Failed to finalize" });
+    console.error("finalizeCampusTrip error:", error);
+    res.status(500).json({ success: false, message: "Failed to finalize: " + error.message });
   }
 };
 

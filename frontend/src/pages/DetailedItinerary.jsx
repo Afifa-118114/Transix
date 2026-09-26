@@ -38,6 +38,7 @@ import { generateTripItineraryPdf } from "../utils/itineraryPdfGenerator";
 import { formatBudget, getDuration, formatDate } from "../utils/formatTrip";
 import { resolveJourneyLocations } from "../utils/itineraryLocationHelper";
 import { SAMPLE_TRIPS } from "../data/sampleTripsData";
+import TourBookingModal from "../components/booking/TourBookingModal";
 
 export default function DetailedItinerary() {
   const { tripId } = useParams();
@@ -62,6 +63,7 @@ export default function DetailedItinerary() {
   const [fetchedTrip, setFetchedTrip] = useState(null);
   const [fetchingTrip, setFetchingTrip] = useState(!initialTrip && Boolean(tripId));
   const [authError, setAuthError] = useState(null);
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
 
   // Fallback to sample trip if ID matches
   const trip =
@@ -304,6 +306,13 @@ export default function DetailedItinerary() {
         tripStart.setHours(0, 0, 0, 0);
         const currentDateMs = tripStart.getTime() + dayIdx * 86400000;
 
+        // Check if any segment is checking in on this date
+        const hasCheckInToday = trip.staySegments.some(segment => {
+          if (!segment.selectedHotel || !segment.checkIn) return false;
+          const checkInMs = new Date(segment.checkIn).setHours(0, 0, 0, 0);
+          return currentDateMs === checkInMs;
+        });
+
         trip.staySegments.forEach((segment) => {
           if (!segment.selectedHotel) return;
           const checkInMs = new Date(segment.checkIn).setHours(0, 0, 0, 0);
@@ -316,6 +325,8 @@ export default function DetailedItinerary() {
             if (currentDateMs === checkInMs) {
               status = "Check-in";
             } else if (currentDateMs === checkOutMs) {
+              // If another hotel is checking in today, avoid conflicting accommodation
+              if (hasCheckInToday) return;
               status = "Check-out";
             } else {
               status = `Night ${dayOfStay} of ${segment.nights}`;
@@ -611,6 +622,21 @@ export default function DetailedItinerary() {
                 </>
               )}
             </button>
+
+            {trip?.isBooked || trip?.status === "BOOKED" ? (
+              <span className="flex items-center gap-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-3.5 py-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-300 shadow-2xs">
+                ✓ Tour Booked & Confirmed
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsBookingModalOpen(true)}
+                className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 px-4 py-1.5 text-xs font-bold text-white transition shadow-sm cursor-pointer"
+              >
+                <span>⚡</span>
+                <span>Book Entire Tour</span>
+              </button>
+            )}
 
             {!viewOnly && (
               <Link
@@ -1075,6 +1101,26 @@ export default function DetailedItinerary() {
           )}
         </div>
       )}
+
+      {/* 8. Tour Booking Modal */}
+      <TourBookingModal
+        isOpen={isBookingModalOpen}
+        onClose={() => setIsBookingModalOpen(false)}
+        trip={trip}
+        token={token}
+        user={user}
+        onBookingSuccess={(confirmedData) => {
+          if (contextSetTrip) {
+            contextSetTrip((prev) => ({
+              ...prev,
+              isBooked: true,
+              status: "BOOKED",
+              bookingSummary: confirmedData,
+            }));
+          }
+          setFetchedTrip((prev) => (prev ? { ...prev, isBooked: true, status: "BOOKED" } : prev));
+        }}
+      />
     </div>
   );
 

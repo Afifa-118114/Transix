@@ -6,12 +6,25 @@ const { authMiddleware } = require("../middleware/authMiddleware");
 const validate = require("../middleware/validate");
 const tripSchema = require("../validators/tripValidator");
 
+const jwt = require("jsonwebtoken");
 const {
   generateAITrip,
   generateAssistantChat,
   transcribeAssistantAudio,
   generateAssistantSpeech,
 } = require("../controllers/aiController");
+
+const optionalAuth = (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      const token = authHeader.split(" ")[1];
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      req.user = decoded;
+    }
+  } catch (_) {}
+  next();
+};
 
 const uploadAudio = multer({
   storage: multer.memoryStorage(),
@@ -36,8 +49,8 @@ router.post(
   generateAITrip,
 );
 
-router.post("/assist", authMiddleware, generateAssistantChat);
-router.post("/transcribe", authMiddleware, handleAudioUpload, transcribeAssistantAudio);
-router.post("/speak", authMiddleware, generateAssistantSpeech);
+router.post("/assist", optionalAuth, generateAssistantChat);
+router.post("/transcribe", optionalAuth, handleAudioUpload, transcribeAssistantAudio);
+router.post("/speak", optionalAuth, generateAssistantSpeech);
 
 module.exports = router;

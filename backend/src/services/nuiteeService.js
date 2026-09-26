@@ -127,8 +127,14 @@ async function matchGoogleHotelToNuitee(name, lat, lng, address) {
     for (const candidate of allCandidates.values()) {
       const nameScore = calculateNameScore(name, candidate.name);
       
-      let distanceScore = 0;
       const d = getDistanceFromLatLonInKm(lat, lng, candidate.latitude, candidate.longitude);
+      
+      // Hard cap: reject any candidate that is more than 5km away.
+      // This prevents a hotel in Kochi being matched to a Google Places result in Munnar
+      // when the destination is a broad region like "Kerala".
+      if (d > 5) continue;
+      
+      let distanceScore = 0;
       if (d <= 0.1) distanceScore = 30;
       else if (d <= 0.5) distanceScore = 25;
       else if (d <= 1.0) distanceScore = 15;
@@ -291,7 +297,201 @@ function deriveNightlyPrice(total, checkin, checkout) {
   return null;
 }
 
+/**
+ * Step 4: Pre-book — locks the rate and returns a prebookId.
+ * Call this after the user selects a room (you have offerId from getNuiteeRates).
+ * The prebookId is valid for ~15 minutes.
+ *
+ * @param {string} offerId - from getNuiteeRates response (firstRoom.offerId)
+ * @returns {object} { prebookId, hotelId, roomType, totalAmount, currency, cancellationPolicy }
+ */
+async function prebookRoom(offerId) {
+  if (!offerId) throw new Error('offerId is required for prebooking');
+
+  const BOOK_BASE_URL = 'https://book.liteapi.travel/v3.0';
+  const client = axios.create({
+    baseURL: BOOK_BASE_URL,
+    headers: {
+      'X-API-Key': process.env.NUITEE_API_KEY,
+      'Content-Type': 'application/json'
+    },
+    timeout: 10000
+  });
+
+  try {
+    const res = await client.post('/rates/prebook', {
+      offerId,
+      usePaymentSdk: false // We'll use ACC_CREDIT_CARD for sandbox / wallet for production
+    });
+
+    const data = res.data?.data;
+    if (!data?.prebookId) {
+      throw new Error('No prebookId returned from LiteAPI prebook');
+    }
+
+    return {
+      prebookId: data.prebookId,
+      hotelId: data.hotelId,
+      roomType: data.roomType || 'Standard Room',
+      totalAmount: data.retailRate?.total?.[0]?.amount,
+      currency: data.retailRate?.total?.[0]?.currency || 'INR',
+      cancellationPolicy: data.cancellationPolicies?.cancelPolicyInfos?.[0] || null,
+      boardName: data.boardName || 'Room Only'
+    };
+  } catch (error) {
+    console.error('Nuitee Prebook Error:', error.response?.data || error.message);
+    throw new Error(`Prebook failed: ${error.response?.data?.message || error.message}`);
+  }
+}
+
+/**
+ * Step 5: Book — finalizes the reservation, charges payment, returns confirmation.
+ * Call this after a successful prebook AND successful payment collection.
+ *
+ * @param {string} prebookId - from prebookRoom()
+ * @param {object} guest - { firstName, lastName, email, phone? }
+ * @param {string} clientReference - unique idempotency key (e.g., "TRX-{tripId}-{staySegmentId}")
+ * @param {string} paymentMethod - 'ACC_CREDIT_CARD' (sandbox) | 'WALLET' (production with account credit)
+ * @returns {object} { bookingId, hotelConfirmationCode, status, voucherUrl, totalAmount }
+ */
+async function bookRoom(prebookId, guest, clientReference, paymentMethod = 'ACC_CREDIT_CARD') {
+  if (!prebookId) throw new Error('prebookId is required');
+  if (!guest?.firstName || !guest?.lastName || !guest?.email) {
+    throw new Error('Guest firstName, lastName, and email are required');
+  }
+
+  const BOOK_BASE_URL = 'https://book.liteapi.travel/v3.0';
+  const client = axios.create({
+    baseURL: BOOK_BASE_URL,
+    headers: {
+      'X-API-Key': process.env.NUITEE_API_KEY,
+      'Content-Type': 'application/json'
+    },
+    timeout: 15000
+  });
+
+  const payload = {
+    prebookId,
+    guest: {
+      firstName: guest.firstName,
+      lastName: guest.lastName,
+      email: guest.email,
+      phone: guest.phone || undefined
+    },
+    payment: {
+      method: paymentMethod // 'ACC_CREDIT_CARD' for sandbox, 'WALLET' for live with account balance
+    },
+    clientReference: clientReference || `TRX-${Date.now()}` // idempotency key
+  };
+
+  try {
+    const res = await client.post('/rates/book', payload);
+    const data = res.data?.data;
+
+    if (!data?.bookingId) {
+      throw new Error('No bookingId returned from LiteAPI — booking may have failed');
+    }
+
+    return {
+      bookingId: data.bookingId,
+      hotelConfirmationCode: data.hotelConfirmationCode || data.supplierBookingId,
+      status: data.status, // 'CONFIRMED' | 'PENDING' | 'FAILED'
+      hotelName: data.hotel?.name,
+      checkIn: data.checkin,
+      checkOut: data.checkout,
+      totalAmount: data.retailRate?.total?.[0]?.amount,
+      currency: data.retailRate?.total?.[0]?.currency || 'INR',
+      voucherUrl: data.voucherUrl || null,
+      cancellationInfo: data.cancellationPolicies?.cancelPolicyInfos?.[0] || null
+    };
+  } catch (error) {
+    // LiteAPI error 4005 = duplicate clientReference (already booked)
+    if (error.response?.data?.error?.code === 4005) {
+      throw new Error('DUPLICATE_BOOKING: This hotel room was already booked with this reference.');
+    }
+    console.error('Nuitee Book Error:', error.response?.data || error.message);
+    throw new Error(`Booking failed: ${error.response?.data?.message || error.message}`);
+  }
+}
+
+/**
+ * Step 6: Retrieve Booking — fetches live booking status and voucher.
+ * Call after booking to get the voucher PDF URL and live status.
+ *
+ * @param {string} bookingId - from bookRoom() response
+ * @returns {object} Full booking details including voucher
+ */
+async function getBookingDetails(bookingId) {
+  if (!bookingId) throw new Error('bookingId is required');
+
+  const BOOK_BASE_URL = 'https://book.liteapi.travel/v3.0';
+  const client = axios.create({
+    baseURL: BOOK_BASE_URL,
+    headers: {
+      'X-API-Key': process.env.NUITEE_API_KEY,
+      'Content-Type': 'application/json'
+    },
+    timeout: 10000
+  });
+
+  try {
+    const res = await client.get(`/bookings/${bookingId}`);
+    const data = res.data?.data;
+
+    return {
+      bookingId: data.bookingId,
+      status: data.status,
+      hotelName: data.hotel?.name,
+      hotelAddress: data.hotel?.address,
+      checkIn: data.checkin,
+      checkOut: data.checkout,
+      roomType: data.roomType,
+      guestName: `${data.guest?.firstName} ${data.guest?.lastName}`,
+      totalAmount: data.retailRate?.total?.[0]?.amount,
+      currency: data.retailRate?.total?.[0]?.currency || 'INR',
+      voucherUrl: data.voucherUrl,
+      hotelConfirmationCode: data.hotelConfirmationCode,
+      cancellationPolicy: data.cancellationPolicies?.cancelPolicyInfos?.[0] || null
+    };
+  } catch (error) {
+    console.error('Nuitee Get Booking Error:', error.response?.data || error.message);
+    throw new Error(`Failed to retrieve booking: ${error.message}`);
+  }
+}
+
+/**
+ * Cancel a booking before the free cancellation deadline.
+ *
+ * @param {string} bookingId - LiteAPI bookingId
+ * @returns {object} { success, message }
+ */
+async function cancelBooking(bookingId) {
+  if (!bookingId) throw new Error('bookingId is required');
+
+  const BOOK_BASE_URL = 'https://book.liteapi.travel/v3.0';
+  const client = axios.create({
+    baseURL: BOOK_BASE_URL,
+    headers: {
+      'X-API-Key': process.env.NUITEE_API_KEY,
+      'Content-Type': 'application/json'
+    },
+    timeout: 10000
+  });
+
+  try {
+    const res = await client.put(`/bookings/${bookingId}/cancel`);
+    return { success: true, message: res.data?.message || 'Booking cancelled successfully' };
+  } catch (error) {
+    console.error('Nuitee Cancel Error:', error.response?.data || error.message);
+    throw new Error(`Cancellation failed: ${error.response?.data?.message || error.message}`);
+  }
+}
+
 module.exports = {
   matchGoogleHotelToNuitee,
-  getNuiteeRates
+  getNuiteeRates,
+  prebookRoom,
+  bookRoom,
+  getBookingDetails,
+  cancelBooking
 };
