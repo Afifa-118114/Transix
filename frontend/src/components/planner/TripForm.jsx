@@ -238,6 +238,22 @@ export default function TripForm({ setTrip }) {
     ? QUESTIONS.find((q) => q.id === editingQuestionId)
     : QUESTIONS[currentIdx];
 
+  const getAnswerDisplay = (q) => {
+    if (q.id === "dates") {
+      return answers.durationStr || (answers.startDate && answers.endDate ? `${answers.startDate} to ${answers.endDate}` : answers.dates || "");
+    }
+    if (q.id === "interests") {
+      return answers.interestsStr || (Array.isArray(answers.interests) && answers.interests.length > 0 ? answers.interests.join(", ") : "");
+    }
+    if (q.id === "budget" && answers.budget) {
+      return `₹${Number(answers.budget).toLocaleString("en-IN")}`;
+    }
+    if (q.id === "travelers" && answers.travelers) {
+      return `${answers.travelers} ${Number(answers.travelers) === 1 ? "Person" : "People"}`;
+    }
+    return answers[q.id] || "";
+  };
+
   const handleSuggestionClick = (sug) => {
     if (activeQuestion.multi) {
       const arr = inputValue.split(",").map((i) => i.trim()).filter(Boolean);
@@ -269,7 +285,12 @@ export default function TripForm({ setTrip }) {
   const handlePrevStep = () => {
     if (editingQuestionId) {
       setEditingQuestionId(null);
-      setInputValue("");
+      const curQ = QUESTIONS[currentIdx];
+      let val = "";
+      if (curQ.id === "dates") val = answers.durationStr || "";
+      else if (curQ.id === "interests") val = answers.interestsStr || "";
+      else val = answers[curQ.id]?.toString() || "";
+      setInputValue(val);
       setClarification(null);
       return;
     }
@@ -428,7 +449,12 @@ export default function TripForm({ setTrip }) {
 
       if (editingQuestionId) {
         setEditingQuestionId(null);
-        setInputValue("");
+        const curQ = QUESTIONS[currentIdx];
+        let val = "";
+        if (curQ.id === "dates") val = nextAnswers.durationStr || "";
+        else if (curQ.id === "interests") val = nextAnswers.interestsStr || "";
+        else val = nextAnswers[curQ.id]?.toString() || "";
+        setInputValue(val);
       } else {
         if (currentIdx < QUESTIONS.length - 1) {
           const nextIdx = currentIdx + 1;
@@ -732,8 +758,92 @@ export default function TripForm({ setTrip }) {
   // -------------------------------------------------------------
   return (
     <div className="flex flex-col min-h-[calc(100vh-6rem)] sm:min-h-[calc(100vh-8rem)] max-w-2xl sm:max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10 justify-between">
-      {/* Question Area */}
+      {/* Question & Journey History Stream */}
       <div>
+        {/* Stream of Previous Answers (Dynamically appears above current question) */}
+        {currentIdx > 0 && !editingQuestionId && (
+          <div className="mb-6 sm:mb-8 space-y-2">
+            <div className="flex items-center justify-between pb-1 px-1">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                Your Journey Details
+              </span>
+              <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500">
+                Step {currentIdx + 1} of {QUESTIONS.length}
+              </span>
+            </div>
+
+            <div className="space-y-2">
+              {QUESTIONS.slice(0, currentIdx).map((q, idx) => {
+                const answerVal = getAnswerDisplay(q);
+                if (!answerVal) return null;
+                const isLastAnswer = idx === currentIdx - 1;
+                return (
+                  <div
+                    key={q.id}
+                    className={`flex items-center justify-between gap-3 px-3.5 py-2 rounded-xl transition-all ${
+                      isLastAnswer
+                        ? "bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200/80 dark:border-blue-900/60 shadow-2xs"
+                        : "bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span
+                        className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
+                          isLastAnswer
+                            ? "bg-[#006CE4] text-white"
+                            : "bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300"
+                        }`}
+                      >
+                        ✓
+                      </span>
+                      <span className="text-xs font-medium text-slate-600 dark:text-slate-400 truncate">
+                        {q.title}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span
+                        className={`text-xs font-semibold px-2.5 py-0.5 rounded-lg ${
+                          isLastAnswer
+                            ? "bg-white dark:bg-slate-900 text-[#006CE4] dark:text-blue-400 border border-blue-200 dark:border-blue-800 font-bold shadow-2xs"
+                            : "bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700"
+                        }`}
+                      >
+                        {answerVal}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleEditClick(q.id)}
+                        className="text-[11px] font-semibold text-slate-400 hover:text-[#006CE4] dark:hover:text-blue-400 px-2 py-0.5 rounded hover:bg-white dark:hover:bg-slate-700 transition cursor-pointer"
+                      >
+                        Edit
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Editing Mode Banner */}
+        {editingQuestionId && (
+          <div className="mb-6 flex items-center justify-between px-3.5 py-2 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60">
+            <div className="flex items-center gap-2 text-xs font-medium text-amber-800 dark:text-amber-300">
+              <span>✏️ Editing your answer for:</span>
+              <span className="font-bold underline">{activeQuestion.title}</span>
+            </div>
+            <button
+              type="button"
+              onClick={handlePrevStep}
+              className="text-xs font-bold text-amber-800 dark:text-amber-300 hover:underline cursor-pointer"
+            >
+              Cancel Edit
+            </button>
+          </div>
+        )}
+
+        {/* Question Area */}
         <div className="mb-8 sm:mb-12">
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-[1.2]">
             {clarification ? clarification : activeQuestion.title}
