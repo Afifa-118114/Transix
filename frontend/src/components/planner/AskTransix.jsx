@@ -12,6 +12,7 @@ import {
   LoaderCircle,
   StopCircle,
   Trash2,
+  Bot,
 } from "lucide-react";
 import {
   generateAITrip,
@@ -617,17 +618,44 @@ export default function AskTransix({ trip, setTrip }) {
 
   if (!expanded) {
     return (
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-24px)] sm:w-[560px]">
+      <div className="fixed bottom-6 right-6 z-50 group">
+        {/* Tooltip speech bubble on desktop hover */}
+        <div className="absolute right-full mr-3 top-1/2 -translate-y-1/2 hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/95 text-white text-xs font-semibold whitespace-nowrap shadow-xl backdrop-blur-md border border-slate-700/80 pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-200 translate-x-1 group-hover:translate-x-0">
+          <Sparkles className="h-3.5 w-3.5 text-sky-400 animate-pulse" />
+          <span>Ask AI Robo</span>
+          <div className="absolute left-full top-1/2 -translate-y-1/2 border-4 border-transparent border-l-slate-900/95" />
+        </div>
+
+        {/* Square Robot Launcher */}
         <button
           onClick={() => setExpanded(true)}
-          className="flex w-full items-center justify-between rounded-full bg-slate-900 px-6 py-3 text-white shadow-xl shadow-slate-900/20 transition hover:scale-[1.01] active:scale-[0.99] dark:bg-white dark:text-slate-900"
+          aria-label="Open Transix AI Assistant"
+          className="relative flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#006CE4] via-[#0052B4] to-[#0A2540] dark:from-[#006CE4] dark:to-[#04172e] text-white shadow-[0_8px_25px_rgba(0,108,228,0.4)] border border-sky-400/40 transition-all duration-300 hover:scale-105 hover:-translate-y-1 hover:shadow-[0_12px_32px_rgba(0,108,228,0.55)] active:scale-95 cursor-pointer"
         >
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4" />
-            <span className="text-sm font-bold">Transix Assistant</span>
-            <span className="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400" aria-label="Online" />
+          {/* Subtle animated ambient glow */}
+          <div className="absolute inset-0 rounded-2xl bg-sky-400/20 blur-md -z-10 group-hover:bg-sky-400/40 transition duration-300" />
+
+          {/* Cute Robot Character Design */}
+          <div className="relative flex flex-col items-center justify-center">
+            {/* Robot Head with Ear Antennas */}
+            <div className="relative flex items-center justify-center h-10 w-10 sm:h-11 sm:w-11 rounded-xl bg-white/10 backdrop-blur-xs border border-white/20 shadow-inner group-hover:bg-white/15 transition">
+              {/* Antenna top beacon */}
+              <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 flex flex-col items-center">
+                <span className="h-2 w-2 rounded-full bg-cyan-300 shadow-[0_0_8px_#38bdf8] animate-ping opacity-75" />
+                <span className="h-2 w-2 rounded-full bg-cyan-300 shadow-[0_0_8px_#38bdf8] -mt-2" />
+                <span className="h-1.5 w-0.5 bg-sky-200/80" />
+              </div>
+
+              {/* Bot Icon */}
+              <Bot className="h-6 w-6 sm:h-6.5 sm:w-6.5 text-white group-hover:scale-110 transition duration-200" />
+            </div>
           </div>
-          <ArrowUp className="h-4 w-4 opacity-60" />
+
+          {/* Online green indicator badge on top right */}
+          <span className="absolute -top-1 -right-1 flex h-4 w-4">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex h-4 w-4 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-900" />
+          </span>
         </button>
       </div>
     );
@@ -635,26 +663,33 @@ export default function AskTransix({ trip, setTrip }) {
 
   return (
     <>
-      <div className="pointer-events-none fixed inset-0 z-40 bg-slate-900/5 backdrop-blur-[1px] dark:bg-black/20" />
+      <div
+        onClick={() => setExpanded(false)}
+        className="fixed inset-0 z-40 bg-slate-900/20 backdrop-blur-[2px] transition-opacity dark:bg-black/40"
+      />
 
-      <div className="fixed bottom-4 left-1/2 z-50 w-[calc(100%-24px)] -translate-x-1/2 sm:bottom-6 sm:w-[620px]">
-        <div className="relative overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-[#131b2e]">
-          <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-800">
+      <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 w-[calc(100%-32px)] sm:w-[480px] max-h-[85vh] flex flex-col">
+        <div className="relative flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-[#131b2e]">
+          {/* Header with Trip.com aesthetic */}
+          <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-800 bg-[#F5F7FA] dark:bg-slate-900/60">
             <div className="flex items-center gap-2.5">
-              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-indigo-600">
-                <Sparkles className="h-3.5 w-3.5 text-white" />
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#006CE4] text-white shadow-xs">
+                <Bot className="h-4 w-4" />
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-bold text-slate-900 dark:text-white">Transix Assistant</span>
-                <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                  Online
-                </span>
+              <div className="flex flex-col">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-bold text-slate-900 dark:text-white">Transix Robo AI</span>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 px-1.5 py-0.5 text-[9px] font-bold text-emerald-600 dark:text-emerald-400">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                    Online
+                  </span>
+                </div>
+                <span className="text-[10px] text-slate-500 dark:text-slate-400">Smart Itinerary Assistant</span>
               </div>
             </div>
 
             <div className="flex items-center gap-2">
-              <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 dark:border-slate-700 dark:bg-slate-800/70">
+              <div className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2 py-1 dark:border-slate-700 dark:bg-slate-800/70">
                 <Languages className="h-3.5 w-3.5 text-slate-500" />
                 <select
                   aria-label="Select response language"
@@ -675,10 +710,10 @@ export default function AskTransix({ trip, setTrip }) {
                 aria-pressed={voiceMode}
                 aria-label={`Voice mode ${voiceMode ? "on" : "off"}`}
                 onClick={() => setVoiceMode((enabled) => !enabled)}
-                className={`flex h-8 items-center gap-1 rounded-full border px-2 text-[10px] font-semibold transition ${
+                className={`flex h-8 items-center gap-1 rounded-lg border px-2 text-[10px] font-semibold transition ${
                   voiceMode
                     ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
-                    : "border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                    : "border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
                 }`}
               >
                 {voiceMode ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
@@ -691,10 +726,10 @@ export default function AskTransix({ trip, setTrip }) {
                 title={voiceState === "recording" ? "Stop recording and transcribe" : "Record a voice message"}
                 disabled={loading || ["processing", "sending", "thinking"].includes(voiceState)}
                 onClick={() => (voiceState === "recording" ? stopVoice() : startVoiceCapture())}
-                className={`flex h-8 w-8 items-center justify-center rounded-full border transition ${
+                className={`flex h-8 w-8 items-center justify-center rounded-lg border transition ${
                   voiceState === "recording"
                     ? "border-rose-400 bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-300"
-                    : "border-slate-200 bg-slate-100 text-slate-600 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:text-white"
+                    : "border-slate-200 bg-white text-slate-600 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:text-white"
                 }`}
               >
                 {voiceState === "recording"
@@ -709,7 +744,7 @@ export default function AskTransix({ trip, setTrip }) {
                 title="Clear chat"
                 aria-label="Clear chat"
                 onClick={() => setShowClearConfirmation(true)}
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition hover:text-slate-900 dark:bg-slate-800 dark:text-slate-300 dark:hover:text-white"
+                className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-500 transition hover:text-slate-900 dark:bg-slate-800 dark:text-slate-300 dark:hover:text-white"
               >
                 <Trash2 className="h-3.5 w-3.5" />
               </button>
@@ -718,7 +753,7 @@ export default function AskTransix({ trip, setTrip }) {
                 type="button"
                 aria-label="Close assistant"
                 onClick={() => setExpanded(false)}
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition hover:text-slate-900 dark:bg-slate-800 dark:text-slate-300 dark:hover:text-white"
+                className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-500 transition hover:text-slate-900 dark:bg-slate-800 dark:text-slate-300 dark:hover:text-white cursor-pointer"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -737,7 +772,7 @@ export default function AskTransix({ trip, setTrip }) {
             </div>
           )}
 
-          <div className="max-h-[56vh] overflow-y-auto p-3 sm:p-4">
+          <div className="max-h-[50vh] overflow-y-auto p-3 sm:p-4">
             {voiceError && (
               <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700 dark:border-amber-700/60 dark:bg-amber-900/30 dark:text-amber-200">
                 {voiceError}
@@ -751,17 +786,17 @@ export default function AskTransix({ trip, setTrip }) {
                   className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
                 >
                   <div
-                    className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm leading-relaxed shadow-sm ${
+                    className={`max-w-[85%] rounded-xl px-3.5 py-2.5 text-sm leading-relaxed shadow-xs ${
                       message.role === "user"
-                        ? "bg-indigo-600 text-white"
-                        : "border border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                        ? "bg-[#006CE4] text-white font-medium"
+                        : "border border-slate-200 bg-[#F5F7FA] text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                     }`}
                   >
                     <div>{message.text}</div>
                     <div className="mt-1 flex items-center justify-between gap-3">
                       <span
                         className={`text-[10px] ${
-                          message.role === "user" ? "text-indigo-100" : "text-slate-400 dark:text-slate-500"
+                          message.role === "user" ? "text-blue-100" : "text-slate-400 dark:text-slate-500"
                         }`}
                       >
                         {new Date(message.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
@@ -789,10 +824,10 @@ export default function AskTransix({ trip, setTrip }) {
 
               {loading && (
                 <div className="flex justify-start">
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                  <div className="rounded-xl border border-slate-200 bg-[#F5F7FA] px-3.5 py-2.5 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
                     <div className="flex items-center gap-2">
-                      <LoaderCircle className="h-4 w-4 animate-spin text-indigo-500" />
-                      {voiceState === "speaking" ? "Speaking..." : "Transix Assistant is thinking..."}
+                      <LoaderCircle className="h-4 w-4 animate-spin text-[#006CE4]" />
+                      {voiceState === "speaking" ? "Speaking..." : "Transix Robo is thinking..."}
                     </div>
                   </div>
                 </div>
@@ -800,31 +835,31 @@ export default function AskTransix({ trip, setTrip }) {
             </div>
           </div>
 
-          <div className="border-t border-slate-200 px-3 py-3 dark:border-slate-800">
-            <div className="mb-2 flex flex-wrap gap-2">
+          <div className="border-t border-slate-200 px-3 py-3 dark:border-slate-800 bg-white dark:bg-[#131b2e]">
+            <div className="mb-2 flex flex-wrap gap-1.5">
               {QUICK_ACTIONS.map((action) => (
                 <button
                   key={action}
                   type="button"
                   onClick={() => handleSuggestionClick(action)}
                   disabled={loading || voiceBusy}
-                  className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-[11px] font-semibold text-slate-600 transition hover:border-indigo-400 hover:text-indigo-600 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                  className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-600 transition hover:border-[#006CE4] hover:text-[#006CE4] disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
                 >
                   {action}
                 </button>
               ))}
             </div>
 
-            <div className="flex items-end gap-2 rounded-[1.25rem] border border-slate-200 bg-slate-50 p-2 focus-within:border-indigo-500 dark:border-slate-700 dark:bg-slate-900">
+            <div className="flex items-end gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2 focus-within:border-[#006CE4] dark:border-slate-700 dark:bg-slate-900">
               <textarea
                 ref={textareaRef}
                 value={inputValue}
                 onChange={(event) => setInputValue(event.target.value)}
                 onKeyDown={handleKeyDown}
                 aria-label="Type your message"
-                placeholder="Type your message..."
+                placeholder="Ask Transix Robo..."
                 rows={1}
-                className="max-h-[120px] min-h-[42px] flex-1 resize-none bg-transparent px-2 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 dark:text-white dark:placeholder:text-slate-500"
+                className="max-h-[120px] min-h-[40px] flex-1 resize-none bg-transparent px-2 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 dark:text-white dark:placeholder:text-slate-500"
               />
 
               <button
@@ -832,7 +867,7 @@ export default function AskTransix({ trip, setTrip }) {
                 aria-label={voiceState === "speaking" ? "Stop assistant audio" : "Stop recording"}
                 onClick={stopVoice}
                 disabled={!( ["recording", "speaking"].includes(voiceState))}
-                className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
               >
                 {voiceState === "speaking" ? <VolumeX className="h-4 w-4" /> : <StopCircle className="h-4 w-4" />}
               </button>
@@ -842,9 +877,9 @@ export default function AskTransix({ trip, setTrip }) {
                 aria-label="Send message"
                 onClick={() => processMessage(inputValue)}
                 disabled={!inputValue.trim() || loading || voiceBusy}
-                className={`flex h-10 w-10 items-center justify-center rounded-xl transition ${
+                className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
                   inputValue.trim() && !loading
-                    ? "bg-indigo-600 text-white hover:bg-indigo-700"
+                    ? "bg-[#006CE4] text-white hover:bg-[#005bb5]"
                     : "cursor-not-allowed bg-slate-200 text-slate-400 dark:bg-slate-800 dark:text-slate-500"
                 }`}
               >

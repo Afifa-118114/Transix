@@ -47,7 +47,7 @@ export default function EssentialsPreview({ trip }) {
   ];
 
   return (
-    <section className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-[#131b2e] p-5 md:p-6 shadow-xs transition-colors">
+    <section className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131b2e] p-5 md:p-6 shadow-xs transition-colors">
       <div className="mb-5">
         <h2 className="text-lg font-bold text-slate-900 dark:text-white">Essentials &amp; Emergency Services</h2>
         <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
@@ -67,12 +67,12 @@ export default function EssentialsPreview({ trip }) {
                 },
               })
             }
-            className="group flex flex-col items-center justify-center rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/50 p-4 text-center transition-all duration-200 hover:-translate-y-1 hover:border-indigo-400 dark:hover:border-indigo-500 hover:bg-white dark:hover:bg-slate-800/80 hover:shadow-sm cursor-pointer"
+            className="group flex flex-col items-center justify-center rounded-xl border border-slate-200 dark:border-slate-800 bg-[#F5F7FA] dark:bg-slate-900/50 p-4 text-center transition-all duration-200 hover:-translate-y-0.5 hover:border-[#006CE4] dark:hover:border-sky-500 hover:bg-white dark:hover:bg-slate-800/80 hover:shadow-sm cursor-pointer"
           >
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white dark:bg-slate-800 border border-slate-200/70 dark:border-slate-700 text-indigo-600 dark:text-indigo-400 group-hover:scale-105 group-hover:bg-indigo-600 group-hover:text-white dark:group-hover:bg-indigo-600 dark:group-hover:text-white transition-all duration-200 shadow-2xs">
+            <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-white dark:bg-slate-800 border border-slate-200/70 dark:border-slate-700 text-[#006CE4] dark:text-sky-400 group-hover:scale-105 group-hover:bg-[#006CE4] group-hover:text-white dark:group-hover:bg-[#006CE4] dark:group-hover:text-white transition-all duration-200 shadow-2xs">
               {item.icon}
             </div>
-            <span className="mt-2.5 text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+            <span className="mt-2.5 text-xs font-bold text-[#1A1A1A] dark:text-slate-200 group-hover:text-[#006CE4] dark:group-hover:text-sky-400 transition-colors">
               {item.name}
             </span>
             <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5 font-medium truncate max-w-full">

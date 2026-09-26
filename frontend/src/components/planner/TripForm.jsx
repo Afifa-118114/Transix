@@ -1,10 +1,32 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import { generateAITrip } from "../../api/tripApi";
 import { normalizeTrip } from "../../utils/formatTrip";
 import { clearInventoryCache } from "../../services/inventoryService";
 import toast from "react-hot-toast";
-import { Sparkles, ArrowRight, ArrowLeft, Check } from "lucide-react";
+import {
+  Sparkles,
+  ArrowRight,
+  ArrowLeft,
+  Check,
+  Calendar,
+  Users,
+  Wallet,
+  Car,
+  Plane,
+  Train,
+  Bus,
+  Hotel,
+  Utensils,
+  Compass,
+  MapPin,
+  Pencil,
+  CheckCircle2,
+  ShieldCheck,
+} from "lucide-react";
+import { getPlaceImage } from "../../api/placeApi";
+import defaultHotelBg from "../../assets/activities/hotel.jpg";
 
 const QUESTIONS = [
   {
@@ -139,6 +161,21 @@ export default function TripForm({ setTrip }) {
 
   const [loading, setLoading] = useState(false);
   const [loadingPhaseIndex, setLoadingPhaseIndex] = useState(0);
+  const [destinationHeroImage, setDestinationHeroImage] = useState(null);
+
+  useEffect(() => {
+    if (answers.destination && showSummary) {
+      let isMounted = true;
+      getPlaceImage(answers.destination)
+        .then((img) => {
+          if (isMounted && img) setDestinationHeroImage(img);
+        })
+        .catch(() => {});
+      return () => {
+        isMounted = false;
+      };
+    }
+  }, [answers.destination, showSummary]);
 
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
@@ -238,6 +275,12 @@ export default function TripForm({ setTrip }) {
     ? QUESTIONS.find((q) => q.id === editingQuestionId)
     : QUESTIONS[currentIdx];
 
+  const activeIndex = editingQuestionId
+    ? QUESTIONS.findIndex((q) => q.id === editingQuestionId)
+    : currentIdx;
+  const promptNumber = (activeIndex >= 0 ? activeIndex : 0) + 1;
+  const imageSrc = `/prompt${promptNumber}-removebg-preview.png`;
+
   const getAnswerDisplay = (q) => {
     if (q.id === "dates") {
       return answers.durationStr || (answers.startDate && answers.endDate ? `${answers.startDate} to ${answers.endDate}` : answers.dates || "");
@@ -271,12 +314,16 @@ export default function TripForm({ setTrip }) {
 
   const handleEditClick = (qId) => {
     setEditingQuestionId(qId);
+    setShowSummary(false);
+    setIsReviewing(false);
     setClarification(null);
 
     // Pre-fill input value
     let val = "";
-    if (qId === "dates") val = answers.durationStr || `${answers.startDate} to ${answers.endDate}`;
-    else if (qId === "interests") val = answers.interestsStr;
+    if (qId === "dates") val = answers.durationStr || (answers.startDate && answers.endDate ? `${answers.startDate} to ${answers.endDate}` : "");
+    else if (qId === "interests") val = answers.interestsStr || (Array.isArray(answers.interests) ? answers.interests.join(", ") : "");
+    else if (qId === "budget") val = answers.budget ? answers.budget.toString() : "";
+    else if (qId === "travelers") val = answers.travelers ? answers.travelers.toString() : "";
     else val = answers[qId]?.toString() || "";
 
     setInputValue(val);
@@ -449,12 +496,8 @@ export default function TripForm({ setTrip }) {
 
       if (editingQuestionId) {
         setEditingQuestionId(null);
-        const curQ = QUESTIONS[currentIdx];
-        let val = "";
-        if (curQ.id === "dates") val = nextAnswers.durationStr || "";
-        else if (curQ.id === "interests") val = nextAnswers.interestsStr || "";
-        else val = nextAnswers[curQ.id]?.toString() || "";
-        setInputValue(val);
+        setShowSummary(true);
+        setIsReviewing(false);
       } else {
         if (currentIdx < QUESTIONS.length - 1) {
           const nextIdx = currentIdx + 1;
@@ -554,27 +597,27 @@ export default function TripForm({ setTrip }) {
   };
 
   // -------------------------------------------------------------
-  // RENDER: Loading State (Matches Landing Page Theme - No Green)
+  // RENDER: Loading State (Matches Trip.com Theme)
   // -------------------------------------------------------------
   if (loading) {
     return (
-      <div className="flex justify-center px-4 py-12 max-w-2xl mx-auto w-full animate-in fade-in duration-300">
-        <div className="relative w-full rounded-3xl border border-indigo-100/90 dark:border-slate-800 bg-white dark:bg-[#131b2e] shadow-xl shadow-indigo-500/5 dark:shadow-black/40 overflow-hidden p-10 sm:p-16 text-center flex flex-col items-center justify-center min-h-[380px]">
-          {/* Subtle Indigo Ambient Glow */}
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[350px] h-[200px] bg-indigo-500/[0.06] dark:bg-indigo-500/[0.1] rounded-full blur-3xl pointer-events-none" />
+      <div className="min-h-screen w-full flex items-center justify-center px-4 py-12 bg-[#F8FAFC] dark:bg-[#0B0F19] animate-in fade-in duration-300">
+        <div className="relative w-full max-w-lg rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-[#131b2e] shadow-xl shadow-blue-500/5 dark:shadow-black/40 overflow-hidden p-8 sm:p-14 text-center flex flex-col items-center justify-center min-h-[380px]">
+          {/* Subtle Blue Ambient Glow */}
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[350px] h-[200px] bg-blue-500/[0.05] dark:bg-blue-500/[0.08] rounded-full blur-3xl pointer-events-none" />
 
           <div className="relative mb-6">
-            <div className="h-12 w-12 rounded-full border-4 border-indigo-100 dark:border-indigo-950 border-t-indigo-600 animate-spin" />
-            <Sparkles className="w-5 h-5 text-indigo-600 dark:text-indigo-400 absolute inset-0 m-auto" />
+            <div className="h-12 w-12 rounded-full border-4 border-blue-100 dark:border-blue-950 border-t-[#006CE4] animate-spin" />
+            <Sparkles className="w-5 h-5 text-[#006CE4] dark:text-blue-400 absolute inset-0 m-auto" />
           </div>
 
-          <span className="text-xs font-bold uppercase tracking-widest text-indigo-600 dark:text-indigo-400 mb-2">
+          <span className="text-xs font-bold uppercase tracking-widest text-[#006CE4] dark:text-blue-400 mb-2">
             Synthesizing Masterplan
           </span>
-          <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white mb-4 tracking-tight">
+          <h3 className="text-2xl sm:text-3xl font-extrabold text-[#0F172A] dark:text-white mb-3 tracking-tight">
             Understanding your journey...
           </h3>
-          <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 font-medium max-w-md mx-auto transition-all duration-300">
+          <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 font-medium max-w-md mx-auto transition-all duration-300 leading-relaxed">
             {loadingPhases[loadingPhaseIndex]}
           </p>
         </div>
@@ -583,92 +626,290 @@ export default function TripForm({ setTrip }) {
   }
 
   // -------------------------------------------------------------
-  // RENDER: Summary Screen (Matches Landing Page Theme)
+  // RENDER: Summary Screen (Trip.com Inspired UI/UX Design)
   // -------------------------------------------------------------
   if (showSummary && !isReviewing) {
+    const getTransitIcon = (mode) => {
+      const m = mode?.toLowerCase() || "";
+      if (m.includes("flight") || m.includes("plane")) return Plane;
+      if (m.includes("bus")) return Bus;
+      if (m.includes("train")) return Train;
+      return Car;
+    };
+
+    // Organized into 3 clean, aesthetic rows
+    const row1 = [
+      {
+        id: "dates",
+        label: "Travel dates",
+        val: answers.durationStr || (answers.startDate && answers.endDate ? `${answers.startDate} – ${answers.endDate}` : "Flexible dates"),
+        sub: answers.durationStr ? "Custom duration" : "Scheduled dates",
+        icon: Calendar,
+      },
+      {
+        id: "travelers",
+        label: "Travelers",
+        val: `${answers.travelers || 1} ${Number(answers.travelers) === 1 ? "Traveler" : "Travelers"}${answers.travelerType ? ` · ${answers.travelerType}` : ""}`,
+        sub: answers.travelerType ? `Traveling as ${answers.travelerType.toLowerCase()}` : "Party size",
+        icon: Users,
+      },
+      {
+        id: "budget",
+        label: "Total budget",
+        val: answers.budget ? `₹${Number(answers.budget).toLocaleString("en-IN")}` : "Flexible",
+        sub:
+          answers.budget && answers.travelers && Number(answers.travelers) > 1
+            ? `Approx. ₹${Math.round(Number(answers.budget) / Number(answers.travelers)).toLocaleString("en-IN")} / traveler`
+            : "Total estimated budget",
+        icon: Wallet,
+      },
+    ];
+
+    const row2 = [
+      {
+        id: "travelMode",
+        label: "Transport preference",
+        val: answers.travelMode || "Any mode",
+        sub: "Primary transit method",
+        icon: getTransitIcon(answers.travelMode),
+      },
+      {
+        id: "stay",
+        label: "Accommodation",
+        val: answers.stay || "Standard",
+        sub: "Preferred stay comfort",
+        icon: Hotel,
+      },
+      {
+        id: "dining",
+        label: "Dining preference",
+        val: answers.dining || "No preference",
+        sub: "Culinary & dietary notes",
+        icon: Utensils,
+      },
+    ];
+
+    const interestsList = answers.interests?.length
+      ? answers.interests
+      : answers.interestsStr
+      ? answers.interestsStr.split(",").map((s) => s.trim()).filter(Boolean)
+      : ["Sightseeing & Leisure"];
+
     return (
-      <div className="flex justify-center px-4 py-8 max-w-2xl mx-auto w-full animate-in fade-in duration-300">
-        <div className="w-full bg-white dark:bg-[#131b2e] border border-indigo-100/90 dark:border-slate-800 rounded-3xl p-6 sm:p-10 shadow-xl shadow-indigo-500/5 dark:shadow-black/40">
-          <div className="text-center pb-6 border-b border-slate-100 dark:border-slate-800">
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center justify-center gap-2">
-              <Sparkles className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
-              <span>Here is what I understand</span>
-            </h2>
-            <div className="text-lg font-medium text-slate-800 dark:text-slate-200 mt-3 flex items-center justify-center gap-3">
-              <span>{answers.source}</span>
-              <ArrowRight className="w-4 h-4 text-slate-400" />
-              <span className="font-bold text-indigo-600 dark:text-indigo-400">{answers.destination}</span>
+      <div className="h-screen max-h-screen w-full flex flex-col items-center justify-center px-4 sm:px-8 py-2 bg-[#F8FAFC] dark:bg-[#0B0F19] overflow-hidden animate-in fade-in duration-300">
+        <div className="w-full max-w-6xl mx-auto flex flex-col items-center">
+          {/* 1. Trip.com Signature Blue Hero Card with Image inside (Slightly Wider than White Card) */}
+          <div className="relative w-full rounded-2xl sm:rounded-3xl overflow-hidden bg-gradient-to-r from-[#0052cc] via-[#006CE4] to-[#0047b3] shadow-lg shadow-blue-600/20 text-white min-h-[145px] sm:min-h-[165px] flex flex-col justify-between p-4 sm:p-5 pb-8 sm:pb-10">
+            {/* Blended Travel Photo on the right side */}
+            <div className="absolute right-0 top-0 bottom-0 w-3/5 sm:w-1/2 pointer-events-none overflow-hidden">
+              <img
+                src={destinationHeroImage || defaultHotelBg}
+                alt={answers.destination || "Destination"}
+                className="w-full h-full object-cover object-center opacity-40 mix-blend-overlay transition-opacity duration-700"
+              />
+              {/* Radiant Gradient Fading Left-to-Right */}
+              <div className="absolute inset-0 bg-gradient-to-r from-[#0052cc] via-[#006CE4]/75 to-transparent" />
+            </div>
+
+            {/* Subtle decorative ambient glow */}
+            <div className="absolute -top-10 -left-10 w-40 h-40 rounded-full bg-blue-300/20 blur-3xl pointer-events-none" />
+
+            {/* Top Bar on Blue Card: Clean Route Pill only */}
+            <div className="relative z-10 flex items-center justify-between">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/20 hover:bg-white/25 backdrop-blur-md border border-white/30 text-white text-xs font-bold shadow-2xs transition">
+                <MapPin className="w-3.5 h-3.5 text-blue-200" />
+                <span>{answers.source || "Origin"}</span>
+                <ArrowRight className="w-3.5 h-3.5 text-blue-200" />
+                <span className="text-white font-extrabold">{answers.destination || "Destination"}</span>
+              </div>
+            </div>
+
+            {/* Hero Title & Sub-Guarantees */}
+            <div className="relative z-10 my-1 sm:my-1.5">
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-white tracking-tight leading-tight">
+                Every check-in is a new beginning
+              </h1>
+              <p className="text-blue-100 text-xs sm:text-sm font-medium mt-0.5 max-w-xl">
+                Your personalized masterplan for <span className="text-white font-bold underline decoration-blue-300">{answers.destination || "your journey"}</span> is ready for review.
+              </p>
+
+              {/* Guarantees / Trust Badges */}
+              <div className="flex flex-wrap items-center gap-2.5 sm:gap-4 mt-2 text-[11px] sm:text-xs font-semibold text-blue-100">
+                <span className="flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300" />
+                  <span>100% Tailored Route</span>
+                </span>
+                <span className="text-blue-300/60 hidden sm:inline">•</span>
+                <span className="flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                  <span>Smart Scheduling</span>
+                </span>
+                <span className="text-blue-300/60 hidden sm:inline">•</span>
+                <span className="flex items-center gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-sky-200" />
+                  <span>Best Price & Pacing</span>
+                </span>
+              </div>
             </div>
           </div>
 
-          <div className="divide-y divide-slate-100 dark:divide-slate-800 py-2">
-            {[
-              { label: "Travel dates", val: answers.durationStr || "Dates selected", id: "dates" },
-              {
-                label: "Travelers",
-                val: `${answers.travelers} Travelers · ${answers.travelerType || "General"}`,
-                id: "travelers",
-              },
-              { label: "Total budget", val: `₹${Number(answers.budget).toLocaleString()}`, id: "budget" },
-              { label: "Transport preference", val: answers.travelMode, id: "travelMode" },
-              { label: "Accommodation", val: answers.stay, id: "stay" },
-              { label: "Dining", val: answers.dining, id: "dining" },
-              {
-                label: "Experiences",
-                val: answers.interests.length ? answers.interests.join(" · ") : answers.interestsStr || "None specified",
-                id: "interests",
-              },
-            ].map((item) => (
-              <div key={item.id} className="py-3.5 flex items-center justify-between group">
-                <div>
-                  <div className="text-xs uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-0.5 font-bold">
-                    {item.label}
+          {/* 2. White Interactive Card Overlapping the Blue Banner (Slightly narrower for stepped Trip.com look) */}
+          <div className="relative -mt-6 sm:-mt-8 z-20 w-[94%] sm:w-[93%] bg-white dark:bg-[#131b2e] rounded-2xl sm:rounded-3xl shadow-xl shadow-blue-900/10 border border-slate-200/90 dark:border-slate-800 p-3.5 sm:p-4.5 transition-all">
+            {/* White Card Title Strip */}
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800/80 mb-2.5">
+              <div>
+                <h2 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+                  <span>Here is what I understand</span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/60 text-[#006CE4] dark:text-blue-400 border border-blue-100 dark:border-blue-900/50">
+                    7 Parameters
+                  </span>
+                </h2>
+              </div>
+            </div>
+
+            {/* 3 Structured Rows of Parameter Cards */}
+            <div className="space-y-2 sm:space-y-2.5">
+              {/* ROW 1: Dates, Travelers, Budget (3 Columns) */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-2.5">
+                {row1.map((item) => {
+                  const IconComponent = item.icon;
+                  return (
+                    <div
+                      key={item.id}
+                      className="p-2 sm:p-2.5 rounded-xl bg-slate-50/70 hover:bg-blue-50/30 dark:bg-slate-800/40 dark:hover:bg-slate-800/70 border border-slate-200/70 hover:border-blue-200 dark:border-slate-800 dark:hover:border-blue-800 transition-all flex items-start justify-between gap-2 group"
+                    >
+                      <div className="flex items-start gap-2.5 min-w-0 pr-1">
+                        {/* Slightly Blue Tinted Icon Container */}
+                        <div className="w-8 h-8 rounded-lg bg-[#EBF3FF] dark:bg-blue-950/60 border border-blue-100 dark:border-blue-900/50 flex items-center justify-center shrink-0 text-[#006CE4] dark:text-blue-400 shadow-2xs mt-0.5">
+                          <IconComponent className="w-4 h-4 text-[#006CE4] dark:text-blue-400" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-[9.5px] uppercase tracking-wider text-slate-400 dark:text-slate-500 font-bold">
+                            {item.label}
+                          </div>
+                          <div className="text-xs sm:text-[13px] font-bold text-slate-900 dark:text-white truncate">
+                            {item.val}
+                          </div>
+                          {item.sub && (
+                            <div className="text-[10px] text-slate-500 dark:text-slate-400 font-medium truncate">
+                              {item.sub}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleEditClick(item.id)}
+                        className="flex items-center gap-1 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-0.5 text-[11px] font-semibold text-slate-700 dark:text-slate-300 hover:text-[#006CE4] hover:border-blue-300 dark:hover:text-blue-400 dark:hover:border-blue-500 hover:bg-blue-50/40 transition shadow-2xs cursor-pointer shrink-0 mt-0.5"
+                      >
+                        <Pencil className="w-2.5 h-2.5 text-[#006CE4]" />
+                        <span>Edit</span>
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* ROW 2: Transport, Stay, Dining (3 Columns) */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-2.5">
+                {row2.map((item) => {
+                  const IconComponent = item.icon;
+                  return (
+                    <div
+                      key={item.id}
+                      className="p-2 sm:p-2.5 rounded-xl bg-slate-50/70 hover:bg-blue-50/30 dark:bg-slate-800/40 dark:hover:bg-slate-800/70 border border-slate-200/70 hover:border-blue-200 dark:border-slate-800 dark:hover:border-blue-800 transition-all flex items-start justify-between gap-2 group"
+                    >
+                      <div className="flex items-start gap-2.5 min-w-0 pr-1">
+                        {/* Slightly Blue Tinted Icon Container */}
+                        <div className="w-8 h-8 rounded-lg bg-[#EBF3FF] dark:bg-blue-950/60 border border-blue-100 dark:border-blue-900/50 flex items-center justify-center shrink-0 text-[#006CE4] dark:text-blue-400 shadow-2xs mt-0.5">
+                          <IconComponent className="w-4 h-4 text-[#006CE4] dark:text-blue-400" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-[9.5px] uppercase tracking-wider text-slate-400 dark:text-slate-500 font-bold">
+                            {item.label}
+                          </div>
+                          <div className="text-xs sm:text-[13px] font-bold text-slate-900 dark:text-white truncate">
+                            {item.val}
+                          </div>
+                          {item.sub && (
+                            <div className="text-[10px] text-slate-500 dark:text-slate-400 font-medium truncate">
+                              {item.sub}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleEditClick(item.id)}
+                        className="flex items-center gap-1 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-0.5 text-[11px] font-semibold text-slate-700 dark:text-slate-300 hover:text-[#006CE4] hover:border-blue-300 dark:hover:text-blue-400 dark:hover:border-blue-500 hover:bg-blue-50/40 transition shadow-2xs cursor-pointer shrink-0 mt-0.5"
+                      >
+                        <Pencil className="w-2.5 h-2.5 text-[#006CE4]" />
+                        <span>Edit</span>
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* ROW 3: Experiences & Vibe (Prominent Full Width Row) */}
+              <div className="p-2 sm:p-2.5 rounded-xl bg-slate-50/70 hover:bg-blue-50/30 dark:bg-slate-800/40 dark:hover:bg-slate-800/70 border border-slate-200/70 hover:border-blue-200 dark:border-slate-800 dark:hover:border-blue-800 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-2 group">
+                <div className="flex items-start sm:items-center gap-2.5 min-w-0">
+                  {/* Slightly Blue Tinted Icon Container */}
+                  <div className="w-8 h-8 rounded-lg bg-[#EBF3FF] dark:bg-blue-950/60 border border-blue-100 dark:border-blue-900/50 flex items-center justify-center shrink-0 text-[#006CE4] dark:text-blue-400 shadow-2xs">
+                    <Compass className="w-4 h-4 text-[#006CE4] dark:text-blue-400" />
                   </div>
-                  <div className="text-sm sm:text-base font-semibold text-slate-800 dark:text-slate-200">
-                    {item.val}
+                  <div>
+                    <div className="text-[9.5px] uppercase tracking-wider text-slate-400 dark:text-slate-500 font-bold mb-0.5">
+                      EXPERIENCES & INTERESTS
+                    </div>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {interestsList.map((tag) => (
+                        <span
+                          key={tag}
+                          className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 shadow-2xs"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </div>
+
                 <button
                   type="button"
-                  onClick={() => {
-                    setIsReviewing(true);
-                    setShowSummary(false);
-                    setEditingQuestionId(item.id);
-                    setInputValue(
-                      item.id === "budget"
-                        ? answers.budget.toString()
-                        : item.id === "travelers"
-                        ? answers.travelers.toString()
-                        : answers[item.id] || ""
-                    );
-                  }}
-                  className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-1 text-xs font-bold text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-300 dark:hover:border-indigo-500 transition-all shadow-2xs cursor-pointer"
+                  onClick={() => handleEditClick("interests")}
+                  className="flex items-center gap-1 self-start sm:self-center rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1 text-[11px] font-semibold text-slate-700 dark:text-slate-300 hover:text-[#006CE4] hover:border-blue-300 dark:hover:text-blue-400 dark:hover:border-blue-500 hover:bg-blue-50/40 transition shadow-2xs cursor-pointer shrink-0"
                 >
-                  Edit
+                  <Pencil className="w-2.5 h-2.5 text-[#006CE4]" />
+                  <span>Edit</span>
                 </button>
               </div>
-            ))}
-          </div>
+            </div>
 
-          <div className="border-t border-slate-100 dark:border-slate-800 pt-6 mt-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <button
-              type="button"
-              onClick={() => {
-                setIsReviewing(true);
-                setShowSummary(false);
-              }}
-              className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-5 py-2.5 text-sm font-bold text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white hover:border-slate-300 dark:hover:border-slate-600 transition-all w-full sm:w-auto shadow-2xs cursor-pointer"
-            >
-              Review All Details
-            </button>
-            <button
-              type="button"
-              onClick={handleGenerate}
-              className="rounded-2xl bg-gradient-to-r from-indigo-600 via-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white px-8 py-3 text-sm font-bold shadow-lg shadow-indigo-600/25 active:scale-95 transition-all flex items-center justify-center gap-2 w-full sm:w-auto cursor-pointer"
-            >
-              <span>Create My Itinerary</span>
-              <Sparkles className="w-4 h-4 text-indigo-200" />
-            </button>
+            {/* Footer Action Row */}
+            <div className="border-t border-slate-100 dark:border-slate-800/80 pt-2.5 mt-2.5 flex flex-col sm:flex-row items-center justify-between gap-2.5 sm:gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsReviewing(true);
+                  setShowSummary(false);
+                }}
+                className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2 text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white hover:border-slate-300 dark:hover:border-slate-600 transition-all w-full sm:w-auto shadow-2xs cursor-pointer"
+              >
+                Review All Details
+              </button>
+
+              <button
+                type="button"
+                onClick={handleGenerate}
+                className="rounded-xl bg-[#006CE4] hover:bg-[#005bb5] text-white px-7 py-2.5 text-xs sm:text-sm font-bold shadow-md shadow-blue-500/25 active:scale-[0.98] transition-all flex items-center justify-center gap-2 w-full sm:w-auto cursor-pointer"
+              >
+                <span>Create My Itinerary</span>
+                <Sparkles className="w-3.5 h-3.5 text-blue-100" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -676,18 +917,18 @@ export default function TripForm({ setTrip }) {
   }
 
   // -------------------------------------------------------------
-  // RENDER: Review Screen (Matches Landing Page Theme)
+  // RENDER: Review Screen (Trip.com UI/UX Design)
   // -------------------------------------------------------------
   if (isReviewing && !editingQuestionId) {
     return (
-      <div className="flex flex-col max-w-2xl mx-auto px-4 py-8 w-full animate-in fade-in duration-300">
-        <div className="bg-white dark:bg-[#131b2e] border border-indigo-100/90 dark:border-slate-800 rounded-3xl p-6 sm:p-10 shadow-xl shadow-indigo-500/5 dark:shadow-black/40">
-          <div className="flex items-center justify-between pb-6 border-b border-slate-100 dark:border-slate-800 mb-6">
+      <div className="min-h-screen w-full flex items-center justify-center px-4 py-8 bg-[#F8FAFC] dark:bg-[#0B0F19] overflow-y-auto animate-in fade-in duration-300">
+        <div className="w-full max-w-2xl bg-white dark:bg-[#131b2e] border border-slate-200/90 dark:border-slate-800 rounded-3xl p-6 sm:p-8 md:p-10 shadow-sm shadow-slate-200/50 dark:shadow-none transition-all my-auto">
+          <div className="flex items-center justify-between pb-6 border-b border-slate-100 dark:border-slate-800/80 mb-6">
             <div>
-              <span className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+              <span className="text-xs font-bold uppercase tracking-wider text-[#006CE4] dark:text-blue-400">
                 Questionnaire
               </span>
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-[#0F172A] dark:text-white tracking-tight">
                 Review All Details
               </h2>
             </div>
@@ -703,7 +944,7 @@ export default function TripForm({ setTrip }) {
             </button>
           </div>
 
-          <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+          <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
             {QUESTIONS.map((q) => {
               let val = "";
               if (q.id === "dates") val = answers.durationStr || `${answers.startDate} to ${answers.endDate}`;
@@ -726,7 +967,7 @@ export default function TripForm({ setTrip }) {
                   <button
                     type="button"
                     onClick={() => handleEditClick(q.id)}
-                    className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-1 text-xs font-bold text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-300 dark:hover:border-indigo-500 transition shadow-2xs cursor-pointer"
+                    className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-1 text-xs font-bold text-slate-700 dark:text-slate-200 hover:text-[#006CE4] dark:hover:text-blue-400 hover:border-blue-300 dark:hover:border-blue-500 transition shadow-2xs cursor-pointer"
                   >
                     Edit
                   </button>
@@ -735,7 +976,7 @@ export default function TripForm({ setTrip }) {
             })}
           </div>
 
-          <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-800 flex justify-end">
+          <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-800/80 flex justify-end">
             <button
               type="button"
               onClick={() => {
@@ -756,190 +997,272 @@ export default function TripForm({ setTrip }) {
   // -------------------------------------------------------------
   // RENDER: Prompt Composer (Trip.com UI/UX Design)
   // -------------------------------------------------------------
+  const summaryItems = [
+    { id: "source", label: "From", val: answers.source },
+    { id: "destination", label: "Destination", val: answers.destination },
+    {
+      id: "dates",
+      label: "Travel dates",
+      val: answers.durationStr || (answers.startDate && answers.endDate ? `${answers.startDate} to ${answers.endDate}` : ""),
+    },
+    {
+      id: "travelers",
+      label: "Travelers",
+      val: answers.travelers ? `${answers.travelers} ${Number(answers.travelers) === 1 ? "Person" : "People"}${answers.travelerType ? ` · ${answers.travelerType}` : ""}` : "",
+    },
+    {
+      id: "budget",
+      label: "Budget",
+      val: answers.budget ? `₹${Number(answers.budget).toLocaleString()}` : "",
+    },
+    { id: "travelMode", label: "Mode", val: answers.travelMode },
+    { id: "stay", label: "Accommodation", val: answers.stay },
+    { id: "dining", label: "Dining", val: answers.dining },
+    {
+      id: "interests",
+      label: "Experiences",
+      val: answers.interests?.length ? answers.interests.join(", ") : answers.interestsStr || "",
+    },
+  ];
+
   return (
     <div
-      className="w-full max-w-xl sm:max-w-2xl mx-auto px-4 sm:px-6 py-6 sm:py-8 flex flex-col justify-center"
+      className="relative w-full h-screen max-h-screen flex bg-white dark:bg-[#0b0f19] overflow-hidden"
       style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif' }}
     >
-      {/* Stream of Previous Answers (Clean, unboxed light-grey text rows) */}
-      {currentIdx > 0 && !editingQuestionId && (
-        <div className="mb-4 sm:mb-5 pb-2.5 border-b border-[#F1F5F9] dark:border-slate-800">
-          <div className="flex items-center justify-between mb-2 px-0.5">
-            <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#94A3B8] dark:text-slate-500">
-              Your Journey Details
-            </span>
-            <span className="text-[11px] font-medium text-[#94A3B8] dark:text-slate-500">
-              Step {currentIdx + 1} of {QUESTIONS.length}
+      {/* Main Center Area: Prompt Composer */}
+      <div className="relative flex-1 h-full flex flex-col justify-between max-w-2xl sm:max-w-3xl lg:max-w-4xl mx-auto px-4 sm:px-6 overflow-hidden">
+        {/* Hero Centered Illustration (Bigger scale, centered, seamless transparent background) */}
+        <div className="flex-1 flex items-center justify-center overflow-hidden select-none pointer-events-none z-0 my-auto py-1 sm:py-2">
+          <AnimatePresence mode="wait">
+            <motion.img
+              key={promptNumber}
+              src={imageSrc}
+              onError={(e) => {
+                if (!e.target.src.includes("-removebg-preview")) {
+                  e.target.src = `/prompt${promptNumber}-removebg-preview.png`;
+                }
+              }}
+              alt={activeQuestion.title}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.25, ease: "easeOut" }}
+              className="h-[400px] sm:h-[480px] md:h-[560px] lg:h-[640px] max-h-[62vh] w-auto max-w-none object-contain -translate-x-[18%] sm:-translate-x-[20%] select-none drop-shadow-none"
+            />
+          </AnimatePresence>
+        </div>
+
+        {/* Editing Mode Banner */}
+        {editingQuestionId && (
+          <div className="mb-2 flex items-center justify-between px-3.5 py-2 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 shrink-0 z-20">
+            <div className="flex items-center gap-2 text-xs font-medium text-amber-800 dark:text-amber-300">
+              <span>✏️ Editing your answer for:</span>
+              <span className="font-bold underline">{activeQuestion.title}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setEditingQuestionId(null);
+                setShowSummary(true);
+                setIsReviewing(false);
+              }}
+              className="text-xs font-bold text-amber-800 dark:text-amber-300 hover:underline cursor-pointer"
+            >
+              Cancel Edit
+            </button>
+          </div>
+        )}
+
+        {/* Active Question directly above the prompt box */}
+        <div className="relative z-10 shrink-0 mb-2">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={`question-${activeQuestion.id}`}
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.25, ease: "easeOut" }}
+              className="mb-1"
+            >
+              <h1 className="text-xl sm:text-2xl font-bold text-[#0F172A] dark:text-white tracking-tight leading-snug">
+                {clarification ? clarification : activeQuestion.title}
+              </h1>
+
+              {!clarification && activeQuestion.subtitle && (
+                <p className="text-xs sm:text-sm text-[#64748B] dark:text-slate-400 font-normal mt-1 leading-relaxed">
+                  {activeQuestion.subtitle}
+                </p>
+              )}
+
+              {clarification && (
+                <div className="mt-2">
+                  <span className="text-xs text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-full px-3 py-1 inline-flex items-center gap-1.5 font-medium">
+                    <span>Please clarify your answer above</span>
+                  </span>
+                </div>
+              )}
+            </motion.div>
+          </AnimatePresence>
+        </div>
+
+        {/* Sticky Bottom Section: Suggestions & Prompt Box */}
+        <div className="shrink-0 sticky bottom-0 pt-1 pb-3 bg-white/95 dark:bg-[#0b0f19]/95 backdrop-blur-sm z-20 space-y-2">
+          {/* Suggestion Chips */}
+          {activeQuestion.suggestions && activeQuestion.suggestions.length > 0 && (
+            <div>
+              <div className="flex items-center justify-between mb-1 px-0.5">
+                <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#94A3B8] dark:text-slate-500">
+                  {activeQuestion.multi ? "Select multiple or type:" : "Suggested"}
+                </span>
+                {activeQuestion.multi && (
+                  <span className="text-[11px] text-[#94A3B8] font-medium">
+                    Tap to add or remove
+                  </span>
+                )}
+              </div>
+
+              <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                {activeQuestion.suggestions.map((sug) => {
+                  const isSelected = activeQuestion.multi
+                    ? inputValue
+                        .split(",")
+                        .map((i) => i.trim().toLowerCase())
+                        .includes(sug.toLowerCase())
+                    : inputValue.trim().toLowerCase() === sug.toLowerCase();
+
+                  return (
+                    <button
+                      key={sug}
+                      type="button"
+                      onClick={() => handleSuggestionClick(sug)}
+                      className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-150 cursor-pointer ${
+                        isSelected
+                          ? "bg-[#006CE4] text-white border border-[#006CE4] shadow-xs font-semibold"
+                          : "bg-[#F8FAFC] dark:bg-slate-800/80 border border-[#E2E8F0] dark:border-slate-700 text-[#334155] dark:text-slate-300 hover:border-[#006CE4]/40 hover:text-[#006CE4] hover:bg-[#EFF6FF] dark:hover:bg-slate-700/80"
+                      }`}
+                    >
+                      {sug}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Compact Trip.com AI Prompt Box */}
+          <div className="relative bg-white dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-slate-700 hover:border-[#CBD5E1] dark:hover:border-slate-600 focus-within:border-[#006CE4] dark:focus-within:border-[#006CE4] focus-within:ring-3 focus-within:ring-[#006CE4]/10 rounded-xl p-3 sm:p-3.5 shadow-xs transition-all duration-150">
+            <textarea
+              ref={textareaRef}
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={clarification ? "Type your clarified answer..." : activeQuestion.placeholder}
+              className="w-full bg-transparent text-[#0F172A] dark:text-white placeholder:text-[#94A3B8] dark:placeholder:text-slate-500 border-none outline-none resize-none text-sm sm:text-[15px] font-normal leading-relaxed min-h-[44px] sm:min-h-[50px] py-0.5"
+              rows={1}
+              autoFocus
+            />
+
+            <div className="flex items-center justify-between pt-2.5 mt-1 border-t border-[#F1F5F9] dark:border-slate-700/80">
+              <div className="flex items-center gap-2">
+                {(currentIdx > 0 || editingQuestionId) && (
+                  <button
+                    type="button"
+                    onClick={handlePrevStep}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-[#E2E8F0] dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium text-[#475569] dark:text-slate-300 hover:bg-[#F8FAFC] hover:text-[#0F172A] transition cursor-pointer"
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5" />
+                    <span>{editingQuestionId ? "Cancel Edit" : "Previous"}</span>
+                  </button>
+                )}
+                <div className="flex items-center gap-1 text-[11px] text-[#94A3B8] font-medium">
+                  <span>Return ↵ to submit</span>
+                  <span className="hidden sm:inline text-[#CBD5E1]">· Shift + Return for new line</span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={validateAndStore}
+                disabled={!inputValue.trim()}
+                className={`rounded-lg px-4 py-1.5 text-xs sm:text-sm font-semibold transition-all duration-150 flex items-center gap-1.5 ${
+                  inputValue.trim()
+                    ? "bg-[#006CE4] hover:bg-[#005bb5] text-white shadow-xs active:scale-[0.98] cursor-pointer"
+                    : "bg-[#F1F5F9] dark:bg-slate-800 text-[#94A3B8] dark:text-slate-500 cursor-not-allowed"
+                }`}
+              >
+                <span>
+                  {editingQuestionId
+                    ? "Save Change"
+                    : currentIdx === QUESTIONS.length - 1
+                    ? "Complete"
+                    : "Continue"}
+                </span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Right Side: Subtle Compact Trip Summary Panel */}
+      <aside className="hidden lg:flex flex-col w-60 xl:w-68 shrink-0 h-screen border-l border-slate-100 dark:border-slate-800/60 bg-slate-50/20 dark:bg-slate-900/10 p-5 justify-between z-20 overflow-y-auto custom-scrollbar select-none">
+        <div>
+          {/* Header */}
+          <div className="flex items-center justify-between pb-3.5 mb-3.5 border-b border-slate-100 dark:border-slate-800/70">
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400 dark:text-slate-500 block mb-0.5">
+                Overview
+              </span>
+              <h2 className="text-xs font-bold text-slate-800 dark:text-slate-200 tracking-wider uppercase">
+                Your Journey
+              </h2>
+            </div>
+            <span className="text-[11px] font-semibold text-[#006CE4] dark:text-blue-400 bg-blue-50/80 dark:bg-blue-950/50 border border-blue-100 dark:border-blue-900/50 px-2 py-0.5 rounded-full">
+              {summaryItems.filter((i) => Boolean(i.val)).length}/{summaryItems.length}
             </span>
           </div>
 
-          <div className="space-y-1">
-            {QUESTIONS.slice(0, currentIdx).map((q) => {
-              const answerVal = getAnswerDisplay(q);
-              if (!answerVal) return null;
+          {/* Key Attribute Rows */}
+          <div className="space-y-3">
+            {summaryItems.map((item) => {
+              const hasVal = Boolean(item.val);
               return (
                 <div
-                  key={q.id}
-                  className="flex items-center justify-between text-xs py-0.5 group"
+                  key={item.id}
+                  className="group flex flex-col justify-start text-left py-0.5"
                 >
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <span className="text-[#94A3B8] dark:text-slate-500 font-normal truncate">
-                      {q.title}
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                      {item.label}
                     </span>
-                    <span className="text-[#CBD5E1] dark:text-slate-600">·</span>
-                    <span className="text-[#475569] dark:text-slate-300 font-medium truncate">
-                      {answerVal}
-                    </span>
+                    {hasVal && (
+                      <button
+                        type="button"
+                        onClick={() => handleEditClick(item.id)}
+                        className="opacity-0 group-hover:opacity-100 text-[10px] text-[#006CE4] dark:text-blue-400 hover:underline font-medium transition cursor-pointer"
+                      >
+                        Edit
+                      </button>
+                    )}
                   </div>
-
-                  <button
-                    type="button"
-                    onClick={() => handleEditClick(q.id)}
-                    className="text-[11px] text-[#94A3B8] hover:text-[#006CE4] dark:hover:text-blue-400 font-medium ml-3 transition cursor-pointer shrink-0"
-                  >
-                    Edit
-                  </button>
+                  <div className="mt-0.5">
+                    {hasVal ? (
+                      <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate block">
+                        {item.val}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-slate-400/80 dark:text-slate-600 font-normal italic block">
+                        Not selected
+                      </span>
+                    )}
+                  </div>
                 </div>
               );
             })}
           </div>
         </div>
-      )}
-
-      {/* Editing Mode Banner */}
-      {editingQuestionId && (
-        <div className="mb-3.5 flex items-center justify-between px-3.5 py-2 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60">
-          <div className="flex items-center gap-2 text-xs font-medium text-amber-800 dark:text-amber-300">
-            <span>✏️ Editing your answer for:</span>
-            <span className="font-bold underline">{activeQuestion.title}</span>
-          </div>
-          <button
-            type="button"
-            onClick={handlePrevStep}
-            className="text-xs font-bold text-amber-800 dark:text-amber-300 hover:underline cursor-pointer"
-          >
-            Cancel Edit
-          </button>
-        </div>
-      )}
-
-      {/* Question displayed DIRECTLY above the prompt area */}
-      <div className="mb-3 sm:mb-3.5">
-        <h1 className="text-xl sm:text-2xl font-bold text-[#0F172A] dark:text-white tracking-tight leading-snug">
-          {clarification ? clarification : activeQuestion.title}
-        </h1>
-
-        {!clarification && activeQuestion.subtitle && (
-          <p className="text-xs sm:text-sm text-[#64748B] dark:text-slate-400 font-normal mt-1 leading-relaxed">
-            {activeQuestion.subtitle}
-          </p>
-        )}
-
-        {clarification && (
-          <div className="mt-2">
-            <span className="text-xs text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-full px-3 py-1 inline-flex items-center gap-1.5 font-medium">
-              <span>Please clarify your answer above</span>
-            </span>
-          </div>
-        )}
-      </div>
-
-      {/* Suggestion Chips (Positioned neatly right above the prompt box) */}
-      {activeQuestion.suggestions && activeQuestion.suggestions.length > 0 && (
-        <div className="mb-2.5">
-          <div className="flex items-center justify-between mb-1 px-0.5">
-            <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#94A3B8] dark:text-slate-500">
-              {activeQuestion.multi ? "Select multiple or type:" : "Suggested"}
-            </span>
-            {activeQuestion.multi && (
-              <span className="text-[11px] text-[#94A3B8] font-medium">
-                Tap to add or remove
-              </span>
-            )}
-          </div>
-
-          <div className="flex flex-wrap gap-1.5 sm:gap-2">
-            {activeQuestion.suggestions.map((sug) => {
-              const isSelected = activeQuestion.multi
-                ? inputValue
-                    .split(",")
-                    .map((i) => i.trim().toLowerCase())
-                    .includes(sug.toLowerCase())
-                : inputValue.trim().toLowerCase() === sug.toLowerCase();
-
-              return (
-                <button
-                  key={sug}
-                  type="button"
-                  onClick={() => handleSuggestionClick(sug)}
-                  className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-150 cursor-pointer ${
-                    isSelected
-                      ? "bg-[#006CE4] text-white border border-[#006CE4] shadow-xs font-semibold"
-                      : "bg-[#F8FAFC] dark:bg-slate-800/80 border border-[#E2E8F0] dark:border-slate-700 text-[#334155] dark:text-slate-300 hover:border-[#006CE4]/40 hover:text-[#006CE4] hover:bg-[#EFF6FF] dark:hover:bg-slate-700/80"
-                  }`}
-                >
-                  {sug}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Compact Trip.com AI Prompt Box (Slightly smaller, clean elevated card) */}
-      <div className="relative bg-white dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-slate-700 hover:border-[#CBD5E1] dark:hover:border-slate-600 focus-within:border-[#006CE4] dark:focus-within:border-[#006CE4] focus-within:ring-3 focus-within:ring-[#006CE4]/10 rounded-xl p-3 sm:p-3.5 shadow-xs transition-all duration-150">
-        <textarea
-          ref={textareaRef}
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={clarification ? "Type your clarified answer..." : activeQuestion.placeholder}
-          className="w-full bg-transparent text-[#0F172A] dark:text-white placeholder:text-[#94A3B8] dark:placeholder:text-slate-500 border-none outline-none resize-none text-sm sm:text-[15px] font-normal leading-relaxed min-h-[44px] sm:min-h-[50px] py-0.5"
-          rows={1}
-          autoFocus
-        />
-
-        <div className="flex items-center justify-between pt-2.5 mt-1 border-t border-[#F1F5F9] dark:border-slate-700/80">
-          <div className="flex items-center gap-2">
-            {(currentIdx > 0 || editingQuestionId) && (
-              <button
-                type="button"
-                onClick={handlePrevStep}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-[#E2E8F0] dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium text-[#475569] dark:text-slate-300 hover:bg-[#F8FAFC] hover:text-[#0F172A] transition cursor-pointer"
-              >
-                <ArrowLeft className="w-3.5 h-3.5" />
-                <span>{editingQuestionId ? "Cancel Edit" : "Previous"}</span>
-              </button>
-            )}
-            <div className="flex items-center gap-1 text-[11px] text-[#94A3B8] font-medium">
-              <span>Return ↵ to submit</span>
-              <span className="hidden sm:inline text-[#CBD5E1]">· Shift + Return for new line</span>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={validateAndStore}
-            disabled={!inputValue.trim()}
-            className={`rounded-lg px-4 py-1.5 text-xs sm:text-sm font-semibold transition-all duration-150 flex items-center gap-1.5 ${
-              inputValue.trim()
-                ? "bg-[#006CE4] hover:bg-[#005bb5] text-white shadow-xs active:scale-[0.98] cursor-pointer"
-                : "bg-[#F1F5F9] dark:bg-slate-800 text-[#94A3B8] dark:text-slate-500 cursor-not-allowed"
-            }`}
-          >
-            <span>
-              {editingQuestionId
-                ? "Save Change"
-                : currentIdx === QUESTIONS.length - 1
-                ? "Complete"
-                : "Continue"}
-            </span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      </div>
-
-      <div ref={messagesEndRef} />
+      </aside>
     </div>
   );
 }

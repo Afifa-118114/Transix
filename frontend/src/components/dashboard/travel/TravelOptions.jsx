@@ -138,7 +138,7 @@ export default function TravelOptions({ trip }) {
   if (!trip) return null;
 
   return (
-    <section className="rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-[#131b2e] p-5 shadow-xs transition-colors">
+    <section className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131b2e] p-5 shadow-xs transition-colors">
       <div className="mb-5 flex items-center justify-between">
         <div>
           <h2 className="text-lg font-bold text-slate-900 dark:text-white">Transit &amp; Travel Options</h2>

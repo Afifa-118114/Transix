@@ -22,16 +22,16 @@ export default function HotelsPreview({ trip }) {
   const selectedCount = staySegments.filter((s) => s.selectedHotel).length;
 
   return (
-    <section className="rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-[#131b2e] p-5 shadow-xs transition-colors">
+    <section className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131b2e] p-5 shadow-xs transition-colors">
       <div className="mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-bold text-slate-900 dark:text-white">Stay Plan</h2>
-            <span className="rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2 py-0.5 text-[10px] font-bold text-slate-700 dark:text-slate-300">
+            <span className="rounded-md bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2 py-0.5 text-[10px] font-semibold text-slate-700 dark:text-slate-300">
               {staySegments.length} Segment{staySegments.length > 1 ? "s" : ""}
             </span>
             {selectedCount > 0 && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/80 px-2.5 py-0.5 text-[10px] font-black text-emerald-700 dark:text-emerald-300">
+              <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/80 px-2 py-0.5 text-[10px] font-bold text-[#00A65E] dark:text-emerald-300">
                 <span>⚡</span> {selectedCount} Auto-Selected
               </span>
             )}
@@ -43,7 +43,7 @@ export default function HotelsPreview({ trip }) {
 
         <button
           onClick={() => navigate(`/itinerary/${trip._id || "draft"}/stays`)}
-          className="group flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-bold text-white shadow-xs transition hover:bg-indigo-700 cursor-pointer"
+          className="group flex items-center gap-2 rounded-lg bg-[#006CE4] px-4 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-[#005bb5] cursor-pointer"
         >
           <span>Plan &amp; Customize Stays</span>
           <FiArrowRight className="transition-transform group-hover:translate-x-1" />
@@ -65,7 +65,7 @@ export default function HotelsPreview({ trip }) {
             <div
               key={segment.id || idx}
               onClick={() => navigate(`/itinerary/${trip._id || "draft"}/stays`)}
-              className="group w-72 sm:w-80 shrink-0 rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-[#1a233a] overflow-hidden shadow-xs hover:shadow-md hover:border-emerald-300 dark:hover:border-emerald-700 transition cursor-pointer flex flex-col"
+              className="group w-72 sm:w-80 shrink-0 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131b2e] overflow-hidden shadow-xs hover:shadow-md hover:border-[#006CE4] dark:hover:border-sky-500 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer flex flex-col"
             >
               {/* Hotel Photo Header */}
               <div className="relative h-36 w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
@@ -78,11 +78,11 @@ export default function HotelsPreview({ trip }) {
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20" />
 
                 {/* Badges */}
-                <div className="absolute top-2.5 left-2.5 flex items-center gap-1 rounded-full bg-emerald-600 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-white shadow-xs">
+                <div className="absolute top-2.5 left-2.5 flex items-center gap-1 rounded-md bg-[#00A65E] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white shadow-xs">
                   <span>⚡</span> Auto-Selected Stay
                 </div>
 
-                <div className="absolute top-2.5 right-2.5 flex items-center gap-1 rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-black text-white shadow-xs">
+                <div className="absolute top-2.5 right-2.5 flex items-center gap-1 rounded-md bg-[#FFB400] px-2 py-0.5 text-[10px] font-bold text-white shadow-xs">
                   <FaStar className="text-[9px]" />
                   <span>{hotel?.rating || 4.7}</span>
                 </div>
@@ -93,17 +93,17 @@ export default function HotelsPreview({ trip }) {
                     <FiMapPin className="text-emerald-400" />
                     {segment.location}
                   </span>
-                  <span className="flex items-center gap-1 bg-black/40 backdrop-blur-xs px-2 py-0.5 rounded-full text-[10px]">
-                    <FiMoon className="text-indigo-300" />
+                  <span className="flex items-center gap-1 bg-black/40 backdrop-blur-xs px-2 py-0.5 rounded-md text-[10px]">
+                    <FiMoon className="text-sky-300" />
                     {nights} Night{nights !== 1 ? "s" : ""}
                   </span>
                 </div>
               </div>
 
               {/* Card Body */}
-              <div className="p-4 flex-1 flex flex-col justify-between">
+              <div className="p-3.5 flex-1 flex flex-col justify-between">
                 <div>
-                  <h4 className="text-sm font-bold text-slate-900 dark:text-white line-clamp-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition">
+                  <h4 className="text-sm font-bold text-[#1A1A1A] dark:text-white line-clamp-1 group-hover:text-[#006CE4] dark:group-hover:text-sky-400 transition">
                     {hotel?.name || `${segment.location} Grand Resort & Spa`}
                   </h4>
                   <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1">
@@ -113,7 +113,7 @@ export default function HotelsPreview({ trip }) {
 
                 <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
                   <div>
-                    <div className="text-xs font-extrabold text-indigo-600 dark:text-indigo-400">
+                    <div className="text-sm font-extrabold text-[#1A1A1A] dark:text-white">
                       ₹{nightly.toLocaleString()}
                       <span className="text-[10px] font-normal text-slate-400"> / night</span>
                     </div>
@@ -122,7 +122,7 @@ export default function HotelsPreview({ trip }) {
                     </div>
                   </div>
 
-                  <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 px-2 py-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
+                  <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 px-2 py-1 text-[10px] font-semibold text-[#00A65E] dark:text-emerald-300">
                     <FiCheckCircle className="text-[11px]" />
                     Auto-Book Ready
                   </span>

@@ -72,12 +72,7 @@ export default function TravelCard({ option, source, destination, tripId, startD
   return (
     <div
       onClick={handleNavigate}
-      className={`group relative flex flex-col justify-between rounded-2xl border bg-white dark:bg-[#131b2e] p-4 sm:p-4.5 shadow-xs transition-all duration-150 cursor-pointer
-        ${
-          isFlight
-            ? "border-slate-200/80 dark:border-slate-800 hover:border-sky-400 dark:hover:border-sky-500 hover:shadow-sm"
-            : "border-slate-200/80 dark:border-slate-800 hover:border-indigo-400 dark:hover:border-indigo-500 hover:shadow-sm"
-        }`}
+      className="group relative flex flex-col justify-between rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131b2e] p-4 shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-[#006CE4] dark:hover:border-sky-500 hover:shadow-sm cursor-pointer"
     >
       <div>
         {/* Top Header: Mode & Status */}
@@ -87,31 +82,31 @@ export default function TravelCard({ option, source, destination, tripId, startD
               className={`flex h-7 w-7 items-center justify-center rounded-lg text-xs ${
                 isFlight
                   ? "bg-sky-50 dark:bg-sky-950/70 text-sky-600 dark:text-sky-400 border border-sky-100 dark:border-sky-800/60"
-                  : "bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-800/60"
+                  : "bg-blue-50 dark:bg-sky-950/70 text-[#006CE4] dark:text-sky-400 border border-blue-100 dark:border-sky-800/60"
               }`}
             >
               {isFlight ? <FaPlane /> : <FaTrain />}
             </span>
-            <span className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
               {option.type}
             </span>
           </div>
 
           {option.isSelected && (
-            <span className="rounded-md bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800/60 px-2 py-0.5 text-[9px] font-bold text-indigo-700 dark:text-indigo-300">
+            <span className="rounded-md bg-blue-50 dark:bg-sky-950/60 border border-blue-200 dark:border-sky-800/60 px-2 py-0.5 text-[9px] font-bold text-[#006CE4] dark:text-sky-300">
               Selected in Itinerary
             </span>
           )}
         </div>
 
         {/* Carrier / Flight / Train Name */}
-        <h4 className="text-sm font-extrabold text-slate-900 dark:text-white truncate">
+        <h4 className="text-sm font-bold text-[#1A1A1A] dark:text-white truncate">
           {titleText}
         </h4>
 
         {/* Departure → Arrival Time */}
         <div className="mt-2 flex items-center justify-between text-xs">
-          <div className="font-extrabold text-slate-900 dark:text-white">
+          <div className="font-extrabold text-[#1A1A1A] dark:text-white">
             {option.departure && option.arrival ? (
               <span>{option.departure} → {option.arrival}</span>
             ) : (
@@ -126,16 +121,16 @@ export default function TravelCard({ option, source, destination, tripId, startD
         </p>
 
         {/* Compact Stats Row: Duration & Schedule */}
-        <div className="mt-3 flex items-center justify-between text-xs text-slate-600 dark:text-slate-300 rounded-xl bg-slate-50/70 dark:bg-slate-900/40 px-3 py-2 border border-slate-100 dark:border-slate-800">
+        <div className="mt-3 flex items-center justify-between text-xs text-slate-600 dark:text-slate-300 rounded-lg bg-[#F5F7FA] dark:bg-slate-900/40 px-3 py-2 border border-slate-100 dark:border-slate-800">
           <div>
             <span className="text-slate-400 dark:text-slate-500">Duration: </span>
-            <strong className="font-bold text-slate-800 dark:text-slate-200">
+            <strong className="font-semibold text-[#1A1A1A] dark:text-slate-200">
               {option.duration || (isFlight ? "~2h 30m" : "23h 30m")}
             </strong>
           </div>
           <div>
             <span className="text-slate-400 dark:text-slate-500">Schedule: </span>
-            <strong className="font-bold text-slate-800 dark:text-slate-200">
+            <strong className="font-semibold text-[#1A1A1A] dark:text-slate-200">
               {scheduleText}
             </strong>
           </div>
@@ -147,7 +142,7 @@ export default function TravelCard({ option, source, destination, tripId, startD
         <button
           type="button"
           onClick={handleAddToTour}
-          className="rounded-full bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 border border-indigo-200 dark:border-indigo-800/60 px-3 py-1.5 text-[11px] font-bold text-indigo-700 dark:text-indigo-300 transition cursor-pointer"
+          className="rounded-lg bg-blue-50 dark:bg-sky-950/40 hover:bg-blue-100 dark:hover:bg-sky-900/50 border border-blue-200 dark:border-sky-800/60 px-3 py-1.5 text-[11px] font-semibold text-[#006CE4] dark:text-sky-300 transition cursor-pointer"
         >
           + Add to Tour
         </button>
@@ -158,11 +153,7 @@ export default function TravelCard({ option, source, destination, tripId, startD
             e.stopPropagation();
             handleNavigate();
           }}
-          className={`flex items-center gap-1.5 text-xs font-extrabold transition cursor-pointer ${
-            isFlight
-              ? "text-sky-600 hover:text-sky-500 dark:text-sky-400"
-              : "text-indigo-600 hover:text-indigo-500 dark:text-indigo-400"
-          }`}
+          className="flex items-center gap-1.5 text-xs font-semibold text-[#006CE4] hover:text-[#005bb5] dark:text-sky-400 transition cursor-pointer"
         >
           <span>Explore {isFlight ? "Flights" : "Trains"}</span>
           <FaArrowRight className="text-[10px] group-hover:translate-x-0.5 transition-transform" />

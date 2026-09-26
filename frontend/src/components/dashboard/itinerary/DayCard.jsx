@@ -53,7 +53,7 @@ export default function DayCard({ day, trip }) {
           },
         })
       }
-      className="group w-52 shrink-0 cursor-pointer overflow-hidden rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-[#131b2e] shadow-xs transition-all duration-200 hover:-translate-y-1 hover:border-indigo-400 dark:hover:border-indigo-500 hover:shadow-md"
+      className="group w-52 shrink-0 cursor-pointer overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131b2e] shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-[#006CE4] dark:hover:border-sky-500 hover:shadow-sm"
     >
       <div className="relative h-28 w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
         {image ? (
@@ -65,13 +65,13 @@ export default function DayCard({ day, trip }) {
         ) : (
           <div className="h-full w-full animate-pulse bg-slate-200 dark:bg-slate-700" />
         )}
-        <span className="absolute left-2.5 top-2.5 rounded-full bg-indigo-600 px-2.5 py-0.5 text-[10px] font-bold text-white shadow-xs">
+        <span className="absolute left-2.5 top-2.5 rounded-md bg-[#006CE4] px-2 py-0.5 text-[10px] font-semibold text-white shadow-xs">
           Day {day.day}
         </span>
       </div>
 
       <div className="p-3.5">
-        <h4 className="text-xs font-bold text-slate-900 dark:text-white line-clamp-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition">
+        <h4 className="text-xs font-bold text-[#1A1A1A] dark:text-white line-clamp-1 group-hover:text-[#006CE4] dark:group-hover:text-sky-400 transition">
           {day.title || `Day ${day.day} Exploration`}
         </h4>
 
@@ -83,7 +83,7 @@ export default function DayCard({ day, trip }) {
 
         <div className="mt-3 flex items-center justify-between border-t border-slate-100 dark:border-slate-800 pt-2 text-[10px] text-slate-500 dark:text-slate-400 font-medium">
           <span>{day.plan?.length || 0} Activities</span>
-          <span className="text-indigo-600 dark:text-indigo-400 font-bold group-hover:underline">Timeline →</span>
+          <span className="text-[#006CE4] dark:text-sky-400 font-semibold group-hover:underline">Timeline →</span>
         </div>
       </div>
     </div>
