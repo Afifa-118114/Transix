@@ -7,8 +7,7 @@ export default function DashboardLayout({ trip, setTrip, children }) {
   const { isMapModalOpen, closeMapModal } = useTripBuilder();
   const location = useLocation();
 
-  // Hide sidebar when answering the wizard questionnaire
-  const isWizard =
+  const isPromptWizard =
     (location.pathname === "/home" || location.pathname === "/planner") && !trip;
 
   return (
@@ -19,18 +18,18 @@ export default function DashboardLayout({ trip, setTrip, children }) {
         <div className="absolute -bottom-24 right-1/4 w-[500px] h-[300px] bg-purple-500/[0.03] dark:bg-purple-500/[0.05] rounded-full blur-3xl pointer-events-none" />
       </div>
 
-      {/* Show sidebar only when NOT in wizard */}
-      {!isWizard && <Sidebar trip={trip} setTrip={setTrip} />}
+      {/* Persistent Sidebar across all views including prompt page */}
+      <Sidebar trip={trip} setTrip={setTrip} />
 
       {/* Main Content Area */}
       <main
         className={`relative z-10 flex-1 min-w-0 min-h-screen overflow-y-auto ${
-          isWizard
-            ? "flex flex-col items-center justify-center p-4 sm:p-8 lg:p-12"
+          isPromptWizard
+            ? "flex flex-col items-center justify-center p-4 sm:p-6 lg:p-8"
             : "p-4 sm:p-6 lg:p-8 bg-[#f8faff] dark:bg-[#0b0f19]"
         }`}
       >
-        <div className={`w-full ${isWizard ? "max-w-3xl" : "max-w-[1240px]"} mx-auto`}>
+        <div className={`w-full ${isPromptWizard ? "max-w-3xl" : "max-w-[1240px]"} mx-auto`}>
           {children}
         </div>
       </main>
