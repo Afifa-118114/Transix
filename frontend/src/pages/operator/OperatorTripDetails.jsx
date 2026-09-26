@@ -789,10 +789,10 @@ export default function OperatorTripDetails() {
               <div>
                 <div className="flex items-center gap-2 mb-0.5">
                   <Link 
-                    to={isCampus ? "/operator/trips?type=campus" : "/operator/trips?type=personal"}
+                    to="/operator/dashboard"
                     className="text-[10px] font-black uppercase tracking-widest text-[#0064D2] dark:text-blue-400 hover:underline flex items-center gap-1"
                   >
-                    <FiArrowLeft size={10} /> {isCampus ? "Campus Trips" : "Personal Trips"}
+                    <FiArrowLeft size={10} /> Dashboard
                   </Link>
                   <span className={isDark ? "text-slate-600 text-xs" : "text-[#A0AEC0] text-xs"}>/</span>
                   <span className={`text-[10px] font-black uppercase tracking-widest ${isDark ? "text-slate-400" : "text-[#666666]"}`}>
@@ -814,11 +814,11 @@ export default function OperatorTripDetails() {
 
             <div className="flex items-center gap-2.5">
               <Link 
-                to={isCampus ? "/operator/trips?type=campus" : "/operator/trips?type=personal"}
+                to="/operator/dashboard"
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${isDark ? "bg-slate-800 hover:bg-slate-700 text-slate-300" : "bg-[#F1F5F9] hover:bg-[#E2E8F0] text-[#475569] border border-[#EBEBEB]"}`}
               >
                 <FiArrowLeft size={12} />
-                <span className="hidden sm:inline">Back to List</span>
+                <span className="hidden sm:inline">Back to Dashboard</span>
               </Link>
             </div>
           </div>
