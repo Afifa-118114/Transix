@@ -310,6 +310,16 @@ const tripSchema = new mongoose.Schema(
         },
       ],
     },
+
+    bookingSummary: {
+      type: Object,
+      default: null,
+    },
+
+    emailDelivery: {
+      type: Object,
+      default: null,
+    },
   },
   {
     timestamps: true,

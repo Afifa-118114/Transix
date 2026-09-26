@@ -23,7 +23,8 @@ const GuideProfile = require("../models/GuideProfile");
 const GuideRequest = require("../models/GuideRequest");
 const Trip = require("../models/Trip");
 
-const API_BASE = "http://localhost:5000/api";
+const PORT = process.env.PORT || 5001;
+const API_BASE = `http://localhost:${PORT}/api`;
 
 async function runGuidePortalWorkflowTests() {
   console.log("========================================================");

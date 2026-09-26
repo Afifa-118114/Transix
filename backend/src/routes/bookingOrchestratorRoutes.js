@@ -5,6 +5,7 @@ const {
   prebookTour,
   confirmTourBooking,
   getTourBookingStatus,
+  getTourBookingPreview,
   operatorAutoBookTour
 } = require('../controllers/bookingOrchestratorController');
 
@@ -23,7 +24,11 @@ router.post('/confirm', confirmTourBooking);
 // GET /api/bookings/orchestrator/trip/:tripId
 router.get('/trip/:tripId', getTourBookingStatus);
 
-// Step 4: Operator One-Click Automated Booking
+// Step 4: Tour Booking Preview & Pre-Flight Validation
+// GET /api/bookings/orchestrator/preview/:tripId
+router.get('/preview/:tripId', getTourBookingPreview);
+
+// Step 5: Operator One-Click Automated Booking
 // POST /api/bookings/orchestrator/operator-auto-book
 router.post('/operator-auto-book', operatorAutoBookTour);
 

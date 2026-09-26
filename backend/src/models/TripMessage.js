@@ -54,6 +54,24 @@ const tripMessageSchema = new mongoose.Schema(
       enum: ["SENT", "DELIVERED", "READ"],
       default: "SENT",
     },
+    attachment: {
+      type: {
+        type: String,
+        default: "DOCUMENT",
+      },
+      name: {
+        type: String,
+        default: "",
+      },
+      url: {
+        type: String,
+        default: "",
+      },
+      fileType: {
+        type: String,
+        default: "application/pdf",
+      },
+    },
   },
   {
     timestamps: true,

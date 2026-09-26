@@ -49,6 +49,15 @@ export const confirmHotel = async (payload, token) => {
 };
 
 /**
+ * Get Tour Booking Preview & Pre-Flight Validation
+ */
+export const getTourBookingPreview = async (tripId, token) => {
+  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+  const res = await axios.get(`${API}/bookings/orchestrator/preview/${tripId}`, { headers });
+  return res.data;
+};
+
+/**
  * Operator One-Click Automated Booking
  */
 export const operatorAutoBookTour = async (payload, token) => {
@@ -56,4 +65,5 @@ export const operatorAutoBookTour = async (payload, token) => {
   const res = await axios.post(`${API}/bookings/orchestrator/operator-auto-book`, payload, { headers });
   return res.data;
 };
+
 

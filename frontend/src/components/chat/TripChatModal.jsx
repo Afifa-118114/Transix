@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { 
   FiX, FiSend, FiUser, FiMessageSquare, FiClock, FiCheck, FiCheckCircle, 
-  FiAlertCircle, FiRefreshCw 
+  FiAlertCircle, FiRefreshCw, FiFileText, FiDownload 
 } from "react-icons/fi";
 import { getTripMessages, sendTripMessage, markMessagesRead } from "../../api/tripApi";
 
@@ -297,6 +297,34 @@ export default function TripChatModal({
                       </div>
                     )}
                     <div>{msg.message}</div>
+
+                    {msg.attachment && (
+                      <div className="mt-2.5 pt-2 border-t border-white/20 dark:border-slate-700/80 flex items-center justify-between gap-3 bg-black/15 dark:bg-black/30 p-2.5 rounded-xl">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="w-7 h-7 rounded-lg bg-red-500/20 text-red-400 flex items-center justify-center shrink-0">
+                            <FiFileText size={15} />
+                          </div>
+                          <div className="min-w-0">
+                            <span className="font-bold text-[11px] block truncate text-white">
+                              {msg.attachment.name || "Travel_Dossier.pdf"}
+                            </span>
+                            <span className="text-[10px] text-slate-300 block truncate">
+                              Official Trip Dossier Booklet
+                            </span>
+                          </div>
+                        </div>
+                        <a
+                          href={msg.attachment.url}
+                          download={msg.attachment.name || "Travel_Dossier.pdf"}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="px-2.5 py-1.5 rounded-lg bg-white/20 hover:bg-white/30 text-[11px] font-bold text-white flex items-center gap-1 transition shrink-0 shadow-2xs"
+                        >
+                          <FiDownload size={11} />
+                          <span>View</span>
+                        </a>
+                      </div>
+                    )}
                   </div>
 
                   {/* Read Receipt Status for outgoing */}

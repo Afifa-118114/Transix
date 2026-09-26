@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
 import { 
   getOperatorTripDetails, 
@@ -220,59 +220,59 @@ export default function OperatorTripDetails() {
     }
   };
 
-  useEffect(() => {
-    const fetchTrip = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const token = localStorage.getItem("token");
-        if (!token) {
-          setError("Operator session not found. Please log in.");
-          setLoading(false);
-          return;
-        }
-
-        const [detailsData, statsData] = await Promise.all([
-          getOperatorTripDetails(tripId, token),
-          getDashboardStats(token).catch(() => null)
-        ]);
-
-        if (detailsData?.success && detailsData.trip) {
-          setTrip(detailsData.trip);
-          setBookings(detailsData.bookings || []);
-          if (detailsData.validTransitions) {
-            setValidTransitions(detailsData.validTransitions);
-          }
-          if (detailsData.messages) {
-            setMessages(detailsData.messages);
-            const unread = detailsData.messages.filter(m => m.senderRole !== "operator" && !m.readAt).length;
-            setUnreadMessagesCount(unread);
-          }
-          if (detailsData.recipient) {
-            setRecipient(detailsData.recipient);
-          }
-        } else {
-          setError("Trip not found or not shared with Tour Operations.");
-        }
-
-        if (statsData?.success) {
-          setStats(statsData.stats);
-        }
-      } catch (err) {
-        console.error("Failed to load operator trip details:", err);
-        setError(err.response?.data?.message || err.message || "Failed to load trip details");
-      } finally {
+  const fetchTrip = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        setError("Operator session not found. Please log in.");
         setLoading(false);
+        return;
       }
-    };
 
+      const [detailsData, statsData] = await Promise.all([
+        getOperatorTripDetails(tripId, token),
+        getDashboardStats(token).catch(() => null)
+      ]);
+
+      if (detailsData?.success && detailsData.trip) {
+        setTrip(detailsData.trip);
+        setBookings(detailsData.bookings || []);
+        if (detailsData.validTransitions) {
+          setValidTransitions(detailsData.validTransitions);
+        }
+        if (detailsData.messages) {
+          setMessages(detailsData.messages);
+          const unread = detailsData.messages.filter(m => m.senderRole !== "operator" && !m.readAt).length;
+          setUnreadMessagesCount(unread);
+        }
+        if (detailsData.recipient) {
+          setRecipient(detailsData.recipient);
+        }
+      } else {
+        setError("Trip not found or not shared with Tour Operations.");
+      }
+
+      if (statsData?.success) {
+        setStats(statsData.stats);
+      }
+    } catch (err) {
+      console.error("Failed to load operator trip details:", err);
+      setError(err.response?.data?.message || err.message || "Failed to load trip details");
+    } finally {
+      setLoading(false);
+    }
+  }, [tripId]);
+
+  useEffect(() => {
     if (tripId) {
       fetchTrip();
     } else {
       setError("No trip ID specified in route.");
       setLoading(false);
     }
-  }, [tripId]);
+  }, [tripId, fetchTrip]);
 
   // Periodic polling for unread messages from traveler/coordinator when chat modal is closed
   useEffect(() => {
@@ -996,18 +996,13 @@ export default function OperatorTripDetails() {
             trip={trip}
             bookings={bookings}
             onBookingSuccess={(data) => {
-              setTrip(prev => ({
-                ...prev,
-                isBooked: true,
-                status: "BOOKED",
-                bookingSummary: {
-                  ...prev?.bookingSummary,
-                  confirmedBookings: data.confirmedBookings
-                }
-              }));
-              if (data.requirements) {
-                setBookings(data.requirements);
-              }
+              fetchTrip();
+            }}
+            onRefresh={() => fetchTrip()}
+            onViewItinerary={() => setActiveTab("itinerary")}
+            onOpenChat={() => {
+              setIsMessageModalOpen(true);
+              setUnreadMessagesCount(0);
             }}
           />
 
