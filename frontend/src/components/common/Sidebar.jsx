@@ -1,46 +1,200 @@
 import { useState } from "react";
-import { NavLink, Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  FiHome,
-  FiBookmark,
-  FiUser,
-  FiMap,
-  FiCompass,
-  FiLayers,
-  FiLogOut,
-  FiPlus,
-  FiChevronsLeft,
-  FiChevronsRight,
-  FiUsers,
-  FiSun,
-  FiMoon,
-} from "react-icons/fi";
-import { FaTrain } from "react-icons/fa6";
 import logo from "../../assets/logo/logo.png";
 import { useTripBuilder } from "../../context/TripBuilderContext";
 import { useAuth } from "../../hooks/useAuth";
 import { useTheme } from "../../context/ThemeContext";
 
-const NAV_ITEMS = [
-  { title: "Home", path: "/home", icon: <FiHome className="text-lg shrink-0" /> },
-  { title: "Tour Builder", path: "/builder", icon: <FiLayers className="text-lg shrink-0" /> },
-  { title: "Campus Trips", path: "/campus", icon: <FiUsers className="text-lg shrink-0" /> },
-  { title: "Train Routes", path: "/travel-options", icon: <FaTrain className="text-base shrink-0" /> },
-  { title: "Journey Planner", path: "/planner", icon: <FiCompass className="text-lg shrink-0" /> },
-  { title: "Saved Trips", path: "/saved", icon: <FiBookmark className="text-lg shrink-0" /> },
-];
+/* ── Inline Monochrome SVG Icons (Trip.com style: single 1.8px stroke) ── */
+const IconHome = ({ size = 17 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+    <polyline points="9 22 9 12 15 12 15 22" />
+  </svg>
+);
 
+const IconCompass = ({ size = 17 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10" />
+    <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
+  </svg>
+);
 
+const IconLayers = ({ size = 17 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <polygon points="12 2 2 7 12 12 22 7 12 2" />
+    <polyline points="2 17 12 22 22 17" />
+    <polyline points="2 12 12 17 22 12" />
+  </svg>
+);
+
+const IconTrain = ({ size = 17 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="4" y="3" width="16" height="15" rx="3" />
+    <line x1="4" y1="11" x2="20" y2="11" />
+    <line x1="8" y1="3" x2="8" y2="11" />
+    <line x1="16" y1="3" x2="16" y2="11" />
+    <circle cx="8" cy="14" r="1" fill="currentColor" />
+    <circle cx="16" cy="14" r="1" fill="currentColor" />
+    <line x1="6" y1="21" x2="8" y2="18" />
+    <line x1="18" y1="21" x2="16" y2="18" />
+  </svg>
+);
+
+const IconCampus = ({ size = 17 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M22 10v6M2 10l10-5 10 5-10 5-10-5z" />
+    <path d="M6 12v5c3 3 9 3 12 0v-5" />
+  </svg>
+);
+
+const IconBookmark = ({ size = 17 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+  </svg>
+);
+
+const IconMap = ({ size = 17 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" />
+    <line x1="8" y1="2" x2="8" y2="18" />
+    <line x1="16" y1="6" x2="16" y2="22" />
+  </svg>
+);
+
+const IconPlus = ({ size = 14 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="12" y1="5" x2="12" y2="19" />
+    <line x1="5" y1="12" x2="19" y2="12" />
+  </svg>
+);
+
+const IconLogOut = ({ size = 16 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+    <polyline points="16 17 21 12 16 7" />
+    <line x1="21" y1="12" x2="9" y2="12" />
+  </svg>
+);
+
+const IconSun = ({ size = 15 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="5" />
+    <line x1="12" y1="1" x2="12" y2="3" />
+    <line x1="12" y1="21" x2="12" y2="23" />
+    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+    <line x1="1" y1="12" x2="3" y2="12" />
+    <line x1="21" y1="12" x2="23" y2="12" />
+    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+  </svg>
+);
+
+const IconMoon = ({ size = 15 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+  </svg>
+);
+
+const IconCollapse = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="11 17 6 12 11 7" />
+    <polyline points="18 17 13 12 18 7" />
+  </svg>
+);
+
+const IconExpand = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="13 17 18 12 13 7" />
+    <polyline points="6 17 11 12 6 7" />
+  </svg>
+);
+
+/* ── Trip.com Section Label ── */
+function SectionLabel({ label }) {
+  return (
+    <div className="px-4 pt-3.5 pb-1">
+      <span className="text-[10px] font-bold tracking-[0.09em] text-[#94A3B8] uppercase">
+        {label}
+      </span>
+    </div>
+  );
+}
+
+/* ── Trip.com Divider ── */
+function Divider() {
+  return <div className="mx-0 my-1 border-t border-[#F1F5F9]" />;
+}
+
+/* ── Trip.com NavItem ── */
+function NavItem({ to, icon: Icon, label, badge, active, collapsed, onClick }) {
+  const base =
+    "group flex items-center justify-between py-2.5 transition-all duration-150 cursor-pointer w-full text-left";
+  const activeStyle =
+    "border-l-[3px] border-[#006CE4] bg-[#EFF6FF] text-[#006CE4] font-semibold";
+  const inactiveStyle =
+    "border-l-[3px] border-transparent text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A]";
+
+  const iconColor = active
+    ? "text-[#006CE4]"
+    : "text-[#64748B] group-hover:text-[#1E293B]";
+
+  const content = (
+    <div
+      className={`flex items-center gap-3 w-full ${
+        collapsed ? "justify-center pl-0" : "pl-[13px] pr-4"
+      }`}
+    >
+      <span className={`transition-colors duration-150 shrink-0 ${iconColor}`}>
+        <Icon size={17} />
+      </span>
+      {!collapsed && (
+        <span className="text-[13.5px] leading-tight truncate">{label}</span>
+      )}
+      {!collapsed && badge && (
+        <span className="ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[#E2E8F0] text-[#475569]">
+          {badge}
+        </span>
+      )}
+    </div>
+  );
+
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        title={collapsed ? label : undefined}
+        className={`${base} ${active ? activeStyle : inactiveStyle}`}
+      >
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <Link
+      to={to}
+      title={collapsed ? label : undefined}
+      className={`${base} ${active ? activeStyle : inactiveStyle}`}
+    >
+      {content}
+    </Link>
+  );
+}
+
+/* ── Main Component ── */
 export default function Sidebar({ trip: propTrip, setTrip: propSetTrip }) {
   const { trip: contextTrip, setTrip: contextSetTrip, openMapModal } = useTripBuilder();
   const trip = propTrip !== undefined ? propTrip : contextTrip;
   const setTrip = propSetTrip || contextSetTrip;
   const { user, logout } = useAuth();
   const { isDark, toggleTheme } = useTheme();
+  const location = useLocation();
   const navigate = useNavigate();
 
-  // Collapsible state (saved in localStorage)
   const [collapsed, setCollapsed] = useState(() => {
     return localStorage.getItem("transix_sidebar_collapsed") === "true";
   });
@@ -66,304 +220,260 @@ export default function Sidebar({ trip: propTrip, setTrip: propSetTrip }) {
     navigate("/login");
   };
 
+  const pathname = location.pathname;
+  const isHome = pathname === "/home";
+  const isPlanner = pathname === "/planner";
+  const isBuilder = pathname === "/builder" || pathname === "/tour-builder";
+  const isTrainRoutes = pathname === "/travel-options";
+  const isCampus = pathname === "/campus" || pathname.startsWith("/campus");
+  const isSaved = pathname === "/saved";
+
   return (
     <motion.aside
       initial={false}
-      animate={{ width: collapsed ? 72 : 272 }}
+      animate={{ width: collapsed ? 72 : 256 }}
       transition={{ type: "spring", stiffness: 350, damping: 32 }}
-      className="sticky top-0 z-40 flex h-screen shrink-0 flex-col justify-between border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0f172a] select-none overflow-hidden transition-colors duration-200"
+      className="sticky top-0 z-40 flex h-screen shrink-0 flex-col justify-between border-r border-[#E2E8F0] bg-white select-none overflow-hidden transition-colors"
+      style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif' }}
     >
-      {/* Top Section */}
-      <div className={`flex flex-col gap-4 ${collapsed ? "px-2 py-4" : "p-4"}`}>
-        {/* Header: Brand & Collapse Toggle */}
-        {collapsed ? (
-          <div className="flex flex-col items-center gap-2.5">
-            <Link
-              to="/home"
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition hover:opacity-85"
-              title="Transix Home"
-            >
-              <img src={logo} alt="Transix" className="h-8 w-8 shrink-0 object-contain" />
-            </Link>
-
-            <button
-              type="button"
-              onClick={toggleSidebar}
-              title="Expand sidebar"
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white cursor-pointer"
-            >
-              <FiChevronsRight className="text-sm" />
-            </button>
-          </div>
-        ) : (
-          <div className="flex items-center justify-between min-w-0">
-            <Link
-              to="/home"
-              className="flex items-center gap-2.5 transition hover:opacity-85 min-w-0 overflow-hidden"
-              title="Transix"
-            >
-              <img src={logo} alt="Transix" className="h-8 w-8 shrink-0 object-contain" />
-              <AnimatePresence initial={false}>
-                <motion.div
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -10 }}
-                  transition={{ duration: 0.15 }}
-                  className="flex flex-col whitespace-nowrap overflow-hidden"
-                >
-                  <span className="font-sans text-base font-bold tracking-tight text-slate-900 dark:text-white">
+      {/* ── Top Header & Navigation ── */}
+      <div className="flex flex-col min-w-0 overflow-y-auto overflow-x-hidden flex-1 custom-scrollbar">
+        {/* Brand Header */}
+        <div
+          className={`flex items-center border-b border-[#F1F5F9] ${
+            collapsed ? "justify-center h-16 px-2" : "justify-between h-16 px-4"
+          }`}
+        >
+          {collapsed ? (
+            <div className="flex flex-col items-center gap-1.5">
+              <Link to="/home" title="Transix" className="hover:opacity-85 transition">
+                <img src={logo} alt="Transix" className="h-7 w-7 object-contain" />
+              </Link>
+              <button
+                type="button"
+                onClick={toggleSidebar}
+                title="Expand sidebar"
+                className="flex h-6 w-6 items-center justify-center rounded text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition cursor-pointer"
+              >
+                <IconExpand />
+              </button>
+            </div>
+          ) : (
+            <>
+              <Link to="/home" className="flex items-center gap-2.5 hover:opacity-85 transition min-w-0">
+                <img src={logo} alt="Transix" className="h-7 w-7 object-contain shrink-0" />
+                <div className="flex flex-col min-w-0">
+                  <span className="text-[15px] font-bold text-[#0F172A] tracking-tight truncate leading-tight">
                     Transix
                   </span>
-                </motion.div>
-              </AnimatePresence>
-            </Link>
+                  <span className="text-[10px] text-[#64748B] font-medium tracking-wide">
+                    Journey Studio
+                  </span>
+                </div>
+              </Link>
 
-            {/* SVG Open/Close Toggle Button with smooth rotation */}
-            <button
-              type="button"
-              onClick={toggleSidebar}
-              title="Collapse sidebar"
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white cursor-pointer"
-            >
-              <FiChevronsLeft className="text-sm" />
-            </button>
-          </div>
-        )}
+              <button
+                type="button"
+                onClick={toggleSidebar}
+                title="Collapse sidebar"
+                className="flex h-7 w-7 items-center justify-center rounded-lg border border-[#E2E8F0] text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition cursor-pointer"
+              >
+                <IconCollapse />
+              </button>
+            </>
+          )}
+        </div>
 
-        {/* Shifted from Navbar: Active Journey Card */}
-        {trip ? (
-          collapsed ? (
-            <Link
-              to="/builder"
-              title={`${trip.source} → ${trip.destination}`}
-              className="flex h-11 w-11 items-center justify-center mx-auto rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-600 hover:text-white transition-colors"
-            >
-              <FaTrain className="text-base" />
-            </Link>
-          ) : (
-            <motion.div
-              initial={{ opacity: 0, y: 5 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.2 }}
-              className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/60 p-3.5 flex flex-col gap-2.5 overflow-hidden shadow-xs"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
-                  Active Journey
-                </span>
-                <span className="rounded-full bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800 px-2 py-0.5 text-[10px] font-bold text-indigo-700 dark:text-indigo-300">
-                  {trip.itinerary?.length || 0} Days
-                </span>
-              </div>
+        {/* ── Active Journey or Quick Action Card ── */}
+        <div className={`pt-3.5 pb-2 ${collapsed ? "px-2" : "px-3.5"}`}>
+          {trip ? (
+            collapsed ? (
+              <Link
+                to="/builder"
+                title={`${trip.source} → ${trip.destination}`}
+                className="flex h-10 w-10 mx-auto items-center justify-center rounded-xl bg-[#EFF6FF] border border-[#BFDBFE] text-[#006CE4] hover:bg-[#006CE4] hover:text-white transition"
+              >
+                <IconTrain size={18} />
+              </Link>
+            ) : (
+              <div className="rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-3 flex flex-col gap-2 shadow-2xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-[9.5px] font-bold uppercase tracking-wider text-[#006CE4]">
+                    Active Journey
+                  </span>
+                  <span className="rounded-full bg-[#EFF6FF] border border-[#BFDBFE] px-2 py-0.5 text-[9.5px] font-bold text-[#006CE4]">
+                    {trip.itinerary?.length || 0} Days
+                  </span>
+                </div>
 
-              <div>
-                <h3
-                  style={{ fontFamily: "'EB Garamond', Georgia, serif" }}
-                  className="text-base font-medium leading-tight text-slate-900 dark:text-white truncate"
-                >
-                  {trip.source} → {trip.destination}
-                </h3>
-                <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                  {trip.travelers || 2} Travelers • {trip.currency || "₹"}{" "}
-                  {Number(trip.budget || 0).toLocaleString()}
-                </p>
-              </div>
+                <div>
+                  <h3 className="text-[13px] font-semibold text-[#0F172A] truncate">
+                    {trip.source} → {trip.destination}
+                  </h3>
+                  <p className="text-[11px] text-[#64748B] truncate mt-0.5">
+                    {trip.travelers || 2} Travelers • {trip.currency || "₹"}{" "}
+                    {Number(trip.budget || 0).toLocaleString()}
+                  </p>
+                </div>
 
-              {/* Quick Actions */}
-              <div className="mt-1">
                 <button
                   type="button"
                   onClick={handlePlanAnother}
-                  className="w-full flex items-center justify-center gap-1.5 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 py-1.5 text-[11px] font-medium text-slate-700 dark:text-slate-200 transition hover:bg-slate-50 dark:hover:bg-slate-700 hover:border-slate-400 dark:hover:border-slate-500 active:scale-[0.98] cursor-pointer shadow-2xs"
+                  className="mt-0.5 w-full flex items-center justify-center gap-1.5 rounded-lg border border-[#CBD5E1] bg-white py-1.5 text-[11px] font-semibold text-[#334155] hover:bg-[#F1F5F9] hover:border-[#94A3B8] transition cursor-pointer shadow-2xs"
                 >
-                  <FiPlus className="text-xs" />
+                  <IconPlus size={12} />
                   <span>Plan Another Trip</span>
                 </button>
               </div>
-            </motion.div>
-          )
-        ) : (
-          !collapsed && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.15 }}
-            >
+            )
+          ) : (
+            !collapsed && (
               <Link
-                to="/builder"
-                className="flex items-center justify-center gap-2 rounded-full bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-500 py-2.5 text-xs font-semibold text-white shadow-xs transition active:scale-[0.98]"
+                to="/planner"
+                className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#006CE4] hover:bg-[#005bb5] text-white py-2 text-xs font-semibold shadow-xs transition active:scale-[0.99]"
               >
-                <FiLayers className="text-xs" />
-                <span>Open Tour Builder</span>
+                <IconCompass size={15} />
+                <span>Create New Itinerary</span>
               </Link>
-            </motion.div>
-          )
-        )}
+            )
+          )}
+        </div>
 
-        {/* Navigation Menu */}
-        <nav className="flex flex-col gap-1 mt-1">
-          <AnimatePresence initial={false}>
-            {!collapsed && (
-              <motion.span
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.12 }}
-                className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-1 whitespace-nowrap overflow-hidden"
-              >
-                Navigation
-              </motion.span>
-            )}
-          </AnimatePresence>
+        {/* ── Navigation List ── */}
+        <div className="flex flex-col py-1">
+          {!collapsed && <SectionLabel label="Travel Workspace" />}
 
-          {NAV_ITEMS.map((item) => (
-            <NavLink
-              key={item.title}
-              to={item.path}
-              title={collapsed ? item.title : undefined}
-              className={({ isActive }) =>
-                `group relative flex items-center rounded-xl text-xs font-medium transition-all ${
-                  collapsed
-                    ? "h-11 w-11 mx-auto justify-center"
-                    : "gap-3 px-3.5 py-2.5"
-                } ${
-                  isActive
-                    ? "bg-slate-100 dark:bg-slate-800 font-bold text-slate-900 dark:text-white shadow-xs"
-                    : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/70 hover:text-slate-900 dark:hover:text-white"
-                }`
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  {isActive && (
-                    <motion.span
-                      layoutId="activeNavIndicator"
-                      className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-1 rounded-r-full bg-indigo-600 dark:bg-indigo-400"
-                      transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                    />
-                  )}
-                  <span className="text-slate-700 dark:text-slate-300 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 shrink-0">{item.icon}</span>
-                  <AnimatePresence initial={false}>
-                    {!collapsed && (
-                      <motion.span
-                        initial={{ opacity: 0, x: -8 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -8 }}
-                        transition={{ duration: 0.15 }}
-                        className="truncate whitespace-nowrap"
-                      >
-                        {item.title}
-                      </motion.span>
-                    )}
-                  </AnimatePresence>
-                </>
-              )}
-            </NavLink>
-          ))}
+          <NavItem
+            to="/home"
+            icon={IconHome}
+            label="Overview"
+            active={isHome}
+            collapsed={collapsed}
+          />
+          <NavItem
+            to="/planner"
+            icon={IconCompass}
+            label="Journey Planner"
+            active={isPlanner}
+            collapsed={collapsed}
+          />
+          <NavItem
+            to="/builder"
+            icon={IconLayers}
+            label="Tour Builder"
+            active={isBuilder}
+            collapsed={collapsed}
+          />
+          <NavItem
+            to="/travel-options"
+            icon={IconTrain}
+            label="Train & Transit"
+            active={isTrainRoutes}
+            collapsed={collapsed}
+          />
 
-          {/* Interactive Map Button */}
-          <button
-            type="button"
+          <Divider />
+
+          {!collapsed && <SectionLabel label="Community & Plans" />}
+
+          <NavItem
+            to="/campus"
+            icon={IconCampus}
+            label="Campus Tours"
+            active={isCampus}
+            collapsed={collapsed}
+          />
+          <NavItem
+            to="/saved"
+            icon={IconBookmark}
+            label="Saved Trips"
+            active={isSaved}
+            collapsed={collapsed}
+          />
+          <NavItem
             onClick={openMapModal}
-            title={collapsed ? "Interactive Map" : undefined}
-            className={`flex items-center rounded-xl text-xs font-medium text-slate-600 dark:text-slate-400 transition hover:bg-slate-50 dark:hover:bg-slate-800/70 hover:text-slate-900 dark:hover:text-white cursor-pointer ${
-              collapsed
-                ? "h-11 w-11 mx-auto justify-center"
-                : "gap-3 px-3.5 py-2.5 text-left"
-            }`}
-          >
-            <FiMap className="text-lg text-slate-700 dark:text-slate-300 shrink-0" />
-            <AnimatePresence initial={false}>
-              {!collapsed && (
-                <motion.span
-                  initial={{ opacity: 0, x: -8 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -8 }}
-                  transition={{ duration: 0.15 }}
-                  className="truncate whitespace-nowrap"
-                >
-                  Interactive Map
-                </motion.span>
-              )}
-            </AnimatePresence>
-          </button>
-        </nav>
+            icon={IconMap}
+            label="Interactive Map"
+            active={false}
+            collapsed={collapsed}
+          />
+        </div>
       </div>
 
-      {/* Bottom Section: Theme Toggle, User Profile & Logout */}
-      <div className="p-3.5 border-t border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col gap-2.5">
-        {/* Dark/Light Theme Toggle */}
+      {/* ── Bottom Section: Theme & User Identity Card ── */}
+      <div className="border-t border-[#F1F5F9] p-3 flex flex-col gap-2 bg-[#FAFCFF]">
+        {/* Clean Theme Toggle Button */}
         <button
           type="button"
           onClick={toggleTheme}
           title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
-          className={`flex items-center rounded-xl text-xs font-semibold border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 text-slate-700 dark:text-slate-200 hover:border-indigo-300 dark:hover:border-indigo-600 transition-colors cursor-pointer ${
-            collapsed ? "h-9 w-9 mx-auto justify-center" : "w-full justify-between px-3 py-2"
+          className={`flex items-center rounded-lg border border-[#E2E8F0] bg-white text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition text-xs font-medium cursor-pointer ${
+            collapsed ? "h-9 w-9 mx-auto justify-center" : "w-full justify-between px-3 py-1.5"
           }`}
         >
           <div className="flex items-center gap-2">
-            {isDark ? (
-              <FiSun className="text-amber-400 text-sm shrink-0" />
-            ) : (
-              <FiMoon className="text-indigo-600 text-sm shrink-0" />
-            )}
+            {isDark ? <IconSun size={15} /> : <IconMoon size={15} />}
             {!collapsed && <span>{isDark ? "Light Mode" : "Dark Mode"}</span>}
           </div>
           {!collapsed && (
-            <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500">
+            <span className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wide">
               {isDark ? "Dark" : "Light"}
             </span>
           )}
         </button>
 
-        {collapsed ? (
-          <div className="flex flex-col items-center gap-2 pt-1">
-            <div
-              title={user?.name || "Traveler"}
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white"
-            >
-              {user?.name ? user.name[0].toUpperCase() : "T"}
+        {/* User Identity / Login Card */}
+        {user ? (
+          collapsed ? (
+            <div className="flex flex-col items-center gap-1.5 pt-1">
+              <div
+                title={user.name || "Traveler"}
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-[#EFF6FF] border border-[#BFDBFE] text-xs font-bold text-[#006CE4]"
+              >
+                {user.name ? user.name[0].toUpperCase() : "T"}
+              </div>
+              <button
+                type="button"
+                onClick={handleLogout}
+                title="Sign Out"
+                className="flex h-7 w-7 items-center justify-center rounded text-[#64748B] hover:text-[#DC2626] transition cursor-pointer"
+              >
+                <IconLogOut size={15} />
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={handleLogout}
-              title="Sign Out"
-              className="flex h-8 w-8 items-center justify-center rounded-full text-slate-500 dark:text-slate-400 transition hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-red-600 dark:hover:text-red-400 cursor-pointer"
-            >
-              <FiLogOut className="text-sm" />
-            </button>
-          </div>
+          ) : (
+            <div className="flex items-center justify-between min-w-0 pt-0.5">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#EFF6FF] border border-[#BFDBFE] text-xs font-bold text-[#006CE4]">
+                  {user.name ? user.name[0].toUpperCase() : "T"}
+                </div>
+                <div className="min-w-0 flex-1 truncate">
+                  <h4 className="text-[12.5px] font-semibold text-[#0F172A] truncate leading-tight">
+                    {user.name || "Traveler"}
+                  </h4>
+                  <p className="text-[11px] text-[#64748B] truncate">
+                    {user.email || "Personal Account"}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleLogout}
+                title="Sign Out"
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[#64748B] hover:bg-[#FEE2E2] hover:text-[#DC2626] transition cursor-pointer"
+              >
+                <IconLogOut size={15} />
+              </button>
+            </div>
+          )
         ) : (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.15 }}
-            className="flex items-center justify-between min-w-0 pt-1"
+          <Link
+            to="/login"
+            className="flex items-center justify-center gap-2 rounded-lg border border-[#006CE4] bg-[#EFF6FF] text-[#006CE4] py-1.5 text-xs font-semibold hover:bg-[#006CE4] hover:text-white transition"
           >
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white">
-                {user?.name ? user.name[0].toUpperCase() : "T"}
-              </div>
-
-              <div className="min-w-0 flex-1 whitespace-nowrap overflow-hidden">
-                <h4 className="truncate text-xs font-bold text-slate-900 dark:text-white">
-                  {user?.name || "Traveler"}
-                </h4>
-                <p className="truncate text-[11px] text-slate-500 dark:text-slate-400">
-                  {user?.email || "Personal Account"}
-                </p>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={handleLogout}
-              title="Sign Out"
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 transition hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-red-600 dark:hover:text-red-400 cursor-pointer"
-            >
-              <FiLogOut className="text-xs" />
-            </button>
-          </motion.div>
+            <span>Sign In</span>
+          </Link>
         )}
       </div>
     </motion.aside>
