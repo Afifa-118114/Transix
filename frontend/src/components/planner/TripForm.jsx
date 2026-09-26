@@ -761,65 +761,44 @@ export default function TripForm({ setTrip }) {
       className="w-full max-w-xl sm:max-w-2xl mx-auto px-4 sm:px-6 py-6 sm:py-8 flex flex-col justify-center"
       style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif' }}
     >
-      {/* Stream of Previous Answers (Stacked cleanly above active question) */}
+      {/* Stream of Previous Answers (Clean, unboxed light-grey text rows) */}
       {currentIdx > 0 && !editingQuestionId && (
-        <div className="mb-4 sm:mb-5 space-y-1.5">
-          <div className="flex items-center justify-between pb-1 px-0.5">
-            <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#64748B] dark:text-slate-400">
+        <div className="mb-4 sm:mb-5 pb-2.5 border-b border-[#F1F5F9] dark:border-slate-800">
+          <div className="flex items-center justify-between mb-2 px-0.5">
+            <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#94A3B8] dark:text-slate-500">
               Your Journey Details
             </span>
-            <span className="text-[11px] font-semibold text-[#006CE4] dark:text-blue-400">
+            <span className="text-[11px] font-medium text-[#94A3B8] dark:text-slate-500">
               Step {currentIdx + 1} of {QUESTIONS.length}
             </span>
           </div>
 
-          <div className="space-y-1.5">
-            {QUESTIONS.slice(0, currentIdx).map((q, idx) => {
+          <div className="space-y-1">
+            {QUESTIONS.slice(0, currentIdx).map((q) => {
               const answerVal = getAnswerDisplay(q);
               if (!answerVal) return null;
-              const isLastAnswer = idx === currentIdx - 1;
               return (
                 <div
                   key={q.id}
-                  className={`flex items-center justify-between gap-3 px-3.5 py-2 rounded-xl border transition-all ${
-                    isLastAnswer
-                      ? "bg-[#EFF6FF] dark:bg-blue-950/40 border-[#BFDBFE] dark:border-blue-900/60 shadow-2xs"
-                      : "bg-white dark:bg-slate-800/60 border-[#E2E8F0] dark:border-slate-800"
-                  }`}
+                  className="flex items-center justify-between text-xs py-0.5 group"
                 >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <span
-                      className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
-                        isLastAnswer
-                          ? "bg-[#006CE4] text-white"
-                          : "bg-[#F1F5F9] text-[#64748B] dark:bg-slate-700 dark:text-slate-300"
-                      }`}
-                    >
-                      ✓
-                    </span>
-                    <span className="text-xs font-medium text-[#475569] dark:text-slate-300 truncate">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="text-[#94A3B8] dark:text-slate-500 font-normal truncate">
                       {q.title}
+                    </span>
+                    <span className="text-[#CBD5E1] dark:text-slate-600">·</span>
+                    <span className="text-[#475569] dark:text-slate-300 font-medium truncate">
+                      {answerVal}
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span
-                      className={`text-xs px-2.5 py-0.5 rounded-lg border font-semibold ${
-                        isLastAnswer
-                          ? "bg-white dark:bg-slate-900 text-[#006CE4] dark:text-blue-400 border-[#BFDBFE] dark:border-blue-800 shadow-2xs"
-                          : "bg-[#F8FAFC] dark:bg-slate-900 text-[#1E293B] dark:text-slate-200 border-[#E2E8F0] dark:border-slate-700"
-                      }`}
-                    >
-                      {answerVal}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleEditClick(q.id)}
-                      className="text-[11px] font-semibold text-[#64748B] hover:text-[#006CE4] px-1.5 py-0.5 rounded hover:bg-white dark:hover:bg-slate-700 transition cursor-pointer"
-                    >
-                      Edit
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleEditClick(q.id)}
+                    className="text-[11px] text-[#94A3B8] hover:text-[#006CE4] dark:hover:text-blue-400 font-medium ml-3 transition cursor-pointer shrink-0"
+                  >
+                    Edit
+                  </button>
                 </div>
               );
             })}
