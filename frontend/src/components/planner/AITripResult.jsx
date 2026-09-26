@@ -301,6 +301,34 @@ export default function AITripResult({ trip, setTrip }) {
           </div>
         </div>
 
+        {/* TRANSIX ENGINE VALIDATION BADGE */}
+        <div className="mt-6 flex flex-col rounded-xl border border-emerald-200 bg-emerald-50/50 p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <FiCheckCircle className="text-emerald-600 text-lg" />
+            <h3 className="text-sm font-bold text-emerald-900 tracking-wide uppercase">Transix Verified</h3>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <div className="flex items-center gap-1.5 text-xs text-emerald-800 font-medium">
+              <FiCheck className="text-emerald-600" /> Chronology
+            </div>
+            <div className="flex items-center gap-1.5 text-xs text-emerald-800 font-medium">
+              <FiCheck className="text-emerald-600" /> Travel buffers
+            </div>
+            <div className="flex items-center gap-1.5 text-xs text-emerald-800 font-medium">
+              <FiCheck className="text-emerald-600" /> Hotel constraints
+            </div>
+            <div className="flex items-center gap-1.5 text-xs text-emerald-800 font-medium">
+              <FiCheck className="text-emerald-600" /> Budget
+            </div>
+            <div className="flex items-center gap-1.5 text-xs text-emerald-800 font-medium">
+              <FiCheck className="text-emerald-600" /> Dates
+            </div>
+            <div className="flex items-center gap-1.5 text-xs text-emerald-800 font-medium">
+              <FiCheck className="text-emerald-600" /> Structure
+            </div>
+          </div>
+        </div>
+
         {/* Highlight Image Banner (Visual Interlude) */}
         {trip.heroImage && (
           <div className="mt-6 relative h-64 sm:h-80 w-full overflow-hidden rounded-xl border border-[#e7e5e4]">

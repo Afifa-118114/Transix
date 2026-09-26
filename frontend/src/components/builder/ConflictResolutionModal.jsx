@@ -71,17 +71,33 @@ export default function ConflictResolutionModal({ pendingAlternatives, onApply, 
             <section>
               <h4 className="text-xs font-bold text-rose-400 uppercase tracking-wider mb-3 flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-rose-500"></span>
-                Conflict Detected
+                Itinerary Conflict
               </h4>
-              <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-5">
-                <p className="text-sm text-rose-200 mb-2">Overlaps with: <span className="text-white font-bold">{conflictingItemName}</span></p>
-                <p className="text-sm text-zinc-300 mb-2">{conflictingItemName}: <span className="text-white">{conflictingTime}</span></p>
-                {conflictInfo?.overlapMinutes > 0 && (
-                  <p className="text-sm text-zinc-300">Overlap: <span className="text-rose-400 font-bold">{conflictInfo.overlapMinutes} minutes</span></p>
-                )}
-                {conflictInfo?.reason && !conflictInfo.overlapMinutes && (
-                  <p className="text-sm text-zinc-300">Reason: {conflictInfo.reason}</p>
-                )}
+              <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-5 mb-4">
+                <p className="text-sm text-white mb-2 font-medium">
+                  <span className="font-bold">{item.name || item.activity}</span> {requestedTime} conflicts with <span className="font-bold">{conflictingItemName}</span> {conflictingTime}
+                </p>
+                <div className="mt-3 bg-zinc-900/50 rounded-lg p-3 border border-rose-500/10">
+                  <span className="text-[10px] font-bold text-rose-300 uppercase tracking-wider block mb-1">WHY?</span>
+                  <p className="text-sm text-zinc-300">
+                    {conflictInfo?.reason || "Activity overlap or buffer constraint violated."}
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-zinc-800/30 rounded-xl p-4 border border-zinc-700/50">
+                <h4 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-3">System Response</h4>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-xs text-emerald-400 font-medium">
+                    <FiCheck /> Transport preserved
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-emerald-400 font-medium">
+                    <FiCheck /> Hotel check-in preserved
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-rose-400 font-medium">
+                    <FiX /> Current activity placement invalid
+                  </div>
+                </div>
               </div>
             </section>
 

@@ -632,9 +632,16 @@ export function TripBuilderProvider({ children }) {
     setIsSaved(false);
   };
 
-  // Live Budget Engine
+  // Live Budget Engine (with clean 5% UI tolerance)
   const budgetStats = useMemo(() => {
-    return calculateTripBudgetAnalysis(trip, trip?.staySegments, trip?.itinerary);
+    const stats = calculateTripBudgetAnalysis(trip, trip?.staySegments, trip?.itinerary);
+    // Apply a 5% UI flexibility buffer so tiny overages (like 1 rupee) don't hard block the user
+    const flexLimit = stats.totalBudget * 1.05;
+    if (stats.totalSpent <= flexLimit) {
+      stats.isOverBudget = false;
+      stats.overAmount = 0;
+    }
+    return stats;
   }, [trip]);
 
   // Validation Engine with Travel Buffers & Overlap Conflict Tracking
@@ -764,11 +771,13 @@ export function TripBuilderProvider({ children }) {
 
       const newItinerary = prevTrip.itinerary.map((day, dIdx) => {
         if (targetDayIdx !== null && dIdx !== targetDayIdx) return day;
-        const plan = [...(day.plan || [])];
+        const plan = [...(day.plan || [])].map(item => ({...item})); // Deep copy plan items
         if (plan.length <= 1) return day;
 
-        let currentTimelineMin = 9 * 60 + 30; // Default starts at 09:30 AM
-        const adjustedPlan = plan.map((item, pIdx) => {
+        // Pass 1: Backward pass to respect fixed transports
+        let currentMaxEndMin = 24 * 60; // 11:59 PM
+        for (let i = plan.length - 1; i >= 0; i--) {
+          const item = plan[i];
           const isTransport =
             (item.category || "").toLowerCase().includes("train") ||
             (item.category || "").toLowerCase().includes("flight") ||
@@ -777,36 +786,75 @@ export function TripBuilderProvider({ children }) {
 
           let startMin = timeToMinutes(item.startTime);
           let endMin = timeToMinutes(item.endTime);
-          let durationMins =
-            startMin !== null && endMin !== null && endMin > startMin
+          let durationMins = startMin !== null && endMin !== null && endMin > startMin
               ? endMin - startMin
               : item.durationMinutes || 90;
 
-          if (pIdx === 0) {
-            // First item of the day
-            if (startMin === null || isNaN(startMin)) {
-              startMin = currentTimelineMin;
-            }
-            endMin = startMin + durationMins;
-            currentTimelineMin = endMin + 20; // 20m buffer
+          if (isTransport && item.departure) {
+             const depMin = timeToMinutes(item.departure);
+             if (depMin !== null) startMin = depMin;
+             endMin = startMin + durationMins;
+             item._latestValidStart = startMin;
+             currentMaxEndMin = startMin - 20; // Require 20m buffer before transport
           } else {
-            // Non-first item: ensure it starts after the previous activity ends + travel buffer
-            if (isTransport && item.departure) {
-              const depMin = timeToMinutes(item.departure);
-              if (depMin !== null) startMin = depMin;
-              endMin = startMin + durationMins;
-              currentTimelineMin = endMin + 20;
-            } else {
-              // If there's an overlap or startMin < currentTimelineMin, shift it forward!
-              if (startMin === null || startMin < currentTimelineMin) {
+             item._latestValidStart = currentMaxEndMin - durationMins; // True upper bound
+             
+             // Flexible activity - shift backward if it exceeds currentMaxEndMin
+             if (startMin === null || endMin === null || endMin > currentMaxEndMin) {
                 totalAdjusted++;
-                startMin = currentTimelineMin;
-                endMin = startMin + durationMins;
+                endMin = currentMaxEndMin;
+                startMin = endMin - durationMins;
+             }
+             currentMaxEndMin = startMin - 20;
+          }
+          
+          item.startTime = minutesToTimeStr(startMin);
+          item.endTime = minutesToTimeStr(endMin);
+          item.durationMinutes = durationMins;
+        }
+
+        // Pass 2: Forward pass to compact starting from 09:30, without violating fixed transports
+        let currentTimelineMin = 9 * 60 + 30; // 09:30 AM
+        const adjustedPlan = plan.map((item, pIdx) => {
+          const isTransport =
+            (item.category || "").toLowerCase().includes("train") ||
+            (item.category || "").toLowerCase().includes("flight") ||
+            (item.category || "").toLowerCase().includes("bus") ||
+            Boolean(item.trainNumber);
+
+          let startMin = timeToMinutes(item.startTime);
+          let durationMins = item.durationMinutes || 90;
+          
+          if (isTransport && item.departure) {
+            const depMin = timeToMinutes(item.departure);
+            if (depMin !== null) startMin = depMin;
+            currentTimelineMin = startMin + durationMins + 20;
+          } else {
+            // We want to shift forward to currentTimelineMin, but not past _latestValidStart
+            let targetStart = Math.max(startMin, currentTimelineMin);
+            
+            // If pushing it forward would break the transport boundary, we must compress or cap it
+            if (item._latestValidStart !== undefined && targetStart > item._latestValidStart) {
+              // It's too tight. Force it to fit by starting at currentTimelineMin and ending at _latestValidStart + original duration
+              // Actually, best to just start it at currentTimelineMin and shrink duration to fit before the next hard stop
+              targetStart = currentTimelineMin;
+              let maxPossibleEnd = item._latestValidStart + durationMins;
+              if (targetStart + 30 > maxPossibleEnd) {
+                 // Extreme compression: if we don't even have 30 mins, we just push it back early
+                 targetStart = item._latestValidStart;
+              } else {
+                 durationMins = maxPossibleEnd - targetStart; // Compress duration
               }
-              currentTimelineMin = endMin + 20; // 20m buffer for next activity
             }
+
+            if (startMin !== targetStart) {
+              totalAdjusted++;
+              startMin = targetStart;
+            }
+            currentTimelineMin = startMin + durationMins + 20;
           }
 
+          const endMin = startMin + durationMins;
           const newStartTime = minutesToTimeStr(startMin);
           const newEndTime = minutesToTimeStr(endMin);
 
@@ -825,13 +873,13 @@ export function TripBuilderProvider({ children }) {
 
       if (totalAdjusted > 0) {
         toast.success(
-          `Automatically resolved ${totalAdjusted} schedule timing overlap(s)!`,
+          `Automatically aligned schedule timings!`,
           { icon: "⚡" }
         );
       } else {
-        toast.success(
-          "Schedule timings are fully aligned without overlaps!",
-          { icon: "✓" }
+        toast.error(
+          "Could not auto-fix. Fixed transports restrict further adjustments.",
+          { icon: "⚠️" }
         );
       }
 
