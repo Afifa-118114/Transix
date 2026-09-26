@@ -703,6 +703,7 @@ const generateFallbackTripPlan = (tripData) => {
   buildDeterministicTimeline(fallbackData);
   const valResult = validateItinerary(fallbackData, tripData);
   fallbackData.validation = valResult.valid ? valResult : { valid: true, errors: [], warnings: [] };
+  fallbackData.isFallback = true; // Mark as fallback generated
 
   return fallbackData;
 };

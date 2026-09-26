@@ -550,7 +550,12 @@ export default function TripForm({ setTrip }) {
         localStorage.removeItem("transix_builder_trip");
         if (setTrip) setTrip(normalized);
         window.dispatchEvent(new CustomEvent("transix_trip_updated", { detail: normalized }));
-        toast.success(`Itinerary created for ${normalized.destination}!`, { icon: "✨" });
+        
+        if (normalized.isFallback) {
+          toast.success(`Standard itinerary generated for ${normalized.destination} (AI service is currently unavailable)`, { icon: "⚙️", duration: 5000 });
+        } else {
+          toast.success(`AI itinerary created for ${normalized.destination}!`, { icon: "✨" });
+        }
       }
     } catch (err) {
       console.error("Trip generation error:", err);

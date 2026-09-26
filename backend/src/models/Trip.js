@@ -235,6 +235,11 @@ const tripSchema = new mongoose.Schema(
       default: false,
     },
 
+    isFallback: {
+      type: Boolean,
+      default: false,
+    },
+
     itinerary: {
       type: Array,
       default: [],
