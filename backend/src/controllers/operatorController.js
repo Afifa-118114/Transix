@@ -9,6 +9,7 @@ const VendorRequest = require("../models/VendorRequest");
 const VendorRequestMessage = require("../models/VendorRequestMessage");
 const { findMatchingFleetVendors } = require("../services/vendorMatchingService");
 const { resolveCityToState } = require("../services/locationService");
+const { sendEmail, sendTravelerBookingConfirmationEmail } = require("../services/emailService");
 const AppError = require("../utils/AppError");
 
 // Single-Operator Mode: All operators access the centralized operations pool
@@ -864,8 +865,13 @@ const resolveTripConversation = async (tripId, user) => {
     throw new AppError("You are not authorized to view or participate in this trip conversation", 403);
   }
 
-  // Trip must be Finalized or have operatorAccess enabled
-  if (!trip.operatorAccess?.enabled && trip.status !== "Finalized") {
+  // Trip must be Finalized, Confirmed, Booked or have operatorAccess enabled
+  const isTripOperational = 
+    trip.operatorAccess?.enabled || 
+    trip.isBooked || 
+    ["Finalized", "CONFIRMED", "PARTIALLY_CONFIRMED", "BOOKED"].includes(trip.status);
+
+  if (!isTripOperational) {
     throw new AppError("Trip is not finalized or shared with Tour Operations", 403);
   }
 
@@ -986,7 +992,7 @@ const getTripMessages = asyncHandler(async (req, res) => {
 
 const sendTripMessage = asyncHandler(async (req, res) => {
   const tripId = req.params.tripId || req.params.id;
-  const { message, subject } = req.body;
+  const { message, subject, attachment } = req.body;
 
   if (!message || !message.trim()) {
     throw new AppError("Message content is required", 400);
@@ -1010,6 +1016,7 @@ const sendTripMessage = asyncHandler(async (req, res) => {
     message: message.trim(),
     status: "SENT",
     readAt: null,
+    attachment: attachment && attachment.url ? attachment : null,
   });
 
   // Automatically create a persistent Notification for the counterpart
@@ -1044,10 +1051,102 @@ const sendTripMessage = asyncHandler(async (req, res) => {
     readAt: null,
   });
 
+  // Asynchronously dispatch email to counterpart if attachment (dossier PDF) is attached or operator message
+  let emailDispatched = false;
+  if (counterpart?.email && attachment) {
+    try {
+      const emailResult = await sendTravelerBookingConfirmationEmail({
+        trip,
+        recipientEmail: counterpart.email,
+        recipientName: counterpart.name || "Traveler",
+        attachment,
+        force: false
+      });
+      emailDispatched = Boolean(emailResult?.success && !emailResult?.skipped);
+    } catch (emailErr) {
+      console.warn("[sendTripMessage] Non-blocking email error:", emailErr.message);
+    }
+  }
+
   res.status(201).json({
     success: true,
     message: "Message sent successfully",
     messageData: newMessage,
+    emailDispatched,
+  });
+});
+
+const sendTripConfirmationEmail = asyncHandler(async (req, res) => {
+  const tripId = req.params.tripId || req.params.id;
+  const { recipientEmail, attachment, force } = req.body;
+
+  const { trip, counterpart } = await resolveTripConversation(tripId, req.user);
+  const targetEmail = recipientEmail || counterpart?.email;
+
+  if (!targetEmail) {
+    throw new AppError("No recipient email found for this trip", 400);
+  }
+
+  const emailResult = await sendTravelerBookingConfirmationEmail({
+    trip,
+    recipientEmail: targetEmail,
+    recipientName: counterpart?.name || "Traveler",
+    attachment,
+    force: Boolean(force)
+  });
+
+  if (!emailResult.success) {
+    return res.status(500).json({
+      success: false,
+      message: emailResult.message || "Email could not be sent"
+    });
+  }
+
+  res.status(200).json({
+    success: true,
+    message: emailResult.skipped 
+      ? emailResult.message 
+      : "Confirmation email sent to traveler successfully",
+    id: emailResult.id || null,
+    recipient: targetEmail,
+  });
+});
+
+const testEmailDispatch = asyncHandler(async (req, res) => {
+  const { to } = req.body;
+  if (!to) {
+    return res.status(400).json({
+      success: false,
+      message: "Recipient email is required"
+    });
+  }
+
+  const result = await sendEmail({
+    to,
+    subject: "Transix Tour Operations — Resend Test Email",
+    html: `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 24px; color: #0F172A; max-width: 500px; border: 1px solid #E2E8F0; border-radius: 12px;">
+        <h2 style="color: #0064D2; margin-top: 0;">Transix Tour Operations</h2>
+        <p style="font-size: 14px; line-height: 1.5; color: #334155;">This is an automated test email confirming that your Resend email integration is active and operating normally.</p>
+        <div style="margin-top: 20px; padding: 12px; background-color: #F8FAFC; border-radius: 8px; font-size: 11px; color: #64748B;">
+          Provider: Resend SDK &middot; Sent at: ${new Date().toISOString()}
+        </div>
+      </div>
+    `,
+    text: "This is an automated test email confirming that your Resend email integration is active and operating normally."
+  });
+
+  if (!result.success) {
+    return res.status(500).json({
+      success: false,
+      message: result.message || "Email could not be sent"
+    });
+  }
+
+  return res.status(200).json({
+    success: true,
+    message: "Test email sent successfully",
+    id: result.id
   });
 });
 
@@ -1767,5 +1866,7 @@ module.exports = {
   getOperatorBookings,
   getOperatorAllVendorRequests,
   getOperatorConversations,
+  sendTripConfirmationEmail,
+  testEmailDispatch,
 };
 

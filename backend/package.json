@@ -28,9 +28,11 @@
     "mongoose": "^9.5.0",
     "multer": "^2.4.0",
     "multer-storage-cloudinary": "^4.0.0",
+    "nodemailer": "^10.0.10",
     "nodemon": "^3.1.14",
     "razorpay": "^2.9.8",
     "react-leaflet": "^5.0.0",
+    "resend": "^6.30.0",
     "zod": "^4.4.3"
   }
 }

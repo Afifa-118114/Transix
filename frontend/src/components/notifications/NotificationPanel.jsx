@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { 
   FiBell, FiX, FiMessageSquare, FiBriefcase, FiUser, 
-  FiArrowRight, FiCheckCircle
+  FiArrowRight, FiCheckCircle, FiCheck, FiExternalLink
 } from "react-icons/fi";
 import { GraduationCap } from "lucide-react";
 import { 
@@ -62,7 +62,7 @@ export default function NotificationPanel({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
-  // Categorize notifications into TRAVELERS (Campus Coordinators & Personal Travelers) and VENDORS (Vendors)
+  // Categorize notifications
   const categorized = useMemo(() => {
     const campusCoordinators = [];
     const personalTravelers = [];
@@ -78,8 +78,8 @@ export default function NotificationPanel({
           roleDisplayName: "Vendor",
           routeText: n.tripId?.source && n.tripId?.destination 
             ? `${n.tripId.source} → ${n.tripId.destination}`
-            : (n.tripTitle || "Mumbai → Kerala"),
-          messageText: n.previewText || n.messageId?.message || "Operational fleet update",
+            : (n.tripTitle || "Charter Fleet Route"),
+          messageText: n.previewText || n.messageId?.message || "Operational fleet quotation update",
         });
       } else {
         const isCampus = n.senderRole === "coordinator" || n.tripId?.tripCategory === "CAMPUS" || (n.tripTitle && n.tripTitle.toLowerCase().includes("sies"));
@@ -90,7 +90,7 @@ export default function NotificationPanel({
           roleDisplayName: isCampus ? "Campus Coordinator" : "Personal Traveler",
           routeText: n.tripId?.source && n.tripId?.destination 
             ? `${n.tripId.source} → ${n.tripId.destination}`
-            : (n.tripTitle || "Trip Route"),
+            : (n.tripTitle || "Active Journey"),
           messageText: n.previewText || n.messageId?.message || "Operational message",
         };
 
@@ -167,7 +167,7 @@ export default function NotificationPanel({
     if (!dateStr) return "";
     const diff = Math.max(0, Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000));
     if (diff < 60) return "Just now";
-    if (diff < 3600) return `${Math.floor(diff / 60)} min ago`;
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
     if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
     return `${Math.floor(diff / 86400)}d ago`;
   };
@@ -181,8 +181,8 @@ export default function NotificationPanel({
         onClick={() => handleNotificationClick(notif)}
         className={`p-3.5 rounded-xl border transition cursor-pointer flex flex-col gap-2 ${
           notif.read
-            ? "bg-slate-900/60 border-slate-800 hover:bg-slate-850/70 opacity-80"
-            : "bg-slate-850 border-indigo-900/50 hover:bg-slate-800 shadow-xs"
+            ? "bg-white border-[#EBEBEB] hover:bg-[#F8FAFC] opacity-90 shadow-2xs"
+            : "bg-[#F8FAFC] border-[#BFDBFE] hover:border-[#0064D2] shadow-xs"
         }`}
       >
         <div className="flex items-center justify-between gap-2">
@@ -190,10 +190,10 @@ export default function NotificationPanel({
             <span
               className={`p-1 rounded shrink-0 border ${
                 isVendor
-                  ? "bg-purple-950 text-purple-400 border-purple-800/60"
+                  ? "bg-[#F5F3FF] text-[#7C3AED] border-[#DDD6FE]"
                   : notif.roleDisplayName === "Campus Coordinator"
-                  ? "bg-indigo-950 text-indigo-400 border-indigo-800/60"
-                  : "bg-emerald-950 text-emerald-400 border-emerald-800/60"
+                  ? "bg-[#EBF3FF] text-[#0064D2] border-[#BFDBFE]"
+                  : "bg-[#E6F4EA] text-[#00A65E] border-[#CEEAD6]"
               }`}
             >
               {isVendor ? (
@@ -205,38 +205,38 @@ export default function NotificationPanel({
               )}
             </span>
             <span
-              className={`text-[10px] font-black uppercase tracking-wider truncate ${
-                isVendor ? "text-purple-400" : "text-indigo-400"
+              className={`text-[10px] font-bold uppercase tracking-wider truncate ${
+                isVendor ? "text-[#7C3AED]" : "text-[#0064D2]"
               }`}
             >
               {isVendor ? "VENDOR UPDATE" : "TRAVELER UPDATE"}
             </span>
             {!notif.read && (
-              <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0 animate-pulse"></span>
+              <span className="w-1.5 h-1.5 rounded-full bg-[#0064D2] shrink-0 animate-pulse"></span>
             )}
           </div>
-          <span className="text-[10px] text-slate-500 shrink-0 font-medium">
+          <span className="text-[10px] text-[#666666] shrink-0 font-medium">
             {formatTimeAgo(notif.createdAt)}
           </span>
         </div>
 
         {/* Sender Name & Role Subtitle */}
         <div>
-          <div className="text-xs font-black text-white">{notif.senderDisplayName}</div>
-          <div className="text-[11px] font-semibold text-slate-400 mt-0.5 flex items-center gap-1.5">
+          <div className="text-xs font-bold text-[#1A1A1A]">{notif.senderDisplayName}</div>
+          <div className="text-[11px] font-medium text-[#666666] mt-0.5 flex items-center gap-1.5">
             <span>{notif.roleDisplayName}</span>
-            <span className="text-slate-600">•</span>
-            <span className="text-indigo-300 font-bold">{notif.routeText}</span>
+            <span className="text-[#D1D5DB]">•</span>
+            <span className="text-[#0064D2] font-semibold">{notif.routeText}</span>
           </div>
         </div>
 
         {/* Message / Update Body */}
-        <div className="text-xs text-slate-300 italic bg-slate-950/60 border border-slate-800/80 rounded-lg p-2.5 leading-relaxed">
+        <div className="text-xs text-[#1A1A1A] bg-white border border-[#EBEBEB] rounded-lg p-2.5 leading-relaxed font-medium">
           "{notif.messageText}"
         </div>
 
         {/* Click to open in chat */}
-        <div className="text-[10px] text-indigo-400 hover:text-indigo-300 font-bold flex items-center justify-end gap-1 pt-1">
+        <div className="text-[10px] text-[#0064D2] hover:text-[#0052B4] font-semibold flex items-center justify-end gap-1 pt-0.5">
           <span>Open in Chat</span>
           <FiArrowRight size={11} />
         </div>
@@ -245,24 +245,24 @@ export default function NotificationPanel({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-end p-3 sm:p-6 font-sans dark">
+    <div className="fixed inset-0 z-50 flex items-start justify-end p-3 sm:p-6 font-sans">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity"
+        className="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity"
         onClick={onClose}
       />
 
       {/* Notification Dropdown Panel */}
-      <div className="relative w-full max-w-sm sm:max-w-md bg-slate-900 border border-slate-750 rounded-2xl shadow-2xl z-10 flex flex-col overflow-hidden text-slate-200 mt-14 sm:mt-16 animate-in fade-in slide-in-from-top-4 duration-150 max-h-[85vh]">
+      <div className="relative w-full max-w-sm sm:max-w-md bg-white border border-[#EBEBEB] rounded-2xl shadow-2xl z-10 flex flex-col overflow-hidden text-[#1A1A1A] mt-14 sm:mt-16 animate-in fade-in slide-in-from-top-4 duration-150 max-h-[85vh]">
         {/* Header */}
-        <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/80 shrink-0">
+        <div className="p-4 border-b border-[#EBEBEB] flex items-center justify-between bg-white shrink-0">
           <div className="flex items-center gap-2">
-            <FiBell className="text-indigo-400" size={16} />
-            <h3 className="text-xs font-black uppercase tracking-wider text-white">
+            <FiBell className="text-[#0064D2]" size={16} />
+            <h3 className="text-xs font-bold uppercase tracking-wider text-[#1A1A1A]">
               Operational Notifications
             </h3>
             {unreadCount > 0 && (
-              <span className="px-1.5 py-0.2 rounded-full bg-indigo-500 text-white text-[10px] font-black shadow-xs">
+              <span className="px-1.5 py-0.2 rounded-full bg-[#F5330F] text-white text-[10px] font-bold shadow-xs">
                 {unreadCount}
               </span>
             )}
@@ -273,7 +273,7 @@ export default function NotificationPanel({
               <button
                 type="button"
                 onClick={handleMarkAllRead}
-                className="text-[10px] text-indigo-400 hover:text-indigo-300 font-bold transition hover:underline"
+                className="text-[10px] text-[#0064D2] hover:text-[#0052B4] font-semibold transition hover:underline"
               >
                 Mark all read
               </button>
@@ -281,7 +281,7 @@ export default function NotificationPanel({
             <button
               type="button"
               onClick={onClose}
-              className="p-1 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition"
+              className="p-1 text-[#666666] hover:text-[#1A1A1A] rounded-lg hover:bg-[#F5F7FA] transition"
               title="Close"
             >
               <FiX size={16} />
@@ -290,14 +290,14 @@ export default function NotificationPanel({
         </div>
 
         {/* Categories Bar: [ All ] [ TRAVELERS ] [ VENDORS ] */}
-        <div className="flex items-center gap-1.5 p-2 bg-slate-950/90 border-b border-slate-800 shrink-0 text-xs">
+        <div className="flex items-center gap-1.5 p-2 bg-[#F8FAFC] border-b border-[#EBEBEB] shrink-0 text-xs">
           <button
             type="button"
             onClick={() => setActiveCategoryFilter("all")}
-            className={`flex-1 py-1.5 px-2 rounded-lg font-bold text-center transition ${
+            className={`flex-1 py-1.5 px-2 rounded-lg font-semibold text-center transition ${
               activeCategoryFilter === "all"
-                ? "bg-slate-800 text-white shadow-xs"
-                : "text-slate-400 hover:text-white"
+                ? "bg-[#0064D2] text-white shadow-xs"
+                : "text-[#666666] hover:text-[#1A1A1A] hover:bg-white"
             }`}
           >
             All ({notifications.length})
@@ -305,10 +305,10 @@ export default function NotificationPanel({
           <button
             type="button"
             onClick={() => setActiveCategoryFilter("travelers")}
-            className={`flex-1 py-1.5 px-2 rounded-lg font-bold text-center transition flex items-center justify-center gap-1 ${
+            className={`flex-1 py-1.5 px-2 rounded-lg font-semibold text-center transition flex items-center justify-center gap-1 ${
               activeCategoryFilter === "travelers"
-                ? "bg-indigo-600 text-white shadow-xs"
-                : "text-slate-400 hover:text-white"
+                ? "bg-[#0064D2] text-white shadow-xs"
+                : "text-[#666666] hover:text-[#1A1A1A] hover:bg-white"
             }`}
           >
             <span>TRAVELERS</span>
@@ -319,10 +319,10 @@ export default function NotificationPanel({
           <button
             type="button"
             onClick={() => setActiveCategoryFilter("vendors")}
-            className={`flex-1 py-1.5 px-2 rounded-lg font-bold text-center transition flex items-center justify-center gap-1 ${
+            className={`flex-1 py-1.5 px-2 rounded-lg font-semibold text-center transition flex items-center justify-center gap-1 ${
               activeCategoryFilter === "vendors"
-                ? "bg-purple-600 text-white shadow-xs"
-                : "text-slate-400 hover:text-white"
+                ? "bg-[#0064D2] text-white shadow-xs"
+                : "text-[#666666] hover:text-[#1A1A1A] hover:bg-white"
             }`}
           >
             <span>VENDORS</span>
@@ -333,17 +333,17 @@ export default function NotificationPanel({
         </div>
 
         {/* List Body */}
-        <div className="flex-1 overflow-y-auto p-3 space-y-4 custom-scrollbar bg-slate-950/40">
+        <div className="flex-1 overflow-y-auto p-3 space-y-4 custom-scrollbar bg-[#F5F7FA]">
           {loading ? (
-            <div className="py-12 flex flex-col items-center justify-center text-slate-400 gap-2">
-              <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+            <div className="py-12 flex flex-col items-center justify-center text-[#666666] gap-2">
+              <div className="w-6 h-6 border-2 border-[#0064D2] border-t-transparent rounded-full animate-spin"></div>
               <span className="text-xs font-semibold">Loading notifications...</span>
             </div>
           ) : notifications.length === 0 ? (
-            <div className="py-12 text-center text-slate-400 px-4">
-              <FiBell className="mx-auto text-slate-600 mb-2" size={24} />
-              <p className="text-xs font-bold text-slate-300">No new notifications.</p>
-              <p className="text-[11px] text-slate-500 mt-0.5">
+            <div className="py-12 text-center text-[#666666] px-4">
+              <FiBell className="mx-auto text-[#9CA3AF] mb-2" size={24} />
+              <p className="text-xs font-bold text-[#1A1A1A]">No new notifications.</p>
+              <p className="text-[11px] text-[#666666] mt-0.5">
                 When operational updates arrive, they will appear here.
               </p>
             </div>
@@ -351,19 +351,19 @@ export default function NotificationPanel({
             <>
               {/* SECTION: TRAVELERS */}
               {(activeCategoryFilter === "all" || activeCategoryFilter === "travelers") && (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between pb-1 border-b border-slate-800/80">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-indigo-400 flex items-center gap-1.5">
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between pb-1 border-b border-[#EBEBEB]">
+                    <div className="text-[10px] font-bold uppercase tracking-widest text-[#0064D2] flex items-center gap-1.5">
                       <FiUser size={12} />
                       <span>TRAVELERS</span>
                     </div>
-                    <span className="text-[10px] text-slate-500 font-semibold">
+                    <span className="text-[10px] text-[#666666] font-semibold">
                       {categorized.travelers.length} update{categorized.travelers.length !== 1 ? "s" : ""}
                     </span>
                   </div>
 
                   {categorized.travelers.length === 0 ? (
-                    <div className="p-4 bg-slate-900/40 rounded-xl border border-slate-800 text-center text-xs text-slate-500 italic">
+                    <div className="p-4 bg-white rounded-xl border border-[#EBEBEB] text-center text-xs text-[#666666] italic">
                       No traveler notifications.
                     </div>
                   ) : (
@@ -376,19 +376,19 @@ export default function NotificationPanel({
 
               {/* SECTION: VENDORS */}
               {(activeCategoryFilter === "all" || activeCategoryFilter === "vendors") && (
-                <div className="space-y-3 pt-1">
-                  <div className="flex items-center justify-between pb-1 border-b border-slate-800/80">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-purple-400 flex items-center gap-1.5">
+                <div className="space-y-2.5 pt-1">
+                  <div className="flex items-center justify-between pb-1 border-b border-[#EBEBEB]">
+                    <div className="text-[10px] font-bold uppercase tracking-widest text-[#7C3AED] flex items-center gap-1.5">
                       <FiBriefcase size={12} />
                       <span>VENDORS</span>
                     </div>
-                    <span className="text-[10px] text-slate-500 font-semibold">
+                    <span className="text-[10px] text-[#666666] font-semibold">
                       {categorized.vendors.length} update{categorized.vendors.length !== 1 ? "s" : ""}
                     </span>
                   </div>
 
                   {categorized.vendors.length === 0 ? (
-                    <div className="p-4 bg-slate-900/40 rounded-xl border border-slate-800 text-center text-xs text-slate-500 italic">
+                    <div className="p-4 bg-white rounded-xl border border-[#EBEBEB] text-center text-xs text-[#666666] italic">
                       No vendor notifications.
                     </div>
                   ) : (
@@ -400,6 +400,18 @@ export default function NotificationPanel({
               )}
             </>
           )}
+        </div>
+
+        {/* Footer Link to Dedicated Page */}
+        <div className="p-3 bg-white border-t border-[#EBEBEB] text-center">
+          <Link
+            to="/operator/notifications"
+            onClick={onClose}
+            className="text-xs font-semibold text-[#0064D2] hover:text-[#0052B4] inline-flex items-center gap-1 transition"
+          >
+            <span>Open Full Notifications Dashboard</span>
+            <FiExternalLink size={12} />
+          </Link>
         </div>
       </div>
     </div>

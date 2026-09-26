@@ -235,6 +235,11 @@ const tripSchema = new mongoose.Schema(
       default: false,
     },
 
+    isFallback: {
+      type: Boolean,
+      default: false,
+    },
+
     itinerary: {
       type: Array,
       default: [],
@@ -304,6 +309,16 @@ const tripSchema = new mongoose.Schema(
           status: { type: String, default: "Confirmed" },
         },
       ],
+    },
+
+    bookingSummary: {
+      type: Object,
+      default: null,
+    },
+
+    emailDelivery: {
+      type: Object,
+      default: null,
     },
   },
   {

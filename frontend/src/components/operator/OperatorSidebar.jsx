@@ -15,6 +15,13 @@ const IconDashboard = ({ size = 17 }) => (
     <rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" />
   </svg>
 );
+const IconAlert = ({ size = 17 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10" />
+    <line x1="12" y1="8" x2="12" y2="12" />
+    <line x1="12" y1="16" x2="12.01" y2="16" />
+  </svg>
+);
 const IconAllTrips = ({ size = 17 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
     <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" />
@@ -41,16 +48,7 @@ const IconActivities = ({ size = 17 }) => (
     <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
   </svg>
 );
-const IconVendors = ({ size = 17 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" />
-  </svg>
-);
-const IconQuotes = ({ size = 17 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-  </svg>
-);
+
 const IconVendorPortal = ({ size = 17 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
     <rect x="2" y="7" width="20" height="14" rx="2" /><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />
@@ -134,7 +132,7 @@ function Divider() {
 }
 
 /* ── Main Export ── */
-export default function OperatorSidebar({ personalCount, campusCount, pendingCount }) {
+export default function OperatorSidebar({ personalCount, campusCount, pendingCount, actionCount }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { logout } = useAuth();
@@ -144,16 +142,12 @@ export default function OperatorSidebar({ personalCount, campusCount, pendingCou
   const pathname = location.pathname;
 
   const isDashboard = pathname === "/operator/dashboard";
-  const isPersonal = pathname === "/operator/trips" && typeParam === "personal";
-  const isCampus = pathname === "/operator/trips" && typeParam === "campus";
-  const isAllTrips = pathname === "/operator/trips" && !typeParam;
   const isBookings = pathname === "/operator/bookings";
   const isActivities = pathname === "/operator/activities";
-  const isVendors = pathname === "/operator/vendors";
-  const isVendorRequests = pathname === "/operator/vendor-requests";
   const isDemoVendorPortal = pathname === "/vendor/requests";
   const isGuidePortal = pathname === "/guide/portal" || pathname.startsWith("/guide/");
   const isChat = pathname === "/operator/chat";
+  const isNotifications = pathname === "/operator/notifications";
 
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
   const [isNotificationPanelOpen, setIsNotificationPanelOpen] = useState(false);
@@ -244,27 +238,6 @@ export default function OperatorSidebar({ personalCount, campusCount, pendingCou
 
         <Divider />
 
-        <SectionLabel label="Trips" />
-        <NavItem to="/operator/trips" icon={IconAllTrips} label="All Itineraries" active={isAllTrips} />
-        <NavItem
-          to="/operator/trips?type=personal"
-          icon={IconPersonal}
-          label="Personal Trips"
-          active={isPersonal}
-          badge={typeof personalCount === "number" ? personalCount : undefined}
-          badgeVariant="count"
-        />
-        <NavItem
-          to="/operator/trips?type=campus"
-          icon={IconCampus}
-          label="Campus Tours"
-          active={isCampus}
-          badge={typeof campusCount === "number" ? campusCount : undefined}
-          badgeVariant="count"
-        />
-
-        <Divider />
-
         <SectionLabel label="Operations" />
         <NavItem
           to="/operator/bookings"
@@ -279,8 +252,6 @@ export default function OperatorSidebar({ personalCount, campusCount, pendingCou
         <Divider />
 
         <SectionLabel label="Network" />
-        <NavItem to="/operator/vendors" icon={IconVendors} label="Vendor Directory" active={isVendors} />
-        <NavItem to="/operator/vendor-requests" icon={IconQuotes} label="Vendor Quotes" active={isVendorRequests} />
         <NavItem
           to="/vendor/requests"
           icon={IconVendorPortal}
@@ -296,12 +267,12 @@ export default function OperatorSidebar({ personalCount, campusCount, pendingCou
         <SectionLabel label="Communication" />
         <NavItem to="/operator/chat" icon={IconChat} label="Traveler Chat" active={isChat} />
         <NavItem
+          to="/operator/notifications"
           icon={IconBell}
           label="Alerts & Notifications"
-          active={false}
+          active={isNotifications}
           badge={unreadNotificationCount > 0 ? unreadNotificationCount : undefined}
           badgeVariant="alert"
-          onClick={() => setIsNotificationPanelOpen(prev => !prev)}
         />
       </div>
 

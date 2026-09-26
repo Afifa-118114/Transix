@@ -75,8 +75,8 @@ const generateAITrip = asyncHandler(async (req, res) => {
     purpose: tripData.purpose,
 
     status: "Generated",
-
-    aiGenerated: true,
+    isFallback: aiData.isFallback || false,
+    aiGenerated: !aiData.isFallback,
     itinerary: aiData.days.map((day, dIdx) => ({
       ...day,
       plan: (day.plan || []).map(p => ({

@@ -24,6 +24,8 @@ const {
   getOperatorBookings,
   getOperatorAllVendorRequests,
   getOperatorConversations,
+  sendTripConfirmationEmail,
+  testEmailDispatch,
 } = require("../controllers/operatorController");
 
 const {
@@ -45,6 +47,8 @@ router.post("/trips/:tripId/claim", claimOperatorTrip);
 router.post("/trips/:tripId/release", releaseOperatorTrip);
 router.get("/trips/:tripId/messages", getTripMessages);
 router.post("/trips/:tripId/messages", sendTripMessage);
+router.post("/trips/:tripId/send-confirmation-email", sendTripConfirmationEmail);
+router.post("/email/test", testEmailDispatch);
 router.get("/trips/:tripId/messages/unread", getUnreadMessageCount);
 router.patch("/trips/:tripId/messages/read", markMessagesRead);
 router.patch("/trips/:tripId/status", updateTripOperationalStatus);

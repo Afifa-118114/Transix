@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { generateAITrip } from "../../api/tripApi";
 import { normalizeTrip } from "../../utils/formatTrip";
 import { clearInventoryCache } from "../../services/inventoryService";
+import { getOptionAvailability, getTripFeasibility, validateStateConsistency } from "../../utils/tripFeasibilityEngine";
 import toast from "react-hot-toast";
 import {
   Sparkles,
@@ -488,11 +489,26 @@ export default function TripForm({ setTrip }) {
         break;
     }
 
+    if (!needsClarification) {
+      if (!activeQuestion.multi && activeQuestion.id !== "source" && activeQuestion.id !== "destination" && activeQuestion.id !== "budget" && activeQuestion.id !== "travelers" && activeQuestion.id !== "dates") {
+        const avail = getOptionAvailability(nextAnswers, activeQuestion.id, inputValue.trim());
+        if (!avail.available) {
+          needsClarification = true;
+          clarMsg = avail.reason;
+        }
+      }
+    }
+
     if (needsClarification) {
       setClarification(clarMsg);
     } else {
       setClarification(null);
-      setAnswers(nextAnswers);
+      const { nextState, cleared } = validateStateConsistency(nextAnswers, QUESTIONS);
+      setAnswers(nextState);
+
+      if (cleared.length > 0) {
+        toast(`Selections for ${cleared.join(", ")} were cleared because they are no longer feasible.`, { icon: "⚠️" });
+      }
 
       if (editingQuestionId) {
         setEditingQuestionId(null);
@@ -534,7 +550,12 @@ export default function TripForm({ setTrip }) {
         localStorage.removeItem("transix_builder_trip");
         if (setTrip) setTrip(normalized);
         window.dispatchEvent(new CustomEvent("transix_trip_updated", { detail: normalized }));
-        toast.success(`Itinerary created for ${normalized.destination}!`, { icon: "✨" });
+        
+        if (normalized.isFallback) {
+          toast.success(`Standard itinerary generated for ${normalized.destination} (AI service is currently unavailable)`, { icon: "⚙️", duration: 5000 });
+        } else {
+          toast.success(`AI itinerary created for ${normalized.destination}!`, { icon: "✨" });
+        }
       }
     } catch (err) {
       console.error("Trip generation error:", err);
@@ -547,6 +568,11 @@ export default function TripForm({ setTrip }) {
 
   const handleGenerate = async () => {
     if (loading || isGeneratingRef.current) return;
+    const finalCheck = getTripFeasibility(answers);
+    if (!finalCheck.valid) {
+      toast.error(finalCheck.reason, { duration: 5000 });
+      return;
+    }
     const mapEnum = (val, validOptions, defaultOption) => {
       if (!val) return defaultOption;
       const normalized = val.toLowerCase();
@@ -1131,19 +1157,36 @@ export default function TripForm({ setTrip }) {
                         .includes(sug.toLowerCase())
                     : inputValue.trim().toLowerCase() === sug.toLowerCase();
 
+                  const avail = getOptionAvailability(answers, activeQuestion.id, sug);
+
                   return (
-                    <button
-                      key={sug}
-                      type="button"
-                      onClick={() => handleSuggestionClick(sug)}
-                      className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-150 cursor-pointer ${
-                        isSelected
-                          ? "bg-[#006CE4] text-white border border-[#006CE4] shadow-xs font-semibold"
-                          : "bg-[#F8FAFC] dark:bg-slate-800/80 border border-[#E2E8F0] dark:border-slate-700 text-[#334155] dark:text-slate-300 hover:border-[#006CE4]/40 hover:text-[#006CE4] hover:bg-[#EFF6FF] dark:hover:bg-slate-700/80"
-                      }`}
-                    >
-                      {sug}
-                    </button>
+                    <div key={sug} className="flex flex-col items-center">
+                      <button
+                        type="button"
+                        onClick={() => { if(avail.available) handleSuggestionClick(sug); }}
+                        className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-150 ${
+                          !avail.available 
+                            ? "bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed opacity-60"
+                            : isSelected
+                            ? "bg-[#006CE4] text-white border border-[#006CE4] shadow-xs font-semibold cursor-pointer"
+                            : avail.warning
+                            ? "bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40 cursor-pointer"
+                            : "bg-[#F8FAFC] dark:bg-slate-800/80 border border-[#E2E8F0] dark:border-slate-700 text-[#334155] dark:text-slate-300 hover:border-[#006CE4]/40 hover:text-[#006CE4] hover:bg-[#EFF6FF] dark:hover:bg-slate-700/80 cursor-pointer"
+                        }`}
+                      >
+                        {sug}
+                      </button>
+                      {!avail.available && (
+                        <span className="text-[9px] mt-0.5 text-rose-500 font-medium max-w-[120px] text-center leading-tight">
+                          {avail.reason}
+                        </span>
+                      )}
+                      {avail.available && avail.warning && !isSelected && (
+                        <span className="text-[9px] mt-0.5 text-amber-600 dark:text-amber-500 font-medium max-w-[120px] text-center leading-tight">
+                          ⚠ {avail.reason}
+                        </span>
+                      )}
+                    </div>
                   );
                 })}
               </div>

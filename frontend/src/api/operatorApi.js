@@ -161,6 +161,13 @@ export const sendTripMessage = async (tripId, data, token) => {
   return res.data;
 };
 
+export const sendTripConfirmationEmail = async (tripId, data, token) => {
+  const res = await axios.post(`${API}/operator/trips/${tripId}/send-confirmation-email`, data, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return res.data;
+};
+
 export const getUnreadMessageCount = async (tripId, token) => {
   const res = await axios.get(`${API}/operator/trips/${tripId}/messages/unread`, {
     headers: { Authorization: `Bearer ${token}` },
