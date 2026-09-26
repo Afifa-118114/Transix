@@ -742,7 +742,7 @@ export default function TripForm({ setTrip }) {
                 setIsReviewing(false);
                 setShowSummary(true);
               }}
-              className="rounded-2xl bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white px-8 py-3 text-sm font-bold shadow-lg shadow-indigo-600/25 active:scale-95 transition-all flex items-center gap-2 cursor-pointer"
+              className="rounded-xl bg-[#006CE4] hover:bg-[#005bb5] text-white px-6 py-2.5 text-xs sm:text-sm font-semibold shadow-xs active:scale-[0.98] transition flex items-center gap-2 cursor-pointer"
             >
               <span>Looks Good</span>
               <Check className="w-4 h-4" />
@@ -754,218 +754,213 @@ export default function TripForm({ setTrip }) {
   }
 
   // -------------------------------------------------------------
-  // RENDER: Prompt Composer (Full Light & Dark Mode)
+  // RENDER: Prompt Composer (Trip.com UI/UX Design)
   // -------------------------------------------------------------
   return (
-    <div className="flex flex-col min-h-[calc(100vh-6rem)] sm:min-h-[calc(100vh-8rem)] max-w-2xl sm:max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10 justify-between">
-      {/* Question & Journey History Stream */}
-      <div>
-        {/* Stream of Previous Answers (Dynamically appears above current question) */}
-        {currentIdx > 0 && !editingQuestionId && (
-          <div className="mb-6 sm:mb-8 space-y-2">
-            <div className="flex items-center justify-between pb-1 px-1">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                Your Journey Details
-              </span>
-              <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500">
-                Step {currentIdx + 1} of {QUESTIONS.length}
-              </span>
-            </div>
-
-            <div className="space-y-2">
-              {QUESTIONS.slice(0, currentIdx).map((q, idx) => {
-                const answerVal = getAnswerDisplay(q);
-                if (!answerVal) return null;
-                const isLastAnswer = idx === currentIdx - 1;
-                return (
-                  <div
-                    key={q.id}
-                    className={`flex items-center justify-between gap-3 px-3.5 py-2 rounded-xl transition-all ${
-                      isLastAnswer
-                        ? "bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200/80 dark:border-blue-900/60 shadow-2xs"
-                        : "bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <span
-                        className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
-                          isLastAnswer
-                            ? "bg-[#006CE4] text-white"
-                            : "bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300"
-                        }`}
-                      >
-                        ✓
-                      </span>
-                      <span className="text-xs font-medium text-slate-600 dark:text-slate-400 truncate">
-                        {q.title}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span
-                        className={`text-xs font-semibold px-2.5 py-0.5 rounded-lg ${
-                          isLastAnswer
-                            ? "bg-white dark:bg-slate-900 text-[#006CE4] dark:text-blue-400 border border-blue-200 dark:border-blue-800 font-bold shadow-2xs"
-                            : "bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700"
-                        }`}
-                      >
-                        {answerVal}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => handleEditClick(q.id)}
-                        className="text-[11px] font-semibold text-slate-400 hover:text-[#006CE4] dark:hover:text-blue-400 px-2 py-0.5 rounded hover:bg-white dark:hover:bg-slate-700 transition cursor-pointer"
-                      >
-                        Edit
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+    <div
+      className="w-full max-w-xl sm:max-w-2xl mx-auto px-4 sm:px-6 py-6 sm:py-8 flex flex-col justify-center"
+      style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif' }}
+    >
+      {/* Stream of Previous Answers (Stacked cleanly above active question) */}
+      {currentIdx > 0 && !editingQuestionId && (
+        <div className="mb-4 sm:mb-5 space-y-1.5">
+          <div className="flex items-center justify-between pb-1 px-0.5">
+            <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#64748B] dark:text-slate-400">
+              Your Journey Details
+            </span>
+            <span className="text-[11px] font-semibold text-[#006CE4] dark:text-blue-400">
+              Step {currentIdx + 1} of {QUESTIONS.length}
+            </span>
           </div>
-        )}
 
-        {/* Editing Mode Banner */}
-        {editingQuestionId && (
-          <div className="mb-6 flex items-center justify-between px-3.5 py-2 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60">
-            <div className="flex items-center gap-2 text-xs font-medium text-amber-800 dark:text-amber-300">
-              <span>✏️ Editing your answer for:</span>
-              <span className="font-bold underline">{activeQuestion.title}</span>
-            </div>
-            <button
-              type="button"
-              onClick={handlePrevStep}
-              className="text-xs font-bold text-amber-800 dark:text-amber-300 hover:underline cursor-pointer"
-            >
-              Cancel Edit
-            </button>
-          </div>
-        )}
-
-        {/* Question Area */}
-        <div className="mb-8 sm:mb-12">
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-[1.2]">
-            {clarification ? clarification : activeQuestion.title}
-          </h1>
-
-          {!clarification && activeQuestion.subtitle && (
-            <p className="text-base sm:text-lg text-slate-600 dark:text-slate-400 font-normal leading-relaxed mt-2.5 max-w-xl">
-              {activeQuestion.subtitle}
-            </p>
-          )}
-
-          {clarification && (
-            <div className="mt-3.5">
-              <span className="text-xs sm:text-sm text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-full px-4 py-1.5 inline-flex items-center gap-2 font-medium">
-                <span>Please clarify your answer above</span>
-              </span>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Composer Section */}
-      <div className="w-full">
-        {/* Suggestion Chips */}
-        {activeQuestion.suggestions && activeQuestion.suggestions.length > 0 && (
-          <div className="mb-4">
-            <div className="flex items-center justify-between mb-2.5">
-              <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-400 dark:text-slate-500">
-                {activeQuestion.multi ? "Select multiple or type:" : "Suggested"}
-              </span>
-              {activeQuestion.multi && (
-                <span className="text-[11px] text-slate-400 dark:text-slate-500 font-medium">
-                  Tap to add or remove
-                </span>
-              )}
-            </div>
-
-            <div className="flex flex-wrap gap-2 sm:gap-2.5">
-              {activeQuestion.suggestions.map((sug) => {
-                const isSelected = activeQuestion.multi
-                  ? inputValue
-                      .split(",")
-                      .map((i) => i.trim().toLowerCase())
-                      .includes(sug.toLowerCase())
-                  : inputValue.trim().toLowerCase() === sug.toLowerCase();
-
-                return (
-                  <button
-                    key={sug}
-                    type="button"
-                    onClick={() => handleSuggestionClick(sug)}
-                    className={`rounded-2xl px-4 py-2 sm:px-5 sm:py-2.5 text-xs sm:text-sm font-semibold transition-all duration-200 cursor-pointer ${
-                      isSelected
-                        ? "bg-gradient-to-r from-indigo-600 to-indigo-700 text-white border border-indigo-600 shadow-md shadow-indigo-600/25 scale-[1.02]"
-                        : "bg-white dark:bg-[#131b2e] border border-slate-200/90 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-indigo-300 dark:hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50/40 dark:hover:bg-indigo-950/40 hover:-translate-y-0.5 shadow-2xs"
-                    }`}
-                  >
-                    {sug}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Premium AI Prompt Box (Theme Responsive) */}
-        <div className="relative bg-white dark:bg-[#131b2e] border-2 border-indigo-100 dark:border-slate-800 hover:border-indigo-200 dark:hover:border-slate-700 focus-within:border-indigo-600 dark:focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-500/10 rounded-3xl p-5 sm:p-7 shadow-xl shadow-indigo-500/5 dark:shadow-black/40 transition-all duration-200">
-          <textarea
-            ref={textareaRef}
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={clarification ? "Type your clarified answer..." : activeQuestion.placeholder}
-            className="w-full bg-transparent text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 border-none outline-none resize-none text-base sm:text-lg font-medium leading-relaxed min-h-[75px] sm:min-h-[90px] py-1"
-            rows={1}
-            autoFocus
-          />
-
-          <div className="flex items-center justify-between pt-4 mt-2 border-t border-slate-100 dark:border-slate-800">
-            <div className="flex items-center gap-2.5">
-              {(currentIdx > 0 || editingQuestionId) && (
-                <button
-                  type="button"
-                  onClick={handlePrevStep}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131b2e] text-xs font-semibold text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-300 transition cursor-pointer"
+          <div className="space-y-1.5">
+            {QUESTIONS.slice(0, currentIdx).map((q, idx) => {
+              const answerVal = getAnswerDisplay(q);
+              if (!answerVal) return null;
+              const isLastAnswer = idx === currentIdx - 1;
+              return (
+                <div
+                  key={q.id}
+                  className={`flex items-center justify-between gap-3 px-3.5 py-2 rounded-xl border transition-all ${
+                    isLastAnswer
+                      ? "bg-[#EFF6FF] dark:bg-blue-950/40 border-[#BFDBFE] dark:border-blue-900/60 shadow-2xs"
+                      : "bg-white dark:bg-slate-800/60 border-[#E2E8F0] dark:border-slate-800"
+                  }`}
                 >
-                  <ArrowLeft className="w-3.5 h-3.5" />
-                  <span>{editingQuestionId ? "Cancel Edit" : "Previous"}</span>
-                </button>
-              )}
-              <div className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500 font-medium">
-                <span>Return ↵ to submit</span>
-                <span className="hidden sm:inline text-slate-300 dark:text-slate-600">
-                  · Shift + Return for new line
-                </span>
-              </div>
-            </div>
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span
+                      className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
+                        isLastAnswer
+                          ? "bg-[#006CE4] text-white"
+                          : "bg-[#F1F5F9] text-[#64748B] dark:bg-slate-700 dark:text-slate-300"
+                      }`}
+                    >
+                      ✓
+                    </span>
+                    <span className="text-xs font-medium text-[#475569] dark:text-slate-300 truncate">
+                      {q.title}
+                    </span>
+                  </div>
 
-            <button
-              type="button"
-              onClick={validateAndStore}
-              disabled={!inputValue.trim()}
-              className={`rounded-2xl px-6 py-2.5 text-xs sm:text-sm font-bold transition-all duration-200 flex items-center gap-2 ${
-                inputValue.trim()
-                  ? "bg-gradient-to-r from-indigo-600 via-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white shadow-md shadow-indigo-600/25 active:scale-95 cursor-pointer"
-                  : "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed"
-              }`}
-            >
-              <span>
-                {editingQuestionId
-                  ? "Save Change"
-                  : currentIdx === QUESTIONS.length - 1
-                  ? "Complete"
-                  : "Continue"}
-              </span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span
+                      className={`text-xs px-2.5 py-0.5 rounded-lg border font-semibold ${
+                        isLastAnswer
+                          ? "bg-white dark:bg-slate-900 text-[#006CE4] dark:text-blue-400 border-[#BFDBFE] dark:border-blue-800 shadow-2xs"
+                          : "bg-[#F8FAFC] dark:bg-slate-900 text-[#1E293B] dark:text-slate-200 border-[#E2E8F0] dark:border-slate-700"
+                      }`}
+                    >
+                      {answerVal}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleEditClick(q.id)}
+                      className="text-[11px] font-semibold text-[#64748B] hover:text-[#006CE4] px-1.5 py-0.5 rounded hover:bg-white dark:hover:bg-slate-700 transition cursor-pointer"
+                    >
+                      Edit
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
+      )}
 
-        <div ref={messagesEndRef} />
+      {/* Editing Mode Banner */}
+      {editingQuestionId && (
+        <div className="mb-3.5 flex items-center justify-between px-3.5 py-2 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60">
+          <div className="flex items-center gap-2 text-xs font-medium text-amber-800 dark:text-amber-300">
+            <span>✏️ Editing your answer for:</span>
+            <span className="font-bold underline">{activeQuestion.title}</span>
+          </div>
+          <button
+            type="button"
+            onClick={handlePrevStep}
+            className="text-xs font-bold text-amber-800 dark:text-amber-300 hover:underline cursor-pointer"
+          >
+            Cancel Edit
+          </button>
+        </div>
+      )}
+
+      {/* Question displayed DIRECTLY above the prompt area */}
+      <div className="mb-3 sm:mb-3.5">
+        <h1 className="text-xl sm:text-2xl font-bold text-[#0F172A] dark:text-white tracking-tight leading-snug">
+          {clarification ? clarification : activeQuestion.title}
+        </h1>
+
+        {!clarification && activeQuestion.subtitle && (
+          <p className="text-xs sm:text-sm text-[#64748B] dark:text-slate-400 font-normal mt-1 leading-relaxed">
+            {activeQuestion.subtitle}
+          </p>
+        )}
+
+        {clarification && (
+          <div className="mt-2">
+            <span className="text-xs text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-full px-3 py-1 inline-flex items-center gap-1.5 font-medium">
+              <span>Please clarify your answer above</span>
+            </span>
+          </div>
+        )}
       </div>
+
+      {/* Suggestion Chips (Positioned neatly right above the prompt box) */}
+      {activeQuestion.suggestions && activeQuestion.suggestions.length > 0 && (
+        <div className="mb-2.5">
+          <div className="flex items-center justify-between mb-1 px-0.5">
+            <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#94A3B8] dark:text-slate-500">
+              {activeQuestion.multi ? "Select multiple or type:" : "Suggested"}
+            </span>
+            {activeQuestion.multi && (
+              <span className="text-[11px] text-[#94A3B8] font-medium">
+                Tap to add or remove
+              </span>
+            )}
+          </div>
+
+          <div className="flex flex-wrap gap-1.5 sm:gap-2">
+            {activeQuestion.suggestions.map((sug) => {
+              const isSelected = activeQuestion.multi
+                ? inputValue
+                    .split(",")
+                    .map((i) => i.trim().toLowerCase())
+                    .includes(sug.toLowerCase())
+                : inputValue.trim().toLowerCase() === sug.toLowerCase();
+
+              return (
+                <button
+                  key={sug}
+                  type="button"
+                  onClick={() => handleSuggestionClick(sug)}
+                  className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-150 cursor-pointer ${
+                    isSelected
+                      ? "bg-[#006CE4] text-white border border-[#006CE4] shadow-xs font-semibold"
+                      : "bg-[#F8FAFC] dark:bg-slate-800/80 border border-[#E2E8F0] dark:border-slate-700 text-[#334155] dark:text-slate-300 hover:border-[#006CE4]/40 hover:text-[#006CE4] hover:bg-[#EFF6FF] dark:hover:bg-slate-700/80"
+                  }`}
+                >
+                  {sug}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Compact Trip.com AI Prompt Box (Slightly smaller, clean elevated card) */}
+      <div className="relative bg-white dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-slate-700 hover:border-[#CBD5E1] dark:hover:border-slate-600 focus-within:border-[#006CE4] dark:focus-within:border-[#006CE4] focus-within:ring-3 focus-within:ring-[#006CE4]/10 rounded-xl p-3 sm:p-3.5 shadow-xs transition-all duration-150">
+        <textarea
+          ref={textareaRef}
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder={clarification ? "Type your clarified answer..." : activeQuestion.placeholder}
+          className="w-full bg-transparent text-[#0F172A] dark:text-white placeholder:text-[#94A3B8] dark:placeholder:text-slate-500 border-none outline-none resize-none text-sm sm:text-[15px] font-normal leading-relaxed min-h-[44px] sm:min-h-[50px] py-0.5"
+          rows={1}
+          autoFocus
+        />
+
+        <div className="flex items-center justify-between pt-2.5 mt-1 border-t border-[#F1F5F9] dark:border-slate-700/80">
+          <div className="flex items-center gap-2">
+            {(currentIdx > 0 || editingQuestionId) && (
+              <button
+                type="button"
+                onClick={handlePrevStep}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-[#E2E8F0] dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium text-[#475569] dark:text-slate-300 hover:bg-[#F8FAFC] hover:text-[#0F172A] transition cursor-pointer"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>{editingQuestionId ? "Cancel Edit" : "Previous"}</span>
+              </button>
+            )}
+            <div className="flex items-center gap-1 text-[11px] text-[#94A3B8] font-medium">
+              <span>Return ↵ to submit</span>
+              <span className="hidden sm:inline text-[#CBD5E1]">· Shift + Return for new line</span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={validateAndStore}
+            disabled={!inputValue.trim()}
+            className={`rounded-lg px-4 py-1.5 text-xs sm:text-sm font-semibold transition-all duration-150 flex items-center gap-1.5 ${
+              inputValue.trim()
+                ? "bg-[#006CE4] hover:bg-[#005bb5] text-white shadow-xs active:scale-[0.98] cursor-pointer"
+                : "bg-[#F1F5F9] dark:bg-slate-800 text-[#94A3B8] dark:text-slate-500 cursor-not-allowed"
+            }`}
+          >
+            <span>
+              {editingQuestionId
+                ? "Save Change"
+                : currentIdx === QUESTIONS.length - 1
+                ? "Complete"
+                : "Continue"}
+            </span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+
+      <div ref={messagesEndRef} />
     </div>
   );
 }
