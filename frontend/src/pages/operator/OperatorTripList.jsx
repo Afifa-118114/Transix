@@ -110,15 +110,15 @@ export default function OperatorTripList() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-400 gap-3 font-sans">
-        <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-        <div className="text-xs font-bold uppercase tracking-wider text-slate-500">Loading Trips...</div>
+      <div className="min-h-screen bg-[#F5F7FA] flex flex-col items-center justify-center text-[#666666] gap-3 font-sans">
+        <div className="w-8 h-8 border-2 border-[#0064D2] border-t-transparent rounded-full animate-spin"></div>
+        <div className="text-xs font-bold uppercase tracking-wider text-[#999999]">Loading Trips...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-200 flex font-sans">
+    <div className="min-h-screen bg-[#F5F7FA] text-[#1A1A1A] flex font-sans">
       {/* Desktop Sidebar */}
       <aside className="w-64 flex-shrink-0 hidden lg:block h-screen sticky top-0">
         <OperatorSidebar 
@@ -131,7 +131,7 @@ export default function OperatorTripList() {
       {/* Mobile Drawer */}
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-50 lg:hidden flex">
-          <div className="fixed inset-0 bg-black/80" onClick={() => setMobileMenuOpen(false)}></div>
+          <div className="fixed inset-0 bg-black/60" onClick={() => setMobileMenuOpen(false)}></div>
           <div className="relative w-64 max-w-[80%] h-full z-10 flex flex-col">
             <button 
               onClick={() => setMobileMenuOpen(false)}
@@ -151,44 +151,44 @@ export default function OperatorTripList() {
       {/* Main Container */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <header className="bg-slate-900/95 backdrop-blur-md border-b border-slate-800 sticky top-0 z-20">
+        <header className="bg-white border-b border-[#EBEBEB] sticky top-0 z-20">
           <div className="flex items-center justify-between px-6 py-4">
             <div className="flex items-center gap-3">
               <button 
                 onClick={() => setMobileMenuOpen(true)}
-                className="lg:hidden p-2 text-slate-400 hover:text-white"
+                className="lg:hidden p-2 rounded-lg border border-[#EBEBEB] text-[#1A1A1A] hover:bg-[#F5F7FA]"
               >
-                <FiMenu size={20} />
+                <FiMenu size={18} />
               </button>
               <div>
                 <div className="flex items-center gap-2 mb-0.5">
-                  <Link to="/operator/dashboard" className="text-[10px] font-black uppercase tracking-widest text-indigo-400 hover:underline flex items-center gap-1">
+                  <Link to="/operator/dashboard" className="text-[10px] font-bold uppercase tracking-wider text-[#006CE4] hover:underline flex items-center gap-1">
                     <FiArrowLeft size={10} /> Dashboard
                   </Link>
-                  <span className="text-slate-600 text-xs">/</span>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  <span className="text-[#A0AEC0] text-xs">/</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#666666]">
                     Trips
                   </span>
                 </div>
-                <h1 className="text-lg font-black text-white">{pageTitle}</h1>
-                <p className="text-xs text-slate-400">{pageSubtitle}</p>
+                <h1 className="text-lg font-bold text-[#1A1A1A]">{pageTitle}</h1>
+                <p className="text-xs text-[#666666]">{pageSubtitle}</p>
               </div>
             </div>
 
             {/* Quick Filter Tabs */}
             <div className="flex flex-wrap items-center gap-2">
               {/* Category Filters */}
-              <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
+              <div className="flex items-center gap-1 bg-[#F1F5F9] p-1 rounded-xl border border-[#E2E8F0]">
                 <button
                   onClick={() => {
                     const next = new URLSearchParams(searchParams);
                     next.delete("type");
                     setSearchParams(next);
                   }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
                     !filterType 
-                      ? "bg-indigo-600 text-white shadow-xs" 
-                      : "text-slate-400 hover:text-white"
+                      ? "bg-[#0064D2] text-white shadow-xs" 
+                      : "text-[#666666] hover:text-[#1A1A1A] hover:bg-white/60"
                   }`}
                 >
                   All ({trips.length})
@@ -199,10 +199,10 @@ export default function OperatorTripList() {
                     next.set("type", "personal");
                     setSearchParams(next);
                   }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
                     filterType === "personal" 
-                      ? "bg-indigo-600 text-white shadow-xs" 
-                      : "text-slate-400 hover:text-white"
+                      ? "bg-[#0064D2] text-white shadow-xs" 
+                      : "text-[#666666] hover:text-[#1A1A1A] hover:bg-white/60"
                   }`}
                 >
                   <FiCompass size={12} /> Personal ({stats?.personalTrips || 0})
@@ -213,35 +213,26 @@ export default function OperatorTripList() {
                     next.set("type", "campus");
                     setSearchParams(next);
                   }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
                     filterType === "campus" 
-                      ? "bg-indigo-600 text-white shadow-xs" 
-                      : "text-slate-400 hover:text-white"
+                      ? "bg-[#0064D2] text-white shadow-xs" 
+                      : "text-[#666666] hover:text-[#1A1A1A] hover:bg-white/60"
                   }`}
                 >
                   <GraduationCap size={14} /> Campus ({stats?.campusTrips || 0})
                 </button>
               </div>
-
-              {/* Multi-Tenant Scope Filters (Commented out for Single Operator mode)
-              <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
-                <button onClick={() => { ... }}>All Tours</button>
-                <button onClick={() => { ... }}>My Tours</button>
-                <button onClick={() => { ... }}>Open Pool</button>
-              </div>
-              */}
             </div>
           </div>
         </header>
 
-
         {/* Content Body */}
-        <main className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-4 custom-scrollbar max-w-7xl w-full mx-auto">
           {filteredTrips.length === 0 ? (
-            <div className="bg-slate-900 rounded-2xl border border-slate-800 p-12 text-center">
-              <FiBriefcase className="mx-auto text-slate-700 mb-3" size={36} />
-              <h2 className="text-sm font-bold text-white mb-1">No trips found</h2>
-              <p className="text-xs text-slate-400 max-w-sm mx-auto">
+            <div className="bg-white rounded-xl border border-[#EBEBEB] p-12 text-center shadow-[0_1px_4px_rgba(0,0,0,0.06)]">
+              <FiBriefcase className="mx-auto text-[#A0AEC0] mb-3" size={36} />
+              <h2 className="text-sm font-bold text-[#1A1A1A] mb-1">No trips found</h2>
+              <p className="text-xs text-[#666666] max-w-sm mx-auto">
                 {scopeFilter === "unassigned" 
                   ? "There are currently no unclaimed trips in the Open Marketplace pool."
                   : scopeFilter === "my"
@@ -254,91 +245,78 @@ export default function OperatorTripList() {
               {filteredTrips.map((trip) => (
                 <div 
                   key={trip._id} 
-                  className={`bg-slate-900 rounded-2xl border p-5 shadow-xs transition ${
-                    trip.isAssignedToMe
-                      ? "border-emerald-900/50 hover:border-emerald-700/60"
-                      : trip.isUnassigned
-                      ? "border-amber-900/40 hover:border-amber-700/60 bg-amber-950/5"
-                      : "border-slate-800 hover:border-slate-700/80"
-                  }`}
+                  className="bg-white rounded-xl border border-[#EBEBEB] p-5 shadow-[0_1px_4px_rgba(0,0,0,0.06)] hover:border-[#0064D2]/40 hover:-translate-y-0.5 transition-all duration-150"
                 >
                   <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
                     <div className="flex-1 min-w-0">
                       {/* Top Badges */}
                       <div className="flex flex-wrap items-center gap-2 mb-2">
-                        {/* Multi-Tenant Badges (Commented out for Single Operator mode)
-                        {trip.isUnassigned && (...)}
-                        {trip.isAssignedToMe && (...)}
-                        {trip.isAssignedToOther && (...)}
-                        */}
-
-
-                        <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border ${
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
                           trip.tripCategory === 'CAMPUS'
-                            ? 'bg-indigo-950/60 text-indigo-300 border-indigo-800/60'
-                            : 'bg-slate-800 text-slate-300 border-slate-700'
+                            ? 'bg-[#EFF6FF] text-[#0064D2] border-[#BFDBFE]'
+                            : 'bg-[#F8FAFC] text-[#475569] border-[#E2E8F0]'
                         }`}>
                           {trip.tripCategory === 'CAMPUS' ? 'Campus Trip' : 'Personal Trip'}
                         </span>
 
                         {trip.organizationDetails?.name && (
-                          <span className="text-xs font-bold text-slate-300 uppercase tracking-tight">
+                          <span className="text-xs font-bold text-[#1A1A1A]">
                             {trip.organizationDetails.name}
                           </span>
                         )}
 
-                        <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border ${
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
                           trip.timingStatus === "ACTIVE"
-                            ? "bg-emerald-950/60 text-emerald-400 border-emerald-800/40"
+                            ? "bg-[#E6F7EF] text-[#00A65E] border-[#A3E9C7]"
                             : trip.timingStatus === "UPCOMING"
-                            ? "bg-blue-950/60 text-blue-400 border-blue-800/40"
-                            : "bg-slate-800 text-slate-400 border-slate-700"
+                            ? "bg-[#EFF6FF] text-[#0064D2] border-[#BFDBFE]"
+                            : "bg-[#F1F5F9] text-[#666666] border-[#E2E8F0]"
                         }`}>
                           {trip.timingStatus === "ACTIVE" ? "● Active Now" : trip.timingStatus}
                         </span>
                       </div>
 
                       {/* Route */}
-                      <div className="text-base font-black text-white flex items-center gap-2">
+                      <div className="text-base font-bold text-[#1A1A1A] flex items-center gap-2">
                         <span>{trip.source}</span>
-                        <FiArrowRight className="text-indigo-400" />
+                        <FiArrowRight className="text-[#006CE4]" />
                         <span>{trip.destination}</span>
                       </div>
 
                       {/* Meta Information */}
-                      <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-medium text-slate-400">
+                      <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-medium text-[#666666]">
                         <span>{formatDate(trip.startDate)} – {formatDate(trip.endDate)}</span>
                         <span>•</span>
                         <span>
                           {trip.travelers} {trip.tripCategory === 'CAMPUS' ? 'Students' : 'Travelers'}
                         </span>
                         <span>•</span>
-                        <span className="text-slate-300">
+                        <span className="text-[#1A1A1A]">
                           {trip.user?.name || trip.coordinatorId?.name || "Shared"} ({trip.user?.email || trip.coordinatorId?.email || ""})
                         </span>
                       </div>
 
                       {/* Operational Progress Counts */}
-                      <div className="mt-3.5 flex flex-wrap gap-2 text-[11px] font-bold">
-                        <span className="px-3 py-1 rounded-lg bg-slate-950 border border-slate-800 text-slate-300">
-                          Accommodation: <span className="text-white font-black">{trip.readiness?.accommodation?.confirmed || 0}/{trip.readiness?.accommodation?.total || 0}</span>
+                      <div className="mt-3.5 flex flex-wrap gap-2 text-[11px] font-semibold">
+                        <span className="px-3 py-1 rounded-lg bg-[#F8FAFC] border border-[#E2E8F0] text-[#666666]">
+                          Accommodation: <span className="text-[#1A1A1A] font-bold">{trip.readiness?.accommodation?.confirmed || 0}/{trip.readiness?.accommodation?.total || 0}</span>
                         </span>
-                        <span className="px-3 py-1 rounded-lg bg-slate-950 border border-slate-800 text-slate-300">
-                          Transport: <span className="text-white font-black">{trip.readiness?.transport?.confirmed || 0}/{trip.readiness?.transport?.total || 0}</span>
+                        <span className="px-3 py-1 rounded-lg bg-[#F8FAFC] border border-[#E2E8F0] text-[#666666]">
+                          Transport: <span className="text-[#1A1A1A] font-bold">{trip.readiness?.transport?.confirmed || 0}/{trip.readiness?.transport?.total || 0}</span>
                         </span>
-                        <span className="px-3 py-1 rounded-lg bg-slate-950 border border-slate-800 text-slate-300">
-                          {trip.tripCategory === 'CAMPUS' ? 'Visits' : 'Activities'}: <span className="text-white font-black">{trip.readiness?.visits?.confirmed || 0}/{trip.readiness?.visits?.total || 0}</span>
+                        <span className="px-3 py-1 rounded-lg bg-[#F8FAFC] border border-[#E2E8F0] text-[#666666]">
+                          {trip.tripCategory === 'CAMPUS' ? 'Visits' : 'Activities'}: <span className="text-[#1A1A1A] font-bold">{trip.readiness?.visits?.confirmed || 0}/{trip.readiness?.visits?.total || 0}</span>
                         </span>
                       </div>
                     </div>
 
                     {/* Right Status & Action */}
-                    <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-3 shrink-0 pt-3 sm:pt-0 border-t sm:border-t-0 border-slate-800">
+                    <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-3 shrink-0 pt-3 sm:pt-0 border-t sm:border-t-0 border-[#EBEBEB]">
                       <div className="text-right">
-                        <span className="text-[10px] uppercase font-bold text-slate-400 block">Operational Status</span>
+                        <span className="text-[10px] uppercase font-bold text-[#94A3B8] block">Operational Status</span>
                         <span className={`text-xs font-bold ${
-                          trip.operationalStatus === "Action Required" ? "text-amber-400" :
-                          trip.operationalStatus === "Confirmed" ? "text-emerald-400" : "text-slate-300"
+                          trip.operationalStatus === "Action Required" ? "text-[#F5330F]" :
+                          trip.operationalStatus === "Confirmed" ? "text-[#00A65E]" : "text-[#0064D2]"
                         }`}>
                           {trip.operationalStatus}
                         </span>
@@ -346,7 +324,7 @@ export default function OperatorTripList() {
 
                       <Link 
                         to={`/operator/trips/${trip._id}`}
-                        className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition shadow-sm flex items-center gap-1.5"
+                        className="px-4 py-2 bg-[#0064D2] hover:bg-[#0052B4] text-white rounded-lg text-xs font-semibold transition shadow-xs flex items-center gap-1.5"
                       >
                         <span>Manage</span>
                         <FiArrowRight size={13} />

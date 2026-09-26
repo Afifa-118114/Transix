@@ -62,13 +62,6 @@ export default function OperatorDashboard() {
     };
   }, []);
 
-  // Time-of-day greeting
-  const greeting = useMemo(() => {
-    const hour = new Date().getHours();
-    if (hour < 12) return "Good morning";
-    if (hour < 18) return "Good afternoon";
-    return "Good evening";
-  }, []);
 
   // Formatted date string (e.g. Saturday, Sep 26, 2026)
   const formattedToday = useMemo(() => {
@@ -98,24 +91,22 @@ export default function OperatorDashboard() {
 
   // Operational attention metrics (computed dynamically from existing data)
   const tripsRequiringActionCount = useMemo(() => {
-    const flagTrips = trips.filter(
-      t => t.operationalStatus === "Action Required" || (t.bookingProgress && t.bookingProgress.actionRequired > 0)
-    );
-    return Math.max(flagTrips.length, actionItems.length);
-  }, [trips, actionItems]);
+    return stats?.actionRequired ?? actionItems.length;
+  }, [stats, actionItems]);
 
   const vendorRequestsCount = useMemo(() => {
-    return vendorRequests.length;
-  }, [vendorRequests]);
+    return stats?.vendorRequests ?? vendorRequests.length;
+  }, [stats, vendorRequests]);
 
   const pendingConfirmationsCount = useMemo(() => {
+    if (stats?.pendingConfirmations !== undefined) return stats.pendingConfirmations;
     const processingBookings = stats?.bookingReadiness?.processing || 0;
     const confirmationReqs = vendorRequests.filter(r => r.status === "CONFIRMATION_REQUESTED").length;
     return processingBookings + confirmationReqs;
   }, [stats, vendorRequests]);
 
   const activeDisruptionsCount = useMemo(() => {
-    return stats?.activeDisruptions || 0;
+    return stats?.activeDisruptions ?? 0;
   }, [stats]);
 
   // Meaningful vendor activity (awaiting review, responses received, confirmations)
@@ -208,10 +199,10 @@ export default function OperatorDashboard() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white p-4 sm:p-5 rounded-xl border border-[#EBEBEB] shadow-[0_1px_4px_rgba(0,0,0,0.06)]">
             <div>
               <h1 className="text-xl sm:text-2xl font-bold text-[#1A1A1A] tracking-tight">
-                {greeting}, {operatorDisplayName}
+                Operator Dashboard
               </h1>
               <p className="text-xs sm:text-sm text-[#666666] mt-0.5">
-                Overview of current traveler journeys, vendor responses, and operations
+                Real-time visibility into bookings, vendors, confirmations, and trip operations
               </p>
             </div>
             <div className="flex items-center gap-2 self-start sm:self-center">

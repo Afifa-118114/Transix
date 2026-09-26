@@ -221,7 +221,10 @@ export default function TimelineCard({
       <SmartShiftModal
         isOpen={isSmartShiftOpen}
         onClose={() => setIsSmartShiftOpen(false)}
-        item={activity}
+        item={{
+          ...activity,
+          id: activity.id || activity._id || activityId,
+        }}
         trip={trip}
       />
     </div>

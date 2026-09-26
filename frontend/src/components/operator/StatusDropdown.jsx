@@ -100,7 +100,7 @@ export default function StatusDropdown({
         type="button"
         disabled={disabled}
         onClick={() => setIsOpen((prev) => !prev)}
-        className={`flex items-center justify-between gap-2 rounded-lg border font-semibold transition shadow-xs outline-none focus:ring-1 focus:ring-indigo-500/50 ${
+        className={`flex items-center justify-between gap-2 rounded-lg border font-semibold transition shadow-xs outline-none focus:ring-1 focus:ring-[#0064D2]/40 ${
           compact ? "px-2.5 py-1 text-xs" : "px-3 py-1.5 text-xs"
         } ${currentConfig.badgeClass} ${
           disabled ? "opacity-60 cursor-not-allowed" : "hover:brightness-110 cursor-pointer"
@@ -139,7 +139,7 @@ export default function StatusDropdown({
               <span className={`w-1.5 h-1.5 rounded-full ${currentConfig.dotClass}`} />
               <span>{currentConfig.label}</span>
             </div>
-            <span className="text-[10px] text-indigo-400 font-bold flex items-center gap-1">
+            <span className="text-[10px] text-[#0064D2] dark:text-blue-400 font-bold flex items-center gap-1">
               <FiCheck size={11} /> Active
             </span>
           </div>
@@ -167,7 +167,7 @@ export default function StatusDropdown({
                       <span className={`w-1.5 h-1.5 rounded-full transition-transform group-hover:scale-125 ${config.dotClass}`} />
                       <span>{config.label}</span>
                     </div>
-                    <span className="text-[10px] font-bold text-slate-400 group-hover:text-indigo-300 uppercase tracking-wider opacity-0 group-hover:opacity-100 transition">
+                    <span className="text-[10px] font-bold text-slate-400 group-hover:text-[#0064D2] dark:group-hover:text-blue-300 uppercase tracking-wider opacity-0 group-hover:opacity-100 transition">
                       Set
                     </span>
                   </button>

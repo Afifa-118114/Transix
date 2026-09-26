@@ -7,7 +7,7 @@ const getModel = () => {
   } catch (_) {}
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
   return genAI.getGenerativeModel({
-    model: process.env.GEMINI_MODEL || "gemini-3.6-flash",
+    model: process.env.GEMINI_MODEL || "gemini-1.5-flash",
   });
 };
 
@@ -1035,65 +1035,69 @@ const generateFallbackTripPlan = (tripData) => {
 
 const generateFallbackDay = (trip, day) => {
   const dest = trip.destination || "Destination";
-  const highlights = getDestinationHighlights(dest);
-  const hl = highlights[(Number(day) - 1) % highlights.length] || highlights[0];
   const budgetVal = Number(trip.budget) || 20000;
+  const dayNum = Number(day);
+
+  // Inline destination highlights — no external dependency
+  const d = String(dest).toLowerCase();
+  const HIGHLIGHTS_MAP = {
+    goa:     [
+      { morning: "Baga Beach Watersports & Shacks", afternoon: "Aguada Fort & Lighthouse Tour", evening: "Anjuna Sunset & Flea Market" },
+      { morning: "Dudhsagar Waterfalls Excursion", afternoon: "Spice Plantation Tour & Goan Buffet", evening: "Mandovi River Twilight Cruise" },
+      { morning: "Old Goa Heritage Churches & Cathedrals", afternoon: "Panaji Fontainhas Latin Quarter Walk", evening: "Miramar Beach & Coastal Dining" },
+    ],
+    kerala:  [
+      { morning: "Alleppey Backwater Houseboat Cruise", afternoon: "Kumarakom Bird Sanctuary Walk", evening: "Kathakali Cultural Performance" },
+      { morning: "Munnar Tea Garden Trek", afternoon: "Eravikulam National Park Safari", evening: "Sunset at Top Station Viewpoint" },
+      { morning: "Periyar Wildlife Sanctuary Boat Ride", afternoon: "Spice Market & Cardamom Plantation", evening: "Kerala Ayurveda Spa & Dinner" },
+    ],
+    mumbai:  [
+      { morning: "Gateway of India & Taj Palace View", afternoon: "Colaba Causeway & Kala Ghoda Art Precinct", evening: "Marine Drive Queen's Necklace Sunset" },
+      { morning: "Elephanta Caves Ferry & Island Tour", afternoon: "Bandra Bandstand & Mount Mary Church", evening: "Juhu Beach Street Food & Sunset" },
+    ],
+    delhi:   [
+      { morning: "India Gate & Kartavya Path Walk", afternoon: "Humayun's Tomb Heritage Architecture", evening: "Hauz Khas Village & Lake Sunset" },
+      { morning: "Red Fort & Old Delhi Heritage Trail", afternoon: "Chandni Chowk Street Food Exploration", evening: "Connaught Place & Agrasen Ki Baoli" },
+    ],
+    jaipur:  [
+      { morning: "Amber Fort & Elephant Courtyard", afternoon: "City Palace & Jantar Mantar Observatory", evening: "Nahargarh Fort Panoramic Sunset" },
+      { morning: "Hawa Mahal Photography & Heritage Walk", afternoon: "Albert Hall Museum & Gardens", evening: "Johari Bazaar Handicraft Shopping" },
+    ],
+    manali:  [
+      { morning: "Hadimba Devi Temple & Cedar Forest", afternoon: "Solang Valley Adventure & Cable Car", evening: "Mall Road Stroll & Local Cafe Trail" },
+      { morning: "Atal Tunnel & Sissu Valley Drive", afternoon: "Snow Point Exploration & Mountain Maggi", evening: "Old Manali Riverside Dining" },
+    ],
+  };
+
+  // Match destination key
+  let highlights = null;
+  for (const [key, val] of Object.entries(HIGHLIGHTS_MAP)) {
+    if (d.includes(key)) { highlights = val; break; }
+  }
+  // Generic fallback
+  if (!highlights) {
+    highlights = [
+      { morning: `Iconic Landmark & City Overview of ${dest}`, afternoon: `Historic Quarter & Architectural Highlights`, evening: `Panoramic Sunset Observation Point` },
+      { morning: `Famous Museum & Cultural Heritage Experience`, afternoon: `Local Gastronomy & Authentic Food Market`, evening: `Vibrant Evening Promenade & Riverfront Walk` },
+    ];
+  }
+
+  const hl = highlights[(dayNum - 1) % highlights.length] || highlights[0];
 
   return {
-    day: Number(day),
+    day: dayNum,
     title: `Exploring the Best of ${dest} - Day ${day}`,
     plan: [
-      {
-        time: "08:30 AM - 09:30 AM",
-        place: dest,
-        activity: "Fresh Morning Breakfast",
-        notes: "Energizing breakfast at a top-rated cafe",
-        duration: "1 hour",
-        estimatedCost: String(Math.round(budgetVal * 0.02))
-      },
-      {
-        time: "10:00 AM - 01:00 PM",
-        place: dest,
-        activity: hl.morning || `Iconic Highlights & Landmarks in ${dest}`,
-        notes: "Morning cultural and sightseeing tour",
-        duration: "3 hours",
-        estimatedCost: String(Math.round(budgetVal * 0.03))
-      },
-      {
-        time: "01:00 PM - 02:30 PM",
-        place: dest,
-        activity: "Authentic Regional Lunch",
-        notes: "Delicious traditional local culinary specialties",
-        duration: "1h 30m",
-        estimatedCost: String(Math.round(budgetVal * 0.03))
-      },
-      {
-        time: "03:00 PM - 05:30 PM",
-        place: dest,
-        activity: hl.afternoon || `Local Crafts, Heritage & Bazaar Walk`,
-        notes: "Explore local artisan markets and scenic spots",
-        duration: "2h 30m",
-        estimatedCost: String(Math.round(budgetVal * 0.03))
-      },
-      {
-        time: "06:00 PM - 07:30 PM",
-        place: dest,
-        activity: hl.evening || `Scenic Sunset Viewpoint in ${dest}`,
-        notes: "Evening stroll and photography",
-        duration: "1h 30m",
-        estimatedCost: "0"
-      },
-      {
-        time: "08:00 PM - 09:30 PM",
-        place: dest,
-        activity: "Farewell Dinner with Local Music",
-        notes: "Relaxing evening dining experience",
-        duration: "1h 30m",
-        estimatedCost: String(Math.round(budgetVal * 0.03))
-      }
-    ]
+      { time: "08:30 AM - 09:30 AM", startTime: "08:30 AM", endTime: "09:30 AM", place: dest, activity: "Fresh Morning Breakfast", notes: "Energizing breakfast at a top-rated cafe", duration: "1 hour", estimatedCost: String(Math.round(budgetVal * 0.02)) },
+      { time: "10:00 AM - 01:00 PM", startTime: "10:00 AM", endTime: "01:00 PM", place: dest, activity: hl.morning || `Iconic Highlights & Landmarks in ${dest}`, notes: "Morning cultural and sightseeing tour", duration: "3 hours", estimatedCost: String(Math.round(budgetVal * 0.03)) },
+      { time: "01:00 PM - 02:30 PM", startTime: "01:00 PM", endTime: "02:30 PM", place: dest, activity: "Authentic Regional Lunch", notes: "Delicious traditional local culinary specialties", duration: "1h 30m", estimatedCost: String(Math.round(budgetVal * 0.03)) },
+      { time: "03:00 PM - 05:30 PM", startTime: "03:00 PM", endTime: "05:30 PM", place: dest, activity: hl.afternoon || `Local Crafts, Heritage & Bazaar Walk`, notes: "Explore local artisan markets and scenic spots", duration: "2h 30m", estimatedCost: String(Math.round(budgetVal * 0.03)) },
+      { time: "06:00 PM - 07:30 PM", startTime: "06:00 PM", endTime: "07:30 PM", place: dest, activity: hl.evening || `Scenic Sunset Viewpoint in ${dest}`, notes: "Evening stroll and photography", duration: "1h 30m", estimatedCost: "0" },
+      { time: "08:00 PM - 09:30 PM", startTime: "08:00 PM", endTime: "09:30 PM", place: dest, activity: "Farewell Dinner with Local Music", notes: "Relaxing evening dining experience", duration: "1h 30m", estimatedCost: String(Math.round(budgetVal * 0.03)) },
+    ],
   };
 };
+
 
 const regenerateTripDay = async (trip, day) => {
   const model = getModel();

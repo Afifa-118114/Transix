@@ -71,9 +71,9 @@ export default function OperatorActivities() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-400 gap-3 font-sans">
-        <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-        <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
+      <div className="min-h-screen bg-[#F5F7FA] flex flex-col items-center justify-center text-[#666666] gap-3 font-sans">
+        <div className="w-8 h-8 border-2 border-[#0064D2] border-t-transparent rounded-full animate-spin"></div>
+        <div className="text-xs font-bold uppercase tracking-wider text-[#999999]">
           Loading Activities...
         </div>
       </div>
@@ -81,7 +81,7 @@ export default function OperatorActivities() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-200 flex font-sans">
+    <div className="min-h-screen bg-[#F5F7FA] text-[#1A1A1A] flex font-sans">
       {/* Desktop Sidebar */}
       <aside className="w-64 flex-shrink-0 hidden lg:block h-screen sticky top-0">
         <OperatorSidebar 
@@ -94,7 +94,7 @@ export default function OperatorActivities() {
       {/* Mobile Drawer */}
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-50 lg:hidden flex">
-          <div className="fixed inset-0 bg-black/80" onClick={() => setMobileMenuOpen(false)}></div>
+          <div className="fixed inset-0 bg-black/60" onClick={() => setMobileMenuOpen(false)}></div>
           <div className="relative w-64 max-w-[80%] h-full z-10 flex flex-col">
             <button 
               onClick={() => setMobileMenuOpen(false)}
@@ -114,23 +114,23 @@ export default function OperatorActivities() {
       {/* Main Container */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <header className="bg-slate-900/95 backdrop-blur-md border-b border-slate-800 sticky top-0 z-20">
+        <header className="bg-white border-b border-[#EBEBEB] sticky top-0 z-20">
           <div className="flex items-center justify-between px-6 py-4">
             <div className="flex items-center gap-3">
               <button 
                 onClick={() => setMobileMenuOpen(true)}
-                className="lg:hidden p-2 text-slate-400 hover:text-white"
+                className="lg:hidden p-2 rounded-lg border border-[#EBEBEB] text-[#1A1A1A] hover:bg-[#F5F7FA]"
               >
-                <FiMenu size={20} />
+                <FiMenu size={18} />
               </button>
               <div>
-                <div className="text-[10px] font-black uppercase tracking-widest text-indigo-400 mb-0.5">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-[#006CE4] mb-0.5">
                   TRANSIX • OPERATIONS
                 </div>
-                <h1 className="text-lg font-black text-white">
-                  Activities
+                <h1 className="text-lg font-bold text-[#1A1A1A]">
+                  Activities & Tickets
                 </h1>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-[#666666]">
                   Operational coordination for trip activities, attractions, and educational visits
                 </p>
               </div>
@@ -139,22 +139,22 @@ export default function OperatorActivities() {
         </header>
 
         {/* Content Body */}
-        <main className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 custom-scrollbar max-w-7xl w-full mx-auto">
           
           {/* Sub-Filters: [ Not Booked ] [ Booked ] */}
-          <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+          <div className="flex items-center justify-between border-b border-[#EBEBEB] pb-4">
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setSubFilter("not-booked")}
                 className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
                   subFilter === "not-booked"
-                    ? "bg-amber-950/80 text-amber-300 border border-amber-800/60 shadow-xs"
-                    : "bg-slate-900 text-slate-400 hover:text-white border border-slate-800"
+                    ? "bg-[#FFF4ED] text-[#F5330F] border border-[#FFD0B8] shadow-xs"
+                    : "bg-white text-[#666666] hover:text-[#1A1A1A] border border-[#EBEBEB] hover:bg-[#F5F7FA]"
                 }`}
               >
                 <FiClock size={13} />
                 <span>Not Booked</span>
-                <span className="px-1.5 py-0.2 rounded text-[10px] bg-slate-800 text-slate-300">
+                <span className="px-1.5 py-0.5 rounded text-[10px] bg-[#F5F7FA] text-[#666666] border border-[#E2E8F0]">
                   {notBookedCount}
                 </span>
               </button>
@@ -162,13 +162,13 @@ export default function OperatorActivities() {
                 onClick={() => setSubFilter("booked")}
                 className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
                   subFilter === "booked"
-                    ? "bg-emerald-950/80 text-emerald-300 border border-emerald-800/60 shadow-xs"
-                    : "bg-slate-900 text-slate-400 hover:text-white border border-slate-800"
+                    ? "bg-[#E6F7EF] text-[#00A65E] border border-[#A3E9C7] shadow-xs"
+                    : "bg-white text-[#666666] hover:text-[#1A1A1A] border border-[#EBEBEB] hover:bg-[#F5F7FA]"
                 }`}
               >
                 <FiCheckCircle size={13} />
                 <span>Booked</span>
-                <span className="px-1.5 py-0.2 rounded text-[10px] bg-slate-800 text-slate-300">
+                <span className="px-1.5 py-0.5 rounded text-[10px] bg-[#F5F7FA] text-[#666666] border border-[#E2E8F0]">
                   {bookedCount}
                 </span>
               </button>
@@ -178,23 +178,23 @@ export default function OperatorActivities() {
           {/* Activities List */}
           <div className="space-y-4">
             {displayedActivities.length === 0 ? (
-              <div className="bg-slate-900 rounded-2xl border border-slate-800 p-12 text-center text-slate-400 text-xs">
-                <FiCheckCircle className="mx-auto text-emerald-400 mb-3" size={28} />
+              <div className="bg-white rounded-xl border border-[#EBEBEB] p-12 text-center text-[#666666] text-xs shadow-[0_1px_4px_rgba(0,0,0,0.06)]">
+                <FiCheckCircle className="mx-auto text-[#00A65E] mb-3" size={28} />
                 {subFilter === "not-booked" ? (
                   <div>
-                    <div className="text-sm font-bold text-slate-200">
+                    <div className="text-sm font-bold text-[#1A1A1A]">
                       No unbooked activities.
                     </div>
-                    <div className="text-slate-500 mt-1">
+                    <div className="text-[#666666] mt-1">
                       All trip activities are confirmed.
                     </div>
                   </div>
                 ) : (
                   <div>
-                    <div className="text-sm font-bold text-slate-200">
+                    <div className="text-sm font-bold text-[#1A1A1A]">
                       No booked activities yet.
                     </div>
-                    <div className="text-slate-500 mt-1">
+                    <div className="text-[#666666] mt-1">
                       Confirmed activities will appear here.
                     </div>
                   </div>
@@ -214,45 +214,47 @@ export default function OperatorActivities() {
                   return (
                     <div 
                       key={b._id}
-                      className="bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-2xl p-5 space-y-3 shadow-xs transition"
+                      className="bg-white border border-[#EBEBEB] hover:border-[#0064D2]/40 rounded-xl p-5 space-y-3 shadow-[0_1px_4px_rgba(0,0,0,0.06)] hover:-translate-y-0.5 transition-all duration-150 flex flex-col justify-between"
                     >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                          <h3 className="text-sm font-black text-white truncate">
-                            {b.title}
-                          </h3>
-                          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5 truncate">
-                            {orgName || `${trip?.source} → ${trip?.destination}`}
+                      <div className="space-y-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <h3 className="text-sm font-bold text-[#1A1A1A] truncate">
+                              {b.title}
+                            </h3>
+                            <div className="text-[11px] font-medium text-[#666666] mt-0.5 truncate">
+                              {orgName || `${trip?.source || "Trip"} → ${trip?.destination || ""}`}
+                            </div>
+                          </div>
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border shrink-0 ${
+                            b.status === "CONFIRMED"
+                              ? "bg-[#E6F7EF] text-[#00A65E] border-[#A3E9C7]"
+                              : "bg-[#FFF4ED] text-[#F5330F] border-[#FFD0B8]"
+                          }`}>
+                            {b.status === "CONFIRMED" ? "Booked" : "Not Booked"}
+                          </span>
+                        </div>
+
+                        <div className="p-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg space-y-1.5 text-xs text-[#666666]">
+                          <div className="flex justify-between">
+                            <span className="text-[#666666]">Location:</span>
+                            <span className="font-medium text-[#1A1A1A] truncate ml-2">{b.location || trip?.destination}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-[#666666]">Date:</span>
+                            <span className="font-medium text-[#1A1A1A]">{dateLabel}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-[#666666]">Travelers:</span>
+                            <span className="font-medium text-[#1A1A1A]">{travelersLabel}</span>
                           </div>
                         </div>
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold shrink-0 ${
-                          b.status === "CONFIRMED"
-                            ? "bg-emerald-950/60 text-emerald-400 border border-emerald-800/40"
-                            : "bg-amber-950/60 text-amber-400 border border-amber-800/40"
-                        }`}>
-                          {b.status === "CONFIRMED" ? "Booked" : "Not Booked"}
-                        </span>
                       </div>
 
-                      <div className="p-3 bg-slate-950/70 border border-slate-800/80 rounded-xl space-y-1.5 text-xs">
-                        <div className="flex justify-between">
-                          <span className="text-slate-400">Location:</span>
-                          <span className="font-semibold text-slate-200 truncate ml-2">{b.location || trip?.destination}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-400">Date:</span>
-                          <span className="font-semibold text-slate-200">{dateLabel}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-400">Travelers:</span>
-                          <span className="font-semibold text-slate-200">{travelersLabel}</span>
-                        </div>
-                      </div>
-
-                      <div className="pt-1 flex items-center justify-end">
+                      <div className="pt-2 flex items-center justify-end border-t border-[#EBEBEB]">
                         <Link
                           to={`/operator/trips/${b.tripId || b.trip?._id}?tab=activities&activityId=${b._id}`}
-                          className="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
+                          className="px-3.5 py-1.5 rounded-lg bg-[#0064D2] hover:bg-[#0052B4] text-white text-xs font-semibold transition flex items-center gap-1.5 shadow-xs"
                         >
                           <span>View</span>
                           <FiArrowRight size={12} />

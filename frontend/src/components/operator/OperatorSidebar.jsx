@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
+import { invalidateOperatorCache } from "../../api/operatorApi";
+import { useOperatorTheme } from "../../utils/operatorTheme";
 import { getUnreadNotificationCount } from "../../api/notificationApi";
 import NotificationPanel from "../notifications/NotificationPanel";
 import TripChatModal from "../chat/TripChatModal";
+import { FiSun, FiMoon } from "react-icons/fi";
 
-/* ── Inline monochrome SVG icons (Trip.com style — single grey stroke) ── */
+/* ── Inline monochrome SVG icons (Trip.com style — single stroke) ── */
 const IconDashboard = ({ size = 17 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
     <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" />
@@ -68,11 +72,19 @@ const IconBell = ({ size = 17 }) => (
     <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" />
   </svg>
 );
+const IconLogout = ({ size = 17, className = "" }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+    <polyline points="16 17 21 12 16 7" />
+    <line x1="21" y1="12" x2="9" y2="12" />
+  </svg>
+);
 const IconLogo = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+  <svg width={sizeLogo} height={sizeLogo} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M2 7l10-5 10 5-10 5-10-5z" /><path d="M2 12l10 5 10-5" /><path d="M2 17l10 5 10-5" />
   </svg>
 );
+const sizeLogo = 16;
 
 /* ── Nav Item ── */
 function NavItem({ to, icon: Icon, label, badge, badgeVariant = "count", active, onClick }) {
@@ -124,6 +136,9 @@ function Divider() {
 /* ── Main Export ── */
 export default function OperatorSidebar({ personalCount, campusCount, pendingCount }) {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { logout } = useAuth();
+  const { theme, isDark, toggleTheme } = useOperatorTheme();
   const searchParams = new URLSearchParams(location.search);
   const typeParam = searchParams.get("type");
   const pathname = location.pathname;
@@ -161,6 +176,14 @@ export default function OperatorSidebar({ personalCount, campusCount, pendingCou
     return () => clearInterval(interval);
   }, []);
 
+  const handleLogout = () => {
+    try {
+      invalidateOperatorCache();
+    } catch (_) {}
+    logout();
+    navigate("/login", { replace: true });
+  };
+
   const user = (() => {
     try { return JSON.parse(localStorage.getItem("user") || "{}"); }
     catch (e) { return {}; }
@@ -174,7 +197,7 @@ export default function OperatorSidebar({ personalCount, campusCount, pendingCou
       {/* Brand Header */}
       <div className="px-4 py-4 border-b border-[#EDF2F7]">
         <Link to="/operator/dashboard" className="flex items-center gap-2.5 group">
-          <div className="w-8 h-8 rounded-lg bg-[#006CE4] flex items-center justify-center shadow-sm flex-shrink-0">
+          <div className="w-8 h-8 rounded-lg bg-[#006CE4] flex items-center justify-center shadow-xs flex-shrink-0">
             <IconLogo />
           </div>
           <div>
@@ -184,18 +207,29 @@ export default function OperatorSidebar({ personalCount, campusCount, pendingCou
         </Link>
       </div>
 
-      {/* Operator Identity Card */}
-      <div className="mx-3 my-3 px-3 py-2.5 rounded-xl bg-[#F7F8FA] border border-[#E2E8F0] flex items-center gap-2.5">
-        <div className="w-8 h-8 rounded-full bg-[#006CE4] flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0">
-          {initials}
-        </div>
-        <div className="min-w-0">
-          <div className="text-[12px] font-semibold text-[#1A202C] truncate leading-tight">{companyName}</div>
-          <div className="flex items-center gap-1 mt-0.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A] inline-block" />
-            <span className="text-[10px] text-[#16A34A] font-medium">Verified Partner</span>
+      {/* Operator Identity Card with Logout action */}
+      <div className="mx-3 my-3 px-3 py-2.5 rounded-xl bg-[#F7F8FA] border border-[#E2E8F0] flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-8 h-8 rounded-full bg-[#006CE4] flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0 shadow-xs">
+            {initials}
+          </div>
+          <div className="min-w-0">
+            <div className="text-[12px] font-semibold text-[#1A202C] truncate leading-tight">{companyName}</div>
+            <div className="flex items-center gap-1 mt-0.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A] inline-block" />
+              <span className="text-[10px] text-[#16A34A] font-medium">Verified Partner</span>
+            </div>
           </div>
         </div>
+        <button
+          type="button"
+          onClick={handleLogout}
+          title="Log Out"
+          aria-label="Log Out"
+          className="p-1.5 rounded-lg text-[#718096] hover:text-[#DC2626] hover:bg-[#FEE2E2]/70 transition-colors flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-[#DC2626]/20"
+        >
+          <IconLogout size={16} />
+        </button>
       </div>
 
       <Divider />
@@ -269,6 +303,41 @@ export default function OperatorSidebar({ personalCount, campusCount, pendingCou
           badgeVariant="alert"
           onClick={() => setIsNotificationPanelOpen(prev => !prev)}
         />
+      </div>
+
+      {/* Sidebar Footer — Dark Mode Option & Logout Action */}
+      <div className="p-3 border-t border-[#EDF2F7] bg-white flex-shrink-0 space-y-1.5">
+        <button
+          type="button"
+          onClick={toggleTheme}
+          className="w-full flex items-center justify-between px-3 py-2 text-[12px] font-medium text-[#4A5568] hover:text-[#1A202C] hover:bg-[#F7F8FA] rounded-lg transition-all duration-150 border border-[#EDF2F7] hover:border-[#E2E8F0]"
+          aria-label="Toggle dark mode option"
+        >
+          <span className="flex items-center gap-2.5">
+            {isDark ? (
+              <FiSun size={15} className="text-amber-500" />
+            ) : (
+              <FiMoon size={15} className="text-[#718096]" />
+            )}
+            <span>{isDark ? "Light Mode" : "Dark Mode Option"}</span>
+          </span>
+          <span className="text-[10px] text-[#A0AEC0] font-mono">
+            {isDark ? "Dark ON" : "Default"}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="w-full flex items-center justify-between px-3 py-2 text-[12.5px] font-medium text-[#4A5568] hover:text-[#DC2626] hover:bg-[#FEF2F2] rounded-lg transition-all duration-150 group border border-transparent hover:border-[#FECACA] focus:outline-none focus:ring-2 focus:ring-[#DC2626]/20"
+          aria-label="Log out of operator account"
+        >
+          <span className="flex items-center gap-2.5">
+            <IconLogout size={16} className="text-[#718096] group-hover:text-[#DC2626] transition-colors" />
+            <span>Log Out</span>
+          </span>
+          <span className="text-[10.5px] text-[#A0AEC0] group-hover:text-[#DC2626]/70">End session</span>
+        </button>
       </div>
 
       {/* Panels */}

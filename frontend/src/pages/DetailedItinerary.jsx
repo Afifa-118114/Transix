@@ -33,7 +33,7 @@ import DayTabs from "../components/itinerary/DayTabs";
 import Timeline from "../components/itinerary/Timeline";
 import BottomNav from "../components/itinerary/BottomNav";
 import ItineraryMap from "../components/itinerary/ItineraryMap";
-import { getTripById, regenerateDay } from "../api/tripApi";
+import { getTripById, regenerateDay, updateTrip } from "../api/tripApi";
 import { generateTripItineraryPdf } from "../utils/itineraryPdfGenerator";
 import { formatBudget, getDuration, formatDate } from "../utils/formatTrip";
 import { resolveJourneyLocations } from "../utils/itineraryLocationHelper";
@@ -52,13 +52,20 @@ export default function DetailedItinerary() {
     applySuggestion,
   } = useTripBuilder();
 
-  // Prefer trip matching the URL tripId from state or context
-  const initialTrip =
-    tripId && state?.trip?._id === tripId
-      ? state.trip
-      : tripId && contextTrip?._id === tripId
-      ? contextTrip
-      : state?.trip || contextTrip;
+  // Prefer live contextTrip matching the current tripId so live SmartShift/builder updates reflect immediately
+  const isContextMatch =
+    contextTrip &&
+    (contextTrip._id === tripId || contextTrip.id === tripId || !tripId);
+
+  const isStateMatch =
+    state?.trip &&
+    (state.trip._id === tripId || state.trip.id === tripId);
+
+  const initialTrip = isContextMatch
+    ? contextTrip
+    : isStateMatch
+    ? state.trip
+    : contextTrip || state?.trip;
 
   const [fetchedTrip, setFetchedTrip] = useState(null);
   const [fetchingTrip, setFetchingTrip] = useState(!initialTrip && Boolean(tripId));
@@ -66,10 +73,11 @@ export default function DetailedItinerary() {
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
 
   // Fallback to sample trip if ID matches
-  const trip =
-    fetchedTrip ||
-    initialTrip ||
-    (tripId ? SAMPLE_TRIPS.find((s) => s.id === tripId || s._id === tripId) : null);
+  const trip = isContextMatch
+    ? contextTrip
+    : fetchedTrip ||
+      initialTrip ||
+      (tripId ? SAMPLE_TRIPS.find((s) => s.id === tripId || s._id === tripId) : null);
 
   const initialDay = state?.dayIndex ?? 0;
   const viewOnly = state?.viewOnly === true;
@@ -198,13 +206,19 @@ export default function DetailedItinerary() {
     }, 80);
   };
 
-  // Fallback direct trip fetch if landing directly or reloading without context/state
+  // ─── CANONICAL TRIP LOADER ──────────────────────────────────────────────────
+  // When landing on an itinerary URL directly (no contextTrip matching the URL),
+  // fetch the trip from backend AND immediately push it into contextTrip via
+  // contextSetTrip. This establishes ONE source of truth so SmartShift and
+  // Regenerate (which read contextTrip via useTripBuilder) always operate on the
+  // exact same trip object that the Timeline renders from.
   useEffect(() => {
     if (!initialTrip && tripId) {
-      // Check if it is a sample trip first
+      // Check sample trips first
       const sampleMatch = SAMPLE_TRIPS.find((s) => s.id === tripId || s._id === tripId);
       if (sampleMatch) {
         setFetchedTrip(sampleMatch);
+        contextSetTrip(sampleMatch);          // ← sync into context
         setFetchingTrip(false);
         return;
       }
@@ -213,10 +227,17 @@ export default function DetailedItinerary() {
       setFetchingTrip(true);
       setAuthError(null);
       const authToken = token || localStorage.getItem("token");
-      const rawApi = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+      const rawApi = import.meta.env.VITE_API_URL || "http://localhost:5001/api";
       const apiBase = rawApi.replace(/\/api$/, "");
 
-      // Try campus trips endpoint first
+      const syncTrip = (t) => {
+        if (!isMounted || !t) return;
+        setFetchedTrip(t);
+        contextSetTrip(t);                    // ← ONE source of truth
+        setFetchingTrip(false);
+      };
+
+      // Try campus trips endpoint first, then standard trips
       fetch(`${apiBase}/api/campus-trips/${tripId}`, {
         headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
       })
@@ -225,11 +246,9 @@ export default function DetailedItinerary() {
           return res.json();
         })
         .then((data) => {
-          if (isMounted && data?.success && data?.trip) {
-            setFetchedTrip(data.trip);
-            setFetchingTrip(false);
+          if (data?.success && data?.trip) {
+            syncTrip(data.trip);
           } else {
-            // Try standard trips endpoint
             return fetch(`${apiBase}/api/trips/${tripId}`, {
               headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
             })
@@ -238,39 +257,40 @@ export default function DetailedItinerary() {
                 return res.json();
               })
               .then((pData) => {
-                if (isMounted && pData?.success && pData?.trip) {
-                  setFetchedTrip(pData.trip);
-                } else if (isMounted) {
+                if (pData?.success && pData?.trip) {
+                  syncTrip(pData.trip);
+                } else {
                   getTripById(tripId, authToken)
-                    .then((res) => {
-                      if (isMounted && res?.trip) setFetchedTrip(res.trip);
-                    })
-                    .catch(() => {});
+                    .then((res) => { if (res?.trip) syncTrip(res.trip); })
+                    .catch(() => { if (isMounted) setFetchingTrip(false); });
                 }
-                if (isMounted) setFetchingTrip(false);
               });
           }
         })
         .catch((err) => {
-          console.error("Failed to load trip directly:", err);
+          console.error("Failed to load trip:", err);
           if (err.message === "UNAUTHORIZED" && isMounted) {
-            setAuthError("You do not have permission to view this campus trip's itinerary.");
+            setAuthError("You do not have permission to view this trip's itinerary.");
           }
           if (isMounted) setFetchingTrip(false);
         });
 
-      return () => {
-        isMounted = false;
-      };
+      return () => { isMounted = false; };
     }
-  }, [initialTrip, tripId, token]);
+  }, [tripId, token]);         // removed initialTrip — we re-run only on tripId/token change
 
-  // Synchronize local itinerary state whenever canonical trip changes
+
+  // ─── CANONICAL SYNC ──────────────────────────────────────────────────────────
+  // contextTrip is now always the single source of truth (see loader above).
+  // Whenever it changes (SmartShift apply, Regenerate, builder update), immediately
+  // sync local itinerary state so the Timeline re-renders with the new data.
   useEffect(() => {
-    if (trip?.itinerary) {
-      setItinerary(trip.itinerary);
+    if (contextTrip?.itinerary) {
+      setItinerary(contextTrip.itinerary);
+      setFetchedTrip(null);      // prevent fetchedTrip from ever shadowing contextTrip
     }
-  }, [trip?.itinerary]);
+  }, [contextTrip]);
+
 
   // Geocode and resolve all journey locations on trip load
   useEffect(() => {
@@ -430,24 +450,82 @@ export default function DetailedItinerary() {
   };
 
   const handleRegenerate = async () => {
-    if (!trip?._id || selectedDay === "all") return;
+    if (!trip || selectedDay === "all") return;
+    if (regenerating) return;                        // prevent double-click
+
+    setRegenerating(true);
+    const authToken = token || localStorage.getItem("token");
+
     try {
-      setRegenerating(true);
-      const authToken = token || localStorage.getItem("token");
-      const res = await regenerateDay(trip._id, selectedDay + 1, authToken);
+      // ── The trip we operate on is ALWAYS contextTrip (canonical source of truth)
+      // After the fetch-sync fix above, contextTrip === the displayed trip.
+      const canonicalTrip = trip;
+      const tripIdStr = String(canonicalTrip._id || "");
+      const isBackendTrip = tripIdStr && !tripIdStr.startsWith("trip-") && !tripIdStr.startsWith("curated-");
 
-      const updated = [...itinerary];
-      updated[selectedDay] = res.day;
+      let newDay = null;
 
-      setItinerary(updated);
+      if (isBackendTrip && authToken) {
+        // ── Call the backend AI regenerate endpoint
+        let apiRes;
+        try {
+          apiRes = await regenerateDay(canonicalTrip._id, selectedDay + 1, authToken);
+        } catch (apiErr) {
+          // Extract readable error from axios error
+          const serverMsg = apiErr?.response?.data?.message || apiErr?.message || "API error";
+          throw new Error(`Regenerate API error: ${serverMsg}`);
+        }
+        newDay = apiRes?.day;
+        if (!newDay || !Array.isArray(newDay.plan) || newDay.plan.length === 0) {
+          throw new Error("Backend returned an empty day. Please try again.");
+        }
+      } else {
+        // ── Local/demo trip OR no token — generate deterministic fallback day
+        const dest = canonicalTrip.destination || "Destination";
+        const dayNum = selectedDay + 1;
+        newDay = {
+          day: dayNum,
+          title: `Day ${dayNum} — ${dest} Discovery`,
+          date: itinerary[selectedDay]?.date || `Day ${dayNum}`,
+          plan: [
+            { id: `regen-${Date.now()}-1`, time: "08:30 AM - 09:30 AM", startTime: "08:30 AM", endTime: "09:30 AM", place: dest, activity: "Morning Breakfast & Orientation", notes: "Start the day fresh", duration: "1 hour", estimatedCost: "200", category: "food" },
+            { id: `regen-${Date.now()}-2`, time: "10:00 AM - 01:00 PM", startTime: "10:00 AM", endTime: "01:00 PM", place: dest, activity: `${dest} Heritage & Cultural Tour`, notes: "Explore iconic landmarks", duration: "3 hours", estimatedCost: "300", category: "sightseeing" },
+            { id: `regen-${Date.now()}-3`, time: "01:00 PM - 02:30 PM", startTime: "01:00 PM", endTime: "02:30 PM", place: dest, activity: "Authentic Regional Lunch", notes: "Local culinary specialties", duration: "1h 30m", estimatedCost: "400", category: "food" },
+            { id: `regen-${Date.now()}-4`, time: "03:00 PM - 05:30 PM", startTime: "03:00 PM", endTime: "05:30 PM", place: dest, activity: "Nature Walk & Scenic Spots", notes: "Evening exploration", duration: "2h 30m", estimatedCost: "150", category: "activity" },
+            { id: `regen-${Date.now()}-5`, time: "06:00 PM - 07:30 PM", startTime: "06:00 PM", endTime: "07:30 PM", place: dest, activity: "Sunset Viewpoint Visit", notes: "Photography and leisure", duration: "1h 30m", estimatedCost: "0", category: "sightseeing" },
+            { id: `regen-${Date.now()}-6`, time: "08:00 PM - 09:30 PM", startTime: "08:00 PM", endTime: "09:30 PM", place: dest, activity: "Dinner at Local Restaurant", notes: "Relax and dine", duration: "1h 30m", estimatedCost: "500", category: "food" },
+          ],
+        };
+      }
+
+      // ── Build the updated itinerary and push into canonical state
+      const updatedItinerary = [...itinerary];
+      updatedItinerary[selectedDay] = newDay;
+      const updatedTrip = { ...canonicalTrip, itinerary: updatedItinerary };
+
+      // 1. Update local display state immediately (instant render)
+      setItinerary(updatedItinerary);
+
+      // 2. Push to contextTrip (canonical) — this triggers the contextTrip watcher,
+      //    recomputes schedulingConflicts, and keeps TimelineCard in sync
+      contextSetTrip(updatedTrip);
+
+      // 3. Persist to backend silently (don't block UI on this)
+      if (isBackendTrip && authToken) {
+        updateTrip(canonicalTrip._id, { itinerary: updatedItinerary }, authToken)
+          .catch((e) => console.warn("Background persist notice:", e.message));
+      }
+
       toast.success(`Day ${selectedDay + 1} regenerated with AI!`);
     } catch (err) {
-      console.error(err);
-      toast.error("Could not regenerate this day.");
+      console.error("[Regenerate]", err);
+      toast.error(err.message || "Could not regenerate this day. Please try again.");
     } finally {
       setRegenerating(false);
     }
   };
+
+
 
   if (fetchingTrip) {
     return (

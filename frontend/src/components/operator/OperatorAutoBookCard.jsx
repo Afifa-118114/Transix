@@ -35,11 +35,11 @@ export default function OperatorAutoBookCard({ trip, bookings = [], onBookingSuc
   };
 
   return (
-    <div className="rounded-2xl border border-indigo-200/80 dark:border-indigo-900/60 bg-gradient-to-br from-indigo-50/50 via-white to-violet-50/40 dark:from-[#131b2e] dark:via-[#0f172a] dark:to-[#1a1c36] p-5 shadow-xs transition-all">
+    <div className="rounded-2xl border border-blue-200/80 dark:border-blue-900/60 bg-gradient-to-br from-blue-50/40 via-white to-sky-50/30 dark:from-[#131b2e] dark:via-[#0f172a] dark:to-[#1a2236] p-5 shadow-xs transition-all">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-600 text-white font-black text-xs shadow-xs">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#0064D2] text-white font-black text-xs shadow-xs">
               ⚡
             </span>
             <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">
@@ -65,7 +65,7 @@ export default function OperatorAutoBookCard({ trip, bookings = [], onBookingSuc
         <div>
           {isBooked ? (
             <div className="flex items-center gap-2">
-              <span className="text-xs font-mono font-bold text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-2xs">
+              <span className="text-xs font-mono font-bold text-[#0064D2] dark:text-blue-400 bg-white dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-2xs">
                 Ref: {trip.bookingSummary?.confirmedBookings?.transport?.pnr || `TRX-${trip._id?.toString().slice(-6).toUpperCase()}`}
               </span>
             </div>
@@ -73,7 +73,7 @@ export default function OperatorAutoBookCard({ trip, bookings = [], onBookingSuc
             <button
               onClick={handleExecuteAutoBook}
               disabled={loading}
-              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 disabled:opacity-50 px-4 py-2 text-xs font-bold text-white shadow-sm transition active:scale-98 cursor-pointer"
+              className="flex items-center gap-2 rounded-xl bg-[#0064D2] hover:bg-[#0052B4] disabled:opacity-50 px-4 py-2 text-xs font-bold text-white shadow-sm transition active:scale-98 cursor-pointer"
             >
               {loading ? (
                 <>
@@ -97,14 +97,14 @@ export default function OperatorAutoBookCard({ trip, bookings = [], onBookingSuc
           {trip.bookingSummary.confirmedBookings.hotels?.map((h, i) => (
             <div key={i} className="flex items-center justify-between bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl text-xs">
               <div className="flex items-center gap-2 truncate">
-                <FaHotel className="text-indigo-600 shrink-0" />
+                <FaHotel className="text-[#0064D2] shrink-0" />
                 <span className="font-bold text-slate-800 dark:text-slate-200 truncate">{h.hotelName}</span>
               </div>
               <a
                 href={h.voucherUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="flex items-center gap-1 text-[11px] font-bold text-indigo-600 hover:underline shrink-0 ml-2"
+                className="flex items-center gap-1 text-[11px] font-bold text-[#0064D2] hover:underline shrink-0 ml-2"
               >
                 <FiDownload /> PDF
               </a>

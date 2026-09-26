@@ -450,63 +450,6 @@ export default function SavedTrips() {
             </div>
           </div>
 
-          {/* Quick Metrics Bar */}
-          <div className="mt-6 grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131b2e] p-4">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                  Total Expeditions
-                </span>
-                <FaRoute className="text-slate-400 text-sm" />
-              </div>
-              <p className="mt-2 text-2xl font-black text-slate-900 dark:text-white">
-                {allTripsCount}
-              </p>
-              <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
-                {personalTrips.length} Personal · {campusTrips.length} Campus
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131b2e] p-4">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                  Days Planned
-                </span>
-                <FiCalendar className="text-slate-400 text-sm" />
-              </div>
-              <p className="mt-2 text-2xl font-black text-slate-900 dark:text-white">
-                {totalDays} Days
-              </p>
-              <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">Across verified corridors</p>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131b2e] p-4">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                  Primary Transit
-                </span>
-                <FaTrainSubway className="text-slate-400 text-sm" />
-              </div>
-              <p className="mt-2 text-2xl font-black text-indigo-600 dark:text-indigo-400">
-                Multi-Modal
-              </p>
-              <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">Rail, Air & Road</p>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131b2e] p-4">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                  Estimated Outlay
-                </span>
-                <span className="text-xs font-bold text-slate-400">INR</span>
-              </div>
-              <p className="mt-2 text-2xl font-black text-slate-900 dark:text-white">
-                ₹{totalBudget.toLocaleString()}
-              </p>
-              <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">Includes stays & transit</p>
-            </div>
-          </div>
-
           {/* Search & Filter Controls */}
           <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131b2e] p-3 shadow-xs">
             <div className="relative w-full sm:w-72">

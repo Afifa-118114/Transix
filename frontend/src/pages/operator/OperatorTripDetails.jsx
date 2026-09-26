@@ -25,6 +25,7 @@ import {
 } from "../../api/guideWorkflowApi";
 import { formatDate } from "../../utils/formatTrip";
 import OperatorSidebar from "../../components/operator/OperatorSidebar";
+import { useOperatorTheme } from "../../utils/operatorTheme";
 import StatusDropdown, { DEFAULT_VALID_TRANSITIONS } from "../../components/operator/StatusDropdown";
 import OperatorMessageModal from "../../components/operator/OperatorMessageModal";
 import DayTabs from "../../components/itinerary/DayTabs";
@@ -43,6 +44,7 @@ import { detectBusRequirements, resolveLocalTransportArrangement, calculateDayDa
 import OperatorAutoBookCard from "../../components/operator/OperatorAutoBookCard";
 
 export default function OperatorTripDetails() {
+  const { isDark } = useOperatorTheme();
   const { tripId } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -344,15 +346,25 @@ export default function OperatorTripDetails() {
   const getStatusBadge = (status) => {
     switch (status) {
       case "CONFIRMED":
-        return "bg-emerald-950/70 text-emerald-400 border-emerald-800/60";
+        return isDark 
+          ? "bg-emerald-950/70 text-emerald-400 border-emerald-800/60"
+          : "bg-emerald-50 text-emerald-700 border-emerald-200";
       case "ACTION_REQUIRED":
-        return "bg-amber-950/70 text-amber-400 border-amber-800/60";
+        return isDark 
+          ? "bg-amber-950/70 text-amber-400 border-amber-800/60"
+          : "bg-amber-50 text-amber-700 border-amber-200";
       case "PROCESSING":
-        return "bg-blue-950/70 text-blue-400 border-blue-800/60";
+        return isDark 
+          ? "bg-blue-950/70 text-blue-400 border-blue-800/60"
+          : "bg-blue-50 text-[#0064D2] border-blue-200";
       case "CANCELLED":
-        return "bg-rose-950/70 text-rose-400 border-rose-800/60";
+        return isDark 
+          ? "bg-rose-950/70 text-rose-400 border-rose-800/60"
+          : "bg-rose-50 text-rose-700 border-rose-200";
       default:
-        return "bg-slate-800 text-slate-300 border-slate-700";
+        return isDark 
+          ? "bg-slate-800 text-slate-300 border-slate-700"
+          : "bg-slate-100 text-slate-700 border-slate-200";
     }
   };
 
@@ -692,9 +704,9 @@ export default function OperatorTripDetails() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-400 gap-3 font-sans">
-        <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-        <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
+      <div className={`min-h-screen flex flex-col items-center justify-center gap-3 font-sans ${isDark ? "bg-slate-950 text-slate-400" : "bg-[#F5F7FA] text-[#666666]"}`}>
+        <div className={`w-8 h-8 border-2 border-t-transparent rounded-full animate-spin ${isDark ? "border-blue-500" : "border-[#0064D2]"}`}></div>
+        <div className={`text-xs font-bold uppercase tracking-wider ${isDark ? "text-slate-500" : "text-[#999999]"}`}>
           Loading Trip Operations...
         </div>
       </div>
@@ -703,25 +715,25 @@ export default function OperatorTripDetails() {
 
   if (error || !trip) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-200 p-6 font-sans">
-        <div className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-2xl p-8 text-center shadow-lg">
-          <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mx-auto mb-4">
+      <div className={`min-h-screen flex flex-col items-center justify-center p-6 font-sans ${isDark ? "bg-slate-950 text-slate-200" : "bg-[#F5F7FA] text-[#1A1A1A]"}`}>
+        <div className={`max-w-md w-full rounded-2xl p-8 text-center shadow-lg border ${isDark ? "bg-slate-900 border-slate-800" : "bg-white border-[#EBEBEB]"}`}>
+          <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-500 flex items-center justify-center mx-auto mb-4">
             <FiAlertCircle size={24} />
           </div>
-          <h2 className="text-lg font-black text-white mb-2">Trip Unavailable</h2>
-          <p className="text-xs text-slate-400 mb-6 leading-relaxed">
+          <h2 className={`text-lg font-black mb-2 ${isDark ? "text-white" : "text-[#1A1A1A]"}`}>Trip Unavailable</h2>
+          <p className={`text-xs mb-6 leading-relaxed ${isDark ? "text-slate-400" : "text-[#666666]"}`}>
             {error || "The requested trip could not be found or has not been shared with Tour Operations."}
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link
               to="/operator/trips"
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-2"
+              className="px-4 py-2 bg-[#0064D2] hover:bg-[#0052B4] text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-2"
             >
               <FiArrowLeft /> Back to Trips
             </Link>
             <Link
               to="/operator/dashboard"
-              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition"
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition ${isDark ? "bg-slate-800 hover:bg-slate-700 text-slate-300" : "bg-[#F1F5F9] hover:bg-[#E2E8F0] text-[#475569] border border-[#EBEBEB]"}`}
             >
               Dashboard
             </Link>
@@ -732,7 +744,7 @@ export default function OperatorTripDetails() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-200 flex font-sans dark">
+    <div className={`min-h-screen flex font-sans ${isDark ? "bg-slate-950 text-slate-200 dark" : "bg-[#F5F7FA] text-[#1A1A1A]"}`}>
       {/* Desktop Sidebar */}
       <aside className="w-64 flex-shrink-0 hidden lg:block h-screen sticky top-0">
         <OperatorSidebar 
@@ -765,34 +777,34 @@ export default function OperatorTripDetails() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top Header */}
-        <header className="bg-slate-900/95 backdrop-blur-md border-b border-slate-800 sticky top-0 z-20">
+        <header className={`backdrop-blur-md border-b sticky top-0 z-20 ${isDark ? "bg-slate-900/95 border-slate-800" : "bg-white/95 border-[#EBEBEB]"}`}>
           <div className="flex items-center justify-between px-6 py-4">
             <div className="flex items-center gap-3">
               <button 
                 onClick={() => setMobileMenuOpen(true)}
-                className="lg:hidden p-2 text-slate-400 hover:text-white"
+                className={`lg:hidden p-2 rounded-lg border ${isDark ? "text-slate-400 hover:text-white border-slate-800" : "text-[#1A1A1A] hover:bg-[#F5F7FA] border-[#EBEBEB]"}`}
               >
-                <FiMenu size={20} />
+                <FiMenu size={18} />
               </button>
               <div>
                 <div className="flex items-center gap-2 mb-0.5">
                   <Link 
                     to={isCampus ? "/operator/trips?type=campus" : "/operator/trips?type=personal"}
-                    className="text-[10px] font-black uppercase tracking-widest text-indigo-400 hover:underline flex items-center gap-1"
+                    className="text-[10px] font-black uppercase tracking-widest text-[#0064D2] dark:text-blue-400 hover:underline flex items-center gap-1"
                   >
                     <FiArrowLeft size={10} /> {isCampus ? "Campus Trips" : "Personal Trips"}
                   </Link>
-                  <span className="text-slate-600 text-xs">/</span>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  <span className={isDark ? "text-slate-600 text-xs" : "text-[#A0AEC0] text-xs"}>/</span>
+                  <span className={`text-[10px] font-black uppercase tracking-widest ${isDark ? "text-slate-400" : "text-[#666666]"}`}>
                     Operation #{trip._id.slice(-6).toUpperCase()}
                   </span>
                 </div>
-                <h1 className="text-lg font-black text-white flex items-center gap-2">
+                <h1 className={`text-lg font-black flex items-center gap-2 ${isDark ? "text-white" : "text-[#1A1A1A]"}`}>
                   <span>{trip.source}</span>
-                  <FiArrowRight className="text-indigo-400" size={16} />
+                  <FiArrowRight className="text-[#0064D2] dark:text-blue-400" size={16} />
                   <span>{trip.destination}</span>
                   {trip.organizationDetails?.name && (
-                    <span className="text-xs font-bold text-slate-400 uppercase tracking-normal">
+                    <span className={`text-xs font-bold uppercase tracking-normal ${isDark ? "text-slate-400" : "text-[#666666]"}`}>
                       ({trip.organizationDetails.name})
                     </span>
                   )}
@@ -803,7 +815,7 @@ export default function OperatorTripDetails() {
             <div className="flex items-center gap-2.5">
               <Link 
                 to={isCampus ? "/operator/trips?type=campus" : "/operator/trips?type=personal"}
-                className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition flex items-center gap-1.5"
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${isDark ? "bg-slate-800 hover:bg-slate-700 text-slate-300" : "bg-[#F1F5F9] hover:bg-[#E2E8F0] text-[#475569] border border-[#EBEBEB]"}`}
               >
                 <FiArrowLeft size={12} />
                 <span className="hidden sm:inline">Back to List</span>
@@ -837,41 +849,43 @@ export default function OperatorTripDetails() {
           )}
 
           {/* Trip Hero Banner */}
-          <div className="bg-slate-900 rounded-2xl border border-slate-800 p-6 shadow-sm">
+          <div className={`rounded-2xl border p-6 shadow-xs ${isDark ? "bg-slate-900 border-slate-800" : "bg-white border-[#EBEBEB]"}`}>
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
               <div className="space-y-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border ${
                     isCampus 
-                      ? "bg-indigo-950/70 text-indigo-300 border-indigo-800/60" 
-                      : "bg-slate-800 text-slate-300 border-slate-700"
+                      ? (isDark ? "bg-blue-950/70 text-blue-300 border-blue-800/60" : "bg-blue-50 text-[#0064D2] border-blue-200") 
+                      : (isDark ? "bg-slate-800 text-slate-300 border-slate-700" : "bg-slate-100 text-slate-700 border-slate-200")
                   }`}>
                     {isCampus ? "Campus Trip" : "Personal Trip"}
                   </span>
-                  <span className="px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider bg-emerald-950/70 text-emerald-400 border border-emerald-800/60 flex items-center gap-1">
+                  <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1 border ${
+                    isDark ? "bg-emerald-950/70 text-emerald-400 border-emerald-800/60" : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                  }`}>
                     <FiCheckCircle size={11} /> Finalized & Shared
                   </span>
-                  <span className="text-[11px] font-mono text-slate-500">ID: {trip._id}</span>
+                  <span className={`text-[11px] font-mono ${isDark ? "text-slate-500" : "text-[#999999]"}`}>ID: {trip._id}</span>
                 </div>
 
-                <div className="text-xl font-black text-white">
+                <div className={`text-xl font-black ${isDark ? "text-white" : "text-[#1A1A1A]"}`}>
                   {isCampus && trip.organizationDetails?.name
                     ? `${trip.organizationDetails.name} • ${trip.destination.toUpperCase()} STUDY TOUR`
                     : `${trip.source} to ${trip.destination} Journey`}
                 </div>
 
-                <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs font-medium text-slate-300">
-                  <span className="flex items-center gap-1.5 text-slate-400">
-                    <FiCalendar className="text-indigo-400" />
+                <div className={`flex flex-wrap items-center gap-x-5 gap-y-2 text-xs font-medium ${isDark ? "text-slate-300" : "text-[#475569]"}`}>
+                  <span className={`flex items-center gap-1.5 ${isDark ? "text-slate-400" : "text-[#666666]"}`}>
+                    <FiCalendar className="text-[#0064D2] dark:text-blue-400" />
                     <span>{formatDate(trip.startDate)} – {formatDate(trip.endDate)}</span>
-                    {trip.duration && <span className="text-slate-500">({trip.duration})</span>}
+                    {trip.duration && <span className={isDark ? "text-slate-500" : "text-[#999999]"}>({trip.duration})</span>}
                   </span>
-                  <span className="flex items-center gap-1.5 text-slate-400">
-                    <FiUsers className="text-indigo-400" />
+                  <span className={`flex items-center gap-1.5 ${isDark ? "text-slate-400" : "text-[#666666]"}`}>
+                    <FiUsers className="text-[#0064D2] dark:text-blue-400" />
                     <span>{trip.travelers} {isCampus ? "Students / Participants" : "Travelers"}</span>
                   </span>
-                  <span className="flex items-center gap-1.5 text-slate-400">
-                    <FiDollarSign className="text-indigo-400" />
+                  <span className={`flex items-center gap-1.5 ${isDark ? "text-slate-400" : "text-[#666666]"}`}>
+                    <FiDollarSign className="text-[#0064D2] dark:text-blue-400" />
                     <span>{trip.currency || "INR"} {trip.budget?.toLocaleString?.() || trip.budget}</span>
                   </span>
                 </div>
@@ -879,37 +893,41 @@ export default function OperatorTripDetails() {
 
               {/* Lead Contact Info & Communication */}
               {contactPerson && (
-                <div className="bg-slate-950/80 border border-slate-800/80 rounded-xl p-4 lg:w-72 shrink-0 flex flex-col justify-between">
+                <div className={`rounded-xl border p-4 lg:w-72 shrink-0 flex flex-col justify-between ${isDark ? "bg-slate-950/80 border-slate-800/80" : "bg-[#F8FAFC] border-[#EBEBEB]"}`}>
                   <div>
-                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5">
+                    <div className={`text-[10px] font-black uppercase tracking-widest mb-1.5 ${isDark ? "text-slate-400" : "text-[#999999]"}`}>
                       {isCampus ? "Campus Coordinator" : "Lead Traveler"}
                     </div>
-                    <div className="font-bold text-white text-sm">{contactPerson.name}</div>
-                    <div className="text-xs text-slate-400 mt-1 flex items-center gap-1.5 truncate">
-                      <FiMail size={12} className="text-slate-500 shrink-0" />
+                    <div className={`font-bold text-sm ${isDark ? "text-white" : "text-[#1A1A1A]"}`}>{contactPerson.name}</div>
+                    <div className={`text-xs mt-1 flex items-center gap-1.5 truncate ${isDark ? "text-slate-400" : "text-[#666666]"}`}>
+                      <FiMail size={12} className={isDark ? "text-slate-500 shrink-0" : "text-[#999999] shrink-0"} />
                       <span className="truncate">{contactPerson.email}</span>
                     </div>
                     {contactPerson.phone && (
-                      <div className="text-xs text-slate-400 mt-0.5 flex items-center gap-1.5">
-                        <FiPhone size={12} className="text-slate-500 shrink-0" />
+                      <div className={`text-xs mt-0.5 flex items-center gap-1.5 ${isDark ? "text-slate-400" : "text-[#666666]"}`}>
+                        <FiPhone size={12} className={isDark ? "text-slate-500 shrink-0" : "text-[#999999] shrink-0"} />
                         <span>{contactPerson.phone}</span>
                       </div>
                     )}
                   </div>
 
-                  <div className="mt-3 pt-3 border-t border-slate-800/80">
+                  <div className={`mt-3 pt-3 border-t ${isDark ? "border-slate-800/80" : "border-[#EBEBEB]"}`}>
                     <button
                       type="button"
                       onClick={() => {
                         setIsMessageModalOpen(true);
                         setUnreadMessagesCount(0);
                       }}
-                      className="w-full py-2 px-3 rounded-lg bg-indigo-600/20 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-500/30 text-xs font-bold transition flex items-center justify-center gap-1.5"
+                      className={`w-full py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                        isDark
+                          ? "bg-blue-600/20 hover:bg-blue-600 text-blue-300 hover:text-white border border-blue-500/30"
+                          : "bg-[#0064D2]/10 hover:bg-[#0064D2] text-[#0064D2] hover:text-white border border-[#0064D2]/20"
+                      }`}
                     >
                       <FiMessageSquare size={13} />
                       <span>{isCampus ? "Chat with Coordinator" : "Chat with Traveler"}</span>
                       {unreadMessagesCount > 0 && (
-                        <span className="ml-1 px-1.5 py-0.2 bg-indigo-500 text-white text-[10px] font-black rounded-full shadow-xs animate-pulse">
+                        <span className="ml-1 px-1.5 py-0.2 bg-[#0064D2] text-white text-[10px] font-black rounded-full shadow-xs animate-pulse">
                           {unreadMessagesCount}
                         </span>
                       )}
@@ -920,52 +938,52 @@ export default function OperatorTripDetails() {
             </div>
 
             {/* Operational Readiness Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6 pt-6 border-t border-slate-800/80">
-              <div className="p-3.5 bg-slate-950/70 border border-slate-800 rounded-xl flex items-center justify-between">
+            <div className={`grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6 pt-6 border-t ${isDark ? "border-slate-800/80" : "border-[#EBEBEB]"}`}>
+              <div className={`p-3.5 rounded-xl border flex items-center justify-between ${isDark ? "bg-slate-950/70 border-slate-800" : "bg-[#F8FAFC] border-[#EBEBEB]"}`}>
                 <div>
-                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Accommodation</div>
-                  <div className="text-base font-black text-white mt-0.5">
-                    {accConfirmed} <span className="text-xs text-slate-500 font-semibold">/ {stayBookings.length} Confirmed</span>
+                  <div className={`text-[10px] font-black uppercase tracking-widest ${isDark ? "text-slate-400" : "text-[#666666]"}`}>Accommodation</div>
+                  <div className={`text-base font-black mt-0.5 ${isDark ? "text-white" : "text-[#1A1A1A]"}`}>
+                    {accConfirmed} <span className={`text-xs font-semibold ${isDark ? "text-slate-500" : "text-[#999999]"}`}>/ {stayBookings.length} Confirmed</span>
                   </div>
                 </div>
                 <div className={`px-2 py-1 rounded text-[10px] font-bold ${
                   stayBookings.length > 0 && accConfirmed === stayBookings.length 
-                    ? "bg-emerald-950/60 text-emerald-400 border border-emerald-800/40" 
-                    : "bg-slate-800 text-slate-400"
+                    ? (isDark ? "bg-emerald-950/60 text-emerald-400 border border-emerald-800/40" : "bg-emerald-50 text-emerald-700 border border-emerald-200")
+                    : (isDark ? "bg-slate-800 text-slate-400" : "bg-slate-100 text-slate-600 border border-slate-200")
                 }`}>
                   {stayBookings.length === 0 ? "None" : accConfirmed === stayBookings.length ? "Ready" : "Pending"}
                 </div>
               </div>
 
-              <div className="p-3.5 bg-slate-950/70 border border-slate-800 rounded-xl flex items-center justify-between">
+              <div className={`p-3.5 rounded-xl border flex items-center justify-between ${isDark ? "bg-slate-950/70 border-slate-800" : "bg-[#F8FAFC] border-[#EBEBEB]"}`}>
                 <div>
-                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Transport Legs</div>
-                  <div className="text-base font-black text-white mt-0.5">
-                    {transConfirmed} <span className="text-xs text-slate-500 font-semibold">/ {transportBookings.length} Confirmed</span>
+                  <div className={`text-[10px] font-black uppercase tracking-widest ${isDark ? "text-slate-400" : "text-[#666666]"}`}>Transport Legs</div>
+                  <div className={`text-base font-black mt-0.5 ${isDark ? "text-white" : "text-[#1A1A1A]"}`}>
+                    {transConfirmed} <span className={`text-xs font-semibold ${isDark ? "text-slate-500" : "text-[#999999]"}`}>/ {transportBookings.length} Confirmed</span>
                   </div>
                 </div>
                 <div className={`px-2 py-1 rounded text-[10px] font-bold ${
                   transportBookings.length > 0 && transConfirmed === transportBookings.length 
-                    ? "bg-emerald-950/60 text-emerald-400 border border-emerald-800/40" 
-                    : "bg-slate-800 text-slate-400"
+                    ? (isDark ? "bg-emerald-950/60 text-emerald-400 border border-emerald-800/40" : "bg-emerald-50 text-emerald-700 border border-emerald-200")
+                    : (isDark ? "bg-slate-800 text-slate-400" : "bg-slate-100 text-slate-600 border border-slate-200")
                 }`}>
                   {transportBookings.length === 0 ? "None" : transConfirmed === transportBookings.length ? "Ready" : "Pending"}
                 </div>
               </div>
 
-              <div className="p-3.5 bg-slate-950/70 border border-slate-800 rounded-xl flex items-center justify-between">
+              <div className={`p-3.5 rounded-xl border flex items-center justify-between ${isDark ? "bg-slate-950/70 border-slate-800" : "bg-[#F8FAFC] border-[#EBEBEB]"}`}>
                 <div>
-                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  <div className={`text-[10px] font-black uppercase tracking-widest ${isDark ? "text-slate-400" : "text-[#666666]"}`}>
                     {isCampus ? "Visits & Permissions" : "Activities"}
                   </div>
-                  <div className="text-base font-black text-white mt-0.5">
-                    {actConfirmed} <span className="text-xs text-slate-500 font-semibold">/ {activityBookings.length} Confirmed</span>
+                  <div className={`text-base font-black mt-0.5 ${isDark ? "text-white" : "text-[#1A1A1A]"}`}>
+                    {actConfirmed} <span className={`text-xs font-semibold ${isDark ? "text-slate-500" : "text-[#999999]"}`}>/ {activityBookings.length} Confirmed</span>
                   </div>
                 </div>
                 <div className={`px-2 py-1 rounded text-[10px] font-bold ${
                   activityBookings.length > 0 && actConfirmed === activityBookings.length 
-                    ? "bg-emerald-950/60 text-emerald-400 border border-emerald-800/40" 
-                    : "bg-slate-800 text-slate-400"
+                    ? (isDark ? "bg-emerald-950/60 text-emerald-400 border border-emerald-800/40" : "bg-emerald-50 text-emerald-700 border border-emerald-200")
+                    : (isDark ? "bg-slate-800 text-slate-400" : "bg-slate-100 text-slate-600 border border-slate-200")
                 }`}>
                   {activityBookings.length === 0 ? "None" : actConfirmed === activityBookings.length ? "Ready" : "Pending"}
                 </div>
@@ -994,26 +1012,25 @@ export default function OperatorTripDetails() {
           />
 
           {/* Operational Views Tabs */}
-          <div className="flex items-center gap-2 border-b border-slate-800 pb-2 overflow-x-auto">
+          <div className={`flex items-center gap-2 border-b pb-2 overflow-x-auto ${isDark ? "border-slate-800" : "border-[#EBEBEB]"}`}>
             <button
               onClick={() => setActiveTab("itinerary")}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
                 activeTab === "itinerary"
-                  ? "bg-indigo-600 text-white shadow-xs"
-                  : "text-slate-400 hover:text-white bg-slate-900 hover:bg-slate-800"
+                  ? "bg-[#0064D2] text-white shadow-xs"
+                  : (isDark ? "text-slate-400 hover:text-white bg-slate-900 hover:bg-slate-800" : "text-[#666666] hover:text-[#1A1A1A] bg-white border border-[#EBEBEB] hover:bg-[#F5F7FA]")
               }`}
             >
               <FiCalendar size={13} />
               <span>Finalized Itinerary ({itineraryDays.length} Days)</span>
             </button>
 
-
             <button
               onClick={() => setActiveTab("bookings")}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
                 activeTab === "bookings"
-                  ? "bg-indigo-600 text-white shadow-xs"
-                  : "text-slate-400 hover:text-white bg-slate-900 hover:bg-slate-800"
+                  ? "bg-[#0064D2] text-white shadow-xs"
+                  : (isDark ? "text-slate-400 hover:text-white bg-slate-900 hover:bg-slate-800" : "text-[#666666] hover:text-[#1A1A1A] bg-white border border-[#EBEBEB] hover:bg-[#F5F7FA]")
               }`}
             >
               <FiCheckCircle size={13} />
@@ -1024,8 +1041,8 @@ export default function OperatorTripDetails() {
               onClick={() => setActiveTab("accommodation")}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
                 activeTab === "accommodation"
-                  ? "bg-indigo-600 text-white shadow-xs"
-                  : "text-slate-400 hover:text-white bg-slate-900 hover:bg-slate-800"
+                  ? "bg-[#0064D2] text-white shadow-xs"
+                  : (isDark ? "text-slate-400 hover:text-white bg-slate-900 hover:bg-slate-800" : "text-[#666666] hover:text-[#1A1A1A] bg-white border border-[#EBEBEB] hover:bg-[#F5F7FA]")
               }`}
             >
               <FiMapPin size={13} />
@@ -1036,8 +1053,8 @@ export default function OperatorTripDetails() {
               onClick={() => setActiveTab("transport")}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
                 activeTab === "transport"
-                  ? "bg-indigo-600 text-white shadow-xs"
-                  : "text-slate-400 hover:text-white bg-slate-900 hover:bg-slate-800"
+                  ? "bg-[#0064D2] text-white shadow-xs"
+                  : (isDark ? "text-slate-400 hover:text-white bg-slate-900 hover:bg-slate-800" : "text-[#666666] hover:text-[#1A1A1A] bg-white border border-[#EBEBEB] hover:bg-[#F5F7FA]")
               }`}
             >
               <FiArrowRight size={13} />
@@ -1048,8 +1065,8 @@ export default function OperatorTripDetails() {
               onClick={() => setActiveTab("activities")}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
                 activeTab === "activities"
-                  ? "bg-indigo-600 text-white shadow-xs"
-                  : "text-slate-400 hover:text-white bg-slate-900 hover:bg-slate-800"
+                  ? "bg-[#0064D2] text-white shadow-xs"
+                  : (isDark ? "text-slate-400 hover:text-white bg-slate-900 hover:bg-slate-800" : "text-[#666666] hover:text-[#1A1A1A] bg-white border border-[#EBEBEB] hover:bg-[#F5F7FA]")
               }`}
             >
               <FiCompass size={13} />
@@ -1060,11 +1077,11 @@ export default function OperatorTripDetails() {
               onClick={() => setActiveTab("guide")}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
                 activeTab === "guide"
-                  ? "bg-indigo-600 text-white shadow-xs"
-                  : "text-slate-400 hover:text-white bg-slate-900 hover:bg-slate-800"
+                  ? "bg-[#0064D2] text-white shadow-xs"
+                  : (isDark ? "text-slate-400 hover:text-white bg-slate-900 hover:bg-slate-800" : "text-[#666666] hover:text-[#1A1A1A] bg-white border border-[#EBEBEB] hover:bg-[#F5F7FA]")
               }`}
             >
-              <FiCompass size={13} className={trip?.guideRequirement?.required ? "text-teal-400" : ""} />
+              <FiCompass size={13} className={trip?.guideRequirement?.required ? "text-teal-500" : ""} />
               <span>
                 Guide
                 {trip?.guideRequirement?.required ? " (Requested)" : trip?.guideRequirement?.required === false ? " (Not Needed)" : ""}
@@ -1075,16 +1092,16 @@ export default function OperatorTripDetails() {
           {/* TAB 1: EXACT FINALIZED ITINERARY (Read-Only Canonical View) */}
           {activeTab === "itinerary" && (
             <div className="space-y-6">
-              <div className="bg-slate-900 rounded-2xl border border-slate-800 p-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
+              <div className={`rounded-2xl border p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 ${isDark ? "bg-slate-900 border-slate-800" : "bg-white border-[#EBEBEB]"}`}>
                 <div>
-                  <h3 className="text-xs font-black uppercase tracking-wider text-white">
+                  <h3 className={`text-xs font-black uppercase tracking-wider ${isDark ? "text-white" : "text-[#1A1A1A]"}`}>
                     Finalized Itinerary
                   </h3>
-                  <p className="text-[11px] text-slate-400">
+                  <p className={`text-[11px] ${isDark ? "text-slate-400" : "text-[#666666]"}`}>
                     Exact canonical itinerary sequence and activities finalized for this trip.
                   </p>
                 </div>
-                <span className="px-2.5 py-1 rounded-lg bg-indigo-950/70 text-indigo-300 text-[10px] font-bold border border-indigo-800/60 uppercase tracking-wider">
+                <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border uppercase tracking-wider ${isDark ? "bg-blue-950/70 text-blue-300 border-blue-800/60" : "bg-blue-50 text-[#0064D2] border-blue-200"}`}>
                   Read-Only View
                 </span>
               </div>
@@ -1115,19 +1132,19 @@ export default function OperatorTripDetails() {
           )}
 
 
-          {/* TAB 3: ALL BOOKINGS / STATUS MANAGEMENT */}
+          {/* TAB 2: ALL BOOKINGS / STATUS MANAGEMENT */}
           {activeTab === "bookings" && (
-            <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-sm">
-              <div className="p-4 border-b border-slate-800 flex items-center justify-between">
+            <div className={`rounded-2xl border overflow-hidden shadow-xs ${isDark ? "bg-slate-900 border-slate-800" : "bg-white border-[#EBEBEB]"}`}>
+              <div className={`p-4 border-b flex items-center justify-between ${isDark ? "border-slate-800" : "border-[#EBEBEB]"}`}>
                 <div>
-                  <h3 className="text-xs font-black uppercase tracking-wider text-white">
+                  <h3 className={`text-xs font-black uppercase tracking-wider ${isDark ? "text-white" : "text-[#1A1A1A]"}`}>
                     Operational Requirements & Bookings
                   </h3>
-                  <p className="text-[11px] text-slate-400">
+                  <p className={`text-[11px] ${isDark ? "text-slate-400" : "text-[#666666]"}`}>
                     Track status and coordinate with vendors directly.
                   </p>
                 </div>
-                <span className="text-xs font-bold text-slate-400">
+                <span className={`text-xs font-bold ${isDark ? "text-slate-400" : "text-[#666666]"}`}>
                   {bookings.length} Total Requirements
                 </span>
               </div>
@@ -1135,7 +1152,7 @@ export default function OperatorTripDetails() {
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="bg-slate-950/60 border-b border-slate-800 text-[10px] uppercase tracking-wider text-slate-400 font-black">
+                    <tr className={`border-b text-[10px] uppercase tracking-wider font-black ${isDark ? "bg-slate-950/60 border-slate-800 text-slate-400" : "bg-[#F8FAFC] border-[#EBEBEB] text-[#666666]"}`}>
                       <th className="p-4">Requirement / Title</th>
                       <th className="p-4">Type</th>
                       <th className="p-4">Vendor / Carrier</th>
@@ -1143,39 +1160,39 @@ export default function OperatorTripDetails() {
                       <th className="p-4">Update Status</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-800/60">
+                  <tbody className={`divide-y ${isDark ? "divide-slate-800/60" : "divide-[#EBEBEB]"}`}>
                     {bookings.length === 0 ? (
                       <tr>
-                        <td colSpan="5" className="p-8 text-center text-slate-500 text-xs font-medium">
+                        <td colSpan="5" className={`p-8 text-center text-xs font-medium ${isDark ? "text-slate-500" : "text-[#999999]"}`}>
                           No booking requirements synchronized for this trip yet.
                         </td>
                       </tr>
                     ) : (
                       bookings.map((booking) => (
-                        <tr key={booking._id} className="hover:bg-slate-850/40 transition">
+                        <tr key={booking._id} className={isDark ? "hover:bg-slate-850/40 transition" : "hover:bg-[#F8FAFC] transition"}>
                           <td className="p-4 max-w-xs">
-                            <div className="font-bold text-white text-xs">{booking.title}</div>
+                            <div className={`font-bold text-xs ${isDark ? "text-white" : "text-[#1A1A1A]"}`}>{booking.title}</div>
                             {booking.location && (
-                              <div className="text-[11px] text-slate-400 flex items-center gap-1 mt-1">
-                                <FiMapPin size={10} className="text-slate-500 shrink-0" />
+                              <div className={`text-[11px] flex items-center gap-1 mt-1 ${isDark ? "text-slate-400" : "text-[#666666]"}`}>
+                                <FiMapPin size={10} className={isDark ? "text-slate-500 shrink-0" : "text-[#999999] shrink-0"} />
                                 <span className="truncate">{booking.location}</span>
                               </div>
                             )}
                             {booking.notes && (
-                              <div className="text-[10px] text-slate-400 mt-1 italic line-clamp-1">
+                              <div className={`text-[10px] mt-1 italic line-clamp-1 ${isDark ? "text-slate-400" : "text-[#666666]"}`}>
                                 {booking.notes}
                               </div>
                             )}
                           </td>
 
                           <td className="p-4">
-                            <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-slate-800 text-slate-300 border border-slate-700">
+                            <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border ${isDark ? "bg-slate-800 text-slate-300 border-slate-700" : "bg-[#F1F5F9] text-[#475569] border-[#E2E8F0]"}`}>
                               {booking.type}
                             </span>
                           </td>
 
                           <td className="p-4">
-                            <div className="text-xs text-slate-300 font-medium">
+                            <div className={`text-xs font-medium ${isDark ? "text-slate-300" : "text-[#334155]"}`}>
                               {booking.vendorName || "Pending Assignment"}
                             </div>
                             {booking.externalUrl && (
@@ -1183,7 +1200,7 @@ export default function OperatorTripDetails() {
                                 href={booking.externalUrl} 
                                 target="_blank" 
                                 rel="noopener noreferrer" 
-                                className="inline-flex items-center gap-1 text-[11px] text-indigo-400 hover:underline mt-0.5"
+                                className="inline-flex items-center gap-1 text-[11px] text-[#0064D2] hover:underline mt-0.5"
                               >
                                 Link <FiExternalLink size={10} />
                               </a>
@@ -1194,7 +1211,7 @@ export default function OperatorTripDetails() {
                             <span className={`px-2.5 py-1 text-[10px] uppercase font-black tracking-wider rounded-lg border ${getStatusBadge(booking.status)}`}>
                               {booking.status.replace("_", " ")}
                             </span>
-                            <div className="text-[10px] text-slate-400 mt-1.5 flex items-center gap-1">
+                            <div className={`text-[10px] mt-1.5 flex items-center gap-1 ${isDark ? "text-slate-400" : "text-[#666666]"}`}>
                               <FiClock size={10} />
                               <span>{new Date(booking.updatedAt).toLocaleDateString()}</span>
                             </div>
@@ -1217,28 +1234,28 @@ export default function OperatorTripDetails() {
             </div>
           )}
 
-          {/* TAB 4: STAY & HOTELS — STRUCTURED PER FINALIZED STAY SEGMENT */}
+          {/* TAB 3: STAY & HOTELS — STRUCTURED PER FINALIZED STAY SEGMENT */}
           {activeTab === "accommodation" && (
             <div className="space-y-6">
-              <div className="bg-slate-900 rounded-2xl border border-slate-800 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+              <div className={`rounded-2xl border p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs ${isDark ? "bg-slate-900 border-slate-800" : "bg-white border-[#EBEBEB]"}`}>
                 <div>
-                  <h3 className="text-sm font-black uppercase tracking-wider text-white">
+                  <h3 className={`text-sm font-black uppercase tracking-wider ${isDark ? "text-white" : "text-[#1A1A1A]"}`}>
                     Stay & Hotels
                   </h3>
-                  <p className="text-xs text-slate-400 mt-0.5">
+                  <p className={`text-xs mt-0.5 ${isDark ? "text-slate-400" : "text-[#666666]"}`}>
                     Each finalized Stay Plan segment and its accommodation details.
                   </p>
                 </div>
-                <span className="px-3 py-1 rounded-lg bg-indigo-950/70 text-indigo-300 text-xs font-bold border border-indigo-800/60 self-start sm:self-auto">
+                <span className={`px-3 py-1 rounded-lg text-xs font-bold border self-start sm:self-auto ${isDark ? "bg-blue-950/70 text-blue-300 border-blue-800/60" : "bg-blue-50 text-[#0064D2] border-blue-200"}`}>
                   {staySegmentsList.length} Finalized Stay Segment{staySegmentsList.length !== 1 ? "s" : ""}
                 </span>
               </div>
 
               {staySegmentsList.length === 0 ? (
-                <div className="bg-slate-900 rounded-2xl border border-slate-800 p-12 text-center text-slate-400 text-xs">
-                  <FiHome className="mx-auto text-slate-600 mb-2" size={28} />
-                  <p className="font-semibold text-slate-300">No finalized stay segments available.</p>
-                  <p className="text-slate-500 text-[11px] mt-0.5">
+                <div className={`rounded-2xl border p-12 text-center text-xs ${isDark ? "bg-slate-900 border-slate-800 text-slate-400" : "bg-white border-[#EBEBEB] text-[#666666]"}`}>
+                  <FiHome className={`mx-auto mb-2 ${isDark ? "text-slate-600" : "text-[#A0AEC0]"}`} size={28} />
+                  <p className={`font-semibold ${isDark ? "text-slate-300" : "text-[#1A1A1A]"}`}>No finalized stay segments available.</p>
+                  <p className={`text-[11px] mt-0.5 ${isDark ? "text-slate-500" : "text-[#999999]"}`}>
                     No accommodation segments were defined in the canonical Stay Plan.
                   </p>
                 </div>
@@ -1257,31 +1274,31 @@ export default function OperatorTripDetails() {
                     return (
                       <div 
                         key={stayId} 
-                        className="bg-slate-900 rounded-2xl border border-slate-800 p-6 shadow-sm space-y-5"
+                        className={`rounded-2xl border p-6 shadow-xs space-y-5 ${isDark ? "bg-slate-900 border-slate-800" : "bg-white border-[#EBEBEB]"}`}
                       >
                         {/* 1. FINALIZED STAY SEGMENT HEADER */}
-                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 pb-4 border-b border-slate-800">
+                        <div className={`flex flex-col sm:flex-row sm:items-start justify-between gap-4 pb-4 border-b ${isDark ? "border-slate-800" : "border-[#EBEBEB]"}`}>
                           <div>
-                            <div className="text-base sm:text-lg font-black tracking-wider text-white uppercase">
+                            <div className={`text-base sm:text-lg font-black tracking-wider uppercase ${isDark ? "text-white" : "text-[#1A1A1A]"}`}>
                               {stay.location}
                             </div>
-                            <div className="text-xs font-bold text-slate-400 mt-0.5 flex items-center gap-1.5">
-                              <FiCalendar className="text-indigo-400 shrink-0" size={12} />
+                            <div className={`text-xs font-bold mt-0.5 flex items-center gap-1.5 ${isDark ? "text-slate-400" : "text-[#666666]"}`}>
+                              <FiCalendar className="text-[#0064D2] dark:text-blue-400 shrink-0" size={12} />
                               <span>{formatDate(stay.checkIn)} – {formatDate(stay.checkOut)}</span>
                               {stay.nights && (
-                                <span className="text-slate-500 font-medium">({stay.nights} Night{stay.nights !== 1 ? "s" : ""})</span>
+                                <span className={`font-medium ${isDark ? "text-slate-500" : "text-[#999999]"}`}>({stay.nights} Night{stay.nights !== 1 ? "s" : ""})</span>
                               )}
                             </div>
 
                             <div className="mt-3">
-                              <div className="text-[10px] font-black uppercase tracking-widest text-indigo-400">
+                              <div className="text-[10px] font-black uppercase tracking-widest text-[#0064D2] dark:text-blue-400">
                                 FINALIZED STAY
                               </div>
-                              <div className="text-xs font-semibold text-slate-200 mt-0.5">
+                              <div className={`text-xs font-semibold mt-0.5 ${isDark ? "text-slate-200" : "text-[#1A1A1A]"}`}>
                                 {stay.location}
                               </div>
                               {stay.reason && (
-                                <p className="text-xs text-slate-400 mt-1 max-w-2xl leading-relaxed">
+                                <p className={`text-xs mt-1 max-w-2xl leading-relaxed ${isDark ? "text-slate-400" : "text-[#666666]"}`}>
                                   {stay.reason}
                                 </p>
                               )}
@@ -1291,16 +1308,16 @@ export default function OperatorTripDetails() {
 
                         {/* 2. SELECTED HOTEL SECTION */}
                         <div className="space-y-3">
-                          <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                          <div className={`text-[10px] font-black uppercase tracking-widest ${isDark ? "text-slate-400" : "text-[#999999]"}`}>
                             SELECTED HOTEL
                           </div>
 
                           {hotel ? (
-                            <div className="bg-slate-950/70 border border-slate-800/90 rounded-xl p-4 space-y-4">
+                            <div className={`rounded-xl p-4 space-y-4 border ${isDark ? "bg-slate-950/70 border-slate-800/90" : "bg-[#F8FAFC] border-[#EBEBEB]"}`}>
                               <div className="flex flex-col sm:flex-row gap-4 items-start">
                                 {/* Hotel Image (only if genuinely available) */}
                                 {hotelImage && (
-                                  <div className="w-full sm:w-40 h-28 shrink-0 overflow-hidden rounded-xl bg-slate-900 border border-slate-800">
+                                  <div className={`w-full sm:w-40 h-28 shrink-0 overflow-hidden rounded-xl border ${isDark ? "bg-slate-900 border-slate-800" : "bg-[#F1F5F9] border-[#EBEBEB]"}`}>
                                     <img
                                       src={hotelImage}
                                       alt={hotel.name || "Hotel"}
@@ -1312,15 +1329,15 @@ export default function OperatorTripDetails() {
 
                                 <div className="flex-1 min-w-0 space-y-1.5">
                                   <div className="flex flex-wrap items-center gap-2">
-                                    <h5 className="text-sm font-bold text-white">
+                                    <h5 className={`text-sm font-bold ${isDark ? "text-white" : "text-[#1A1A1A]"}`}>
                                       {hotel.name || hotel.hotelName}
                                     </h5>
                                     {hotel.rating && (
-                                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-950/60 text-amber-300 border border-amber-800/40 flex items-center gap-1">
+                                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold border flex items-center gap-1 ${isDark ? "bg-amber-950/60 text-amber-300 border-amber-800/40" : "bg-amber-50 text-amber-800 border-amber-200"}`}>
                                         <FiStar size={10} className="fill-amber-400 text-amber-400" />
                                         <span>{hotel.rating}</span>
                                         {hotel.reviews && (
-                                          <span className="text-slate-400 font-normal">
+                                          <span className={`font-normal ${isDark ? "text-slate-400" : "text-[#666666]"}`}>
                                             ({hotel.reviews.toLocaleString()} reviews)
                                           </span>
                                         )}
@@ -1329,20 +1346,20 @@ export default function OperatorTripDetails() {
                                   </div>
 
                                   {(hotel.location || hotel.address || hotel.city) && (
-                                    <div className="text-xs text-slate-400 flex items-center gap-1">
-                                      <FiMapPin size={12} className="text-slate-500 shrink-0" />
+                                    <div className={`text-xs flex items-center gap-1 ${isDark ? "text-slate-400" : "text-[#666666]"}`}>
+                                      <FiMapPin size={12} className={isDark ? "text-slate-500 shrink-0" : "text-[#999999] shrink-0"} />
                                       <span className="truncate">{hotel.location || hotel.address || hotel.city}</span>
                                     </div>
                                   )}
 
                                   {(hotel.notes || hotel.description) && (
-                                    <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">
+                                    <p className={`text-xs line-clamp-2 leading-relaxed ${isDark ? "text-slate-400" : "text-[#666666]"}`}>
                                       {hotel.notes || hotel.description}
                                     </p>
                                   )}
 
                                   {(hotel.checkIn || hotel.checkOut || hotel.nights) && (
-                                    <div className="text-[11px] text-slate-400 pt-0.5">
+                                    <div className={`text-[11px] pt-0.5 ${isDark ? "text-slate-400" : "text-[#666666]"}`}>
                                       Stay: {formatDate(hotel.checkIn || stay.checkIn)} – {formatDate(hotel.checkOut || stay.checkOut)}
                                       {hotel.nights && ` · ${hotel.nights} Nights`}
                                     </div>
@@ -1351,20 +1368,20 @@ export default function OperatorTripDetails() {
                               </div>
 
                               {/* Hotel Website Action */}
-                              <div className="pt-3 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-3">
+                              <div className={`pt-3 border-t flex flex-wrap items-center justify-between gap-3 ${isDark ? "border-slate-800/80" : "border-[#EBEBEB]"}`}>
                                 <div className="flex flex-wrap items-center gap-2.5">
                                   {hotelWebsiteUrl ? (
                                     <a
                                       href={hotelWebsiteUrl}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-xs"
+                                      className="px-4 py-2 rounded-xl bg-[#0064D2] hover:bg-[#0052B4] text-white text-xs font-bold transition flex items-center gap-1.5 shadow-xs"
                                     >
                                       <span>Book on Hotel Website</span>
                                       <FiExternalLink size={12} />
                                     </a>
                                   ) : (
-                                    <span className="text-xs text-slate-500 italic px-3 py-1.5 bg-slate-900 rounded-lg border border-slate-800">
+                                    <span className={`text-xs italic px-3 py-1.5 rounded-lg border ${isDark ? "text-slate-500 bg-slate-900 border-slate-800" : "text-[#999999] bg-[#F1F5F9] border-[#EBEBEB]"}`}>
                                       Website unavailable
                                     </span>
                                   )}
@@ -1374,7 +1391,7 @@ export default function OperatorTripDetails() {
                                       href={hotel.mapsUrl}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      className="px-3.5 py-2 rounded-xl bg-slate-850 hover:bg-slate-800 text-slate-300 hover:text-white text-xs font-bold transition flex items-center gap-1.5"
+                                      className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${isDark ? "bg-slate-850 hover:bg-slate-800 text-slate-300 hover:text-white" : "bg-[#F1F5F9] hover:bg-[#E2E8F0] text-[#475569] border border-[#EBEBEB]"}`}
                                     >
                                       <span>View Hotel</span>
                                       <FiExternalLink size={11} />
@@ -1382,21 +1399,21 @@ export default function OperatorTripDetails() {
                                   )}
                                 </div>
 
-                                <div className="text-[11px] text-slate-500 font-medium">
+                                <div className={`text-[11px] font-medium ${isDark ? "text-slate-500" : "text-[#999999]"}`}>
                                   External hotel booking portal
                                 </div>
                               </div>
                             </div>
                           ) : (
-                            <div className="bg-slate-950/60 border border-slate-800/80 rounded-xl p-4 text-slate-400 text-xs flex items-center gap-3">
-                              <div className="p-2 rounded-lg bg-slate-900 text-slate-500 shrink-0">
+                            <div className={`rounded-xl p-4 text-xs flex items-center gap-3 border ${isDark ? "bg-slate-950/60 border-slate-800/80 text-slate-400" : "bg-[#F8FAFC] border-[#EBEBEB] text-[#666666]"}`}>
+                              <div className={`p-2 rounded-lg shrink-0 ${isDark ? "bg-slate-900 text-slate-500" : "bg-[#F1F5F9] text-[#999999]"}`}>
                                 <FiHome size={18} />
                               </div>
                               <div>
-                                <div className="font-bold text-slate-300">
+                                <div className={`font-bold ${isDark ? "text-slate-300" : "text-[#1A1A1A]"}`}>
                                   No specific hotel finalized
                                 </div>
-                                <p className="text-[11px] text-slate-500 mt-0.5">
+                                <p className={`text-[11px] mt-0.5 ${isDark ? "text-slate-500" : "text-[#999999]"}`}>
                                   No accommodation was selected by the traveler / coordinator for this stay segment.
                                 </p>
                               </div>
@@ -1405,9 +1422,9 @@ export default function OperatorTripDetails() {
                         </div>
 
                         {/* 3. VISUALLY SEPARATED BOOKING STATUS */}
-                        <div className="pt-4 border-t border-slate-800/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-950/40 p-4 rounded-xl border border-slate-800/60">
+                        <div className={`pt-4 border-t flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl border ${isDark ? "border-slate-800/90 bg-slate-950/40 border-slate-800/60" : "border-[#EBEBEB] bg-[#F8FAFC]"}`}>
                           <div>
-                            <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">
+                            <div className={`text-[10px] font-black uppercase tracking-widest mb-1 ${isDark ? "text-slate-400" : "text-[#999999]"}`}>
                               BOOKING STATUS
                             </div>
                             {booking ? (
@@ -1415,13 +1432,13 @@ export default function OperatorTripDetails() {
                                 <span className={`px-2.5 py-1 text-[10px] uppercase font-black tracking-wider rounded-lg border ${getStatusBadge(booking.status)}`}>
                                   ● {booking.status.replace("_", " ")}
                                 </span>
-                                <span className="text-[10px] text-slate-500">
+                                <span className={`text-[10px] ${isDark ? "text-slate-500" : "text-[#999999]"}`}>
                                   Last updated: {new Date(booking.updatedAt).toLocaleDateString()}
                                 </span>
                               </div>
                             ) : (
                               <div className="flex items-center gap-2">
-                                <span className="px-2.5 py-1 text-[10px] uppercase font-black tracking-wider rounded-lg border bg-slate-800 text-slate-400 border-slate-700">
+                                <span className={`px-2.5 py-1 text-[10px] uppercase font-black tracking-wider rounded-lg border ${isDark ? "bg-slate-800 text-slate-400 border-slate-700" : "bg-slate-100 text-slate-600 border-slate-200"}`}>
                                   ● NOT BOOKED
                                 </span>
                               </div>
@@ -1430,7 +1447,7 @@ export default function OperatorTripDetails() {
 
                           {booking && (
                             <div className="flex items-center gap-2">
-                              <span className="text-xs font-semibold text-slate-400">Update Status:</span>
+                              <span className={`text-xs font-semibold ${isDark ? "text-slate-400" : "text-[#666666]"}`}>Update Status:</span>
                               <StatusDropdown
                                 currentStatus={booking.status}
                                 disabled={statusUpdating[booking._id]}
@@ -1470,7 +1487,7 @@ export default function OperatorTripDetails() {
                     <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">
                       INTERCITY TRANSIT (CAMPUS OUTBOUND & RETURN)
                     </div>
-                    <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">
+                    <span className="text-[10px] font-bold text-[#0064D2] dark:text-blue-400 uppercase tracking-wider">
                       2 Canonical Cards
                     </span>
                   </div>
@@ -1482,7 +1499,7 @@ export default function OperatorTripDetails() {
                           <div className="flex items-center justify-between gap-2 mb-2">
                             <span className={`px-2 py-0.5 text-[10px] font-black rounded uppercase tracking-wider border ${
                               card.direction === "OUTBOUND"
-                                ? "bg-indigo-950/70 text-indigo-300 border-indigo-800/60"
+                                ? "bg-blue-50 text-[#0064D2] dark:bg-blue-950/70 dark:text-blue-300 border-slate-200 dark:border-slate-800"
                                 : "bg-purple-950/70 text-purple-300 border-purple-800/60"
                             }`}>
                               {card.direction}
@@ -1494,7 +1511,7 @@ export default function OperatorTripDetails() {
 
                           <div className="font-bold text-white text-base flex items-center gap-2 mt-1">
                             <span>{card.from}</span>
-                            <FiArrowRight className="text-indigo-400 shrink-0" />
+                            <FiArrowRight className="text-[#0064D2] dark:text-blue-400 shrink-0" />
                             <span>{card.to}</span>
                           </div>
 
@@ -1527,7 +1544,7 @@ export default function OperatorTripDetails() {
                         <div key={i} className="bg-slate-900 p-5 rounded-2xl border border-slate-800 shadow-xs flex flex-col justify-between gap-4">
                           <div>
                             <div className="flex items-center justify-between gap-2 mb-2">
-                              <span className="px-2 py-0.5 bg-indigo-950/70 text-indigo-300 text-[10px] font-black rounded uppercase tracking-wider border border-indigo-800/60">
+                              <span className="px-2 py-0.5 bg-blue-50 text-[#0064D2] dark:bg-blue-950/70 dark:text-blue-300 text-[10px] font-black rounded uppercase tracking-wider border border-slate-200 dark:border-slate-800">
                                 {leg.mode || "Transit"}
                               </span>
                               <span className="text-xs font-bold text-slate-400">
@@ -1537,7 +1554,7 @@ export default function OperatorTripDetails() {
 
                             <div className="font-bold text-white text-sm flex items-center gap-2">
                               <span>{leg.from}</span>
-                              <FiArrowRight className="text-indigo-400 shrink-0" />
+                              <FiArrowRight className="text-[#0064D2] dark:text-blue-400 shrink-0" />
                               <span>{leg.to}</span>
                             </div>
 
@@ -1567,9 +1584,9 @@ export default function OperatorTripDetails() {
               {isCampus ? (
                 /* Campus Group Road Transport: ONE operational Group Fleet Card + Movements List */
                 <div className="space-y-4 pt-2">
-                  <div className="text-[10px] font-black uppercase tracking-widest text-indigo-400 flex items-center gap-1.5">
+                  <div className="text-[10px] font-black uppercase tracking-widest text-[#0064D2] dark:text-blue-400 flex items-center gap-1.5">
                     <span>CAMPUS GROUP FLEET & ROAD MOVEMENTS</span>
-                    <span className="px-1.5 py-0.5 rounded bg-indigo-950 text-[9px] font-bold text-indigo-300 border border-indigo-800/60">
+                    <span className="px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950 text-[9px] font-bold text-[#0064D2] dark:text-blue-300 border border-slate-200 dark:border-slate-800">
                       ONE TRIP FLEET ARRANGEMENT
                     </span>
                   </div>
@@ -1614,11 +1631,11 @@ export default function OperatorTripDetails() {
 
                   {/* ONE Group Transport / Fleet Card */}
                   {campusFleetPlan && (
-                    <div className="bg-indigo-950/40 border border-indigo-800/80 rounded-2xl p-5 shadow-xs space-y-4">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-indigo-800/60">
+                    <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-xs space-y-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
                         <div>
                           <div className="flex items-center gap-2">
-                            <span className="px-2 py-0.5 bg-indigo-900 text-indigo-200 text-[10px] font-black rounded uppercase tracking-wider border border-indigo-700">
+                            <span className="px-2 py-0.5 bg-blue-100 text-[#0064D2] dark:bg-blue-900 dark:text-blue-200 text-[10px] font-black rounded uppercase tracking-wider border border-slate-200 dark:border-slate-800">
                               GROUP TRANSPORT
                             </span>
                             <span className="text-xs font-bold text-slate-300">
@@ -1632,7 +1649,7 @@ export default function OperatorTripDetails() {
 
                         <div className="flex items-center gap-3">
                           <div className="text-left sm:text-right">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-300">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-[#0064D2] dark:text-blue-300">
                               Total Travelers
                             </span>
                             <div className="text-sm font-extrabold text-white">
@@ -1647,7 +1664,7 @@ export default function OperatorTripDetails() {
                           <button
                             onClick={loadCampusVendorData}
                             title="Refresh matching vendors and responses"
-                            className="p-1.5 rounded-lg bg-indigo-900/60 hover:bg-indigo-800 text-indigo-300 hover:text-white transition border border-indigo-700/50"
+                            className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-[#0064D2] dark:text-blue-300 hover:text-white transition border border-slate-200 dark:border-slate-800"
                           >
                             <FiRefreshCw size={13} className={loadingFleetVendors ? "animate-spin" : ""} />
                           </button>
@@ -1655,43 +1672,43 @@ export default function OperatorTripDetails() {
                       </div>
 
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                        <div className="bg-slate-900/80 p-3 rounded-xl border border-indigo-900/60">
+                        <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-200 dark:border-slate-800">
                           <span className="text-[10px] font-bold text-slate-400 uppercase block">Vehicle Type</span>
                           <span className="font-extrabold text-white">{campusFleetPlan.vehicleType}</span>
                         </div>
-                        <div className="bg-slate-900/80 p-3 rounded-xl border border-indigo-900/60">
+                        <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-200 dark:border-slate-800">
                           <span className="text-[10px] font-bold text-slate-400 uppercase block">Capacity</span>
                           <span className="font-extrabold text-white">{campusFleetPlan.capacityPerVehicle} seats / vehicle</span>
                         </div>
-                        <div className="bg-slate-900/80 p-3 rounded-xl border border-indigo-900/60">
+                        <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-200 dark:border-slate-800">
                           <span className="text-[10px] font-bold text-slate-400 uppercase block">Vehicles Required</span>
                           <span className="font-extrabold text-emerald-400">{campusFleetPlan.vehiclesRequired} coaches required</span>
                         </div>
-                        <div className="bg-slate-900/80 p-3 rounded-xl border border-indigo-900/60">
+                        <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-200 dark:border-slate-800">
                           <span className="text-[10px] font-bold text-slate-400 uppercase block">Luggage</span>
                           <span className="font-extrabold text-white">{campusFleetPlan.luggageCount} bags</span>
                         </div>
                       </div>
 
                       {campusFleetPlan.notes && (
-                        <div className="text-xs text-indigo-200/90 italic bg-indigo-950/60 p-2.5 rounded-xl border border-indigo-800/40">
+                        <div className="text-xs text-slate-600 dark:text-slate-300 italic bg-slate-50 dark:bg-slate-900 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800">
                           Notes: "{campusFleetPlan.notes}"
                         </div>
                       )}
 
                       {/* Canonical Resolved Operational Route */}
-                      <div className="bg-slate-900/90 rounded-xl p-3.5 border border-indigo-900/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                      <div className="bg-slate-900/90 rounded-xl p-3.5 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
                         <div className="flex items-center gap-2">
-                          <FiCompass className="text-indigo-400 shrink-0" size={16} />
+                          <FiCompass className="text-[#0064D2] dark:text-blue-400 shrink-0" size={16} />
                           <span className="font-bold text-slate-300">Resolved Operational Route:</span>
                           <div className="flex items-center gap-1.5 text-white font-extrabold flex-wrap">
                             <span>{fleetVendorsData?.route?.originCity || trip.source}</span>
-                            <span className="px-1.5 py-0.2 rounded bg-indigo-950 text-[10px] text-indigo-300 font-mono border border-indigo-800">
+                            <span className="px-1.5 py-0.2 rounded bg-blue-50 dark:bg-blue-950 text-[10px] text-[#0064D2] dark:text-blue-300 font-mono border border-slate-200 dark:border-slate-800">
                               {fleetVendorsData?.route?.originState || "Resolving state..."}
                             </span>
-                            <FiArrowRight size={12} className="text-indigo-400 mx-0.5" />
+                            <FiArrowRight size={12} className="text-[#0064D2] dark:text-blue-400 mx-0.5" />
                             <span>{fleetVendorsData?.route?.destinationCity || trip.destination}</span>
-                            <span className="px-1.5 py-0.2 rounded bg-indigo-950 text-[10px] text-indigo-300 font-mono border border-indigo-800">
+                            <span className="px-1.5 py-0.2 rounded bg-blue-50 dark:bg-blue-950 text-[10px] text-[#0064D2] dark:text-blue-300 font-mono border border-slate-200 dark:border-slate-800">
                               {fleetVendorsData?.route?.destinationState || "Resolving state..."}
                             </span>
                           </div>
@@ -1705,7 +1722,7 @@ export default function OperatorTripDetails() {
 
                       {/* Operator Status Management for the ONE Fleet */}
                       {campusFleetBooking && (
-                        <div className="pt-3 border-t border-indigo-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                        <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
                           <div className="text-slate-300 font-medium flex items-center gap-1.5">
                             <span>Manage Fleet Booking Status:</span>
                             <span className="text-slate-400 text-[11px]">(Applies to the entire group transport plan)</span>
@@ -1758,7 +1775,7 @@ export default function OperatorTripDetails() {
                     <div id="operator-responses-section" className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 shadow-sm">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-800">
                         <div>
-                          <div className="text-[10px] font-black uppercase tracking-widest text-indigo-400">
+                          <div className="text-[10px] font-black uppercase tracking-widest text-[#0064D2] dark:text-blue-400">
                             GROUP FLEET REQUEST
                           </div>
                           <div className="text-base font-extrabold text-white">
@@ -1772,7 +1789,7 @@ export default function OperatorTripDetails() {
                           <Link 
                             to="/vendor/requests" 
                             target="_blank"
-                            className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-400 hover:text-indigo-300 bg-indigo-950/60 hover:bg-indigo-900/80 px-3 py-1.5 rounded-lg border border-indigo-800/60 transition"
+                            className="inline-flex items-center gap-1.5 text-xs font-bold text-[#0064D2] dark:text-blue-400 hover:text-[#0064D2] dark:text-blue-300 bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 transition"
                           >
                             <FiExternalLink size={12} />
                             <span>Vendor Portal</span>
@@ -1862,7 +1879,7 @@ export default function OperatorTripDetails() {
                                 )}
                                 <button
                                   onClick={() => handleOpenChatModal(req)}
-                                  className="px-3 py-1.5 rounded-lg bg-indigo-600/90 hover:bg-indigo-600 text-white text-xs font-bold transition flex items-center gap-1.5 shadow"
+                                  className="px-3 py-1.5 rounded-lg bg-[#0064D2] hover:bg-[#0052B4] text-white text-xs font-bold transition flex items-center gap-1.5 shadow"
                                 >
                                   <FiMessageSquare size={12} />
                                   <span>Message Vendor</span>
@@ -1881,7 +1898,7 @@ export default function OperatorTripDetails() {
                       <div>
                         <h3 className="text-sm font-extrabold text-white flex items-center gap-2">
                           <span>Suitable Connected Vendors</span>
-                          <span className="px-2 py-0.5 rounded-full bg-indigo-950 text-indigo-300 text-[10px] font-black border border-indigo-800/80">
+                          <span className="px-2 py-0.5 rounded-full bg-blue-50 text-[#0064D2] dark:bg-blue-950 dark:text-blue-300 text-[10px] font-black border border-slate-200 dark:border-slate-800">
                             {fleetVendorsData?.matchedCount || 0} MATCHES
                           </span>
                         </h3>
@@ -1895,7 +1912,7 @@ export default function OperatorTripDetails() {
                         <button
                           onClick={handleOpenConfirmRequestModal}
                           disabled={selectedVendorIds.length === 0 || dispatchingRequests}
-                          className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:text-slate-500 text-white font-bold text-xs flex items-center gap-2 shadow-md transition disabled:cursor-not-allowed"
+                          className="px-4 py-2 rounded-xl bg-[#0064D2] hover:bg-[#0052B4] disabled:bg-slate-800 disabled:text-slate-500 text-white font-bold text-xs flex items-center gap-2 shadow-md transition disabled:cursor-not-allowed"
                         >
                           <FiSend size={13} />
                           <span>
@@ -1910,7 +1927,7 @@ export default function OperatorTripDetails() {
                     {/* Vendor Grid */}
                     {loadingFleetVendors ? (
                       <div className="py-8 text-center text-slate-500 text-xs">
-                        <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                        <div className="w-6 h-6 border-2 border-[#0064D2] border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
                         Matching connected vendors with MongoDB...
                       </div>
                     ) : (fleetVendorsData?.matchedVendors || []).length === 0 ? (
@@ -1937,7 +1954,7 @@ export default function OperatorTripDetails() {
                                 existingReq
                                   ? "bg-slate-950/60 border-slate-800/90 cursor-default opacity-85"
                                   : isSelected
-                                  ? "bg-indigo-950/40 border-indigo-500 shadow-md ring-1 ring-indigo-500/50 cursor-pointer"
+                                  ? "bg-blue-50/50 dark:bg-blue-950/40 border-[#0064D2] shadow-md ring-1 ring-[#0064D2]/50 cursor-pointer"
                                   : "bg-slate-950/70 border-slate-800/80 hover:border-slate-700 cursor-pointer"
                               }`}
                             >
@@ -1964,7 +1981,7 @@ export default function OperatorTripDetails() {
                                     }}
                                     className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
                                       isSelected
-                                        ? "bg-indigo-600 text-white shadow-sm ring-1 ring-indigo-400"
+                                        ? "bg-[#0064D2] text-white shadow-sm ring-1 ring-blue-400"
                                         : "bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white border border-slate-700/60"
                                     }`}
                                   >
@@ -2046,11 +2063,11 @@ export default function OperatorTripDetails() {
                               <div>
                                 <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
                                   <span className="font-bold text-slate-300">{dateStr}</span>
-                                  <span className="text-[11px] font-mono text-indigo-400 font-bold">{timeStr}</span>
+                                  <span className="text-[11px] font-mono text-[#0064D2] dark:text-blue-400 font-bold">{timeStr}</span>
                                 </div>
                                 <div className="font-bold text-white text-sm flex items-center gap-1.5">
                                   <span>{movement.from}</span>
-                                  <FiArrowRight className="text-indigo-400 shrink-0" size={13} />
+                                  <FiArrowRight className="text-[#0064D2] dark:text-blue-400 shrink-0" size={13} />
                                   <span>{movement.to}</span>
                                 </div>
                                 <div className="text-xs text-slate-400 mt-1">
@@ -2059,7 +2076,7 @@ export default function OperatorTripDetails() {
                               </div>
                               <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-500">
                                 <span>Assigned to Group Fleet</span>
-                                <span className="text-indigo-300 font-semibold">Operational Requirement</span>
+                                <span className="text-[#0064D2] dark:text-blue-300 font-semibold">Operational Requirement</span>
                               </div>
                             </div>
                           );
@@ -2071,9 +2088,9 @@ export default function OperatorTripDetails() {
               ) : (
                 /* Personal Trip: ONE Private Vehicle Arrangement OR Traveler Managed + Movements */
                 <div className="space-y-4 pt-2">
-                  <div className="text-[10px] font-black uppercase tracking-widest text-indigo-400 flex items-center gap-1.5">
+                  <div className="text-[10px] font-black uppercase tracking-widest text-[#0064D2] dark:text-blue-400 flex items-center gap-1.5">
                     <span>PERSONAL LOCAL TRANSPORT</span>
-                    <span className="px-1.5 py-0.5 rounded bg-indigo-950 text-[9px] font-bold text-indigo-300 border border-indigo-800/60">
+                    <span className="px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950 text-[9px] font-bold text-[#0064D2] dark:text-blue-300 border border-slate-200 dark:border-slate-800">
                       {personalTransportArrangement?.isTravelerManaged ? "TRAVELER MANAGED" : "ONE TRIP ARRANGEMENT"}
                     </span>
                   </div>
@@ -2100,11 +2117,11 @@ export default function OperatorTripDetails() {
                     </div>
                   ) : personalTransportArrangement?.isTransixCoordinated ? (
                     /* ONE Private Vehicle Arrangement Card */
-                    <div className="bg-indigo-950/40 border border-indigo-800/80 rounded-2xl p-5 shadow-xs space-y-4">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-indigo-800/60">
+                    <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-xs space-y-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
                         <div>
                           <div className="flex items-center gap-2">
-                            <span className="px-2 py-0.5 bg-indigo-900 text-indigo-200 text-[10px] font-black rounded uppercase tracking-wider border border-indigo-700">
+                            <span className="px-2 py-0.5 bg-blue-100 text-[#0064D2] dark:bg-blue-900 dark:text-blue-200 text-[10px] font-black rounded uppercase tracking-wider border border-slate-200 dark:border-slate-800">
                               PRIVATE VEHICLE
                             </span>
                             <span className="text-xs font-bold text-slate-300">
@@ -2118,7 +2135,7 @@ export default function OperatorTripDetails() {
 
                         <div className="flex items-center gap-3">
                           <div className="text-left sm:text-right">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-300">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-[#0064D2] dark:text-blue-300">
                               Travelers
                             </span>
                             <div className="text-sm font-extrabold text-white">
@@ -2133,32 +2150,32 @@ export default function OperatorTripDetails() {
                       </div>
 
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                        <div className="bg-slate-900/80 p-3 rounded-xl border border-indigo-900/60">
+                        <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-200 dark:border-slate-800">
                           <span className="text-[10px] font-bold text-slate-400 uppercase block">Vehicle Type</span>
                           <span className="font-extrabold text-white">{personalTransportArrangement.preferences?.vehicleType || (personalTransportArrangement.isPrivateMinibus ? "Private Mini Bus" : "Private Car")}</span>
                         </div>
-                        <div className="bg-slate-900/80 p-3 rounded-xl border border-indigo-900/60">
+                        <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-200 dark:border-slate-800">
                           <span className="text-[10px] font-bold text-slate-400 uppercase block">Comfort</span>
                           <span className="font-extrabold text-white">{personalTransportArrangement.preferences?.comfort || "AC"}</span>
                         </div>
-                        <div className="bg-slate-900/80 p-3 rounded-xl border border-indigo-900/60">
+                        <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-200 dark:border-slate-800">
                           <span className="text-[10px] font-bold text-slate-400 uppercase block">Capacity</span>
                           <span className="font-extrabold text-white">{personalTransportArrangement.preferences?.seatCount || personalTransportArrangement.preferences?.travelerCount || trip.travelers} seats</span>
                         </div>
-                        <div className="bg-slate-900/80 p-3 rounded-xl border border-indigo-900/60">
+                        <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-200 dark:border-slate-800">
                           <span className="text-[10px] font-bold text-slate-400 uppercase block">Luggage</span>
                           <span className="font-extrabold text-white">{personalTransportArrangement.preferences?.luggageCount !== undefined ? `${personalTransportArrangement.preferences.luggageCount} bags` : "Standard"}</span>
                         </div>
                       </div>
 
                       {personalTransportArrangement.preferences?.notes && (
-                        <div className="text-xs text-indigo-200/90 italic bg-indigo-950/60 p-2.5 rounded-xl border border-indigo-800/40">
+                        <div className="text-xs text-slate-600 dark:text-slate-300 italic bg-slate-50 dark:bg-slate-900 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800">
                           Preferences: "{personalTransportArrangement.preferences.notes}"
                         </div>
                       )}
 
                       {personalVehicleBooking && (
-                        <div className="pt-3 border-t border-indigo-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                        <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
                           <div className="text-slate-300 font-medium flex items-center gap-1.5">
                             <span>Update Private Vehicle Status:</span>
                             <span className="text-slate-400 text-[11px]">(Applies to all scheduled movements)</span>
@@ -2206,11 +2223,11 @@ export default function OperatorTripDetails() {
                               <div>
                                 <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
                                   <span className="font-bold text-slate-300">{dateStr}</span>
-                                  <span className="text-[11px] font-mono text-indigo-400 font-bold">{timeStr}</span>
+                                  <span className="text-[11px] font-mono text-[#0064D2] dark:text-blue-400 font-bold">{timeStr}</span>
                                 </div>
                                 <div className="font-bold text-white text-sm flex items-center gap-1.5">
                                   <span>{movement.from}</span>
-                                  <FiArrowRight className="text-indigo-400 shrink-0" size={13} />
+                                  <FiArrowRight className="text-[#0064D2] dark:text-blue-400 shrink-0" size={13} />
                                   <span>{movement.to}</span>
                                 </div>
                                 <div className="text-xs text-slate-400 mt-1">
@@ -2225,7 +2242,7 @@ export default function OperatorTripDetails() {
                                 ) : (
                                   <span>Assigned Private Vehicle</span>
                                 )}
-                                <span className="text-indigo-300 font-semibold">Operational Requirement</span>
+                                <span className="text-[#0064D2] dark:text-blue-300 font-semibold">Operational Requirement</span>
                               </div>
                             </div>
                           );
@@ -2262,7 +2279,7 @@ export default function OperatorTripDetails() {
                   </p>
                 </div>
                 <div className="flex items-center gap-2 self-start sm:self-auto">
-                  <span className="px-3 py-1 rounded-lg bg-indigo-950/70 text-indigo-300 text-xs font-bold border border-indigo-800/60">
+                  <span className="px-3 py-1 rounded-lg bg-blue-50 text-[#0064D2] dark:bg-blue-950/70 dark:text-blue-300 text-xs font-bold border border-slate-200 dark:border-slate-800">
                     {activityBookings.length} Requirement{activityBookings.length !== 1 ? "s" : ""}
                   </span>
                   <span className="px-3 py-1 rounded-lg bg-emerald-950/70 text-emerald-300 text-xs font-bold border border-emerald-800/60">
@@ -2313,7 +2330,7 @@ export default function OperatorTripDetails() {
                         id={`activity-card-${b._id}`}
                         className={`bg-slate-900 rounded-2xl border p-5 space-y-4 shadow-sm transition ${
                           isHighlighted
-                            ? "border-indigo-500 ring-2 ring-indigo-500/50 bg-indigo-950/20"
+                            ? "border-[#0064D2] ring-2 ring-[#0064D2]/40 bg-blue-50/50 dark:bg-blue-950/20"
                             : "border-slate-800 hover:border-slate-750"
                         }`}
                       >
@@ -2325,7 +2342,7 @@ export default function OperatorTripDetails() {
                                 {b.type}
                               </span>
                               {isHighlighted && (
-                                <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-indigo-600 text-white animate-pulse">
+                                <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-[#0064D2] text-white animate-pulse">
                                   Selected Activity
                                 </span>
                               )}
@@ -2334,7 +2351,7 @@ export default function OperatorTripDetails() {
                               {b.title}
                             </h4>
                             <div className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
-                              <FiMapPin size={12} className="text-indigo-400 shrink-0" />
+                              <FiMapPin size={12} className="text-[#0064D2] dark:text-blue-400 shrink-0" />
                               <span className="truncate">{b.location || trip.destination}</span>
                             </div>
                           </div>
@@ -2355,7 +2372,7 @@ export default function OperatorTripDetails() {
                           </div>
                           <div>
                             <span className="text-slate-500 font-medium block text-[10px] uppercase tracking-wider">Timing</span>
-                            <span className="font-bold text-indigo-300 truncate block">{timeLabel}</span>
+                            <span className="font-bold text-[#0064D2] dark:text-blue-300 truncate block">{timeLabel}</span>
                           </div>
                           <div>
                             <span className="text-slate-500 font-medium block text-[10px] uppercase tracking-wider">Trip & Route</span>
@@ -2379,7 +2396,7 @@ export default function OperatorTripDetails() {
                                 href={b.externalUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-xs text-indigo-400 hover:underline flex items-center gap-1 font-bold"
+                                className="text-xs text-[#0064D2] dark:text-blue-400 hover:underline flex items-center gap-1 font-bold"
                               >
                                 <span>Official Portal</span>
                                 <FiExternalLink size={11} />
@@ -2449,7 +2466,7 @@ export default function OperatorTripDetails() {
                             trip.guideRequirement.status === "confirmed"
                               ? "bg-emerald-950 text-emerald-300 border-emerald-700"
                               : trip.guideRequirement.status === "guide_selected"
-                              ? "bg-indigo-950 text-indigo-300 border-indigo-700"
+                              ? "bg-blue-50 text-[#0064D2] dark:bg-blue-950 dark:text-blue-300 border-slate-200 dark:border-slate-800"
                               : "bg-amber-950 text-amber-300 border-amber-700"
                           }`}>
                             {trip.guideRequirement.status?.replace("_", " ") || "Pending"}
@@ -2553,7 +2570,7 @@ export default function OperatorTripDetails() {
                                 isSelected
                                   ? "border-emerald-500 ring-2 ring-emerald-500/30 bg-emerald-950/10"
                                   : isAccepted
-                                  ? "border-indigo-800/80 hover:border-indigo-700"
+                                  ? "border-slate-200 dark:border-slate-800 hover:border-[#0064D2]"
                                   : isRejected
                                   ? "border-rose-900/60 opacity-80"
                                   : "border-slate-800"
@@ -2632,7 +2649,7 @@ export default function OperatorTripDetails() {
                                     className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
                                       isSelected
                                         ? "bg-emerald-600 text-white hover:bg-emerald-700"
-                                        : "bg-slate-800 hover:bg-indigo-600 text-slate-200 hover:text-white"
+                                        : "bg-slate-800 hover:bg-[#0064D2] text-slate-200 hover:text-white"
                                     }`}
                                   >
                                     {isSelected ? <FiCheck size={13} /> : null}
@@ -2661,14 +2678,14 @@ export default function OperatorTripDetails() {
                           ) : matchedGuidesData.tripStates?.length === 1 && trip?.destination && trip.destination.toLowerCase() !== matchedGuidesData.tripStates[0].toLowerCase() ? (
                             <span>
                               Geographically matched based on trip route:{" "}
-                              <span className="text-indigo-400 font-bold">
+                              <span className="text-[#0064D2] dark:text-blue-400 font-bold">
                                 {trip.destination} → {matchedGuidesData.tripStates[0]}
                               </span>
                             </span>
                           ) : (
                             <span>
                               Geographically matched based on trip route states:{" "}
-                              <span className="text-indigo-400 font-bold">
+                              <span className="text-[#0064D2] dark:text-blue-400 font-bold">
                                 {(matchedGuidesData.tripStates || []).join(", ") || trip?.destination}
                               </span>
                             </span>
@@ -2682,7 +2699,7 @@ export default function OperatorTripDetails() {
 
                     {loadingMatchedGuides ? (
                       <div className="bg-slate-900 rounded-2xl border border-slate-800 p-12 text-center text-slate-400 text-xs">
-                        <FiRefreshCw className="animate-spin mx-auto text-indigo-500 mb-2" size={24} />
+                        <FiRefreshCw className="animate-spin mx-auto text-[#0064D2] dark:text-blue-500 mb-2" size={24} />
                         <span>Searching 100 Guide Profiles in MongoDB...</span>
                       </div>
                     ) : matchedGuidesData.guides.length === 0 ? (
@@ -2711,7 +2728,7 @@ export default function OperatorTripDetails() {
                                       </span>
                                     </div>
                                     <div className="text-xs text-slate-400 mt-0.5 flex items-center gap-2">
-                                      <span className="text-indigo-400 font-bold">{guide.primaryRegion}</span>
+                                      <span className="text-[#0064D2] dark:text-blue-400 font-bold">{guide.primaryRegion}</span>
                                       <span>•</span>
                                       <span className="font-mono text-slate-500">{guide.guideId}</span>
                                     </div>
@@ -2733,7 +2750,7 @@ export default function OperatorTripDetails() {
                                         key={st}
                                         className={`px-2 py-0.5 rounded font-bold ${
                                           isMatch
-                                            ? "bg-indigo-950 text-indigo-300 border border-indigo-800/80"
+                                            ? "bg-blue-50 text-[#0064D2] dark:bg-blue-950 dark:text-blue-300 border border-slate-200 dark:border-slate-800"
                                             : "bg-slate-800 text-slate-400"
                                         }`}
                                       >
@@ -2783,7 +2800,7 @@ export default function OperatorTripDetails() {
                                     type="button"
                                     disabled={requestingGuideId === guide.guideId}
                                     onClick={() => handleSendGuideRequest(guide.guideId)}
-                                    className="px-4 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 text-white transition flex items-center gap-1.5 cursor-pointer active:scale-98 shadow-sm"
+                                    className="px-4 py-1.5 rounded-xl text-xs font-bold bg-[#0064D2] hover:bg-[#0052B4] disabled:bg-slate-800 text-white transition flex items-center gap-1.5 cursor-pointer active:scale-98 shadow-sm"
                                   >
                                     <FiSend size={12} className={requestingGuideId === guide.guideId ? "animate-spin" : ""} />
                                     <span>{requestingGuideId === guide.guideId ? "Sending..." : "Request Guide"}</span>
@@ -2833,7 +2850,7 @@ export default function OperatorTripDetails() {
           <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
               <div>
-                <div className="text-[10px] font-black uppercase tracking-widest text-indigo-400">
+                <div className="text-[10px] font-black uppercase tracking-widest text-[#0064D2] dark:text-blue-400">
                   CONFIRM VENDOR SELECTION
                 </div>
                 <h3 className="text-base font-extrabold text-white">
@@ -2878,7 +2895,7 @@ export default function OperatorTripDetails() {
                 </span>
               </div>
               <div className="flex justify-between border-t border-slate-800 pt-2 text-sm">
-                <span className="font-bold text-indigo-300">Quote:</span>
+                <span className="font-bold text-[#0064D2] dark:text-blue-300">Quote:</span>
                 <span className="font-black text-emerald-400">
                   ₹{vendorSelectionModal.response?.quote ? vendorSelectionModal.response.quote.toLocaleString("en-IN") : "—"}
                 </span>
@@ -2900,7 +2917,7 @@ export default function OperatorTripDetails() {
               <button
                 onClick={handleSelectVendorConfirm}
                 disabled={selectingVendor}
-                className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg transition disabled:opacity-50"
+                className="px-5 py-2 rounded-xl bg-[#0064D2] hover:bg-[#0052B4] text-white font-bold text-xs shadow-lg transition disabled:opacity-50"
               >
                 {selectingVendor ? "Selecting..." : "Confirm Selection"}
               </button>
@@ -2919,7 +2936,7 @@ export default function OperatorTripDetails() {
                   Confirm Vendor Request
                 </h3>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  You are requesting availability and pricing from <strong className="text-indigo-400">{selectedVendorIds.length} connected vendors</strong>.
+                  You are requesting availability and pricing from <strong className="text-[#0064D2] dark:text-blue-400">{selectedVendorIds.length} connected vendors</strong>.
                 </p>
               </div>
               <button
@@ -2933,7 +2950,7 @@ export default function OperatorTripDetails() {
             <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
               {/* Trip Requirements */}
               <div className="bg-slate-950/80 p-3.5 rounded-xl border border-slate-800/80 space-y-1.5">
-                <div className="text-[10px] font-black uppercase tracking-wider text-indigo-400">
+                <div className="text-[10px] font-black uppercase tracking-wider text-[#0064D2] dark:text-blue-400">
                   TRIP REQUIREMENTS
                 </div>
                 <div className="text-sm font-extrabold text-white flex items-center gap-1.5">
@@ -2951,7 +2968,7 @@ export default function OperatorTripDetails() {
 
               {/* Fleet Requirement */}
               <div className="bg-slate-950/80 p-3.5 rounded-xl border border-slate-800/80 space-y-1.5">
-                <div className="text-[10px] font-black uppercase tracking-wider text-indigo-400">
+                <div className="text-[10px] font-black uppercase tracking-wider text-[#0064D2] dark:text-blue-400">
                   FLEET REQUIREMENT
                 </div>
                 <div className="text-sm font-extrabold text-white">
@@ -2967,7 +2984,7 @@ export default function OperatorTripDetails() {
 
               {/* Traveler Preferences */}
               <div className="bg-slate-950/80 p-3.5 rounded-xl border border-slate-800/80 space-y-1.5">
-                <div className="text-[10px] font-black uppercase tracking-wider text-indigo-400">
+                <div className="text-[10px] font-black uppercase tracking-wider text-[#0064D2] dark:text-blue-400">
                   TRAVELER PREFERENCES
                 </div>
                 <div className="grid grid-cols-2 gap-1.5 text-slate-300">
@@ -2980,11 +2997,11 @@ export default function OperatorTripDetails() {
               </div>
 
               {/* Vendor Response Request */}
-              <div className="bg-indigo-950/30 p-3.5 rounded-xl border border-indigo-900/50 space-y-1.5">
-                <div className="text-[10px] font-black uppercase tracking-wider text-indigo-300">
+              <div className="bg-blue-50 dark:bg-blue-950/30 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 space-y-1.5">
+                <div className="text-[10px] font-black uppercase tracking-wider text-[#0064D2] dark:text-blue-300">
                   VENDOR RESPONSE REQUEST
                 </div>
-                <div className="grid grid-cols-2 gap-1.5 text-indigo-200">
+                <div className="grid grid-cols-2 gap-1.5 text-slate-600 dark:text-slate-300">
                   <div className="flex items-center gap-1.5"><FiCheck size={12} className="text-emerald-400" /> Availability</div>
                   <div className="flex items-center gap-1.5"><FiCheck size={12} className="text-emerald-400" /> Vehicle allocation</div>
                   <div className="flex items-center gap-1.5"><FiCheck size={12} className="text-emerald-400" /> Price / quotation</div>
@@ -3005,7 +3022,7 @@ export default function OperatorTripDetails() {
                 type="button"
                 onClick={handleConfirmSendVendorRequests}
                 disabled={dispatchingRequests}
-                className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:text-slate-500 text-white font-bold text-xs shadow-lg transition flex items-center gap-2"
+                className="px-5 py-2 rounded-xl bg-[#0064D2] hover:bg-[#0052B4] disabled:bg-slate-800 disabled:text-slate-500 text-white font-bold text-xs shadow-lg transition flex items-center gap-2"
               >
                 <span>{dispatchingRequests ? "Sending Requests..." : "Send Request →"}</span>
               </button>
@@ -3020,7 +3037,7 @@ export default function OperatorTripDetails() {
           <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 text-xs flex flex-col h-[520px]">
             <div className="flex items-center justify-between pb-3 border-b border-slate-800 shrink-0">
               <div>
-                <div className="text-[10px] font-black uppercase tracking-wider text-indigo-400">
+                <div className="text-[10px] font-black uppercase tracking-wider text-[#0064D2] dark:text-blue-400">
                   OPERATOR ↔ VENDOR CHAT
                 </div>
                 <h3 className="text-base font-extrabold text-white">
@@ -3060,7 +3077,7 @@ export default function OperatorTripDetails() {
                       <div
                         className={`p-2.5 rounded-xl max-w-[85%] text-xs ${
                           isOperator
-                            ? "bg-indigo-600 text-white rounded-br-xs"
+                            ? "bg-[#0064D2] text-white rounded-br-xs"
                             : "bg-slate-800 text-slate-200 rounded-bl-xs border border-slate-700"
                         }`}
                       >
@@ -3082,12 +3099,12 @@ export default function OperatorTripDetails() {
                 placeholder="Type message..."
                 value={chatMessageInput}
                 onChange={(e) => setChatMessageInput(e.target.value)}
-                className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 transition"
+                className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#0064D2] transition"
               />
               <button
                 type="submit"
                 disabled={sendingChatMessage || !chatMessageInput.trim()}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-bold text-xs rounded-xl transition flex items-center gap-1.5"
+                className="px-4 py-2 bg-[#0064D2] hover:bg-[#0052B4] disabled:opacity-50 text-white font-bold text-xs rounded-xl transition flex items-center gap-1.5"
               >
                 <span>Send</span>
                 <FiSend size={12} />
@@ -3103,7 +3120,7 @@ export default function OperatorTripDetails() {
           <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 text-xs">
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
               <div>
-                <div className="text-[10px] font-black uppercase tracking-wider text-indigo-400">
+                <div className="text-[10px] font-black uppercase tracking-wider text-[#0064D2] dark:text-blue-400">
                   VENDOR RESPONSE DETAILS
                 </div>
                 <h3 className="text-base font-extrabold text-white">

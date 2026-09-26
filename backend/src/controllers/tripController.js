@@ -465,7 +465,9 @@ const syncItinerary = asyncHandler(async (req, res) => {
 });
 
 const smartshiftSuggest = asyncHandler(async (req, res) => {
-  const { itemId } = req.body;
+  const itemId = req.body?.itemId || req.query?.itemId;
+  const disruptionType = req.body?.disruptionType || req.query?.disruptionType || "ACTIVITY_UNAVAILABLE";
+  
   if (!itemId) {
     return res.status(400).json({ success: false, message: "itemId is required" });
   }
@@ -480,12 +482,11 @@ const smartshiftSuggest = asyncHandler(async (req, res) => {
   }
 
   try {
-    const result = generateAlternatives(trip, itemId);
+    const result = generateAlternatives(trip, itemId, disruptionType);
     res.status(200).json({
       success: true,
       tripId: trip._id,
-      affectedItem: result.affectedItem,
-      alternatives: result.alternatives
+      ...result
     });
   } catch (error) {
     res.status(400).json({
@@ -512,7 +513,7 @@ const smartshiftApply = asyncHandler(async (req, res) => {
   }
 
   try {
-    const updatedTripData = applyAlternative(trip, itemId, alternative);
+    const { trip: updatedTripData, previousItinerary } = applyAlternative(trip, itemId, alternative);
     
     trip.itinerary = updatedTripData.itinerary;
     trip.markModified("itinerary");
@@ -522,7 +523,8 @@ const smartshiftApply = asyncHandler(async (req, res) => {
     res.status(200).json({
       success: true,
       message: "SmartShift applied successfully",
-      trip
+      trip,
+      previousItinerary
     });
   } catch (error) {
     res.status(400).json({

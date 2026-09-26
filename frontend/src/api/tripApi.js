@@ -125,10 +125,10 @@ export const syncItinerary = async (tripId, newStaySegments, token) => {
 };
 
 
-export const suggestSmartShift = async (tripId, itemId, token) => {
+export const suggestSmartShift = async (tripId, itemId, disruptionType, token) => {
   const res = await axios.post(
     `${API}/trips/${tripId}/smartshift/suggest`,
-    { itemId },
+    { itemId, disruptionType },
     {
       headers: {
         Authorization: `Bearer ${token}`,

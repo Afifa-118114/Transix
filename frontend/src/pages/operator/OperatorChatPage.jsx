@@ -98,23 +98,16 @@ export default function OperatorChatPage() {
     if (cat && ["travelers", "vendors"].includes(cat)) {
       setActiveCategory(cat);
       const list = cat === "vendors" ? (conversations.vendors || []) : (conversations.travelers || []);
-      if (id && list.length > 0) {
-        const matched = list.find(
-          c => c.id === id || c.tripId === id || c.requestId === id
-        );
-        if (matched) {
-          setSelectedConversation(matched);
-        }
+      if (id) {
+        const found = list.find(c => c.id === id);
+        if (found) setSelectedConversation(found);
       }
     }
   }, [searchParams, conversations]);
 
-  // Fetch message thread when selected conversation changes
+  // Load messages whenever selected conversation changes
   useEffect(() => {
-    if (!selectedConversation) {
-      setMessages([]);
-      return;
-    }
+    if (!selectedConversation) return;
 
     const fetchThread = async () => {
       setLoadingMessages(true);
@@ -168,33 +161,30 @@ export default function OperatorChatPage() {
     if (!messageInput.trim() || !selectedConversation || sending) return;
 
     setSending(true);
-    const text = messageInput.trim();
-    setMessageInput("");
-
+    const token = localStorage.getItem("token");
     try {
-      const token = localStorage.getItem("token");
       if (selectedConversation.type === "TRAVELER") {
-        const res = await sendTripMessage(selectedConversation.tripId, { message: text }, token);
-        if (res?.success && res.message) {
-          setMessages(prev => [...prev, res.message]);
+        const res = await sendTripMessage(selectedConversation.tripId, { message: messageInput.trim() }, token);
+        if (res?.success) {
+          setMessages(prev => [...prev, res.messageData]);
+          setMessageInput("");
         }
       } else if (selectedConversation.type === "VENDOR") {
-        const res = await sendOperatorVendorRequestMessage(selectedConversation.requestId, text, token);
-        if (res?.success && res.message) {
-          setMessages(prev => [...prev, res.message]);
+        const res = await sendOperatorVendorRequestMessage(selectedConversation.requestId, messageInput.trim(), token);
+        if (res?.success) {
+          setMessages(prev => [...prev, res.messageData]);
+          setMessageInput("");
         }
       }
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to send message");
-      setMessageInput(text); // restore on error
     } finally {
       setSending(false);
     }
   };
 
-  // Group travelers into Personal Trips and Campus Trips
   const personalTravelers = useMemo(() => {
-    return (conversations.travelers || []).filter(c => c.tripCategory === "PERSONAL");
+    return (conversations.travelers || []).filter(c => c.tripCategory !== "CAMPUS");
   }, [conversations.travelers]);
 
   const campusTravelers = useMemo(() => {
@@ -203,9 +193,9 @@ export default function OperatorChatPage() {
 
   if (loadingConversations) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-400 gap-3 font-sans">
-        <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-        <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
+      <div className="min-h-screen bg-[#F5F7FA] flex flex-col items-center justify-center text-[#666666] gap-3 font-sans">
+        <div className="w-8 h-8 border-2 border-[#0064D2] border-t-transparent rounded-full animate-spin"></div>
+        <div className="text-xs font-bold uppercase tracking-wider text-[#999999]">
           Loading Tour Operation Center Chat...
         </div>
       </div>
@@ -213,7 +203,7 @@ export default function OperatorChatPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-200 flex font-sans">
+    <div className="min-h-screen bg-[#F5F7FA] text-[#1A1A1A] flex font-sans">
       {/* Desktop Sidebar */}
       <aside className="w-64 flex-shrink-0 hidden lg:block h-screen sticky top-0">
         <OperatorSidebar 
@@ -226,7 +216,7 @@ export default function OperatorChatPage() {
       {/* Mobile Drawer */}
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-50 lg:hidden flex">
-          <div className="fixed inset-0 bg-black/80" onClick={() => setMobileMenuOpen(false)}></div>
+          <div className="fixed inset-0 bg-black/60" onClick={() => setMobileMenuOpen(false)}></div>
           <div className="relative w-64 max-w-[80%] h-full z-10 flex flex-col">
             <button 
               onClick={() => setMobileMenuOpen(false)}
@@ -246,23 +236,23 @@ export default function OperatorChatPage() {
       {/* Main Container */}
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         {/* Top Header */}
-        <header className="bg-slate-900/95 backdrop-blur-md border-b border-slate-800 shrink-0 z-20">
+        <header className="bg-white border-b border-[#EBEBEB] shrink-0 z-20">
           <div className="flex items-center justify-between px-6 py-4">
             <div className="flex items-center gap-3">
               <button 
                 onClick={() => setMobileMenuOpen(true)}
-                className="lg:hidden p-2 text-slate-400 hover:text-white"
+                className="lg:hidden p-2 rounded-lg border border-[#EBEBEB] text-[#1A1A1A] hover:bg-[#F5F7FA]"
               >
-                <FiMenu size={20} />
+                <FiMenu size={18} />
               </button>
               <div>
-                <div className="text-[10px] font-black uppercase tracking-widest text-indigo-400 mb-0.5">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-[#006CE4] mb-0.5">
                   TRANSIX • COMMUNICATION
                 </div>
-                <h1 className="text-lg font-black text-white">
+                <h1 className="text-lg font-bold text-[#1A1A1A]">
                   Tour Operation Center Chat
                 </h1>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-[#666666]">
                   Direct operational messaging with Trip Travelers, Coordinators, and Connected Vendors
                 </p>
               </div>
@@ -276,21 +266,21 @@ export default function OperatorChatPage() {
           {/* ========================================================================= */}
           {/* LEFT PANE: CONVERSATIONS LIST (Travelers / Vendors)                       */}
           {/* ========================================================================= */}
-          <div className="w-80 sm:w-96 border-r border-slate-800 bg-slate-900/60 flex flex-col shrink-0">
+          <div className="w-80 sm:w-96 border-r border-[#EBEBEB] bg-white flex flex-col shrink-0">
             {/* Category Toggle Tabs */}
-            <div className="p-4 border-b border-slate-800 flex gap-2">
+            <div className="p-4 border-b border-[#EBEBEB] flex gap-2">
               <button
                 onClick={() => handleSelectCategory("travelers")}
-                className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 ${
+                className={`flex-1 py-2 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-2 ${
                   activeCategory === "travelers"
-                    ? "bg-indigo-600 text-white shadow-xs"
-                    : "bg-slate-950/60 text-slate-400 hover:text-white border border-slate-800"
+                    ? "bg-[#0064D2] text-white shadow-xs"
+                    : "bg-[#F8FAFC] text-[#666666] hover:text-[#1A1A1A] border border-[#E2E8F0]"
                 }`}
               >
                 <FiUser size={13} />
                 <span>Travelers</span>
                 <span className={`px-1.5 py-0.2 rounded text-[10px] ${
-                  activeCategory === "travelers" ? "bg-indigo-700 text-white" : "bg-slate-800 text-slate-400"
+                  activeCategory === "travelers" ? "bg-white/20 text-white font-bold" : "bg-[#E2E8F0] text-[#475569]"
                 }`}>
                   {conversations.travelers?.length || 0}
                 </span>
@@ -298,16 +288,16 @@ export default function OperatorChatPage() {
 
               <button
                 onClick={() => handleSelectCategory("vendors")}
-                className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 ${
+                className={`flex-1 py-2 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-2 ${
                   activeCategory === "vendors"
-                    ? "bg-indigo-600 text-white shadow-xs"
-                    : "bg-slate-950/60 text-slate-400 hover:text-white border border-slate-800"
+                    ? "bg-[#0064D2] text-white shadow-xs"
+                    : "bg-[#F8FAFC] text-[#666666] hover:text-[#1A1A1A] border border-[#E2E8F0]"
                 }`}
               >
                 <FiBriefcase size={13} />
                 <span>Vendors</span>
                 <span className={`px-1.5 py-0.2 rounded text-[10px] ${
-                  activeCategory === "vendors" ? "bg-indigo-700 text-white" : "bg-slate-800 text-slate-400"
+                  activeCategory === "vendors" ? "bg-white/20 text-white font-bold" : "bg-[#E2E8F0] text-[#475569]"
                 }`}>
                   {conversations.vendors?.length || 0}
                 </span>
@@ -315,15 +305,15 @@ export default function OperatorChatPage() {
             </div>
 
             {/* Conversation Items List */}
-            <div className="flex-1 overflow-y-auto divide-y divide-slate-800/60 custom-scrollbar">
+            <div className="flex-1 overflow-y-auto divide-y divide-[#EBEBEB] custom-scrollbar">
               {activeCategory === "travelers" ? (
                 // TRAVELERS LIST (Separated into Personal Trips vs Campus Trips)
                 <div className="space-y-4 p-3">
                   {/* Personal Trips */}
                   {personalTravelers.length > 0 && (
                     <div className="space-y-1.5">
-                      <div className="px-2 text-[10px] font-black uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                        <FiCompass size={12} className="text-indigo-400" />
+                      <div className="px-2 text-[10px] font-bold uppercase tracking-wider text-[#666666] flex items-center gap-1.5">
+                        <FiCompass size={12} className="text-[#006CE4]" />
                         <span>Personal Trips</span>
                       </div>
                       {personalTravelers.map(conv => {
@@ -334,29 +324,29 @@ export default function OperatorChatPage() {
                             onClick={() => handleSelectConversation(conv)}
                             className={`p-3 rounded-xl cursor-pointer transition border ${
                               isSelected
-                                ? "bg-indigo-600/20 border-indigo-500/50 text-white"
-                                : "bg-slate-950/40 border-slate-800/80 hover:border-slate-700 text-slate-300"
+                                ? "bg-[#EFF6FF] border-[#0064D2] text-[#1A1A1A] shadow-xs"
+                                : "bg-white border-[#EBEBEB] hover:border-[#BFDBFE] hover:bg-[#F8FAFC] text-[#475569]"
                             }`}
                           >
                             <div className="flex items-center justify-between">
-                              <div className="font-bold text-xs text-white truncate">
+                              <div className="font-bold text-xs text-[#1A1A1A] truncate">
                                 {conv.contactName}
                               </div>
-                              <span className="text-[10px] text-slate-500">{conv.contactRole}</span>
+                              <span className="text-[10px] text-[#666666]">{conv.contactRole}</span>
                             </div>
-                            <div className="text-[11px] text-slate-400 mt-0.5 truncate">
+                            <div className="text-[11px] text-[#666666] mt-0.5 truncate">
                               {conv.route}
                             </div>
-                            <div className="text-[10px] text-slate-500 mt-1 flex items-center justify-between">
+                            <div className="text-[10px] text-[#94A3B8] mt-1 flex items-center justify-between">
                               <span>{conv.dates}</span>
                               {conv.unreadCount > 0 && (
-                                <span className="px-1.5 py-0.2 rounded-full bg-indigo-500 text-white font-bold text-[9px]">
+                                <span className="px-1.5 py-0.2 rounded-full bg-[#0064D2] text-white font-bold text-[9px]">
                                   {conv.unreadCount} new
                                 </span>
                               )}
                             </div>
                             {conv.lastMessage && (
-                              <div className="text-[11px] text-slate-400 mt-1.5 line-clamp-1 italic">
+                              <div className="text-[11px] text-[#666666] mt-1.5 line-clamp-1 italic">
                                 "{conv.lastMessage.text}"
                               </div>
                             )}
@@ -369,8 +359,8 @@ export default function OperatorChatPage() {
                   {/* Campus Trips */}
                   {campusTravelers.length > 0 && (
                     <div className="space-y-1.5 pt-2">
-                      <div className="px-2 text-[10px] font-black uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                        <GraduationCap size={13} className="text-indigo-400" />
+                      <div className="px-2 text-[10px] font-bold uppercase tracking-wider text-[#666666] flex items-center gap-1.5">
+                        <GraduationCap size={13} className="text-[#006CE4]" />
                         <span>Campus Trips</span>
                       </div>
                       {campusTravelers.map(conv => {
@@ -381,34 +371,34 @@ export default function OperatorChatPage() {
                             onClick={() => handleSelectConversation(conv)}
                             className={`p-3 rounded-xl cursor-pointer transition border ${
                               isSelected
-                                ? "bg-indigo-600/20 border-indigo-500/50 text-white"
-                                : "bg-slate-950/40 border-slate-800/80 hover:border-slate-700 text-slate-300"
+                                ? "bg-[#EFF6FF] border-[#0064D2] text-[#1A1A1A] shadow-xs"
+                                : "bg-white border-[#EBEBEB] hover:border-[#BFDBFE] hover:bg-[#F8FAFC] text-[#475569]"
                             }`}
                           >
                             <div className="flex items-center justify-between">
-                              <div className="font-bold text-xs text-white truncate">
+                              <div className="font-bold text-xs text-[#1A1A1A] truncate">
                                 {conv.contactName}
                               </div>
-                              <span className="text-[10px] text-indigo-400 font-bold">Coordinator</span>
+                              <span className="text-[10px] text-[#006CE4] font-semibold">Coordinator</span>
                             </div>
                             {conv.organizationName && (
-                              <div className="text-[11px] font-semibold text-slate-300 mt-0.5 truncate">
+                              <div className="text-[11px] font-medium text-[#1A1A1A] mt-0.5 truncate">
                                 {conv.organizationName}
                               </div>
                             )}
-                            <div className="text-[11px] text-slate-400 mt-0.5 truncate">
+                            <div className="text-[11px] text-[#666666] mt-0.5 truncate">
                               {conv.route}
                             </div>
-                            <div className="text-[10px] text-slate-500 mt-1 flex items-center justify-between">
+                            <div className="text-[10px] text-[#94A3B8] mt-1 flex items-center justify-between">
                               <span>{conv.dates}</span>
                               {conv.unreadCount > 0 && (
-                                <span className="px-1.5 py-0.2 rounded-full bg-indigo-500 text-white font-bold text-[9px]">
+                                <span className="px-1.5 py-0.2 rounded-full bg-[#0064D2] text-white font-bold text-[9px]">
                                   {conv.unreadCount} new
                                 </span>
                               )}
                             </div>
                             {conv.lastMessage && (
-                              <div className="text-[11px] text-slate-400 mt-1.5 line-clamp-1 italic">
+                              <div className="text-[11px] text-[#666666] mt-1.5 line-clamp-1 italic">
                                 "{conv.lastMessage.text}"
                               </div>
                             )}
@@ -422,7 +412,7 @@ export default function OperatorChatPage() {
                 // VENDORS LIST
                 <div className="space-y-2 p-3">
                   {conversations.vendors?.length === 0 ? (
-                    <div className="py-8 text-center text-slate-500 text-xs">
+                    <div className="py-8 text-center text-[#666666] text-xs">
                       No active vendor conversations.
                     </div>
                   ) : (
@@ -434,26 +424,26 @@ export default function OperatorChatPage() {
                           onClick={() => handleSelectConversation(conv)}
                           className={`p-3 rounded-xl cursor-pointer transition border ${
                             isSelected
-                              ? "bg-indigo-600/20 border-indigo-500/50 text-white"
-                              : "bg-slate-950/40 border-slate-800/80 hover:border-slate-700 text-slate-300"
+                              ? "bg-[#EFF6FF] border-[#0064D2] text-[#1A1A1A] shadow-xs"
+                              : "bg-white border-[#EBEBEB] hover:border-[#BFDBFE] hover:bg-[#F8FAFC] text-[#475569]"
                           }`}
                         >
                           <div className="flex items-center justify-between">
-                            <div className="font-bold text-xs text-white truncate">
+                            <div className="font-bold text-xs text-[#1A1A1A] truncate">
                               {conv.vendorName}
                             </div>
-                            <span className="px-1.5 py-0.2 text-[9px] font-bold rounded bg-slate-800 text-slate-300">
+                            <span className="px-1.5 py-0.2 text-[9px] font-semibold rounded bg-[#F1F5F9] text-[#475569] border border-[#E2E8F0]">
                               {conv.status}
                             </span>
                           </div>
-                          <div className="text-[11px] text-slate-400 mt-0.5 truncate">
+                          <div className="text-[11px] text-[#666666] mt-0.5 truncate">
                             {conv.route}
                           </div>
-                          <div className="text-[10px] text-indigo-400 font-semibold mt-0.5">
+                          <div className="text-[10px] text-[#006CE4] font-medium mt-0.5">
                             {conv.operationalRequirement}
                           </div>
                           {conv.lastMessage && (
-                            <div className="text-[11px] text-slate-400 mt-1.5 line-clamp-1 italic">
+                            <div className="text-[11px] text-[#666666] mt-1.5 line-clamp-1 italic">
                               "{conv.lastMessage.text}"
                             </div>
                           )}
@@ -469,25 +459,25 @@ export default function OperatorChatPage() {
           {/* ========================================================================= */}
           {/* RIGHT PANE: ACTIVE CONVERSATION PANEL                                     */}
           {/* ========================================================================= */}
-          <div className="flex-1 flex flex-col bg-slate-950 overflow-hidden">
+          <div className="flex-1 flex flex-col bg-[#F5F7FA] overflow-hidden">
             {selectedConversation ? (
               <>
                 {/* Conversation Header */}
-                <div className="px-6 py-3.5 bg-slate-900 border-b border-slate-800 flex items-center justify-between shrink-0">
+                <div className="px-6 py-3.5 bg-white border-b border-[#EBEBEB] flex items-center justify-between shrink-0 shadow-xs">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <h2 className="text-sm font-black text-white truncate">
+                      <h2 className="text-sm font-bold text-[#1A1A1A] truncate">
                         {selectedConversation.type === "TRAVELER"
                           ? selectedConversation.contactName
                           : selectedConversation.vendorName}
                       </h2>
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-300">
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#F1F5F9] text-[#475569] border border-[#E2E8F0]">
                         {selectedConversation.type === "TRAVELER"
                           ? (selectedConversation.organizationName || selectedConversation.contactRole)
                           : "Connected Vendor"}
                       </span>
                     </div>
-                    <div className="text-xs text-slate-400 mt-0.5 flex flex-wrap items-center gap-2">
+                    <div className="text-xs text-[#666666] mt-0.5 flex flex-wrap items-center gap-2">
                       <span>{selectedConversation.route}</span>
                       {selectedConversation.dates && (
                         <>
@@ -498,7 +488,7 @@ export default function OperatorChatPage() {
                       {selectedConversation.operationalRequirement && (
                         <>
                           <span>•</span>
-                          <span className="text-indigo-400 font-bold">{selectedConversation.operationalRequirement}</span>
+                          <span className="text-[#006CE4] font-medium">{selectedConversation.operationalRequirement}</span>
                         </>
                       )}
                     </div>
@@ -506,7 +496,7 @@ export default function OperatorChatPage() {
 
                   <Link
                     to={`/operator/trips/${selectedConversation.tripId}`}
-                    className="px-3 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-500/30 text-xs font-bold transition shrink-0"
+                    className="px-3 py-1.5 rounded-lg bg-[#EFF6FF] hover:bg-[#0064D2] text-[#0064D2] hover:text-white border border-[#BFDBFE] text-xs font-semibold transition shrink-0"
                   >
                     View Trip Details
                   </Link>
@@ -515,12 +505,12 @@ export default function OperatorChatPage() {
                 {/* Message History Thread */}
                 <div className="flex-1 p-6 overflow-y-auto space-y-4 custom-scrollbar">
                   {loadingMessages ? (
-                    <div className="py-12 text-center text-slate-500 text-xs">
+                    <div className="py-12 text-center text-[#666666] text-xs">
                       Loading conversation messages...
                     </div>
                   ) : messages.length === 0 ? (
-                    <div className="py-16 text-center text-slate-500 text-xs">
-                      <FiMessageSquare size={24} className="mx-auto text-slate-600 mb-2" />
+                    <div className="py-16 text-center text-[#666666] text-xs">
+                      <FiMessageSquare size={24} className="mx-auto text-[#A0AEC0] mb-2" />
                       No messages yet in this conversation. Send a message to start coordination.
                     </div>
                   ) : (
@@ -531,19 +521,19 @@ export default function OperatorChatPage() {
                           key={m._id || idx}
                           className={`flex flex-col ${isOperator ? "items-end" : "items-start"}`}
                         >
-                          <div className="text-[10px] text-slate-400 mb-1 px-1">
+                          <div className="text-[10px] text-[#666666] mb-1 px-1 font-medium">
                             {isOperator ? "Transix Operations" : (m.senderName || selectedConversation.contactName || "Contact")}
                           </div>
                           <div
                             className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-xs leading-relaxed ${
                               isOperator
-                                ? "bg-indigo-600 text-white rounded-br-xs shadow-xs"
-                                : "bg-slate-900 border border-slate-800 text-slate-200 rounded-bl-xs"
+                                ? "bg-[#0064D2] text-white rounded-br-xs shadow-xs"
+                                : "bg-white border border-[#EBEBEB] text-[#1A1A1A] rounded-bl-xs shadow-xs"
                             }`}
                           >
                             {m.message}
                           </div>
-                          <div className="text-[9px] text-slate-500 mt-1 px-1">
+                          <div className="text-[9.5px] text-[#94A3B8] mt-1 px-1">
                             {new Date(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                           </div>
                         </div>
@@ -556,19 +546,19 @@ export default function OperatorChatPage() {
                 {/* Input Bar */}
                 <form
                   onSubmit={handleSendMessage}
-                  className="p-4 bg-slate-900 border-t border-slate-800 flex items-center gap-3 shrink-0"
+                  className="p-4 bg-white border-t border-[#EBEBEB] flex items-center gap-3 shrink-0"
                 >
                   <input
                     type="text"
                     placeholder={`Type message to ${selectedConversation.type === "TRAVELER" ? selectedConversation.contactName : selectedConversation.vendorName}...`}
                     value={messageInput}
                     onChange={(e) => setMessageInput(e.target.value)}
-                    className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 transition"
+                    className="flex-1 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl px-4 py-2.5 text-xs text-[#1A1A1A] placeholder-[#94A3B8] focus:outline-none focus:border-[#0064D2] focus:bg-white transition"
                   />
                   <button
                     type="submit"
                     disabled={!messageInput.trim() || sending}
-                    className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition flex items-center gap-1.5 disabled:opacity-50"
+                    className="px-4 py-2.5 rounded-xl bg-[#0064D2] hover:bg-[#0052B4] text-white text-xs font-semibold transition flex items-center gap-1.5 disabled:opacity-50 shadow-xs"
                   >
                     <FiSend size={13} />
                     <span>Send</span>
@@ -576,10 +566,10 @@ export default function OperatorChatPage() {
                 </form>
               </>
             ) : (
-              <div className="flex-1 flex flex-col items-center justify-center text-slate-500 p-8 text-center text-xs">
-                <FiMessageSquare size={36} className="text-slate-700 mb-3" />
-                <div className="text-sm font-bold text-slate-300">No conversation selected</div>
-                <p className="max-w-xs mt-1 text-slate-500">
+              <div className="flex-1 flex flex-col items-center justify-center text-[#666666] p-8 text-center text-xs">
+                <FiMessageSquare size={36} className="text-[#A0AEC0] mb-3" />
+                <div className="text-sm font-bold text-[#1A1A1A]">No conversation selected</div>
+                <p className="max-w-xs mt-1 text-[#666666]">
                   Select a traveler or vendor conversation from the left pane to view the thread and message them.
                 </p>
               </div>

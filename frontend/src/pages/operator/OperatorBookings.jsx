@@ -100,32 +100,30 @@ export default function OperatorBookings() {
   // Counts for tabs
   const hotelCounts = useMemo(() => {
     const booked = hotelBookings.filter(b => b.status === "CONFIRMED").length;
-    return { booked, notBooked: hotelBookings.length - booked };
+    return { total: hotelBookings.length, booked, notBooked: hotelBookings.length - booked };
   }, [hotelBookings]);
 
   const transportCounts = useMemo(() => {
     const booked = transportBookings.filter(b => b.status === "CONFIRMED").length;
-    return { booked, notBooked: transportBookings.length - booked };
+    return { total: transportBookings.length, booked, notBooked: transportBookings.length - booked };
   }, [transportBookings]);
 
   const activityCounts = useMemo(() => {
     const booked = activityBookings.filter(b => b.status === "CONFIRMED").length;
-    return { booked, notBooked: activityBookings.length - booked };
+    return { total: activityBookings.length, booked, notBooked: activityBookings.length - booked };
   }, [activityBookings]);
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-400 gap-3 font-sans">
-        <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-        <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
-          Loading Tour Operation Bookings...
-        </div>
+      <div className="min-h-screen bg-[#F5F7FA] flex flex-col items-center justify-center text-[#666666] gap-3 font-sans">
+        <div className="w-8 h-8 border-2 border-[#0064D2] border-t-transparent rounded-full animate-spin"></div>
+        <div className="text-xs font-bold uppercase tracking-wider text-[#999999]">Loading Bookings...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-200 flex font-sans">
+    <div className="min-h-screen bg-[#F5F7FA] text-[#1A1A1A] flex font-sans">
       {/* Desktop Sidebar */}
       <aside className="w-64 flex-shrink-0 hidden lg:block h-screen sticky top-0">
         <OperatorSidebar 
@@ -138,7 +136,7 @@ export default function OperatorBookings() {
       {/* Mobile Drawer */}
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-50 lg:hidden flex">
-          <div className="fixed inset-0 bg-black/80" onClick={() => setMobileMenuOpen(false)}></div>
+          <div className="fixed inset-0 bg-black/60" onClick={() => setMobileMenuOpen(false)}></div>
           <div className="relative w-64 max-w-[80%] h-full z-10 flex flex-col">
             <button 
               onClick={() => setMobileMenuOpen(false)}
@@ -158,23 +156,23 @@ export default function OperatorBookings() {
       {/* Main Container */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <header className="bg-slate-900/95 backdrop-blur-md border-b border-slate-800 sticky top-0 z-20">
+        <header className="bg-white border-b border-[#EBEBEB] sticky top-0 z-20">
           <div className="flex items-center justify-between px-6 py-4">
             <div className="flex items-center gap-3">
               <button 
                 onClick={() => setMobileMenuOpen(true)}
-                className="lg:hidden p-2 text-slate-400 hover:text-white"
+                className="lg:hidden p-2 rounded-lg border border-[#EBEBEB] text-[#1A1A1A] hover:bg-[#F5F7FA]"
               >
-                <FiMenu size={20} />
+                <FiMenu size={18} />
               </button>
               <div>
-                <div className="text-[10px] font-black uppercase tracking-widest text-indigo-400 mb-0.5">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-[#006CE4] mb-0.5">
                   TRANSIX • OPERATIONS
                 </div>
-                <h1 className="text-lg font-black text-white">
+                <h1 className="text-lg font-bold text-[#1A1A1A]">
                   Operational Bookings Workspace
                 </h1>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-[#666666]">
                   Unified operational tracking for Hotels, Transport, and Activities across active trips
                 </p>
               </div>
@@ -183,24 +181,24 @@ export default function OperatorBookings() {
         </header>
 
         {/* Content Body */}
-        <main className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 custom-scrollbar max-w-7xl w-full mx-auto">
           
           {/* Top Category Tabs: [ Hotels ] [ Transport ] [ Activities ] */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#EBEBEB] pb-4">
             <div className="flex items-center gap-2 overflow-x-auto">
               {/* 1. Hotels */}
               <button
                 onClick={() => handleTabChange("hotels")}
-                className={`px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 shrink-0 ${
+                className={`px-4 py-2.5 rounded-xl text-xs font-semibold transition flex items-center gap-2 shrink-0 ${
                   activeTab === "hotels"
-                    ? "bg-indigo-600 text-white shadow-xs"
-                    : "bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800"
+                    ? "bg-[#0064D2] text-white shadow-xs"
+                    : "bg-white text-[#666666] hover:text-[#1A1A1A] hover:bg-[#F5F7FA] border border-[#EBEBEB]"
                 }`}
               >
                 <FiMapPin size={14} />
                 <span>Hotels</span>
                 <span className={`px-1.5 py-0.2 rounded text-[10px] ${
-                  activeTab === "hotels" ? "bg-indigo-700 text-white" : "bg-slate-800 text-slate-400"
+                  activeTab === "hotels" ? "bg-white/20 text-white font-bold" : "bg-[#F5F7FA] text-[#666666] border border-[#E2E8F0]"
                 }`}>
                   {subFilter === "booked" ? hotelCounts.booked : hotelCounts.notBooked}
                 </span>
@@ -209,16 +207,16 @@ export default function OperatorBookings() {
               {/* 2. Transport */}
               <button
                 onClick={() => handleTabChange("transport")}
-                className={`px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 shrink-0 ${
+                className={`px-4 py-2.5 rounded-xl text-xs font-semibold transition flex items-center gap-2 shrink-0 ${
                   activeTab === "transport"
-                    ? "bg-indigo-600 text-white shadow-xs"
-                    : "bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800"
+                    ? "bg-[#0064D2] text-white shadow-xs"
+                    : "bg-white text-[#666666] hover:text-[#1A1A1A] hover:bg-[#F5F7FA] border border-[#EBEBEB]"
                 }`}
               >
                 <FaBus size={13} />
                 <span>Transport</span>
                 <span className={`px-1.5 py-0.2 rounded text-[10px] ${
-                  activeTab === "transport" ? "bg-indigo-700 text-white" : "bg-slate-800 text-slate-400"
+                  activeTab === "transport" ? "bg-white/20 text-white font-bold" : "bg-[#F5F7FA] text-[#666666] border border-[#E2E8F0]"
                 }`}>
                   {subFilter === "booked" ? transportCounts.booked : transportCounts.notBooked}
                 </span>
@@ -227,16 +225,16 @@ export default function OperatorBookings() {
               {/* 3. Activities */}
               <button
                 onClick={() => handleTabChange("activities")}
-                className={`px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 shrink-0 ${
+                className={`px-4 py-2.5 rounded-xl text-xs font-semibold transition flex items-center gap-2 shrink-0 ${
                   activeTab === "activities"
-                    ? "bg-indigo-600 text-white shadow-xs"
-                    : "bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800"
+                    ? "bg-[#0064D2] text-white shadow-xs"
+                    : "bg-white text-[#666666] hover:text-[#1A1A1A] hover:bg-[#F5F7FA] border border-[#EBEBEB]"
                 }`}
               >
                 <FiCalendar size={14} />
                 <span>Activities</span>
                 <span className={`px-1.5 py-0.2 rounded text-[10px] ${
-                  activeTab === "activities" ? "bg-indigo-700 text-white" : "bg-slate-800 text-slate-400"
+                  activeTab === "activities" ? "bg-white/20 text-white font-bold" : "bg-[#F5F7FA] text-[#666666] border border-[#E2E8F0]"
                 }`}>
                   {subFilter === "booked" ? activityCounts.booked : activityCounts.notBooked}
                 </span>
@@ -244,13 +242,13 @@ export default function OperatorBookings() {
             </div>
 
             {/* Sub-Filters: [ Not Booked ] [ Booked ] */}
-            <div className="flex items-center gap-1.5 bg-slate-900 p-1 rounded-xl border border-slate-800 self-start sm:self-auto">
+            <div className="flex items-center gap-1.5 bg-[#F1F5F9] p-1 rounded-xl border border-[#E2E8F0] self-start sm:self-auto">
               <button
                 onClick={() => handleSubFilterChange("not-booked")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
                   subFilter === "not-booked"
-                    ? "bg-amber-950/80 text-amber-300 border border-amber-800/60 shadow-xs"
-                    : "text-slate-400 hover:text-white"
+                    ? "bg-[#FFF4ED] text-[#F5330F] border border-[#FFD0B8] shadow-xs"
+                    : "text-[#666666] hover:text-[#1A1A1A]"
                 }`}
               >
                 <FiClock size={12} />
@@ -258,10 +256,10 @@ export default function OperatorBookings() {
               </button>
               <button
                 onClick={() => handleSubFilterChange("booked")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
                   subFilter === "booked"
-                    ? "bg-emerald-950/80 text-emerald-300 border border-emerald-800/60 shadow-xs"
-                    : "text-slate-400 hover:text-white"
+                    ? "bg-[#E6F7EF] text-[#00A65E] border border-[#A3E9C7] shadow-xs"
+                    : "text-[#666666] hover:text-[#1A1A1A]"
                 }`}
               >
                 <FiCheckCircle size={12} />
@@ -273,23 +271,23 @@ export default function OperatorBookings() {
           {/* Booking Cards Grid */}
           <div className="space-y-4">
             {displayedBookings.length === 0 ? (
-              <div className="bg-slate-900 rounded-2xl border border-slate-800 p-12 text-center text-slate-400 text-xs">
-                <FiCheckCircle className="mx-auto text-emerald-400 mb-3" size={28} />
+              <div className="bg-white rounded-xl border border-[#EBEBEB] p-12 text-center text-[#666666] text-xs shadow-[0_1px_4px_rgba(0,0,0,0.06)]">
+                <FiCheckCircle className="mx-auto text-[#00A65E] mb-3" size={28} />
                 {subFilter === "not-booked" ? (
                   <div>
-                    <div className="text-sm font-bold text-slate-200">
+                    <div className="text-sm font-bold text-[#1A1A1A]">
                       No unbooked {activeTab} requirements.
                     </div>
-                    <div className="text-slate-500 mt-1">
+                    <div className="text-[#666666] mt-1">
                       All current {activeTab} operational requirements are booked.
                     </div>
                   </div>
                 ) : (
                   <div>
-                    <div className="text-sm font-bold text-slate-200">
+                    <div className="text-sm font-bold text-[#1A1A1A]">
                       No confirmed {activeTab} requirements yet.
                     </div>
-                    <div className="text-slate-500 mt-1">
+                    <div className="text-[#666666] mt-1">
                       Requirements will appear here once bookings are confirmed.
                     </div>
                   </div>
@@ -315,57 +313,59 @@ export default function OperatorBookings() {
                     return (
                       <div 
                         key={b._id}
-                        className="bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-2xl p-5 space-y-3 shadow-xs transition"
+                        className="bg-white border border-[#EBEBEB] hover:border-[#0064D2]/40 rounded-xl p-5 space-y-3 shadow-[0_1px_4px_rgba(0,0,0,0.06)] hover:-translate-y-0.5 transition-all duration-150 flex flex-col justify-between"
                       >
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <div className="text-[10px] font-black uppercase tracking-wider text-indigo-400">
-                              {isCampus ? "Campus Trip" : "Personal Trip"} • {trip?.source} → {trip?.destination}
+                        <div className="space-y-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <div className="text-[10px] font-bold uppercase tracking-wider text-[#006CE4]">
+                                {isCampus ? "Campus Trip" : "Personal Trip"} • {trip?.source} → {trip?.destination}
+                              </div>
+                              {orgName && (
+                                <div className="text-xs font-semibold text-[#1A1A1A] mt-0.5">
+                                  {orgName}
+                                </div>
+                              )}
                             </div>
-                            {orgName && (
-                              <div className="text-xs font-bold text-slate-300 mt-0.5">
-                                {orgName}
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                              b.status === "CONFIRMED"
+                                ? "bg-[#E6F7EF] text-[#00A65E] border-[#A3E9C7]"
+                                : "bg-[#FFF4ED] text-[#F5330F] border-[#FFD0B8]"
+                            }`}>
+                              {b.status === "CONFIRMED" ? "Booked" : "Not Booked"}
+                            </span>
+                          </div>
+
+                          <div className="p-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg space-y-1.5 text-xs text-[#666666]">
+                            {b.status === "CONFIRMED" && (
+                              <div className="flex justify-between">
+                                <span className="text-[#666666]">Hotel:</span>
+                                <span className="font-bold text-[#1A1A1A]">{b.title || b.vendorName || "Confirmed Hotel"}</span>
                               </div>
                             )}
-                          </div>
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                            b.status === "CONFIRMED"
-                              ? "bg-emerald-950/60 text-emerald-400 border border-emerald-800/40"
-                              : "bg-amber-950/60 text-amber-400 border border-amber-800/40"
-                          }`}>
-                            {b.status === "CONFIRMED" ? "Booked" : "Not Booked"}
-                          </span>
-                        </div>
-
-                        <div className="p-3 bg-slate-950/70 border border-slate-800/80 rounded-xl space-y-1.5 text-xs">
-                          {b.status === "CONFIRMED" && (
                             <div className="flex justify-between">
-                              <span className="text-slate-400">Hotel:</span>
-                              <span className="font-bold text-white">{b.title || b.vendorName || "Confirmed Hotel"}</span>
+                              <span className="text-[#666666]">Location:</span>
+                              <span className="font-medium text-[#1A1A1A]">{b.location || trip?.destination}</span>
                             </div>
-                          )}
-                          <div className="flex justify-between">
-                            <span className="text-slate-400">Location:</span>
-                            <span className="font-semibold text-slate-200">{b.location || trip?.destination}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-400">Check-in:</span>
-                            <span className="font-semibold text-slate-200">{checkIn}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-400">Check-out:</span>
-                            <span className="font-semibold text-slate-200">{checkOut}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-400">Travelers:</span>
-                            <span className="font-semibold text-slate-200">{travelersLabel}</span>
+                            <div className="flex justify-between">
+                              <span className="text-[#666666]">Check-in:</span>
+                              <span className="font-medium text-[#1A1A1A]">{checkIn}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-[#666666]">Check-out:</span>
+                              <span className="font-medium text-[#1A1A1A]">{checkOut}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-[#666666]">Travelers:</span>
+                              <span className="font-medium text-[#1A1A1A]">{travelersLabel}</span>
+                            </div>
                           </div>
                         </div>
 
-                        <div className="pt-1 flex items-center justify-end">
+                        <div className="pt-2 flex items-center justify-end border-t border-[#EBEBEB]">
                           <Link
                             to={`/operator/trips/${b.tripId}?tab=accommodation`}
-                            className="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition"
+                            className="px-3.5 py-1.5 rounded-lg bg-[#0064D2] hover:bg-[#0052B4] text-white text-xs font-semibold transition shadow-xs"
                           >
                             {b.status === "CONFIRMED" ? "View Trip" : "View Details"}
                           </Link>
@@ -392,57 +392,59 @@ export default function OperatorBookings() {
                     return (
                       <div 
                         key={b._id}
-                        className="bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-2xl p-5 space-y-3 shadow-xs transition"
+                        className="bg-white border border-[#EBEBEB] hover:border-[#0064D2]/40 rounded-xl p-5 space-y-3 shadow-[0_1px_4px_rgba(0,0,0,0.06)] hover:-translate-y-0.5 transition-all duration-150 flex flex-col justify-between"
                       >
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <div className="text-[10px] font-black uppercase tracking-wider text-indigo-400">
-                              {isCampus ? "Campus Trip" : "Personal Trip"} • {trip?.source} → {trip?.destination}
+                        <div className="space-y-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <div className="text-[10px] font-bold uppercase tracking-wider text-[#006CE4]">
+                                {isCampus ? "Campus Trip" : "Personal Trip"} • {trip?.source} → {trip?.destination}
+                              </div>
+                              {orgName && (
+                                <div className="text-xs font-semibold text-[#1A1A1A] mt-0.5">
+                                  {orgName}
+                                </div>
+                              )}
                             </div>
-                            {orgName && (
-                              <div className="text-xs font-bold text-slate-300 mt-0.5">
-                                {orgName}
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                              b.status === "CONFIRMED"
+                                ? "bg-[#E6F7EF] text-[#00A65E] border-[#A3E9C7]"
+                                : "bg-[#FFF4ED] text-[#F5330F] border-[#FFD0B8]"
+                            }`}>
+                              {b.status === "CONFIRMED" ? "Confirmed" : "Not Booked"}
+                            </span>
+                          </div>
+
+                          <div className="p-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg space-y-1.5 text-xs text-[#666666]">
+                            <div className="flex justify-between">
+                              <span className="text-[#666666]">Requirement:</span>
+                              <span className="font-bold text-[#1A1A1A]">{isGroupFleet ? fleetTitle : b.title}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-[#666666]">Travelers:</span>
+                              <span className="font-medium text-[#1A1A1A]">{travelerLabel}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-[#666666]">Travel Date:</span>
+                              <span className="font-medium text-[#1A1A1A]">{travelDate}</span>
+                            </div>
+                            {b.status === "CONFIRMED" && (
+                              <div className="flex justify-between">
+                                <span className="text-[#666666]">Vendor:</span>
+                                <span className="font-bold text-[#00A65E]">{b.vendorName || "Confirmed Vendor"}</span>
                               </div>
                             )}
                           </div>
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                            b.status === "CONFIRMED"
-                              ? "bg-emerald-950/60 text-emerald-400 border border-emerald-800/40"
-                              : "bg-amber-950/60 text-amber-400 border border-amber-800/40"
-                          }`}>
-                            {b.status === "CONFIRMED" ? "Confirmed" : "Not Booked"}
-                          </span>
-                        </div>
-
-                        <div className="p-3 bg-slate-950/70 border border-slate-800/80 rounded-xl space-y-1.5 text-xs">
-                          <div className="flex justify-between">
-                            <span className="text-slate-400">Requirement:</span>
-                            <span className="font-bold text-white">{isGroupFleet ? fleetTitle : b.title}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-400">Travelers:</span>
-                            <span className="font-semibold text-slate-200">{travelerLabel}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-400">Travel Date:</span>
-                            <span className="font-semibold text-slate-200">{travelDate}</span>
-                          </div>
-                          {b.status === "CONFIRMED" && (
-                            <div className="flex justify-between">
-                              <span className="text-slate-400">Vendor:</span>
-                              <span className="font-bold text-emerald-400">{b.vendorName || "Confirmed Vendor"}</span>
-                            </div>
-                          )}
                         </div>
 
                         {/* VIEW & BOOK flow: Opens originating trip & relevant transport leg */}
-                        <div className="pt-1 flex items-center justify-end">
+                        <div className="pt-2 flex items-center justify-end border-t border-[#EBEBEB]">
                           <Link
                             to={`/operator/trips/${b.tripId}?tab=transport`}
-                            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
+                            className={`px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 shadow-xs ${
                               b.status === "CONFIRMED"
-                                ? "bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700"
-                                : "bg-indigo-600 hover:bg-indigo-500 text-white shadow-xs"
+                                ? "bg-[#F1F5F9] hover:bg-[#E2E8F0] text-[#1A1A1A] border border-[#E2E8F0]"
+                                : "bg-[#0064D2] hover:bg-[#0052B4] text-white"
                             }`}
                           >
                             {b.status === "CONFIRMED" ? "View Trip" : "View & Book"}
@@ -464,45 +466,47 @@ export default function OperatorBookings() {
                   return (
                     <div 
                       key={b._id}
-                      className="bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-2xl p-5 space-y-3 shadow-xs transition"
+                      className="bg-white border border-[#EBEBEB] hover:border-[#0064D2]/40 rounded-xl p-5 space-y-3 shadow-[0_1px_4px_rgba(0,0,0,0.06)] hover:-translate-y-0.5 transition-all duration-150 flex flex-col justify-between"
                     >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <div className="text-[10px] font-black uppercase tracking-wider text-indigo-400">
-                            {isCampus ? "Campus Visit" : "Personal Activity"} • {trip?.source} → {trip?.destination}
+                      <div className="space-y-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="text-[10px] font-bold uppercase tracking-wider text-[#006CE4]">
+                              {isCampus ? "Campus Visit" : "Personal Activity"} • {trip?.source} → {trip?.destination}
+                            </div>
+                            <h3 className="text-sm font-bold text-[#1A1A1A] mt-1">
+                              {b.title}
+                            </h3>
                           </div>
-                          <h3 className="text-sm font-black text-white mt-1">
-                            {b.title}
-                          </h3>
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                            b.status === "CONFIRMED"
+                              ? "bg-[#E6F7EF] text-[#00A65E] border-[#A3E9C7]"
+                              : "bg-[#FFF4ED] text-[#F5330F] border-[#FFD0B8]"
+                          }`}>
+                            {b.status === "CONFIRMED" ? "Booked" : "Not Booked"}
+                          </span>
                         </div>
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                          b.status === "CONFIRMED"
-                            ? "bg-emerald-950/60 text-emerald-400 border border-emerald-800/40"
-                            : "bg-amber-950/60 text-amber-400 border border-amber-800/40"
-                        }`}>
-                          {b.status === "CONFIRMED" ? "Booked" : "Not Booked"}
-                        </span>
-                      </div>
 
-                      <div className="p-3 bg-slate-950/70 border border-slate-800/80 rounded-xl space-y-1.5 text-xs">
-                        <div className="flex justify-between">
-                          <span className="text-slate-400">Location:</span>
-                          <span className="font-semibold text-slate-200">{b.location || trip?.destination}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-400">Date:</span>
-                          <span className="font-semibold text-slate-200">{dateLabel}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-400">Traveler / Org:</span>
-                          <span className="font-semibold text-slate-200">{orgName || participantLabel}</span>
+                        <div className="p-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg space-y-1.5 text-xs text-[#666666]">
+                          <div className="flex justify-between">
+                            <span className="text-[#666666]">Location:</span>
+                            <span className="font-medium text-[#1A1A1A]">{b.location || trip?.destination}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-[#666666]">Date:</span>
+                            <span className="font-medium text-[#1A1A1A]">{dateLabel}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-[#666666]">Traveler / Org:</span>
+                            <span className="font-medium text-[#1A1A1A]">{orgName || participantLabel}</span>
+                          </div>
                         </div>
                       </div>
 
-                      <div className="pt-1 flex items-center justify-end">
+                      <div className="pt-2 flex items-center justify-end border-t border-[#EBEBEB]">
                         <Link
                           to={`/operator/trips/${b.tripId}?tab=itinerary`}
-                          className="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition"
+                          className="px-3.5 py-1.5 rounded-lg bg-[#0064D2] hover:bg-[#0052B4] text-white text-xs font-semibold transition shadow-xs"
                         >
                           View Trip
                         </Link>

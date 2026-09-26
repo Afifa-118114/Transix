@@ -82,7 +82,7 @@ export default function OperatorVendors() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-200 flex font-sans dark">
+    <div className="min-h-screen bg-[#F5F7FA] text-[#1A1A1A] flex font-sans">
       {/* Desktop Sidebar */}
       <aside className="w-64 flex-shrink-0 hidden lg:block h-screen sticky top-0">
         <OperatorSidebar
@@ -95,7 +95,7 @@ export default function OperatorVendors() {
       {/* Mobile Drawer */}
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-50 lg:hidden flex">
-          <div className="fixed inset-0 bg-black/80" onClick={() => setMobileMenuOpen(false)}></div>
+          <div className="fixed inset-0 bg-black/60" onClick={() => setMobileMenuOpen(false)}></div>
           <div className="relative w-64 max-w-[80%] h-full z-10 flex flex-col">
             <button
               onClick={() => setMobileMenuOpen(false)}
@@ -115,32 +115,32 @@ export default function OperatorVendors() {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <header className="bg-slate-900/95 backdrop-blur-md border-b border-slate-800 sticky top-0 z-20">
+        <header className="bg-white border-b border-[#EBEBEB] sticky top-0 z-20">
           <div className="flex items-center justify-between px-6 py-4">
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setMobileMenuOpen(true)}
-                className="lg:hidden p-2 text-slate-400 hover:text-white"
+                className="lg:hidden p-2 rounded-lg border border-[#EBEBEB] text-[#1A1A1A] hover:bg-[#F5F7FA]"
               >
-                <FiMenu size={20} />
+                <FiMenu size={18} />
               </button>
               <div>
                 <div className="flex items-center gap-2 mb-0.5">
                   <Link
                     to="/operator/dashboard"
-                    className="text-[10px] font-black uppercase tracking-widest text-indigo-400 hover:underline flex items-center gap-1"
+                    className="text-[10px] font-bold uppercase tracking-wider text-[#006CE4] hover:underline flex items-center gap-1"
                   >
                     <FiArrowLeft size={10} /> Dashboard
                   </Link>
-                  <span className="text-slate-600 text-xs">/</span>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  <span className="text-[#A0AEC0] text-xs">/</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#666666]">
                     Network
                   </span>
                 </div>
-                <h1 className="text-lg font-black text-white flex items-center gap-2">
-                  <FiBriefcase className="text-indigo-400" /> Connected Fleet Vendors Directory
+                <h1 className="text-lg font-bold text-[#1A1A1A] flex items-center gap-2">
+                  <FiBriefcase className="text-[#006CE4]" /> Connected Fleet Vendors Directory
                 </h1>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-[#666666]">
                   Transix Onboarded Demo Vendor Network ({vendors.length} connected operators)
                 </p>
               </div>
@@ -150,10 +150,10 @@ export default function OperatorVendors() {
             <div className="flex items-center gap-3">
               <Link
                 to="/vendor/requests"
-                className="px-3.5 py-1.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/40 text-xs font-bold transition flex items-center gap-1.5 shadow-xs"
+                className="px-3.5 py-1.5 rounded-lg bg-[#EFF6FF] hover:bg-[#DBEAFE] text-[#0064D2] border border-[#BFDBFE] text-xs font-semibold transition flex items-center gap-1.5 shadow-xs"
               >
                 <span>Demo Vendor Portal</span>
-                <span className="text-[9px] bg-indigo-500/30 px-1.5 py-0.5 rounded text-white font-mono">
+                <span className="text-[9px] bg-[#0064D2] text-white px-1.5 py-0.5 rounded font-mono font-bold">
                   Live
                 </span>
               </Link>
@@ -161,16 +161,16 @@ export default function OperatorVendors() {
           </div>
 
           {/* Search & Filters Bar */}
-          <div className="px-6 py-3 bg-slate-950/60 border-t border-slate-800/80 flex flex-wrap items-center gap-3">
+          <div className="px-6 py-3 bg-white border-t border-[#EBEBEB] flex flex-wrap items-center gap-3">
             {/* Search Input */}
             <form onSubmit={handleSearchSubmit} className="relative flex-1 min-w-[200px]">
-              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
+              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" size={14} />
               <input
                 type="text"
                 placeholder="Search vendor by name..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-9 pr-3 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition"
+                className="w-full pl-9 pr-3 py-1.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-xs text-[#1A1A1A] placeholder-[#94A3B8] focus:outline-none focus:border-[#006CE4] focus:bg-white transition"
               />
             </form>
 
@@ -178,7 +178,7 @@ export default function OperatorVendors() {
             <select
               value={selectedState}
               onChange={(e) => setSelectedState(e.target.value)}
-              className="bg-slate-900 border border-slate-800 text-xs text-slate-300 rounded-xl px-3 py-1.5 focus:outline-none focus:border-indigo-500 transition"
+              className="bg-[#F8FAFC] border border-[#E2E8F0] text-xs text-[#1A1A1A] rounded-lg px-3 py-1.5 focus:outline-none focus:border-[#006CE4] transition"
             >
               <option value="">All States ({filterMeta?.states?.length || 0})</option>
               {filterMeta?.states?.map((st) => (
@@ -192,7 +192,7 @@ export default function OperatorVendors() {
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="bg-slate-900 border border-slate-800 text-xs text-slate-300 rounded-xl px-3 py-1.5 focus:outline-none focus:border-indigo-500 transition"
+              className="bg-[#F8FAFC] border border-[#E2E8F0] text-xs text-[#1A1A1A] rounded-lg px-3 py-1.5 focus:outline-none focus:border-[#006CE4] transition"
             >
               <option value="">All Fleet Categories</option>
               {filterMeta?.categories?.map((cat) => (
@@ -206,7 +206,7 @@ export default function OperatorVendors() {
             <select
               value={selectedComfort}
               onChange={(e) => setSelectedComfort(e.target.value)}
-              className="bg-slate-900 border border-slate-800 text-xs text-slate-300 rounded-xl px-3 py-1.5 focus:outline-none focus:border-indigo-500 transition"
+              className="bg-[#F8FAFC] border border-[#E2E8F0] text-xs text-[#1A1A1A] rounded-lg px-3 py-1.5 focus:outline-none focus:border-[#006CE4] transition"
             >
               <option value="">All Comfort Levels</option>
               <option value="STANDARD">Standard</option>
@@ -218,7 +218,7 @@ export default function OperatorVendors() {
             <select
               value={selectedCapability}
               onChange={(e) => setSelectedCapability(e.target.value)}
-              className="bg-slate-900 border border-slate-800 text-xs text-slate-300 rounded-xl px-3 py-1.5 focus:outline-none focus:border-indigo-500 transition"
+              className="bg-[#F8FAFC] border border-[#E2E8F0] text-xs text-[#1A1A1A] rounded-lg px-3 py-1.5 focus:outline-none focus:border-[#006CE4] transition"
             >
               <option value="">All Capabilities</option>
               <option value="intercity">Intercity Transit</option>
@@ -230,7 +230,7 @@ export default function OperatorVendors() {
             {(search || selectedState || selectedCategory || selectedComfort || selectedCapability) && (
               <button
                 onClick={handleResetFilters}
-                className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition flex items-center gap-1"
+                className="px-2.5 py-1.5 bg-[#F1F5F9] hover:bg-[#E2E8F0] text-[#475569] rounded-lg text-xs font-semibold transition flex items-center gap-1"
               >
                 <FiX size={12} /> Clear
               </button>
@@ -239,24 +239,24 @@ export default function OperatorVendors() {
         </header>
 
         {/* Content Body */}
-        <main className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-4 custom-scrollbar max-w-7xl w-full mx-auto">
           {loading ? (
-            <div className="py-20 flex flex-col items-center justify-center text-slate-400 gap-3">
-              <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-              <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
+            <div className="py-20 flex flex-col items-center justify-center text-[#666666] gap-3">
+              <div className="w-8 h-8 border-2 border-[#0064D2] border-t-transparent rounded-full animate-spin"></div>
+              <div className="text-xs font-bold uppercase tracking-wider text-[#999999]">
                 Loading Vendor Directory...
               </div>
             </div>
           ) : vendors.length === 0 ? (
-            <div className="bg-slate-900 rounded-2xl border border-slate-800 p-12 text-center">
-              <FiBriefcase className="mx-auto text-slate-700 mb-3" size={36} />
-              <h2 className="text-sm font-bold text-white mb-1">No vendors match current criteria</h2>
-              <p className="text-xs text-slate-400 max-w-sm mx-auto">
+            <div className="bg-white rounded-xl border border-[#EBEBEB] p-12 text-center shadow-[0_1px_4px_rgba(0,0,0,0.06)]">
+              <FiBriefcase className="mx-auto text-[#A0AEC0] mb-3" size={36} />
+              <h2 className="text-sm font-bold text-[#1A1A1A] mb-1">No vendors match current criteria</h2>
+              <p className="text-xs text-[#666666] max-w-sm mx-auto">
                 Try clearing filters or adjusting search parameters to browse all 100 onboarded vendors.
               </p>
               <button
                 onClick={handleResetFilters}
-                className="mt-4 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition"
+                className="mt-4 px-4 py-2 bg-[#0064D2] hover:bg-[#0052B4] text-white rounded-lg text-xs font-semibold transition"
               >
                 Reset Filters
               </button>
@@ -266,19 +266,19 @@ export default function OperatorVendors() {
               {vendors.map((vendor) => (
                 <div
                   key={vendor._id}
-                  className="bg-slate-900 rounded-2xl border border-slate-800 p-5 shadow-xs flex flex-col justify-between gap-4 hover:border-slate-700 transition"
+                  className="bg-white rounded-xl border border-[#EBEBEB] p-5 shadow-[0_1px_4px_rgba(0,0,0,0.06)] flex flex-col justify-between gap-4 hover:border-[#0064D2]/40 hover:-translate-y-0.5 transition-all duration-150"
                 >
                   <div className="space-y-3">
                     {/* Top Header */}
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <h3 className="text-sm font-extrabold text-white">{vendor.name}</h3>
+                        <h3 className="text-sm font-bold text-[#1A1A1A]">{vendor.name}</h3>
                         <div className="flex items-center gap-2 mt-1">
-                          <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-emerald-950/60 text-emerald-400 border border-emerald-800/60 flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                          <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-[#E6F7EF] text-[#00A65E] border border-[#A3E9C7] flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#00A65E]"></span>
                             {vendor.status}
                           </span>
-                          <span className="text-[9px] font-mono font-bold text-slate-400 bg-slate-800/80 px-1.5 py-0.5 rounded">
+                          <span className="text-[9px] font-mono font-medium text-[#666666] bg-[#F1F5F9] px-1.5 py-0.5 rounded">
                             {vendor.source}
                           </span>
                         </div>
@@ -287,18 +287,18 @@ export default function OperatorVendors() {
 
                     {/* Coverage */}
                     <div>
-                      <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 flex items-center gap-1">
-                        <FiMapPin size={11} className="text-indigo-400" />
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-[#666666] mb-1 flex items-center gap-1">
+                        <FiMapPin size={11} className="text-[#006CE4]" />
                         <span>Service Coverage ({vendor.serviceStates?.length || 0} States)</span>
                       </div>
-                      <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto custom-scrollbar p-1 bg-slate-950/50 rounded-xl border border-slate-800/60">
+                      <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto custom-scrollbar p-1.5 bg-[#F8FAFC] rounded-lg border border-[#E2E8F0]">
                         {vendor.serviceStates?.map((st) => (
                           <span
                             key={st}
-                            className={`px-1.5 py-0.5 rounded text-[9px] font-semibold ${
+                            className={`px-1.5 py-0.5 rounded text-[9px] font-medium ${
                               selectedState && st.toLowerCase() === selectedState.toLowerCase()
-                                ? "bg-indigo-600 text-white font-bold"
-                                : "bg-slate-900 text-slate-400 border border-slate-800"
+                                ? "bg-[#006CE4] text-white font-bold"
+                                : "bg-white text-[#475569] border border-[#E2E8F0]"
                             }`}
                           >
                             {st}
@@ -309,27 +309,27 @@ export default function OperatorVendors() {
 
                     {/* Fleet Options */}
                     <div>
-                      <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 flex items-center gap-1">
-                        <FaBus size={10} className="text-indigo-400" />
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-[#666666] mb-1 flex items-center gap-1">
+                        <FaBus size={10} className="text-[#006CE4]" />
                         <span>Fleet Inventory ({vendor.fleet?.length || 0} categories)</span>
                       </div>
                       <div className="space-y-1">
                         {vendor.fleet?.map((f, idx) => (
                           <div
                             key={idx}
-                            className="flex items-center justify-between text-xs bg-slate-950/40 px-2.5 py-1.5 rounded-lg border border-slate-800/40"
+                            className="flex items-center justify-between text-xs bg-[#F8FAFC] px-2.5 py-1.5 rounded-lg border border-[#E2E8F0]"
                           >
-                            <span className="font-bold text-slate-300 text-[11px]">
+                            <span className="font-semibold text-[#1A1A1A] text-[11px]">
                               {f.category.replace(/_/g, " ")}
                             </span>
-                            <div className="flex items-center gap-2 text-[10px] font-semibold text-slate-400">
+                            <div className="flex items-center gap-2 text-[10px] text-[#666666]">
                               <span>{f.capacity} seats</span>
-                              <span className="text-slate-600">•</span>
-                              <span className={f.ac ? "text-cyan-400 font-bold" : "text-slate-400"}>
+                              <span>•</span>
+                              <span className={f.ac ? "text-[#006CE4] font-semibold" : "text-[#666666]"}>
                                 {f.ac ? "AC" : "Non-AC"}
                               </span>
-                              <span className="text-slate-600">•</span>
-                              <span className="text-indigo-300">{f.comfort}</span>
+                              <span>•</span>
+                              <span className="text-[#475569] font-medium">{f.comfort}</span>
                             </div>
                           </div>
                         ))}
@@ -338,17 +338,17 @@ export default function OperatorVendors() {
                   </div>
 
                   {/* Capabilities Badges */}
-                  <div className="pt-3 border-t border-slate-800/80 flex flex-wrap gap-1.5 text-[9px]">
-                    <span className={`px-2 py-0.5 rounded font-bold border ${vendor.capabilities?.intercity ? "bg-indigo-950 text-indigo-300 border-indigo-800/60" : "bg-slate-950 text-slate-600 border-slate-900"}`}>
+                  <div className="pt-3 border-t border-[#EBEBEB] flex flex-wrap gap-1.5 text-[9.5px]">
+                    <span className={`px-2 py-0.5 rounded-full font-medium border ${vendor.capabilities?.intercity ? "bg-[#EFF6FF] text-[#0064D2] border-[#BFDBFE]" : "bg-[#F8FAFC] text-[#94A3B8] border-[#E2E8F0]"}`}>
                       ✓ Intercity
                     </span>
-                    <span className={`px-2 py-0.5 rounded font-bold border ${vendor.capabilities?.multiDay ? "bg-indigo-950 text-indigo-300 border-indigo-800/60" : "bg-slate-950 text-slate-600 border-slate-900"}`}>
+                    <span className={`px-2 py-0.5 rounded-full font-medium border ${vendor.capabilities?.multiDay ? "bg-[#EFF6FF] text-[#0064D2] border-[#BFDBFE]" : "bg-[#F8FAFC] text-[#94A3B8] border-[#E2E8F0]"}`}>
                       ✓ Multi-Day
                     </span>
-                    <span className={`px-2 py-0.5 rounded font-bold border ${vendor.capabilities?.groupTransport ? "bg-indigo-950 text-indigo-300 border-indigo-800/60" : "bg-slate-950 text-slate-600 border-slate-900"}`}>
+                    <span className={`px-2 py-0.5 rounded-full font-medium border ${vendor.capabilities?.groupTransport ? "bg-[#EFF6FF] text-[#0064D2] border-[#BFDBFE]" : "bg-[#F8FAFC] text-[#94A3B8] border-[#E2E8F0]"}`}>
                       ✓ Group Transport
                     </span>
-                    <span className={`px-2 py-0.5 rounded font-bold border ${vendor.capabilities?.driverIncluded ? "bg-indigo-950 text-indigo-300 border-indigo-800/60" : "bg-slate-950 text-slate-600 border-slate-900"}`}>
+                    <span className={`px-2 py-0.5 rounded-full font-medium border ${vendor.capabilities?.driverIncluded ? "bg-[#EFF6FF] text-[#0064D2] border-[#BFDBFE]" : "bg-[#F8FAFC] text-[#94A3B8] border-[#E2E8F0]"}`}>
                       ✓ Driver Included
                     </span>
                   </div>
