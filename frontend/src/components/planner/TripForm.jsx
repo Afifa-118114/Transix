@@ -1,12 +1,10 @@
 import { useState, useEffect, useRef } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { generateAITrip } from "../../api/tripApi";
 import { normalizeTrip } from "../../utils/formatTrip";
 import { clearInventoryCache } from "../../services/inventoryService";
-import { useTheme } from "../../context/ThemeContext";
 import toast from "react-hot-toast";
 import { Sparkles, ArrowRight, ArrowLeft, Check } from "lucide-react";
-import { FiSun, FiMoon, FiHome } from "react-icons/fi";
 
 const QUESTIONS = [
   {
@@ -113,7 +111,6 @@ const loadingPhases = [
 
 export default function TripForm({ setTrip }) {
   const navigate = useNavigate();
-  const { isDark, toggleTheme } = useTheme();
 
   const [currentIdx, setCurrentIdx] = useState(0);
   const [inputValue, setInputValue] = useState("");
@@ -735,64 +732,8 @@ export default function TripForm({ setTrip }) {
   // -------------------------------------------------------------
   return (
     <div className="flex flex-col min-h-[calc(100vh-6rem)] sm:min-h-[calc(100vh-8rem)] max-w-2xl sm:max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10 justify-between">
-      {/* Top Header Bar */}
+      {/* Question Area */}
       <div>
-        <div className="flex items-center justify-between mb-8 sm:mb-12">
-          {/* Left: Navigation Buttons (Home + Previous) */}
-          <div className="flex items-center gap-2">
-            {/* Back to Home Button */}
-            <Link
-              to="/"
-              title="Return to Transix Home"
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131b2e] text-xs font-bold text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-300 dark:hover:border-indigo-600 transition shadow-2xs cursor-pointer"
-            >
-              <FiHome className="text-sm" />
-              <span>Home</span>
-            </Link>
-
-            {/* Previous Step Button */}
-            {(currentIdx > 0 || editingQuestionId) && (
-              <button
-                type="button"
-                onClick={handlePrevStep}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131b2e] text-xs font-bold text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-300 dark:hover:border-indigo-600 transition shadow-2xs cursor-pointer"
-              >
-                <ArrowLeft className="w-3.5 h-3.5" />
-                <span>{editingQuestionId ? "Cancel Edit" : "Previous"}</span>
-              </button>
-            )}
-          </div>
-
-          {/* Right: Theme Toggle + Stepper Progress */}
-          <div className="flex items-center gap-3">
-            {/* Dark Mode Toggle Button */}
-            <button
-              type="button"
-              onClick={toggleTheme}
-              title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
-              className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131b2e] text-slate-600 dark:text-slate-300 hover:border-slate-300 dark:hover:border-slate-700 transition shadow-2xs cursor-pointer"
-            >
-              {isDark ? <FiSun className="text-sm text-amber-400" /> : <FiMoon className="text-sm text-slate-600" />}
-            </button>
-
-            {/* Stepper info */}
-            {!editingQuestionId && (
-              <div className="flex items-center gap-2.5">
-                <div className="w-16 sm:w-24 h-1.5 bg-slate-200/80 dark:bg-slate-800 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-indigo-600 to-indigo-700 rounded-full transition-all duration-300"
-                    style={{ width: `${Math.round(((currentIdx + 1) / QUESTIONS.length) * 100)}%` }}
-                  />
-                </div>
-                <span className="text-xs font-bold font-mono text-indigo-600 dark:text-indigo-400 tabular-nums whitespace-nowrap">
-                  {currentIdx + 1} / {QUESTIONS.length}
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Question Area */}
         <div className="mb-8 sm:mb-12">
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-[1.2]">
             {clarification ? clarification : activeQuestion.title}
@@ -872,11 +813,23 @@ export default function TripForm({ setTrip }) {
           />
 
           <div className="flex items-center justify-between pt-4 mt-2 border-t border-slate-100 dark:border-slate-800">
-            <div className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500 font-medium">
-              <span>Return ↵ to submit</span>
-              <span className="hidden sm:inline text-slate-300 dark:text-slate-600">
-                · Shift + Return for new line
-              </span>
+            <div className="flex items-center gap-2.5">
+              {(currentIdx > 0 || editingQuestionId) && (
+                <button
+                  type="button"
+                  onClick={handlePrevStep}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131b2e] text-xs font-semibold text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-300 transition cursor-pointer"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span>{editingQuestionId ? "Cancel Edit" : "Previous"}</span>
+                </button>
+              )}
+              <div className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500 font-medium">
+                <span>Return ↵ to submit</span>
+                <span className="hidden sm:inline text-slate-300 dark:text-slate-600">
+                  · Shift + Return for new line
+                </span>
+              </div>
             </div>
 
             <button
