@@ -400,49 +400,39 @@ export default function Sidebar({ trip: propTrip, setTrip: propSetTrip }) {
         </div>
       </div>
 
-      {/* ── Bottom Section: Theme & User Identity Card ── */}
-      <div className="border-t border-[#F1F5F9] p-3 flex flex-col gap-2 bg-[#FAFCFF]">
-        {/* Clean Theme Toggle Button */}
-        <button
-          type="button"
-          onClick={toggleTheme}
-          title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
-          className={`flex items-center rounded-lg border border-[#E2E8F0] bg-white text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition text-xs font-medium cursor-pointer ${
-            collapsed ? "h-9 w-9 mx-auto justify-center" : "w-full justify-between px-3 py-1.5"
-          }`}
-        >
-          <div className="flex items-center gap-2">
-            {isDark ? <IconSun size={15} /> : <IconMoon size={15} />}
-            {!collapsed && <span>{isDark ? "Light Mode" : "Dark Mode"}</span>}
-          </div>
-          {!collapsed && (
-            <span className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wide">
-              {isDark ? "Dark" : "Light"}
-            </span>
-          )}
-        </button>
-
-        {/* User Identity / Login Card */}
+      {/* ── Bottom Section: User Identity & Theme Toggle ── */}
+      <div className="border-t border-[#F1F5F9] p-3 bg-white">
         {user ? (
           collapsed ? (
-            <div className="flex flex-col items-center gap-1.5 pt-1">
+            <div className="flex flex-col items-center gap-2">
               <div
                 title={user.name || "Traveler"}
                 className="flex h-8 w-8 items-center justify-center rounded-full bg-[#EFF6FF] border border-[#BFDBFE] text-xs font-bold text-[#006CE4]"
               >
                 {user.name ? user.name[0].toUpperCase() : "T"}
               </div>
+
+              {/* Simple clean moon svg toggle, no card, no text */}
+              <button
+                type="button"
+                onClick={toggleTheme}
+                title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-[#64748B] hover:text-[#0F172A] hover:bg-[#F1F5F9] transition cursor-pointer"
+              >
+                {isDark ? <IconSun size={17} /> : <IconMoon size={17} />}
+              </button>
+
               <button
                 type="button"
                 onClick={handleLogout}
                 title="Sign Out"
-                className="flex h-7 w-7 items-center justify-center rounded text-[#64748B] hover:text-[#DC2626] transition cursor-pointer"
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-[#64748B] hover:text-[#DC2626] hover:bg-[#FEE2E2] transition cursor-pointer"
               >
-                <IconLogOut size={15} />
+                <IconLogOut size={16} />
               </button>
             </div>
           ) : (
-            <div className="flex items-center justify-between min-w-0 pt-0.5">
+            <div className="flex items-center justify-between min-w-0">
               <div className="flex items-center gap-2.5 min-w-0">
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#EFF6FF] border border-[#BFDBFE] text-xs font-bold text-[#006CE4]">
                   {user.name ? user.name[0].toUpperCase() : "T"}
@@ -457,23 +447,47 @@ export default function Sidebar({ trip: propTrip, setTrip: propSetTrip }) {
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={handleLogout}
-                title="Sign Out"
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[#64748B] hover:bg-[#FEE2E2] hover:text-[#DC2626] transition cursor-pointer"
-              >
-                <IconLogOut size={15} />
-              </button>
+              <div className="flex items-center gap-1 shrink-0">
+                {/* Simple clean moon svg toggle, no card, no text */}
+                <button
+                  type="button"
+                  onClick={toggleTheme}
+                  title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-[#64748B] hover:text-[#0F172A] hover:bg-[#F1F5F9] transition cursor-pointer"
+                >
+                  {isDark ? <IconSun size={17} /> : <IconMoon size={17} />}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  title="Sign Out"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-[#64748B] hover:bg-[#FEE2E2] hover:text-[#DC2626] transition cursor-pointer"
+                >
+                  <IconLogOut size={16} />
+                </button>
+              </div>
             </div>
           )
         ) : (
-          <Link
-            to="/login"
-            className="flex items-center justify-center gap-2 rounded-lg border border-[#006CE4] bg-[#EFF6FF] text-[#006CE4] py-1.5 text-xs font-semibold hover:bg-[#006CE4] hover:text-white transition"
-          >
-            <span>Sign In</span>
-          </Link>
+          <div className="flex items-center justify-between gap-2">
+            <Link
+              to="/login"
+              className="flex-1 flex items-center justify-center gap-2 rounded-lg border border-[#006CE4] bg-[#EFF6FF] text-[#006CE4] py-1.5 text-xs font-semibold hover:bg-[#006CE4] hover:text-white transition"
+            >
+              <span>Sign In</span>
+            </Link>
+
+            {/* Simple clean moon svg toggle, no card, no text */}
+            <button
+              type="button"
+              onClick={toggleTheme}
+              title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[#64748B] hover:text-[#0F172A] hover:bg-[#F1F5F9] transition cursor-pointer"
+            >
+              {isDark ? <IconSun size={17} /> : <IconMoon size={17} />}
+            </button>
+          </div>
         )}
       </div>
     </motion.aside>
