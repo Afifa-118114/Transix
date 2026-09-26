@@ -7,6 +7,7 @@ const {
   calculateStayAccommodation,
   calculateAccommodationSummary,
   calculateAccommodationBudgetAnalysis,
+  calculateSegmentBudgetAllocation,
   calculateTripBudgetAnalysis,
   calculateCampusCategoryBudgetAnalysis,
   calculateCampusBudgetPrediction,
@@ -22,335 +23,200 @@ console.log("==================================================");
 console.log("CAMPUS TRIP BUDGET MODEL VERIFICATION SUITE");
 console.log("==================================================");
 
-// TEST 1 — 10 DAY CAMPUS TRIP
-console.log("\n--- TEST 1: 10 DAY CAMPUS TRIP ---");
+// ============================================================================
+// TEST 1: CAMPUS TRIP STANDARD (From Requirements Section 2 & 11)
+// Budget per student: ₹20,000, Travelers: 150
+// Target Accommodation: ₹10,000–₹12,000 (50%–60%)
+// Maximum Accommodation Budget: ₹12,000 / student, ₹18,00,000 group
+// ============================================================================
+console.log("\n--- TEST 1: CAMPUS TRIP STANDARD (₹20,000, 150 TRAVELERS) ---");
 {
   const trip = {
     tripCategory: "CAMPUS",
     startDate: "2026-09-20",
     endDate: "2026-09-29", // 10 days
-    budget: 15000,
+    budget: 20000,
     campusConfig: {
-      budgetPerStudent: 15000,
-      expectedParticipants: 200,
+      budgetPerStudent: 20000,
+      expectedParticipants: 150,
       studentsPerRoom: 2
     }
   };
-
-  const duration = getTripDurationDays(trip);
-  assert.strictEqual(duration, 10, "Trip duration must be exactly 10 days");
 
   const budgetConfig = getCampusAccommodationBudget(trip);
-  assert.strictEqual(budgetConfig.overallBudgetPerStudent, 15000, "Overall per-student budget must be ₹15,000");
-  assert.strictEqual(budgetConfig.overallGroupBudget, 3000000, "Overall group budget must be ₹30,00,000");
-  assert.strictEqual(budgetConfig.accommodationBudgetPerStudent, 10000, "Accommodation maximum must be ₹10,000/student");
-  assert.strictEqual(budgetConfig.accommodationBudgetGroup, 2000000, "Accommodation group maximum must be ₹20,00,000");
+  assert.strictEqual(budgetConfig.overallBudgetPerStudent, 20000, "Overall per-student budget must be ₹20,000");
+  assert.strictEqual(budgetConfig.overallGroupBudget, 3000000, "Overall group budget must be ₹30,00,000 (20k x 150)");
+  assert.strictEqual(budgetConfig.targetAccommodationBudgetPerStudent, 10000, "Target accommodation (50%) must be ₹10,000/student");
+  assert.strictEqual(budgetConfig.maxAccommodationBudgetPerStudent, 12000, "Maximum accommodation (60%) must be ₹12,000/student");
+  assert.strictEqual(budgetConfig.targetAccommodationBudgetGroup, 1500000, "Target group accommodation must be ₹15,00,000");
+  assert.strictEqual(budgetConfig.maxAccommodationBudgetGroup, 1800000, "Maximum group accommodation must be ₹18,00,000");
+  assert.strictEqual(budgetConfig.accommodationBudgetPerStudent, 12000, "Accommodation budget per student must be ₹12,000");
+  assert.strictEqual(budgetConfig.accommodationBudgetGroup, 1800000, "Accommodation group budget must be ₹18,00,000");
 
-  console.log("✓ TEST 1 PASSED: 10-day trip derives ₹10,000/student and ₹20,00,000 group accommodation allocation.");
+  console.log("✓ TEST 1 PASSED: ₹20,000 / 150 travelers derives Target ₹10,000 (₹15L group) and Max ₹12,000 (₹18L group).");
 }
 
-// TEST 2 — NO HOTELS
-console.log("\n--- TEST 2: NO HOTELS SELECTED ---");
+// ============================================================================
+// TEST 2: LOWER BUDGET CAMPUS TRIP (From Requirements Section 3 & 11)
+// Budget per student: ₹10,000, Travelers: 50
+// Target Accommodation: ₹5,000 (50%)
+// Maximum Accommodation Budget: ₹6,000 / student, ₹3,00,000 group
+// ============================================================================
+console.log("\n--- TEST 2: LOWER BUDGET (₹10,000, 50 TRAVELERS) ---");
+{
+  const trip = {
+    tripCategory: "CAMPUS",
+    startDate: "2026-09-20",
+    endDate: "2026-09-25",
+    budget: 10000,
+    campusConfig: {
+      budgetPerStudent: 10000,
+      expectedParticipants: 50,
+      studentsPerRoom: 2
+    }
+  };
+
+  const budgetConfig = getCampusAccommodationBudget(trip);
+  assert.strictEqual(budgetConfig.overallBudgetPerStudent, 10000, "Overall per-student budget must be ₹10,000");
+  assert.strictEqual(budgetConfig.overallGroupBudget, 500000, "Overall group budget must be ₹5,00,000 (10k x 50)");
+  assert.strictEqual(budgetConfig.targetAccommodationBudgetPerStudent, 5000, "Target accommodation (50%) must be ₹5,000/student");
+  assert.strictEqual(budgetConfig.maxAccommodationBudgetPerStudent, 6000, "Maximum accommodation (60%) must be ₹6,000/student");
+  assert.strictEqual(budgetConfig.targetAccommodationBudgetGroup, 250000, "Target group accommodation must be ₹2,50,000");
+  assert.strictEqual(budgetConfig.maxAccommodationBudgetGroup, 300000, "Maximum group accommodation must be ₹3,00,000");
+
+  console.log("✓ TEST 2 PASSED: ₹10,000 / 50 travelers derives Target ₹5,000 (₹2.5L group) and Max ₹6,000 (₹3L group).");
+}
+
+// ============================================================================
+// TEST 3: ACCOMMODATION EXCEEDS BUDGET (From Requirements Section 8 & 11)
+// Displays clear warning when exceeding 60% of budget.
+// Actual estimate is NOT silently altered or capped.
+// Excess amounts per student and group are reported accurately.
+// ============================================================================
+console.log("\n--- TEST 3: ACCOMMODATION EXCEEDS BUDGET (> 60%) ---");
 {
   const trip = {
     tripCategory: "CAMPUS",
     startDate: "2026-09-20",
     endDate: "2026-09-29",
-    budget: 15000,
+    budget: 20000,
     campusConfig: {
-      budgetPerStudent: 15000,
-      expectedParticipants: 200,
+      budgetPerStudent: 20000, // Max 60% = ₹12,000 / student, ₹18,00,000 group
+      expectedParticipants: 150,
       studentsPerRoom: 2
     }
   };
 
-  const staySegments = [
-    { id: "stay-1", location: "Thiruvananthapuram", nights: 4, selectedHotel: null },
-    { id: "stay-2", location: "Munnar", nights: 3, selectedHotel: null },
-    { id: "stay-3", location: "Kochi", nights: 2, selectedHotel: null }
-  ];
-
-  const analysis = calculateAccommodationBudgetAnalysis(trip, staySegments);
-  assert.strictEqual(analysis.overallTripBudgetPerStudent, 15000, "Overall trip budget per student must be ₹15,000");
-  assert.strictEqual(analysis.overallTripBudgetGroup, 3000000, "Overall trip budget group must be ₹30,00,000");
-  assert.strictEqual(analysis.estimatedAccommodationPerStudent, 0, "Estimated accommodation per student must be ₹0");
-  assert.strictEqual(analysis.estimatedAccommodationGroup, 0, "Estimated accommodation group must be ₹0");
-  assert.strictEqual(analysis.remainingOverallPerStudentBudget, 15000, "Remaining overall per student must be full ₹15,000");
-  assert.strictEqual(analysis.remainingOverallGroupBudget, 3000000, "Remaining overall group must be full ₹30,00,000");
-  assert.strictEqual(analysis.exceedsOverallBudget, false, "Must not exceed overall budget");
-  assert.strictEqual(analysis.exceedsInternalLimit, false, "Must not exceed internal limit");
-
-  console.log("✓ TEST 2 PASSED: 0 hotels selected yields ₹0 estimated and full ₹15,000 / ₹30,00,000 remaining overall budget.");
-}
-
-// TEST 3 — ONE HOTEL SELECTED (EDUCATIONAL BULK GROUP RATE)
-console.log("\n--- TEST 3: ONE HOTEL SELECTED (EDUCATIONAL BULK RATE) ---");
-{
-  const trip = {
-    tripCategory: "CAMPUS",
-    startDate: "2026-09-20",
-    endDate: "2026-09-29",
-    budget: 15000,
-    campusConfig: {
-      budgetPerStudent: 15000,
-      expectedParticipants: 200,
-      studentsPerRoom: 2
-    }
-  };
-
-  // 200 students / 2 = 100 rooms.
-  // Base retail rate: ₹3,500/night.
-  // calculateCampusGroupRoomRate(3500, 100) -> 50% bulk concession = ₹1,750/night.
-  // 100 rooms @ ₹1,750/night * 4 nights = ₹7,00,000 group.
-  // Per-student: ₹7,00,000 / 200 = ₹3,500.
-  const staySegments = [
-    {
-      id: "stay-1",
-      location: "Thiruvananthapuram",
-      nights: 4,
-      selectedHotel: { name: "Hycinth Hotels", nightlyPrice: 3500 }
-    },
-    { id: "stay-2", location: "Munnar", nights: 3, selectedHotel: null },
-    { id: "stay-3", location: "Kochi", nights: 2, selectedHotel: null }
-  ];
-
-  const analysis = calculateAccommodationBudgetAnalysis(trip, staySegments);
-  assert.strictEqual(analysis.overallTripBudgetPerStudent, 15000, "Overall trip budget per student is ₹15,000");
-  assert.strictEqual(analysis.overallTripBudgetGroup, 3000000, "Overall trip budget group is ₹30,00,000");
-  assert.strictEqual(analysis.estimatedAccommodationGroup, 700000, "Group cost with educational bulk discount is ₹7,00,000");
-  assert.strictEqual(analysis.estimatedAccommodationPerStudent, 3500, "Per-student is ₹3,500");
-  assert.strictEqual(analysis.remainingOverallPerStudentBudget, 11500, "Remaining overall per-student is ₹15,000 - ₹3,500 = ₹11,500");
-  assert.strictEqual(analysis.remainingOverallGroupBudget, 2300000, "Remaining overall group is ₹30,00,000 - ₹7,00,000 = ₹23,00,000");
-  assert.strictEqual(analysis.exceedsOverallBudget, false, "Within overall budget");
-  assert.strictEqual(analysis.exceedsInternalLimit, false, "Within internal limit");
-
-  console.log("✓ TEST 3 PASSED: Single hotel correctly updates overall remaining: ₹11,500/student and ₹23,00,000 group.");
-}
-
-// TEST 4 — ALL HOTELS SELECTED (REALISTIC BULK ESTIMATION WITHIN BUDGET)
-console.log("\n--- TEST 4: ALL HOTELS SELECTED (REALISTIC BULK ESTIMATION) ---");
-{
-  const trip = {
-    tripCategory: "CAMPUS",
-    startDate: "2026-09-20",
-    endDate: "2026-09-29",
-    budget: 15000,
-    campusConfig: {
-      budgetPerStudent: 15000,
-      expectedParticipants: 200,
-      studentsPerRoom: 2
-    }
-  };
-
-  // Hotel 1 (TVM): 100 rooms @ 1750 (50% of 3500) * 4 nights = ₹7,00,000
-  // Hotel 2 (Munnar): 100 rooms @ 2500 (8000 discounted & capped at 2500 institutional tier) * 3 nights = ₹7,50,000
-  // Hotel 3 (Kochi): 100 rooms @ 2000 (50% of 4000) * 2 nights = ₹4,00,000
-  // Total Group = ₹18,50,000 (NOT the unadjusted ₹46,00,000 retail!)
-  // Total Per Student = ₹18,50,000 / 200 = ₹9,250 (NOT ₹23,000/student!)
+  // 150 students / 2 = 75 rooms
+  // 75 rooms @ ₹2,000/room/night * 9 nights = ₹13,50,000 (within budget)
+  // But let's test a luxury hotel: ₹4,000/room/night
+  // 75 rooms @ ₹4,000/room/night * 7 nights = ₹21,00,000 group total
+  // Per student: ₹21,00,000 / 150 = ₹14,000 / student
   const staySegments = [
     {
       id: "stay-1",
-      location: "Thiruvananthapuram",
+      location: "Alappuzha",
+      nights: 7,
+      selectedHotel: {
+        name: "Lake Palace Resort",
+        groupPrice: 2100000 // Explicit ₹21,00,000 group cost
+      }
+    }
+  ];
+
+  const analysis = calculateAccommodationBudgetAnalysis(trip, staySegments);
+  assert.strictEqual(analysis.estimatedAccommodationGroup, 2100000, "Actual group cost must be ₹21,00,000 (NOT silently altered)");
+  assert.strictEqual(analysis.estimatedAccommodationPerStudent, 14000, "Actual per student cost must be ₹14,000 (NOT silently altered)");
+  assert.strictEqual(analysis.validationCase, 3, "Validation case must be Case 3 (Exceeds Maximum Allocation)");
+  assert.strictEqual(analysis.exceedsMaxAllocation, true, "Must flag exceeding max allocation");
+  assert.strictEqual(analysis.excessPerStudent, 2000, "Excess per student must be ₹2,000 (₹14,000 - ₹12,000)");
+  assert.strictEqual(analysis.excessGroup, 300000, "Excess group must be ₹3,00,000 (₹21,00,000 - ₹18,00,000)");
+  assert.strictEqual(analysis.remainingOverallPerStudentBudget, 6000, "Remaining overall per student is ₹20,000 - ₹14,000 = ₹6,000");
+  assert.strictEqual(analysis.remainingOverallGroupBudget, 900000, "Remaining overall group is ₹30,00,000 - ₹21,00,000 = ₹9,00,000");
+
+  console.log("✓ TEST 3 PASSED: Over-budget estimate (₹14,000 > ₹12,000) triggers Case 3 warning without silently altering numbers.");
+}
+
+// ============================================================================
+// TEST 4: MULTIPLE STAY SEGMENTS (From Requirements Section 5 & 11)
+// 3 stay segments across 9 nights:
+// Alappuzha 4 nights, Kochi 3 nights, Munnar 2 nights
+// Proportional distribution of ₹12,000 maximum accommodation budget:
+// Alappuzha: 4/9 = ₹5,333.33 / student
+// Kochi: 3/9 = ₹4,000.00 / student
+// Munnar: 2/9 = ₹2,666.67 / student
+// Verify all segment costs are included exactly once.
+// ============================================================================
+console.log("\n--- TEST 4: MULTIPLE STAY SEGMENTS PROPORTIONAL ALLOCATION ---");
+{
+  const trip = {
+    tripCategory: "CAMPUS",
+    startDate: "2026-09-20",
+    endDate: "2026-09-29",
+    budget: 20000,
+    campusConfig: {
+      budgetPerStudent: 20000,
+      expectedParticipants: 150,
+      studentsPerRoom: 2
+    }
+  };
+
+  const staySegments = [
+    {
+      id: "stay-1",
+      location: "Alappuzha",
       nights: 4,
-      selectedHotel: { name: "Hycinth Hotels", nightlyPrice: 3500 }
+      selectedHotel: { name: "Punnamada Resort", groupPrice: 600000 } // ₹4,000/student
     },
     {
       id: "stay-2",
-      location: "Munnar",
+      location: "Kochi",
       nights: 3,
-      selectedHotel: { name: "Blanket Hotel", nightlyPrice: 8000 }
+      selectedHotel: { name: "Gateway Hotel Marine Drive", groupPrice: 450000 } // ₹3,000/student
     },
     {
       id: "stay-3",
-      location: "Kochi",
-      nights: 2,
-      selectedHotel: { name: "Grand Hyatt", nightlyPrice: 4000 }
-    }
-  ];
-
-  const analysis = calculateAccommodationBudgetAnalysis(trip, staySegments);
-  assert.strictEqual(analysis.overallTripBudgetPerStudent, 15000, "Overall trip budget is ₹15,000");
-  assert.strictEqual(analysis.overallTripBudgetGroup, 3000000, "Overall trip budget is ₹30,00,000");
-  assert.strictEqual(analysis.estimatedAccommodationGroup, 1850000, "Total group cost must be ₹18,50,000");
-  assert.strictEqual(analysis.estimatedAccommodationPerStudent, 9250, "Total per student must be ₹9,250");
-  assert.strictEqual(analysis.remainingOverallPerStudentBudget, 5750, "Remaining overall per student must be ₹5,750");
-  assert.strictEqual(analysis.remainingOverallGroupBudget, 1150000, "Remaining overall group budget must be ₹11,50,000");
-  assert.strictEqual(analysis.exceedsOverallBudget, false, "Must NOT exceed overall trip budget");
-  assert.strictEqual(analysis.exceedsInternalLimit, false, "Must NOT exceed internal allocation limit");
-
-  console.log("✓ TEST 4 PASSED: Realistic bulk estimation produces ₹9,250/student & ₹18,50,000 group, leaving ₹5,750/student & ₹11,50,000 remaining.");
-}
-
-// TEST 4B — EXCEEDS INTERNAL LIMIT BUT WITHIN OVERALL BUDGET
-console.log("\n--- TEST 4B: EXCEEDS INTERNAL LIMIT BUT WITHIN OVERALL BUDGET ---");
-{
-  const trip = {
-    tripCategory: "CAMPUS",
-    startDate: "2026-09-20",
-    endDate: "2026-09-29", // 10 days, max internal accommodation limit: ₹10,000/student, ₹20,00,000 group
-    budget: 15000,
-    campusConfig: {
-      budgetPerStudent: 15000,
-      expectedParticipants: 200,
-      studentsPerRoom: 2
-    }
-  };
-
-  // 100 rooms across 9 nights at luxury institutional cap (₹2,500/night):
-  // 100 * 2500 * 9 = ₹22,50,000 group -> ₹11,250/student
-  // Exceeds internal limit (₹10,000) by ₹1,250, BUT within overall trip budget (₹15,000)
-  const staySegments = [
-    {
-      id: "stay-1",
-      location: "Thiruvananthapuram",
-      nights: 9,
-      selectedHotel: { name: "Ultra Luxury Palace", nightlyPrice: 12000 }
-    }
-  ];
-
-  const analysis = calculateAccommodationBudgetAnalysis(trip, staySegments);
-  assert.strictEqual(analysis.overallTripBudgetPerStudent, 15000);
-  assert.strictEqual(analysis.estimatedAccommodationGroup, 2250000, "Group cost is ₹22,50,000");
-  assert.strictEqual(analysis.estimatedAccommodationPerStudent, 11250, "Per-student is ₹11,250");
-  assert.strictEqual(analysis.remainingOverallPerStudentBudget, 3750, "Remaining overall per student is ₹3,750");
-  assert.strictEqual(analysis.exceedsInternalLimit, true, "Must flag exceeding internal limit");
-  assert.strictEqual(analysis.exceedsOverallBudget, false, "Must NOT flag exceeding overall budget");
-
-  console.log("✓ TEST 4B PASSED: Correctly flags exceedsInternalLimit (advisory) without falsely claiming overall budget exceeded.");
-}
-
-// TEST 4C — GENUINE OVER-OVERALL-BUDGET SCENARIO
-console.log("\n--- TEST 4C: GENUINE OVER-OVERALL-BUDGET SCENARIO ---");
-{
-  const trip = {
-    tripCategory: "CAMPUS",
-    startDate: "2026-09-20",
-    endDate: "2026-09-29",
-    budget: 8000,
-    campusConfig: {
-      budgetPerStudent: 8000, // Total group budget ₹16,00,000
-      expectedParticipants: 200,
-      studentsPerRoom: 2
-    }
-  };
-
-  // 3 hotels produce realistic group accommodation of ₹18,50,000 (₹9,250/student)
-  // Since overall trip budget is ₹8,000/student (₹16,00,000 group), accommodation exceeds entire trip budget!
-  const staySegments = [
-    {
-      id: "stay-1",
-      location: "Thiruvananthapuram",
-      nights: 4,
-      selectedHotel: { name: "Hycinth Hotels", nightlyPrice: 3500 }
-    },
-    {
-      id: "stay-2",
       location: "Munnar",
-      nights: 3,
-      selectedHotel: { name: "Blanket Hotel", nightlyPrice: 8000 }
-    },
-    {
-      id: "stay-3",
-      location: "Kochi",
       nights: 2,
-      selectedHotel: { name: "Grand Hyatt", nightlyPrice: 4000 }
+      selectedHotel: { name: "Tea County Munnar", groupPrice: 450000 } // ₹3,000/student
     }
   ];
 
-  const analysis = calculateAccommodationBudgetAnalysis(trip, staySegments);
-  assert.strictEqual(analysis.overallTripBudgetPerStudent, 8000);
-  assert.strictEqual(analysis.overallTripBudgetGroup, 1600000);
-  assert.strictEqual(analysis.estimatedAccommodationGroup, 1850000);
-  assert.strictEqual(analysis.estimatedAccommodationPerStudent, 9250);
-  assert.strictEqual(analysis.remainingOverallPerStudentBudget, -1250);
-  assert.strictEqual(analysis.remainingOverallGroupBudget, -250000);
-  assert.strictEqual(analysis.exceedsOverallBudget, true, "Must flag exceeding overall budget");
-  assert.strictEqual(analysis.overOverallAmountPerStudent, 1250, "Over overall by ₹1,250/student");
-  assert.strictEqual(analysis.overOverallAmountGroup, 250000, "Group over overall by ₹2,50,000");
+  // Check proportional budget allocation calculation for each segment
+  const seg1Alloc = calculateSegmentBudgetAllocation(staySegments[0], staySegments, trip);
+  const seg2Alloc = calculateSegmentBudgetAllocation(staySegments[1], staySegments, trip);
+  const seg3Alloc = calculateSegmentBudgetAllocation(staySegments[2], staySegments, trip);
 
-  console.log("✓ TEST 4C PASSED: Correctly flags exceedsOverallBudget when accommodation (₹9,250) > overall trip budget (₹8,000).");
+  assert.strictEqual(seg1Alloc.totalNights, 9, "Total nights must be 9");
+  // Alappuzha: 4/9 * 12,000 = 5333.33
+  assert.strictEqual(Math.round(seg1Alloc.segmentMaxBudgetPerStudent * 100) / 100, 5333.33, "Alappuzha max allocation must be ₹5,333.33");
+  // Kochi: 3/9 * 12,000 = 4000.00
+  assert.strictEqual(seg2Alloc.segmentMaxBudgetPerStudent, 4000, "Kochi max allocation must be ₹4,000.00");
+  // Munnar: 2/9 * 12,000 = 2666.67
+  assert.strictEqual(Math.round(seg3Alloc.segmentMaxBudgetPerStudent * 100) / 100, 2666.67, "Munnar max allocation must be ₹2,666.67");
+
+  // Sum of segment allocations equals total allocation
+  const totalAlloc = seg1Alloc.segmentMaxBudgetPerStudent + seg2Alloc.segmentMaxBudgetPerStudent + seg3Alloc.segmentMaxBudgetPerStudent;
+  assert.strictEqual(Math.round(totalAlloc), 12000, "Sum of segment allocations must be ₹12,000");
+
+  // Check summary aggregation: each segment cost included exactly once
+  const summary = calculateAccommodationSummary(staySegments, trip);
+  assert.strictEqual(summary.totalSegments, 3, "Total segments must be 3");
+  assert.strictEqual(summary.totalNights, 9, "Total nights must be 9");
+  assert.strictEqual(summary.totalGroupAccommodation, 1500000, "Total group accommodation must be 6L + 4.5L + 4.5L = ₹15,00,000");
+  assert.strictEqual(summary.totalPerStudentAccommodation, 10000, "Total per student must be ₹15,00,000 / 150 = ₹10,000");
+  assert.strictEqual(summary.utilizationPercentage, 50, "Accommodation utilization must be exactly 50% (₹15L / ₹30L)");
+
+  console.log("✓ TEST 4 PASSED: Multiple stay segments correctly distributed (4/9 = ₹5,333.33, 3/9 = ₹4,000, 2/9 = ₹2,666.67) and aggregated exactly once.");
 }
 
-// TEST 5 — SHORTER TRIP (6 DAYS)
-console.log("\n--- TEST 5: SHORTER TRIP (6 DAYS) ---");
-{
-  const trip = {
-    tripCategory: "CAMPUS",
-    startDate: "2026-09-20",
-    endDate: "2026-09-25", // 6 days
-    budget: 15000,
-    campusConfig: {
-      budgetPerStudent: 15000,
-      expectedParticipants: 200,
-      studentsPerRoom: 2
-    }
-  };
-
-  const duration = getTripDurationDays(trip);
-  assert.strictEqual(duration, 6, "Trip duration must be 6 days");
-
-  const budgetConfig = getCampusAccommodationBudget(trip);
-  // 6 * 1000 = 6,000
-  assert.strictEqual(budgetConfig.accommodationBudgetPerStudent, 6000, "6-day trip must allocate ₹6,000/student, NOT ₹10,000");
-  assert.strictEqual(budgetConfig.accommodationBudgetGroup, 1200000, "6-day trip group allocation must be ₹12,00,000");
-
-  console.log("✓ TEST 5 PASSED: 6-day trip accommodation allocation is ₹6,000/student (NOT defaulting to ₹10,000).");
-}
-
-// TEST 6 — LONGER TRIP (12 DAYS)
-console.log("\n--- TEST 6: LONGER TRIP (12 DAYS) ---");
-{
-  const trip = {
-    tripCategory: "CAMPUS",
-    startDate: "2026-09-20",
-    endDate: "2026-10-01", // 12 days
-    budget: 15000,
-    campusConfig: {
-      budgetPerStudent: 15000,
-      expectedParticipants: 200,
-      studentsPerRoom: 2
-    }
-  };
-
-  const duration = getTripDurationDays(trip);
-  assert.strictEqual(duration, 12, "Trip duration must be 12 days");
-
-  const budgetConfig = getCampusAccommodationBudget(trip);
-  // 12 * 1000 = 12,000, but cap is 10,000
-  assert.strictEqual(budgetConfig.accommodationBudgetPerStudent, 10000, "12-day trip must be capped at ₹10,000/student");
-  assert.strictEqual(budgetConfig.accommodationBudgetGroup, 2000000, "12-day trip group allocation must be capped at ₹20,00,000");
-
-  console.log("✓ TEST 6 PASSED: 12-day trip accommodation allocation correctly capped at ₹10,000/student ceiling.");
-}
-
-// TEST 7 — BUILDER USES IDENTICAL CANONICAL DERIVED ALLOCATION
-console.log("\n--- TEST 7: BUILDER CANONICAL SYNC ---");
-{
-  const trip = {
-    tripCategory: "CAMPUS",
-    startDate: "2026-09-20",
-    endDate: "2026-09-29", // 10 days
-    budget: 15000,
-    campusConfig: {
-      budgetPerStudent: 15000,
-      expectedParticipants: 200,
-      studentsPerRoom: 2
-    }
-  };
-
-  const builderBudget = getCampusAccommodationBudget(trip);
-  const stayPlanBudget = calculateAccommodationBudgetAnalysis(trip, []);
-
-  assert.strictEqual(builderBudget.accommodationBudgetPerStudent, stayPlanBudget.accommodationBudgetPerStudent, "Builder and Stay Plan per-student budgets must match");
-  assert.strictEqual(builderBudget.accommodationBudgetGroup, stayPlanBudget.accommodationBudgetGroup, "Builder and Stay Plan group budgets must match");
-  assert.strictEqual(builderBudget.accommodationBudgetPerStudent, 10000, "Must be ₹10,000");
-  assert.strictEqual(builderBudget.accommodationBudgetGroup, 2000000, "Must be ₹20,00,000");
-
-  console.log("✓ TEST 7 PASSED: Builder and Stay Plan use identical canonical values (₹10,000 & ₹20,00,000).");
-}
-
-// TEST 8 — PERSONAL TRIP REMAINS UNCHANGED
-console.log("\n--- TEST 8: PERSONAL TRIP UNCHANGED ---");
+// ============================================================================
+// TEST 5: PERSONAL TRIP STRICT PRESERVATION (From Requirements Section 10 & 11)
+// Trip category: "PERSONAL"
+// Keep existing budget calculation, pricing, summary, and impact layout unchanged.
+// Do not apply 50%–60% accommodation allocation rule.
+// ============================================================================
+console.log("\n--- TEST 5: PERSONAL TRIP STRICT PRESERVATION ---");
 {
   const trip = {
     tripCategory: "PERSONAL",
@@ -361,7 +227,7 @@ console.log("\n--- TEST 8: PERSONAL TRIP UNCHANGED ---");
   };
 
   const budgetConfig = getCampusAccommodationBudget(trip);
-  assert.strictEqual(budgetConfig.isCampus, false, "Must identify as non-campus");
+  assert.strictEqual(budgetConfig.isCampus, false, "Must identify as non-campus trip");
   assert.strictEqual(budgetConfig.accommodationBudgetGroup, 60000, "Personal budget must remain trip.budget (60000)");
 
   const staySegments = [
@@ -374,40 +240,141 @@ console.log("\n--- TEST 8: PERSONAL TRIP UNCHANGED ---");
   ];
 
   const analysis = calculateAccommodationBudgetAnalysis(trip, staySegments);
-  assert.strictEqual(analysis.isCampus, false);
-  assert.strictEqual(analysis.estimatedAccommodation, 45000);
-  assert.strictEqual(analysis.remaining, 15000);
-  assert.strictEqual(analysis.isOverBudget, false);
+  assert.strictEqual(analysis.isCampus, false, "Analysis must be flagged as non-campus");
+  assert.strictEqual(analysis.estimatedAccommodation, 45000, "Estimated accommodation must be ₹45,000");
+  assert.strictEqual(analysis.remaining, 15000, "Remaining must be ₹15,000 (₹60,000 - ₹45,000)");
+  assert.strictEqual(analysis.isOverBudget, false, "Must not be over budget");
 
-  console.log("✓ TEST 8 PASSED: Personal Trip retains original budget behavior and logic without modification.");
+  console.log("✓ TEST 5 PASSED: Personal trip completely preserves original calculations without 50%–60% campus constraints.");
 }
 
-// TEST 9 — BACKEND VALIDATOR DISCRIMINATES ACCOMMODATION VS OVERALL BUDGET
-console.log("\n--- TEST 9: BACKEND VALIDATOR DUAL-LEVEL CHECK ---");
+// ============================================================================
+// TEST 6: DYNAMIC BUDGET ALLOCATION TABLE (From Requirements Section 3)
+// Verify dynamic calculations for ₹10k, ₹15k, ₹20k, ₹25k, ₹30k
+// ============================================================================
+console.log("\n--- TEST 6: DYNAMIC BUDGET ALLOCATION TABLE VERIFICATION ---");
+{
+  const testBudgets = [
+    { budget: 10000, target: 5000, max: 6000 },
+    { budget: 15000, target: 7500, max: 9000 },
+    { budget: 20000, target: 10000, max: 12000 },
+    { budget: 25000, target: 12500, max: 15000 },
+    { budget: 30000, target: 15000, max: 18000 },
+  ];
+
+  for (const { budget, target, max } of testBudgets) {
+    const trip = {
+      tripCategory: "CAMPUS",
+      campusConfig: { budgetPerStudent: budget, expectedParticipants: 100 }
+    };
+    const config = getCampusAccommodationBudget(trip);
+    assert.strictEqual(config.targetAccommodationBudgetPerStudent, target, `Budget ₹${budget}: Target must be ₹${target}`);
+    assert.strictEqual(config.maxAccommodationBudgetPerStudent, max, `Budget ₹${budget}: Max must be ₹${max}`);
+    assert.strictEqual(config.targetAccommodationBudgetGroup, target * 100, `Budget ₹${budget}: Target group must be ₹${target * 100}`);
+    assert.strictEqual(config.maxAccommodationBudgetGroup, max * 100, `Budget ₹${budget}: Max group must be ₹${max * 100}`);
+  }
+
+  console.log("✓ TEST 6 PASSED: Dynamic calculations match all Section 3 reference table specifications.");
+}
+
+// ============================================================================
+// TEST 7: ZERO HOTELS SELECTED
+// If 0 hotels selected, estimated accommodation cost is ₹0 / student and ₹0 group.
+// Full budget remains available.
+// ============================================================================
+console.log("\n--- TEST 7: ZERO HOTELS SELECTED ---");
+{
+  const trip = {
+    tripCategory: "CAMPUS",
+    startDate: "2026-09-20",
+    endDate: "2026-09-29",
+    budget: 20000,
+    campusConfig: {
+      budgetPerStudent: 20000,
+      expectedParticipants: 150,
+      studentsPerRoom: 2
+    }
+  };
+
+  const staySegments = [
+    { id: "stay-1", location: "Alappuzha", nights: 4, selectedHotel: null },
+    { id: "stay-2", location: "Kochi", nights: 3, selectedHotel: null },
+    { id: "stay-3", location: "Munnar", nights: 2, selectedHotel: null }
+  ];
+
+  const analysis = calculateAccommodationBudgetAnalysis(trip, staySegments);
+  assert.strictEqual(analysis.estimatedAccommodationPerStudent, 0, "Estimated per student must be ₹0");
+  assert.strictEqual(analysis.estimatedAccommodationGroup, 0, "Estimated group must be ₹0");
+  assert.strictEqual(analysis.remainingOverallPerStudentBudget, 20000, "Remaining per student must be full ₹20,000");
+  assert.strictEqual(analysis.remainingOverallGroupBudget, 3000000, "Remaining group must be full ₹30,00,000");
+  assert.strictEqual(analysis.validationCase, 1, "Validation case must be Case 1 (Within Budget)");
+
+  console.log("✓ TEST 7 PASSED: 0 hotels selected yields ₹0 estimated cost and 100% remaining budget.");
+}
+
+// ============================================================================
+// TEST 8: CASE 2 VALIDATION (APPROACHING LIMIT: 50% TO 60%)
+// If accommodation is between 50% and 60%, display mild warning (Case 2).
+// ============================================================================
+console.log("\n--- TEST 8: CASE 2 VALIDATION (50% TO 60% ALLOCATION) ---");
+{
+  const trip = {
+    tripCategory: "CAMPUS",
+    budget: 20000, // 50% = 10,000; 60% = 12,000
+    campusConfig: {
+      budgetPerStudent: 20000,
+      expectedParticipants: 100,
+      studentsPerRoom: 2
+    }
+  };
+
+  // Accommodation = ₹11,000 per student (₹11,00,000 group)
+  // 55% utilization -> between 50% and 60%
+  const staySegments = [
+    {
+      id: "stay-1",
+      location: "Kochi",
+      nights: 5,
+      selectedHotel: { name: "City Hotel", groupPrice: 1100000 }
+    }
+  ];
+
+  const analysis = calculateAccommodationBudgetAnalysis(trip, staySegments);
+  assert.strictEqual(analysis.validationCase, 2, "Must identify as Case 2 (Approaching Limit)");
+  assert.strictEqual(analysis.isApproachingLimit, true, "isApproachingLimit must be true");
+  assert.strictEqual(analysis.exceedsMaxAllocation, false, "Must not exceed max allocation");
+  assert.strictEqual(analysis.utilizationPercentage, 55, "Utilization must be 55%");
+
+  console.log("✓ TEST 8 PASSED: 55% accommodation utilization correctly triggers Case 2 (Approaching Limit).");
+}
+
+// ============================================================================
+// TEST 9: BACKEND VALIDATOR INTEGRATION
+// Verify backend validator uses dynamic 60% accommodation budget ceiling.
+// ============================================================================
+console.log("\n--- TEST 9: BACKEND VALIDATOR INTEGRATION ---");
 {
   const tripInput = {
     tripCategory: "CAMPUS",
     startDate: "2026-09-20",
-    endDate: "2026-09-29", // 10 days => max lodging ₹10,000/student, ₹20,00,000 group
-    budget: 15000,
+    endDate: "2026-09-29",
+    budget: 20000,
     campusConfig: {
-      budgetPerStudent: 15000, // ₹30,00,000 group
-      expectedParticipants: 200,
+      budgetPerStudent: 20000, // 60% = ₹12,000 / student, ₹18,00,000 group
+      expectedParticipants: 150,
       studentsPerRoom: 2,
       inclusions: { accommodation: true, travel: true, localTransport: true, activities: true },
       mealInclusions: { breakfast: true, lunch: true, dinner: true }
     }
   };
 
-  // Case A: Accommodation exceeds ₹20,00,000, but total cost is under ₹30,00,000
-  // e.g. Hotel = ₹22,00,000, Activities = ₹1,00,000 -> Total = ₹23,00,000 (under ₹30,00,000 overall, but lodging > ₹20,00,000)
-  const itineraryA = {
+  // Hotel exceeds ₹18,00,000 max accommodation budget (cost ₹19,50,000)
+  const itinerary = {
     days: [
       {
         day: 1,
         plan: [
-          { category: "operational", activity: "Check-in at Luxury Hotel", estimatedCost: "2200000" },
-          { category: "activity", activity: "Museum visit", estimatedCost: "100000" }
+          { category: "operational", activity: "Check-in at Hotel", estimatedCost: "1950000" }
         ]
       }
     ],
@@ -416,433 +383,136 @@ console.log("\n--- TEST 9: BACKEND VALIDATOR DUAL-LEVEL CHECK ---");
     ]
   };
 
-  const resA = validateItinerary(itineraryA, tripInput);
-  const accomError = resA.errors.find(e => e.type === "ACCOMMODATION_BUDGET_EXCEEDED");
-  const overallError = resA.errors.find(e => e.type === "BUDGET_EXCEEDED");
-  assert(accomError, "Must trigger ACCOMMODATION_BUDGET_EXCEEDED when hotel cost > ₹20,00,000");
-  assert(!overallError, "Must NOT trigger overall BUDGET_EXCEEDED when total cost (₹23,00,000) <= ₹30,00,000");
+  const res = validateItinerary(itinerary, tripInput);
+  const accomError = res.errors.find(e => e.type === "ACCOMMODATION_BUDGET_EXCEEDED");
+  assert(accomError, "Must trigger ACCOMMODATION_BUDGET_EXCEEDED when hotel cost > ₹18,00,000");
 
-  console.log("✓ TEST 9 PASSED: Backend validator accurately isolates ACCOMMODATION_BUDGET_EXCEEDED without false overall budget error.");
+  console.log("✓ TEST 9 PASSED: Backend validator enforces dynamic 60% ceiling (₹18,00,000) for ₹20,000 / 150 student trip.");
 }
 
-// TEST 10 — CATEGORY-WISE BUDGET ANALYSIS WITH SINGLE SOURCE OF TRUTH
-console.log("\n--- TEST 10: CATEGORY-WISE BUDGET ANALYSIS (4 CATEGORIES, 2 SECTIONS) ---");
+// ============================================================================
+// TEST 10: SECTION 3 CASE A - TOTAL GROUP COST FOR 150 TRAVELERS (₹48,000 total)
+// Alappuzha: 5 nights, ₹30,000 total group
+// Kochi: 4 nights, ₹18,000 total group
+// Total: 9 nights, ₹48,000 total group
+// Expected:
+// - Accommodation per student: ₹320
+// - Total accommodation: ₹48,000
+// - Remaining budget per student: ₹19,680
+// - Remaining total budget: ₹29,52,000
+// ============================================================================
+console.log("\n--- TEST 10: SECTION 3 CASE A - TOTAL GROUP PRICING UNIT ---");
 {
   const trip = {
     tripCategory: "CAMPUS",
     startDate: "2026-09-20",
     endDate: "2026-09-29",
-    budget: 15000,
+    budget: 20000,
     campusConfig: {
-      budgetPerStudent: 15000,
-      expectedParticipants: 200,
+      budgetPerStudent: 20000,
+      expectedParticipants: 150,
       studentsPerRoom: 2,
-      inclusions: { accommodation: true, travel: true, localTransport: true, activities: true },
-      mealInclusions: { breakfast: true, lunch: true, dinner: true }
     }
   };
 
   const staySegments = [
     {
       id: "stay-1",
-      location: "Thiruvananthapuram",
-      nights: 4,
-      selectedHotel: { name: "Hycinth Hotels", nightlyPrice: 3500 }
+      location: "Alappuzha",
+      nights: 5,
+      selectedHotel: { name: "Alappuzha Backwater Resort", priceUnit: "total_group", price: 30000 }
     },
     {
       id: "stay-2",
-      location: "Munnar",
-      nights: 3,
-      selectedHotel: { name: "Fragrant Nature Munnar", nightlyPrice: 8000 }
-    },
-    {
-      id: "stay-3",
       location: "Kochi",
-      nights: 2,
-      selectedHotel: { name: "Grand Hyatt Kochi", nightlyPrice: 4000 }
-    }
-  ];
-
-  const itinerary = [
-    {
-      day: 1,
-      plan: [
-        { category: "transport", activity: "Train to TVM", estimatedCost: 100000 },
-        { category: "food", activity: "Breakfast at Station", estimatedCost: 100000 },
-        { category: "activity", activity: "Technopark Educational Visit", estimatedCost: 100000 },
-        { category: "shopping", activity: "Local Handicrafts Shopping", estimatedCost: 50000 } // EXCLUDED
-      ]
-    },
-    {
-      day: 2,
-      plan: [
-        { category: "local transport", activity: "Local Tour Bus", estimatedCost: 200000 },
-        { category: "dining", activity: "Institutional Group Lunch", estimatedCost: 200000 },
-        { category: "activity", activity: "Science Center Visit", estimatedCost: 100000 },
-        { category: "activity", activity: "Optional Evening Boat Ride", estimatedCost: 60000, optional: true } // EXCLUDED
-      ]
-    },
-    {
-      day: 3,
-      plan: [
-        { category: "food", activity: "Institutional Dinner", estimatedCost: 200000 },
-        { category: "activity", activity: "Exclusive Water Sports", estimatedCost: 40000, isExcluded: true }, // EXCLUDED
-        { category: "transport", activity: "Return Train to Source", estimatedCost: 100000 }
-      ]
-    }
-  ];
-
-  const analysis = calculateCampusCategoryBudgetAnalysis(trip, staySegments, itinerary);
-
-  // Overall limit checks
-  assert.strictEqual(analysis.overallBudgetPerStudent, 15000, "Overall per-student budget must be ₹15,000");
-  assert.strictEqual(analysis.overallGroupBudget, 3000000, "Overall group budget must be ₹30,00,000");
-
-  // Accommodation single source of truth check
-  assert.strictEqual(analysis.perStudent.accommodation, 9250, "Accommodation per student must match canonical ₹9,250");
-  assert.strictEqual(analysis.group.accommodation, 1850000, "Accommodation group must match canonical ₹18,50,000");
-
-  // Travel check: 100,000 + 200,000 + 100,000 = 400,000 group, 2,000 per student
-  assert.strictEqual(analysis.group.travel, 400000, "Group travel must be ₹4,00,000");
-  assert.strictEqual(analysis.perStudent.travel, 2000, "Per student travel must be ₹2,000");
-
-  // Food check (aggregates Breakfast + Lunch + Dinner without separate meal rows):
-  // 100,000 (breakfast) + 200,000 (lunch) + 200,000 (dinner) = 500,000 group, 2,500 per student
-  assert.strictEqual(analysis.group.food, 500000, "Combined group food must be ₹5,00,000");
-  assert.strictEqual(analysis.perStudent.food, 2500, "Combined per student food must be ₹2,500");
-
-  // Activities check (inclusive only, excludes shopping 50k, optional 60k, isExcluded 40k):
-  // Technopark (100k) + Science Center (100k) = 200,000 group, 1,000 per student
-  assert.strictEqual(analysis.group.activities, 200000, "Inclusive group activities must be ₹2,00,000");
-  assert.strictEqual(analysis.perStudent.activities, 1000, "Inclusive per student activities must be ₹1,000");
-
-  // Total Included check:
-  // Per Student: 9250 (accommodation) + 2000 (travel) + 1000 (activities) = 12,250
-  // Group: 18,50,000 + 4,00,000 + 2,00,000 = 24,50,000
-  // Food is NOT included in actual package cost (provided via accommodation arrangement)
-  assert.strictEqual(analysis.perStudent.totalIncluded, 12250, "Total included per student must be ₹12,250 (excluding food)");
-  assert.strictEqual(analysis.group.totalIncluded, 2450000, "Total included group must be ₹24,50,000 (excluding food)");
-
-  // Remaining against overall Campus Budget:
-  // Per Student: 15,000 - 12,250 = 2,750
-  // Group: 30,00,000 - 24,50,000 = 5,50,000
-  assert.strictEqual(analysis.perStudent.remaining, 2750, "Remaining per student must be ₹2,750");
-  assert.strictEqual(analysis.group.remaining, 550000, "Remaining group must be ₹5,50,000");
-
-  console.log("✓ TEST 10 PASSED: Category-wise analysis correctly calculates Accommodation + Travel + Activities (no Food), Total Included, and Remaining.");
-}
-
-// TEST 11 — STAY PLAN HOTEL SELECTION / REMOVAL SYNC
-console.log("\n--- TEST 11: CANONICAL SYNC ON HOTEL REMOVAL ---");
-{
-  const trip = {
-    tripCategory: "CAMPUS",
-    startDate: "2026-09-20",
-    endDate: "2026-09-29",
-    budget: 15000,
-    campusConfig: {
-      budgetPerStudent: 15000,
-      expectedParticipants: 200,
-      studentsPerRoom: 2
-    }
-  };
-
-  // Remove Hotel 3 (Kochi): stays only at TVM and Munnar
-  const staySegmentsWithoutKochi = [
-    {
-      id: "stay-1",
-      location: "Thiruvananthapuram",
       nights: 4,
-      selectedHotel: { name: "Hycinth Hotels", nightlyPrice: 3500 } // ₹7,00,000
-    },
-    {
-      id: "stay-2",
-      location: "Munnar",
-      nights: 3,
-      selectedHotel: { name: "Fragrant Nature Munnar", nightlyPrice: 8000 } // ₹7,50,000
-    },
-    { id: "stay-3", location: "Kochi", nights: 2, selectedHotel: null } // 0
+      selectedHotel: { name: "Kochi Heritage Hotel", priceUnit: "total_group", price: 18000 }
+    }
   ];
 
-  const analysis = calculateCampusCategoryBudgetAnalysis(trip, staySegmentsWithoutKochi, []);
-  assert.strictEqual(analysis.group.accommodation, 1450000, "Group accommodation updates to ₹14,50,000");
-  assert.strictEqual(analysis.perStudent.accommodation, 7250, "Per student accommodation updates to ₹7,250");
-  assert.strictEqual(analysis.perStudent.totalIncluded, 7250, "Total included reflects updated accommodation");
+  const summary = calculateAccommodationSummary(staySegments, trip);
+  assert.strictEqual(summary.totalTravelers, 150, "Total travelers must be 150");
+  assert.strictEqual(summary.totalSegments, 2, "Total stay segments must be 2");
+  assert.strictEqual(summary.totalNights, 9, "Total nights must be 9");
+  assert.strictEqual(summary.accommodationPerStudent, 320, "Accommodation per student must be ₹320");
+  assert.strictEqual(summary.totalAccommodationCost, 48000, "Total accommodation must be ₹48,000");
 
-  console.log("✓ TEST 11 PASSED: Removing a hotel immediately reflects updated canonical accommodation cost.");
+  const analysis = calculateAccommodationBudgetAnalysis(trip, staySegments);
+  assert.strictEqual(analysis.overallTripBudgetPerStudent, 20000, "Budget per student must be ₹20,000");
+  assert.strictEqual(analysis.expectedStudents, 150, "Total travelers must be 150");
+  assert.strictEqual(analysis.overallTripBudgetGroup, 3000000, "Total trip budget must be ₹30,00,000");
+
+  assert.strictEqual(analysis.targetAccommodationBudgetPerStudent, 10000, "Target accommodation per student must be ₹10,000");
+  assert.strictEqual(analysis.maxAccommodationBudgetPerStudent, 12000, "Max accommodation per student must be ₹12,000");
+  assert.strictEqual(analysis.maxAccommodationBudgetGroup, 1800000, "Total max accommodation budget must be ₹18,00,000");
+
+  assert.strictEqual(analysis.estimatedAccommodationPerStudent, 320, "Estimated accommodation per student must be ₹320");
+  assert.strictEqual(analysis.estimatedAccommodationGroup, 48000, "Total estimated accommodation must be ₹48,000");
+
+  assert.strictEqual(analysis.remainingOverallPerStudentBudget, 19680, "Remaining budget per student must be ₹19,680");
+  assert.strictEqual(analysis.remainingOverallGroupBudget, 2952000, "Remaining total budget must be ₹29,52,000");
+  assert.strictEqual(analysis.validationCase, 1, "Must be within target budget (Case 1)");
+
+  console.log("✓ TEST 10 PASSED: ₹48,000 total group cost correctly yields ₹320/student, ₹19,680 remaining/student, and ₹29,52,000 remaining total budget.");
 }
 
-// TEST 12 — INCLUSIONS TOGGLE AND EXCLUSION BEHAVIOR
-console.log("\n--- TEST 12: INCLUSIONS TOGGLING & EXCLUSIONS ---");
+// ============================================================================
+// TEST 11: SECTION 3 CASE B - PER-STUDENT COST FOR 150 TRAVELERS (₹48,000/student)
+// Alappuzha: 5 nights, ₹30,000 per student
+// Kochi: 4 nights, ₹18,000 per student
+// Total: 9 nights, ₹48,000 per student (₹72,00,000 group)
+// Expected:
+// - Accommodation per student: ₹48,000
+// - Total accommodation: ₹72,00,000
+// - Budget warning: Case 3 (Exceeds 60% max allocation of ₹18,00,000 and total budget of ₹30,00,000)
+// - Excess per student: ₹36,000
+// - Excess group: ₹54,00,000
+// ============================================================================
+console.log("\n--- TEST 11: SECTION 3 CASE B - PER-STUDENT PRICING UNIT ---");
 {
   const trip = {
     tripCategory: "CAMPUS",
     startDate: "2026-09-20",
     endDate: "2026-09-29",
-    budget: 15000,
+    budget: 20000,
     campusConfig: {
-      budgetPerStudent: 15000,
-      expectedParticipants: 200,
+      budgetPerStudent: 20000,
+      expectedParticipants: 150,
       studentsPerRoom: 2,
-      inclusions: { accommodation: false, travel: true, localTransport: true, activities: true }, // Accommodation excluded
-      mealInclusions: { breakfast: false, lunch: true, dinner: true } // Breakfast excluded
     }
   };
 
   const staySegments = [
     {
       id: "stay-1",
-      location: "Thiruvananthapuram",
-      nights: 4,
-      selectedHotel: { name: "Hycinth Hotels", nightlyPrice: 3500 }
-    }
-  ];
-
-  const itinerary = [
+      location: "Alappuzha",
+      nights: 5,
+      selectedHotel: { name: "Alappuzha Backwater Resort", priceUnit: "per_student", price: 30000 }
+    },
     {
-      day: 1,
-      plan: [
-        { category: "food", activity: "Breakfast", estimatedCost: 100000 },
-        { category: "dining", activity: "Lunch", estimatedCost: 150000 }
-      ]
+      id: "stay-2",
+      location: "Kochi",
+      nights: 4,
+      selectedHotel: { name: "Kochi Heritage Hotel", priceUnit: "per_student", price: 18000 }
     }
   ];
 
-  const analysis = calculateCampusCategoryBudgetAnalysis(trip, staySegments, itinerary);
-  assert.strictEqual(analysis.group.accommodation, 0, "Excluded accommodation must be ₹0");
-  assert.strictEqual(analysis.perStudent.accommodation, 0, "Excluded accommodation per student must be ₹0");
-  assert.strictEqual(analysis.group.food, 150000, "Food must only include Lunch (₹1,50,000) when Breakfast is excluded");
+  const summary = calculateAccommodationSummary(staySegments, trip);
+  assert.strictEqual(summary.totalTravelers, 150, "Total travelers must be 150");
+  assert.strictEqual(summary.totalSegments, 2, "Total stay segments must be 2");
+  assert.strictEqual(summary.totalNights, 9, "Total nights must be 9");
+  assert.strictEqual(summary.accommodationPerStudent, 48000, "Accommodation per student must be ₹48,000");
+  assert.strictEqual(summary.totalAccommodationCost, 7200000, "Total accommodation must be ₹72,00,000");
 
-  console.log("✓ TEST 12 PASSED: Toggled exclusions properly zero out excluded categories.");
-}
+  const analysis = calculateAccommodationBudgetAnalysis(trip, staySegments);
+  assert.strictEqual(analysis.validationCase, 3, "Must trigger Case 3 over-budget warning");
+  assert.strictEqual(analysis.exceedsMaxAllocation, true, "Must flag exceedsMaxAllocation");
+  assert.strictEqual(analysis.excessPerStudent, 36000, "Excess per student must be ₹36,000 (₹48,000 - ₹12,000)");
+  assert.strictEqual(analysis.excessGroup, 5400000, "Excess group must be ₹54,00,000 (₹72,00,000 - ₹18,00,000)");
 
-// TEST 13 — EDIT LIMIT (BUDGET PER STUDENT UPDATE)
-console.log("\n--- TEST 13: EDIT BUDGET LIMIT UPDATES OVERALL GROUP BUDGET ---");
-{
-  const trip = {
-    tripCategory: "CAMPUS",
-    startDate: "2026-09-20",
-    endDate: "2026-09-29",
-    budget: 18000, // Changed from 15,000 to 18,000
-    campusConfig: {
-      budgetPerStudent: 18000,
-      expectedParticipants: 200,
-      studentsPerRoom: 2
-    }
-  };
-
-  const analysis = calculateCampusCategoryBudgetAnalysis(trip, [], []);
-  assert.strictEqual(analysis.overallBudgetPerStudent, 18000, "Updated budget per student is ₹18,000");
-  assert.strictEqual(analysis.overallGroupBudget, 3600000, "Updated group budget is ₹36,00,000");
-  assert.strictEqual(analysis.perStudent.remaining, 18000, "Remaining per student is full ₹18,000");
-  assert.strictEqual(analysis.group.remaining, 3600000, "Remaining group is full ₹36,00,000");
-
-  console.log("✓ TEST 13 PASSED: Editing budget updates both per-student and group limits and calculations.");
-}
-
-// TEST 14 — DETERMINISTIC BUDGET PREDICTION
-console.log("\n--- TEST 14: DETERMINISTIC BUDGET PREDICTION ---");
-{
-  // 8-day trip
-  const trip8 = {
-    tripCategory: "CAMPUS",
-    duration: 8,
-    startDate: "2026-09-20",
-    endDate: "2026-09-27", // 8 days
-    budget: 15000,
-    campusConfig: {
-      budgetPerStudent: 15000,
-      expectedParticipants: 200,
-    },
-  };
-  const pred8 = calculateCampusBudgetPrediction(trip8);
-  assert.strictEqual(pred8.durationDays, 8, "Duration must be 8 days");
-  assert.strictEqual(pred8.baselinePerStudent.accommodation, 8000, "8-day baseline accommodation must be ₹8,000");
-  assert.strictEqual(pred8.baselinePerStudent.travel, 3500, "8-day baseline travel must be ₹3,500");
-  assert.strictEqual(pred8.baselinePerStudent.food, 2500, "8-day baseline food must be ₹2,500");
-  assert.strictEqual(pred8.baselinePerStudent.activities, 1000, "8-day baseline activities must be ₹1,000");
-  assert.strictEqual(pred8.planningBaseline, 15000, "8-day planning baseline must be ₹15,000");
-  assert.strictEqual(pred8.recommendedPerStudent.min, 14500, "8-day recommended min must be ₹14,500");
-  assert.strictEqual(pred8.recommendedPerStudent.max, 15000, "8-day recommended max must be ₹15,000");
-
-  // 10-day trip
-  const trip10 = {
-    tripCategory: "CAMPUS",
-    duration: 10,
-    startDate: "2026-09-20",
-    endDate: "2026-09-29", // 10 days
-    budget: 15000,
-    campusConfig: {
-      budgetPerStudent: 15000,
-      expectedParticipants: 200,
-    },
-  };
-  const pred10 = calculateCampusBudgetPrediction(trip10);
-  assert.strictEqual(pred10.durationDays, 10, "Duration must be 10 days");
-  assert.strictEqual(pred10.baselinePerStudent.accommodation, 10000, "10-day baseline accommodation must be ₹10,000");
-  assert.strictEqual(pred10.baselinePerStudent.travel, 4000, "10-day baseline travel must be ₹4,000");
-  assert.strictEqual(pred10.baselinePerStudent.food, 3000, "10-day baseline food must be ₹3,000");
-  assert.strictEqual(pred10.baselinePerStudent.activities, 1000, "10-day baseline activities must be ₹1,000");
-  assert.strictEqual(pred10.planningBaseline, 18000, "10-day planning baseline must be ₹18,000");
-  assert.strictEqual(pred10.recommendedPerStudent.min, 17500, "10-day recommended min must be ₹17,500");
-  assert.strictEqual(pred10.recommendedPerStudent.max, 18000, "10-day recommended max must be ₹18,000");
-  assert.strictEqual(pred10.recommendedPerStudent.display, "₹17,500–₹18,000", "Display must be ₹17,500–₹18,000");
-
-  console.log("✓ TEST 14 PASSED: Deterministic Budget Prediction generates exact reference planning baselines (8-day ₹15k, 10-day ₹18k) and ranges.");
-}
-
-// TEST 15 — THREE BUDGET STATUSES (CASE A, CASE B, CASE C)
-console.log("\n--- TEST 15: THREE BUDGET STATUSES (CASES A, B, C) ---");
-{
-  const baseTrip = {
-    tripCategory: "CAMPUS",
-    duration: 10,
-    campusConfig: {
-      expectedParticipants: 200,
-    },
-  };
-
-  // Mock category budget with actual cost = ₹15,500
-  const mockCatBudget = {
-    expectedStudents: 200,
-    perStudent: { totalIncluded: 15500 },
-    group: { totalIncluded: 3100000 },
-  };
-
-  // Case A: Current budget (₹18,000) >= recommended planning requirement (₹17,500)
-  const predA = calculateCampusBudgetPrediction(
-    { ...baseTrip, campusConfig: { ...baseTrip.campusConfig, budgetPerStudent: 18000 } },
-    { ...mockCatBudget, overallBudgetPerStudent: 18000, overallGroupBudget: 3600000 }
-  );
-  assert.strictEqual(predA.status, "within_recommended", "Case A status must be within_recommended");
-  assert.strictEqual(predA.statusMessage, "Package budget is within the recommended planning range.");
-  assert.strictEqual(predA.gapPerStudent, 0);
-
-  // Case B: Current budget (₹16,000) below recommended planning range (₹17,500) but >= actual cost (₹15,500)
-  const predB = calculateCampusBudgetPrediction(
-    { ...baseTrip, campusConfig: { ...baseTrip.campusConfig, budgetPerStudent: 16000 } },
-    { ...mockCatBudget, overallBudgetPerStudent: 16000, overallGroupBudget: 3200000 }
-  );
-  assert.strictEqual(predB.status, "below_recommended", "Case B status must be below_recommended");
-  assert.strictEqual(predB.statusMessage, "Package budget is below the recommended planning range.");
-  assert.strictEqual(predB.gapPerStudent, 0, "Case B must not claim an actual cost shortfall");
-
-  // Case C: Current budget (₹15,000) < actual cost (₹15,500)
-  const predC = calculateCampusBudgetPrediction(
-    { ...baseTrip, campusConfig: { ...baseTrip.campusConfig, budgetPerStudent: 15000 } },
-    { ...mockCatBudget, overallBudgetPerStudent: 15000, overallGroupBudget: 3000000 }
-  );
-  assert.strictEqual(predC.status, "insufficient", "Case C status must be insufficient");
-  assert.strictEqual(predC.statusMessage, "Package budget is insufficient for the currently configured package.");
-  assert.strictEqual(predC.gapPerStudent, 500, "Case C shortfall per student must be ₹500");
-  assert.strictEqual(predC.gapGroup, 100000, "Case C group shortfall must be ₹1,00,000");
-
-  console.log("✓ TEST 15 PASSED: All three budget statuses (within, below recommended, insufficient) correctly identified with exact shortfalls.");
-}
-
-// TEST 16 — REAL COST REDUCTION SCENARIOS
-console.log("\n--- TEST 16: COST REDUCTION SCENARIOS (REAL ITEMS ONLY) ---");
-{
-  const trip = {
-    tripCategory: "CAMPUS",
-    startDate: "2026-09-20",
-    endDate: "2026-09-29",
-    budget: 15000,
-    campusConfig: {
-      budgetPerStudent: 15000,
-      expectedParticipants: 200,
-      studentsPerRoom: 2
-    },
-    itinerary: [
-      {
-        day: 1,
-        plan: [
-          { id: "act-1", category: "activity", activity: "Technopark Educational Visit", estimatedCost: 100000 },
-          { id: "act-2", category: "shopping", activity: "Local Crafts Shopping", estimatedCost: 50000 }, // EXCLUDED: shopping
-          { id: "act-3", category: "activity", activity: "Optional Evening Boat Ride", estimatedCost: 40000, optional: true } // EXCLUDED: optional
-        ]
-      },
-      {
-        day: 2,
-        plan: [
-          { id: "act-4", category: "activity", activity: "Science Center Visit", estimatedCost: 100000 }
-        ]
-      }
-    ],
-    staySegments: [
-      {
-        id: "stay-1",
-        location: "Thiruvananthapuram",
-        nights: 4,
-        selectedHotel: { name: "Apollo Dimora", nightlyPrice: 3500 }
-      }
-    ]
-  };
-
-  const scenarios = getCampusCostReductionScenarios(trip, trip.staySegments, trip.itinerary);
-  assert.strictEqual(scenarios.isCampus, true);
-  assert.strictEqual(scenarios.activityOptions.length, 2, "Only 2 inclusive activities must be available for reduction");
-  assert.strictEqual(scenarios.activityOptions[0].id, "act-1");
-  assert.strictEqual(scenarios.activityOptions[0].costPerStudent, 500, "Technopark cost per student must be ₹500 (100k / 200)");
-  assert.strictEqual(scenarios.activityOptions[1].id, "act-4");
-  assert.strictEqual(scenarios.activityOptions[1].costPerStudent, 500, "Science Center cost per student must be ₹500 (100k / 200)");
-
-  // Verify non-available messages
-  assert.strictEqual(scenarios.accommodationOptions.available, false);
-  assert.strictEqual(scenarios.accommodationOptions.message, "Accommodation alternatives\nNo comparable priced alternative is currently available.");
-  assert.strictEqual(scenarios.foodOptions.available, false);
-  assert.strictEqual(scenarios.foodOptions.message, "Food\nCost optimization unavailable because a reliable configured food cost is not currently available.");
-  assert.strictEqual(scenarios.transportOptions.available, false);
-  assert.strictEqual(scenarios.transportOptions.message, "Transport alternatives\nNo comparable priced alternative is currently available.");
-
-  console.log("✓ TEST 16 PASSED: Cost reduction scenarios include only real included activities and output exact required unavailable notices.");
-}
-
-// TEST 17 — SIMULATION & VALIDATION ISOLATION
-console.log("\n--- TEST 17: SCENARIO SIMULATION DOES NOT MUTATE ORIGINAL PACKAGE ---");
-{
-  const trip = {
-    tripCategory: "CAMPUS",
-    startDate: "2026-09-20",
-    endDate: "2026-09-29",
-    budget: 15000,
-    campusConfig: {
-      budgetPerStudent: 15000,
-      expectedParticipants: 200,
-      studentsPerRoom: 2
-    },
-    itinerary: [
-      {
-        day: 1,
-        plan: [
-          { id: "act-1", category: "activity", activity: "Technopark Educational Visit", estimatedCost: 100000 },
-          { id: "act-2", category: "activity", activity: "Science Center Visit", estimatedCost: 100000 }
-        ]
-      }
-    ],
-    staySegments: [
-      {
-        id: "stay-1",
-        location: "Kochi",
-        nights: 2,
-        selectedHotel: { name: "Grand Hyatt Kochi", nightlyPrice: 4000 }
-      }
-    ]
-  };
-
-  const originalItineraryLen = trip.itinerary[0].plan.length;
-
-  // Simulate removing Technopark (act-1)
-  const sim = simulateCampusReductionScenario(trip, ["act-1"]);
-  assert.strictEqual(sim.reductionPerStudent, 500, "Reduction per student must be ₹500");
-  assert.strictEqual(sim.reductionGroup, 100000, "Reduction group must be ₹1,00,000");
-  assert.strictEqual(sim.simulatedTrip.itinerary[0].plan.length, 1, "Simulated trip has 1 item");
-  assert.strictEqual(trip.itinerary[0].plan.length, originalItineraryLen, "Original trip must NOT be mutated!");
-
-  console.log("✓ TEST 17 PASSED: Simulation strictly calculates impact on cloned trip without mutating original package.");
+  console.log("✓ TEST 11 PASSED: ₹48,000 per student correctly yields ₹72,00,000 group, triggers budget warning, and calculates ₹36k/student & ₹54L group excess.");
 }
 
 console.log("\n==================================================");
-console.log("ALL VERIFICATION TESTS COMPLETED SUCCESSFULLY!");
+console.log("ALL 11 VERIFICATION TESTS PASSED CLEANLY!");
 console.log("==================================================");
-

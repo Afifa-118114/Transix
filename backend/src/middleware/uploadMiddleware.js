@@ -41,20 +41,41 @@ const storage = new CloudinaryStorage({
 
 const upload = multer({ storage: storage });
 
-const guideFileFilter = (req, file, cb) => {
-  const allowed = ["application/pdf", "image/jpeg", "image/png", "image/jpg"];
-  if (allowed.includes(file.mimetype)) {
+const fs = require("fs");
+const path = require("path");
+
+const guidePdfStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = path.join(__dirname, "../../uploads/guide_documents");
+    fs.mkdirSync(uploadDir, { recursive: true });
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const cleanBase = path.basename(file.originalname, path.extname(file.originalname)).replace(/[^a-zA-Z0-9_-]/g, "_");
+    cb(null, `${Date.now()}_${cleanBase}.pdf`);
+  },
+});
+
+const guidePdfFileFilter = (req, file, cb) => {
+  const isPdfMime = file.mimetype === "application/pdf";
+  const isPdfExt = file.originalname && file.originalname.toLowerCase().endsWith(".pdf");
+  if (isPdfMime || isPdfExt) {
     cb(null, true);
   } else {
-    cb(new Error(`Invalid file type (${file.mimetype}). Accepted: PDF, JPG, JPEG, PNG`));
+    const err = new Error("Only PDF files are accepted. JPG, JPEG, PNG, and other formats are not permitted.");
+    err.status = 400;
+    err.code = "INVALID_FILE_TYPE";
+    cb(err, false);
   }
 };
 
-const guideUpload = multer({
-  storage: storage,
+const guidePdfUpload = multer({
+  storage: guidePdfStorage,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
-  fileFilter: guideFileFilter,
+  fileFilter: guidePdfFileFilter,
 });
 
-module.exports = { upload, guideUpload, cloudinary };
+const guideUpload = guidePdfUpload;
+
+module.exports = { upload, guideUpload, guidePdfUpload, cloudinary };
 

@@ -393,11 +393,7 @@ const validateItinerary = (itinerary, tripInput) => {
     const totalGroupBudget = budgetPerStudent * expectedStudents;
 
     const tripDurationDays = getTripDurationDays(tripInput);
-    const accommodationAllocationPerStudent = Math.min(
-      budgetPerStudent > 0 ? budgetPerStudent : 10000,
-      tripDurationDays * 1000,
-      10000
-    );
+    const accommodationAllocationPerStudent = Math.round(budgetPerStudent * 0.60);
     const accommodationGroupAllocation = accommodationAllocationPerStudent * expectedStudents;
 
     // Accommodation Allocation Check (Separate from overall trip budget)

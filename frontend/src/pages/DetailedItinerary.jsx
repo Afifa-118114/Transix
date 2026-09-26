@@ -304,6 +304,13 @@ export default function DetailedItinerary() {
         tripStart.setHours(0, 0, 0, 0);
         const currentDateMs = tripStart.getTime() + dayIdx * 86400000;
 
+        // Check if any segment is checking in on this date
+        const hasCheckInToday = trip.staySegments.some(segment => {
+          if (!segment.selectedHotel || !segment.checkIn) return false;
+          const checkInMs = new Date(segment.checkIn).setHours(0, 0, 0, 0);
+          return currentDateMs === checkInMs;
+        });
+
         trip.staySegments.forEach((segment) => {
           if (!segment.selectedHotel) return;
           const checkInMs = new Date(segment.checkIn).setHours(0, 0, 0, 0);
@@ -316,6 +323,8 @@ export default function DetailedItinerary() {
             if (currentDateMs === checkInMs) {
               status = "Check-in";
             } else if (currentDateMs === checkOutMs) {
+              // If another hotel is checking in today, avoid conflicting accommodation
+              if (hasCheckInToday) return;
               status = "Check-out";
             } else {
               status = `Night ${dayOfStay} of ${segment.nights}`;

@@ -7,13 +7,16 @@ import { getHotelsForStaySegment } from "../services/inventoryService";
 import { calculatePriceIntelligence } from "../utils/priceIntelligence";
 import { formatDate } from "../utils/formatTrip";
 import { getTripBookings } from "../api/tripApi";
-import { calculateStayAccommodation, calculateAccommodationSummary, calculateAccommodationBudgetAnalysis, getCampusAccommodationBudget } from "../utils/campusBudgetUtils";
+import { calculateStayAccommodation, calculateAccommodationSummary, calculateAccommodationBudgetAnalysis, getCampusAccommodationBudget, calculateSegmentBudgetAllocation, isCampusTrip } from "../utils/campusBudgetUtils";
 
 export default function StayPlanPage() {
   const navigate = useNavigate();
   const { state } = useLocation();
   const viewOnly = state?.viewOnly === true;
   const { trip, setTrip, budgetStats } = useTripBuilder();
+
+  // Canonical campus trip check
+  const isCampus = useMemo(() => isCampusTrip(trip), [trip]);
 
   // Use local state for Stay Plan editing to prevent instant syncing
   const [staySegments, setStaySegments] = useState(() => {
@@ -504,10 +507,10 @@ export default function StayPlanPage() {
             <span>Back to Itinerary</span>
           </button>
 
-          {trip.tripCategory === 'CAMPUS' && (
+          {isCampus && (
             <div className="mb-6 p-4 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-900/20">
               <div className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-1">
-                Campus IV · Educational Trip
+                Campus Educational Trip
               </div>
               <h2 className="text-lg font-black text-slate-900 dark:text-white mb-2">
                 {trip.organizationDetails?.name || 'Organization'} · {trip.source} → {trip.destination}
@@ -515,9 +518,15 @@ export default function StayPlanPage() {
               <div className="flex flex-wrap gap-4 text-xs font-semibold text-slate-600 dark:text-slate-300">
                 <span>{trip.itinerary?.length || totalNights} Days</span>
                 <span className="hidden sm:inline">•</span>
-                <span>{trip.campusConfig?.expectedParticipants || trip.travelers} Students</span>
+                <span>{accommodationBudgetAnalysis.expectedStudents} Students / Travelers</span>
                 <span className="hidden sm:inline">•</span>
-                <span>₹{(trip.campusConfig?.budgetPerStudent || trip.budget || 0).toLocaleString()} / Student</span>
+                <span>Budget per Student: ₹{accommodationBudgetAnalysis.overallTripBudgetPerStudent.toLocaleString()}</span>
+                <span className="hidden sm:inline">•</span>
+                <span>Total Trip Budget: ₹{accommodationBudgetAnalysis.overallTripBudgetGroup.toLocaleString()}</span>
+                <span className="hidden sm:inline">•</span>
+                <span>Target Accommodation (50%): ₹{accommodationBudgetAnalysis.targetAccommodationBudgetPerStudent.toLocaleString()} / Student</span>
+                <span className="hidden sm:inline">•</span>
+                <span>Max Accommodation Allocation (60%): ₹{accommodationBudgetAnalysis.maxAccommodationBudgetPerStudent.toLocaleString()} / Student</span>
               </div>
             </div>
           )}
@@ -540,7 +549,7 @@ export default function StayPlanPage() {
               {totalNights} night{totalNights !== 1 ? 's' : ''}
             </span>
             <span className="rounded-md bg-indigo-50 dark:bg-indigo-900/30 px-2 py-1">
-              {trip?.travelers || 2} traveler{trip?.travelers !== 1 ? 's' : ''}
+              {isCampus ? accommodationBudgetAnalysis.expectedStudents : (trip?.travelers || 2)} traveler{(isCampus ? accommodationBudgetAnalysis.expectedStudents : (trip?.travelers || 2)) !== 1 ? 's' : ''}
             </span>
           </div>
         </div>
@@ -627,6 +636,20 @@ export default function StayPlanPage() {
                               <span>{segment.nights} night{segment.nights !== 1 ? 's' : ''}</span>
                             </div>
                           </div>
+
+                          {isCampus && (() => {
+                            const segAlloc = calculateSegmentBudgetAllocation(segment, staySegments, trip);
+                            if (!segAlloc || !segAlloc.isCampus) return null;
+                            return (
+                              <div className="mt-2.5 inline-flex flex-wrap items-center gap-2 text-[11px] font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/40 px-3 py-1 rounded-lg border border-indigo-100 dark:border-indigo-900/50">
+                                <span>Segment Max Allocation: ₹{segAlloc.segmentMaxBudgetPerStudent.toLocaleString(undefined, { maximumFractionDigits: 2 })} / student</span>
+                                <span className="text-indigo-400 dark:text-indigo-600">•</span>
+                                <span>₹{segAlloc.segmentMaxBudgetGroup.toLocaleString()} group</span>
+                                <span className="text-indigo-400 dark:text-indigo-600">•</span>
+                                <span className="text-slate-500 font-medium">{segment.nights} of {totalNights} nights</span>
+                              </div>
+                            );
+                          })()}
                         </div>
                         <div className="flex flex-col gap-2 items-end justify-start">
                           {!viewOnly && (
@@ -674,12 +697,13 @@ export default function StayPlanPage() {
                           <div className="mt-3 flex flex-wrap items-end justify-between gap-4">
                             <div>
                               {(() => {
-                                const isCampus = trip.tripCategory === 'CAMPUS';
                                 const stayPricing = calculateStayAccommodation(segment, trip);
                                 if (!stayPricing.hasHotel) {
                                   return <span className="text-sm font-bold text-slate-500">Price unavailable</span>;
                                 }
                                 if (isCampus) {
+                                  const segAlloc = calculateSegmentBudgetAllocation(segment, staySegments, trip);
+                                  const isOverSeg = segAlloc && stayPricing.perStudentCost > segAlloc.segmentMaxBudgetPerStudent;
                                   return (
                                     <div>
                                       <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-2">
@@ -693,8 +717,20 @@ export default function StayPlanPage() {
                                       <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-0.5">
                                         ₹{stayPricing.nightlyRate.toLocaleString()} / room / night • {stayPricing.rooms} rooms ({stayPricing.studentsPerRoom} students/room) • {stayPricing.nights} nights
                                       </div>
-                                      <div className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider mt-0.5">
-                                        Estimated Educational Group Accommodation Cost
+                                      <div className="mt-1 flex flex-wrap items-center gap-2">
+                                        <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider bg-indigo-50 dark:bg-indigo-900/40 px-2 py-0.5 rounded">
+                                          Estimated Accommodation
+                                        </span>
+                                        {stayPricing.requiresVerification && (
+                                          <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider bg-amber-50 dark:bg-amber-900/40 px-2 py-0.5 rounded">
+                                            Requires Verification
+                                          </span>
+                                        )}
+                                        {isOverSeg && (
+                                          <span className="text-[10px] font-bold text-amber-700 dark:text-amber-300 bg-amber-100/70 dark:bg-amber-900/30 px-2 py-0.5 rounded" title="This segment exceeds proportional allocation, but can be balanced by unused budget in other segments if overall accommodation limit is respected.">
+                                            Exceeds Segment Allocation (+₹{Math.round(stayPricing.perStudentCost - segAlloc.segmentMaxBudgetPerStudent).toLocaleString()}/student)
+                                          </span>
+                                        )}
                                       </div>
                                     </div>
                                   );
@@ -815,7 +851,22 @@ export default function StayPlanPage() {
                                 </div>
 
                                 <div className="mb-3">
-                                  {rec.nuitee?.livePriceAvailable ? (
+                                  {isCampus ? (() => {
+                                    const recPricing = calculateStayAccommodation({ ...segment, selectedHotel: rec }, trip);
+                                    return (
+                                      <div>
+                                        <div className="text-base font-black text-slate-900 dark:text-white">
+                                          ₹{recPricing.groupCost.toLocaleString()} <span className="text-[10px] font-semibold text-slate-500">estimated group</span>
+                                        </div>
+                                        <div className="text-xs font-bold text-indigo-600 dark:text-indigo-400">
+                                          ₹{recPricing.perStudentCost.toLocaleString()} / student
+                                        </div>
+                                        <div className="text-[10px] font-medium text-slate-500 dark:text-slate-400 mt-0.5">
+                                          ₹{recPricing.nightlyRate.toLocaleString()}/night · {recPricing.rooms} rooms ({recPricing.studentsPerRoom}/room)
+                                        </div>
+                                      </div>
+                                    );
+                                  })() : rec.nuitee?.livePriceAvailable ? (
                                     <>
                                       <div className="text-base font-black text-slate-900 dark:text-white">₹{rec.nuitee.totalPrice.toLocaleString()} <span className="text-[10px] font-semibold text-slate-500">total</span></div>
                                       {rec.nuitee.nightlyPrice && <div className="text-[10px] font-semibold text-slate-500">₹{rec.nuitee.nightlyPrice.toLocaleString()}/night</div>}
@@ -849,7 +900,19 @@ export default function StayPlanPage() {
                                 <div key={hotel.id || i} className="flex flex-col rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 p-4">
                                   <h4 className="line-clamp-1 text-sm font-bold text-slate-900 dark:text-white mb-1" title={hotel.name}>{hotel.name}</h4>
                                   <div className="mb-3">
-                                    {hotel.nuitee?.livePriceAvailable ? (
+                                    {isCampus ? (() => {
+                                      const hotelPricing = calculateStayAccommodation({ ...segment, selectedHotel: hotel }, trip);
+                                      return (
+                                        <div>
+                                          <div className="text-base font-black text-slate-900 dark:text-white">
+                                            ₹{hotelPricing.groupCost.toLocaleString()} <span className="text-[10px] font-semibold text-slate-500">estimated group</span>
+                                          </div>
+                                          <div className="text-xs font-bold text-indigo-600 dark:text-indigo-400">
+                                            ₹{hotelPricing.perStudentCost.toLocaleString()} / student
+                                          </div>
+                                        </div>
+                                      );
+                                    })() : hotel.nuitee?.livePriceAvailable ? (
                                       <div className="text-base font-black text-slate-900 dark:text-white">₹{hotel.nuitee.totalPrice.toLocaleString()} <span className="text-[10px] font-semibold text-slate-500">total</span></div>
                                     ) : (
                                       <div className="text-xs font-bold text-slate-500">Live price unavailable</div>
@@ -903,219 +966,390 @@ export default function StayPlanPage() {
               Accommodation Summary
             </h2>
 
-            <div className="flex flex-col md:flex-row gap-8">
-              <div className="flex-1 space-y-3">
-                {accommodationSummary.items.map((item, i) => (
-                  <div key={i} className="flex justify-between items-start text-sm py-2 border-b border-slate-100 dark:border-slate-800/60 last:border-0">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-slate-800 dark:text-slate-200">{item.location}</span>
-                        <span className="text-slate-500 text-xs">({item.nights} {item.nights === 1 ? 'night' : 'nights'})</span>
-                      </div>
-                      {item.pricing?.hasHotel ? (
-                        <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-0.5">
-                          <span className="text-slate-700 dark:text-slate-300 font-semibold">{item.pricing.hotelName}</span>
-                          {item.pricing.isCampus && (
-                            <span className="ml-1 text-[10px] text-slate-400">• {item.pricing.rooms} rooms @ ₹{item.pricing.nightlyRate.toLocaleString()}/night</span>
+            {isCampus ? (
+              /* Campus Educational Trip Layout */
+              <div className="flex flex-col lg:flex-row gap-8">
+                {/* Left Column: Campus Stay Segment List + Summary Metrics Table */}
+                <div className="flex-1 space-y-5">
+                  <div className="space-y-3">
+                    {accommodationSummary.items.map((item, i) => (
+                      <div
+                        key={i}
+                        className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40 flex flex-col sm:flex-row justify-between sm:items-center gap-3 transition-all hover:border-indigo-200 dark:hover:border-indigo-900"
+                      >
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-black text-slate-900 dark:text-white uppercase tracking-tight text-sm">
+                              {item.location}
+                            </span>
+                            <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                              {item.nights} {item.nights === 1 ? 'night' : 'nights'}
+                            </span>
+                          </div>
+                          <div className="text-xs text-slate-600 dark:text-slate-400">
+                            <span className="font-semibold text-slate-800 dark:text-slate-200">
+                              {item.pricing?.hasHotel ? item.pricing.hotelName : 'No hotel selected'}
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
+                            <span>{formatDate(item.checkIn)} – {formatDate(item.checkOut)}</span>
+                            {item.pricing?.hasHotel && (
+                              <span>• {item.pricing.rooms} rooms @ ₹{item.pricing.nightlyRate?.toLocaleString()}/room/night</span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex flex-row sm:flex-col justify-between sm:items-end sm:text-right gap-1 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-200 dark:border-slate-800">
+                          {item.pricing?.hasHotel ? (
+                            <>
+                              <div className="text-sm font-black text-slate-900 dark:text-white">
+                                ₹{item.pricing.groupCost.toLocaleString()} <span className="text-[10px] font-normal text-slate-400">group (est.)</span>
+                              </div>
+                              <div className="text-xs font-bold text-indigo-600 dark:text-indigo-400">
+                                ₹{item.pricing.perStudentCost.toLocaleString()} <span className="text-[10px] font-normal text-slate-400">/ student</span>
+                              </div>
+                              <div className="mt-1">
+                                <span
+                                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1 ${
+                                    item.pricingStatus === 'Requires Verification'
+                                      ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
+                                      : item.pricingStatus === 'Exceeds Segment Allocation'
+                                      ? 'bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-300'
+                                      : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300'
+                                  }`}
+                                >
+                                  {item.pricingStatus || 'Estimated'}
+                                </span>
+                              </div>
+                            </>
+                          ) : (
+                            <span className="text-xs text-slate-400 italic">Not selected</span>
                           )}
                         </div>
-                      ) : (
-                        <div className="text-[11px] text-slate-400 italic mt-0.5">No hotel selected</div>
-                      )}
-                    </div>
-                    <div className="text-right">
-                      {item.pricing?.hasHotel ? (
-                        item.pricing.isCampus ? (
-                          <>
-                            <div className="font-bold text-slate-900 dark:text-white">
-                              ₹{item.pricing.groupCost.toLocaleString()} <span className="text-[10px] font-normal text-slate-400">group</span>
-                            </div>
-                            <div className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">
-                              ₹{item.pricing.perStudentCost.toLocaleString()} <span className="text-[10px] font-normal text-slate-400">/ student</span>
-                            </div>
-                          </>
-                        ) : (
-                          <div className="font-semibold text-slate-700 dark:text-slate-300">
-                            ₹{item.pricing.groupCost.toLocaleString()}
-                          </div>
-                        )
-                      ) : (
-                        <span className="text-xs text-slate-400 italic">Not selected</span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-
-                <div className="border-t-2 border-slate-200 dark:border-slate-700 pt-3 mt-2 flex justify-between items-end">
-                  <div>
-                    <div className="text-base font-black text-slate-900 dark:text-white uppercase">Total Accommodation</div>
-                    <div className="text-[10px] font-semibold text-slate-500">
-                      {accommodationSummary.selectedCount} of {staySegments.length} hotels selected (Estimated)
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    {trip.tripCategory === 'CAMPUS' ? (
-                      <>
-                        <div className="text-lg font-black text-indigo-600 dark:text-indigo-400">
-                          ₹{accommodationSummary.totalGroupAccommodation.toLocaleString()} <span className="text-xs font-normal text-slate-500">group</span>
-                        </div>
-                        <div className="text-xs font-bold text-indigo-700 dark:text-indigo-300">
-                          ₹{accommodationSummary.totalPerStudentAccommodation.toLocaleString()} <span className="text-[10px] font-normal text-slate-400">/ student</span>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="text-xl font-black text-indigo-600 dark:text-indigo-400">
-                        ₹{accommodationSummary.totalSelectedPrice.toLocaleString()}
                       </div>
-                    )}
+                    ))}
+                  </div>
+
+                  {/* Section 6: Bottom Metrics Table */}
+                  <div className="pt-2">
+                    <div className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2.5">
+                      Accommodation Summary Metrics
+                    </div>
+                    <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 shadow-xs">
+                      <table className="w-full text-xs text-left">
+                        <thead className="bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 uppercase font-black text-[10px] tracking-wider">
+                          <tr>
+                            <th className="px-4 py-2.5">Metric</th>
+                            <th className="px-4 py-2.5 text-right">Amount</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
+                          <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                            <td className="px-4 py-2 text-slate-600 dark:text-slate-400">Total Travelers</td>
+                            <td className="px-4 py-2 text-right font-bold text-slate-900 dark:text-white">
+                              {accommodationSummary.totalTravelers}
+                            </td>
+                          </tr>
+                          <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                            <td className="px-4 py-2 text-slate-600 dark:text-slate-400">Total Stay Segments</td>
+                            <td className="px-4 py-2 text-right font-bold text-slate-900 dark:text-white">
+                              {accommodationSummary.totalSegments}
+                            </td>
+                          </tr>
+                          <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                            <td className="px-4 py-2 text-slate-600 dark:text-slate-400">Total Nights</td>
+                            <td className="px-4 py-2 text-right font-bold text-slate-900 dark:text-white">
+                              {accommodationSummary.totalNights}
+                            </td>
+                          </tr>
+                          <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                            <td className="px-4 py-2 text-slate-600 dark:text-slate-400">Estimated Accommodation Cost per Student</td>
+                            <td className="px-4 py-2 text-right font-black text-indigo-600 dark:text-indigo-400">
+                              ₹{accommodationSummary.accommodationPerStudent.toLocaleString()} <span className="text-[10px] font-normal text-slate-400">(Estimated)</span>
+                            </td>
+                          </tr>
+                          <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                            <td className="px-4 py-2 text-slate-600 dark:text-slate-400">Total Estimated Accommodation Cost for all Travelers</td>
+                            <td className="px-4 py-2 text-right font-black text-indigo-600 dark:text-indigo-400">
+                              ₹{accommodationSummary.totalAccommodationCost.toLocaleString()} <span className="text-[10px] font-normal text-slate-400">(Estimated)</span>
+                            </td>
+                          </tr>
+                          <tr className="bg-indigo-50/60 dark:bg-indigo-950/30 font-bold">
+                            <td className="px-4 py-2.5 text-indigo-900 dark:text-indigo-200">
+                              Accommodation Budget Utilization
+                            </td>
+                            <td className="px-4 py-2.5 text-right font-black text-indigo-700 dark:text-indigo-300 text-sm">
+                              {accommodationSummary.accommodationBudgetUtilization}%
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Column: Trip Budget Impact (Sections 7, 8, 9) */}
+                <div className="w-full lg:w-96 shrink-0 rounded-2xl bg-slate-50 dark:bg-slate-800/50 p-5 border border-slate-200/80 dark:border-slate-700/80 flex flex-col gap-4">
+                  <div className="border-b border-slate-200 dark:border-slate-700 pb-2.5">
+                    <div className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-200">
+                      Trip Budget Impact
+                    </div>
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Campus Educational Trip Allocation
+                    </div>
+                  </div>
+
+                  {/* Section 8: Budget Validation Alerts (Cases 1, 2, 3) */}
+                  {accommodationBudgetAnalysis.validationCase === 3 ? (
+                    <div className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-xs text-rose-800 dark:text-rose-200 space-y-2 shadow-xs">
+                      <div className="flex items-center gap-1.5 font-black uppercase tracking-wider text-[11px] text-rose-600 dark:text-rose-400">
+                        <FiAlertCircle className="shrink-0 text-sm" />
+                        <span>Accommodation Exceeds Maximum Budget</span>
+                      </div>
+                      <p className="font-medium text-[11px] leading-relaxed text-rose-900 dark:text-rose-100">
+                        Estimated accommodation exceeds the 60% maximum allocation (₹{accommodationBudgetAnalysis.maxAccommodationBudgetPerStudent.toLocaleString()} / student).
+                      </p>
+                      <div className="pt-2 border-t border-rose-200/80 dark:border-rose-800/50 text-[11px] space-y-1 font-semibold">
+                        <div className="flex justify-between text-rose-700 dark:text-rose-300">
+                          <span>Excess per student:</span>
+                          <span className="font-bold">₹{accommodationBudgetAnalysis.excessPerStudent.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between text-rose-700 dark:text-rose-300">
+                          <span>Excess group total:</span>
+                          <span className="font-bold">₹{accommodationBudgetAnalysis.excessGroup.toLocaleString()}</span>
+                        </div>
+                      </div>
+                      <div className="text-[10px] text-rose-700 dark:text-rose-300 font-medium italic pt-1">
+                        Recommendation: Change hotel or select a more affordable option across stay segments.
+                      </div>
+                    </div>
+                  ) : accommodationBudgetAnalysis.validationCase === 2 ? (
+                    <div className="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 text-xs text-amber-800 dark:text-amber-200 space-y-1.5 shadow-xs">
+                      <div className="flex items-center gap-1.5 font-black uppercase tracking-wider text-[11px] text-amber-600 dark:text-amber-400">
+                        <FiAlertCircle className="shrink-0 text-sm" />
+                        <span>Approaching Allocated Limit</span>
+                      </div>
+                      <p className="font-medium text-[11px] leading-relaxed text-amber-900 dark:text-amber-100">
+                        Estimated accommodation is between 50% and 60% of the per-student budget. It is approaching the maximum ceiling. You may proceed, ensuring sufficient funds remain for transport, meals, and activities.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/60 text-xs text-emerald-800 dark:text-emerald-200 space-y-1.5 shadow-xs">
+                      <div className="flex items-center gap-1.5 font-black uppercase tracking-wider text-[11px] text-emerald-600 dark:text-emerald-400">
+                        <FiCheck className="shrink-0 text-sm" />
+                        <span>Accommodation Within Budget</span>
+                      </div>
+                      <p className="font-medium text-[11px] leading-relaxed text-emerald-900 dark:text-emerald-100">
+                        Estimated accommodation is within the target range (≤ 50% of per-student budget).
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Section 7: Budget Overview */}
+                  <div className="rounded-xl bg-white dark:bg-[#1a233a] p-3.5 border border-slate-200/80 dark:border-slate-700/80 shadow-xs space-y-2">
+                    <div className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-slate-800 pb-1.5">
+                      Budget Overview
+                    </div>
+                    <div className="space-y-1.5 text-xs">
+                      <div className="flex justify-between">
+                        <span className="text-slate-600 dark:text-slate-400">Budget per Student:</span>
+                        <span className="font-bold text-slate-900 dark:text-white">
+                          ₹{accommodationBudgetAnalysis.overallTripBudgetPerStudent.toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-600 dark:text-slate-400">Total Travelers:</span>
+                        <span className="font-bold text-slate-900 dark:text-white">
+                          {accommodationBudgetAnalysis.expectedStudents}
+                        </span>
+                      </div>
+                      <div className="flex justify-between border-t border-slate-100 dark:border-slate-800 pt-1 font-semibold">
+                        <span className="text-slate-700 dark:text-slate-300">Total Trip Budget:</span>
+                        <span className="font-black text-slate-900 dark:text-white">
+                          ₹{accommodationBudgetAnalysis.overallTripBudgetGroup.toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Section 5: Accommodation */}
+                  <div className="rounded-xl bg-white dark:bg-[#1a233a] p-3.5 border border-indigo-100 dark:border-indigo-900/40 shadow-xs space-y-2">
+                    <div className="text-[10px] font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400 border-b border-indigo-50 dark:border-indigo-950 pb-1.5">
+                      Accommodation
+                    </div>
+                    <div className="space-y-1.5 text-xs">
+                      <div className="flex justify-between">
+                        <span className="text-slate-600 dark:text-slate-400">Target Accommodation Budget per Student:</span>
+                        <span className="font-semibold text-slate-800 dark:text-slate-200">
+                          ₹{accommodationBudgetAnalysis.targetAccommodationBudgetPerStudent.toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-600 dark:text-slate-400">Maximum Accommodation Budget per Student:</span>
+                        <span className="font-bold text-slate-900 dark:text-white">
+                          ₹{accommodationBudgetAnalysis.maxAccommodationBudgetPerStudent.toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-600 dark:text-slate-400">Total Maximum Accommodation Budget:</span>
+                        <span className="font-bold text-slate-900 dark:text-white">
+                          ₹{accommodationBudgetAnalysis.maxAccommodationBudgetGroup.toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="flex justify-between border-t border-slate-100 dark:border-slate-800 pt-1">
+                        <span className="text-indigo-700 dark:text-indigo-300 font-semibold">Estimated Accommodation per Student:</span>
+                        <span className="font-black text-indigo-600 dark:text-indigo-400">
+                          ₹{accommodationBudgetAnalysis.estimatedAccommodationPerStudent.toLocaleString()} <span className="text-[10px] font-normal text-slate-400">(Estimated)</span>
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-indigo-700 dark:text-indigo-300 font-semibold">Total Estimated Accommodation:</span>
+                        <span className="font-black text-indigo-600 dark:text-indigo-400">
+                          ₹{accommodationBudgetAnalysis.estimatedAccommodationGroup.toLocaleString()} <span className="text-[10px] font-normal text-slate-400">(Estimated)</span>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Section 5: Remaining Budget */}
+                  <div className="rounded-xl bg-white dark:bg-[#1a233a] p-3.5 border border-slate-200/80 dark:border-slate-700/80 shadow-xs space-y-2">
+                    <div className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-slate-800 pb-1.5">
+                      Remaining Budget
+                    </div>
+                    <div className="space-y-1.5 text-xs">
+                      <div className="flex justify-between">
+                        <span className="text-slate-600 dark:text-slate-400">Remaining Budget per Student:</span>
+                        <span className={`font-black ${accommodationBudgetAnalysis.remainingOverallPerStudentBudget < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                          {accommodationBudgetAnalysis.remainingOverallPerStudentBudget < 0 ? '-' : ''}₹{Math.abs(accommodationBudgetAnalysis.remainingOverallPerStudentBudget).toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-600 dark:text-slate-400">Remaining Total Budget:</span>
+                        <span className={`font-black ${accommodationBudgetAnalysis.remainingOverallGroupBudget < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                          {accommodationBudgetAnalysis.remainingOverallGroupBudget < 0 ? '-' : ''}₹{Math.abs(accommodationBudgetAnalysis.remainingOverallGroupBudget).toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Section 7: Budget Utilization & Progress Bar */}
+                  <div className="rounded-xl bg-white dark:bg-[#1a233a] p-3.5 border border-slate-200/80 dark:border-slate-700/80 shadow-xs space-y-2">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="font-bold text-slate-700 dark:text-slate-300">Accommodation Utilization:</span>
+                      <span className={`font-black text-sm ${
+                        accommodationBudgetAnalysis.utilizationPercentage > 60
+                          ? 'text-rose-600 dark:text-rose-400'
+                          : accommodationBudgetAnalysis.utilizationPercentage > 50
+                          ? 'text-amber-600 dark:text-amber-400'
+                          : 'text-indigo-600 dark:text-indigo-400'
+                      }`}>
+                        {accommodationBudgetAnalysis.utilizationPercentage}%
+                      </span>
+                    </div>
+                    <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-2.5 overflow-hidden">
+                      <div
+                        className={`h-2.5 rounded-full transition-all duration-300 ${
+                          accommodationBudgetAnalysis.utilizationPercentage > 60
+                            ? 'bg-rose-500'
+                            : accommodationBudgetAnalysis.utilizationPercentage > 50
+                            ? 'bg-amber-500'
+                            : 'bg-indigo-600'
+                        }`}
+                        style={{ width: `${Math.min(100, accommodationBudgetAnalysis.utilizationPercentage)}%` }}
+                      ></div>
+                    </div>
+                    <div className="flex justify-between text-[10px] text-slate-400 font-medium">
+                      <span>0%</span>
+                      <span>Target: 50%</span>
+                      <span>Max: 60%</span>
+                      <span>100%</span>
+                    </div>
+                  </div>
+
+                  {/* Section 9: Disclaimer Note */}
+                  <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700/60 text-[11px] text-slate-500 dark:text-slate-400 flex items-start gap-2 leading-relaxed">
+                    <FiInfo className="shrink-0 mt-0.5 text-indigo-500 text-xs" />
+                    <span>
+                      Accommodation costs are estimates and may vary. Final prices and availability must be verified before booking.
+                    </span>
                   </div>
                 </div>
               </div>
-
-              <div className="w-full md:w-84 shrink-0 rounded-2xl bg-slate-50 dark:bg-slate-800/50 p-4 border border-slate-200/80 dark:border-slate-700/80 flex flex-col gap-3">
-                {trip.tripCategory === 'CAMPUS' ? (
-                  <>
-                    <div className="text-xs font-black uppercase tracking-wider text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700 pb-2">
-                      Trip Budget Impact
-                    </div>
-
-                    {/* OVERALL TRIP BUDGET EXCEEDED BANNER */}
-                    {accommodationBudgetAnalysis.exceedsOverallBudget ? (
-                      <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-xs text-rose-800 dark:text-rose-200 flex flex-col gap-1.5 shadow-xs">
-                        <div className="flex items-center gap-1.5 font-black uppercase tracking-wider text-[11px] text-rose-600 dark:text-rose-400">
-                          <FiAlertCircle className="shrink-0 text-sm" />
-                          <span>Overall Budget Exceeded</span>
+            ) : (
+              /* Personal Trip Layout (Kept 100% Unchanged) */
+              <div className="flex flex-col md:flex-row gap-8">
+                <div className="flex-1 space-y-3">
+                  {accommodationSummary.items.map((item, i) => (
+                    <div key={i} className="flex justify-between items-start text-sm py-2 border-b border-slate-100 dark:border-slate-800/60 last:border-0">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-slate-800 dark:text-slate-200">{item.location}</span>
+                          <span className="text-slate-500 text-xs">({item.nights} {item.nights === 1 ? 'night' : 'nights'})</span>
                         </div>
-                        <p className="font-bold text-[11px] leading-tight text-rose-900 dark:text-rose-100">
-                          Estimated accommodation exceeds the overall trip budget.
-                        </p>
-                        <div className="mt-1 pt-1.5 border-t border-rose-200/80 dark:border-rose-800/50 text-[11px] space-y-1">
-                          <div className="flex justify-between">
-                            <span className="text-slate-600 dark:text-slate-400">Overall Trip Budget:</span>
-                            <span className="font-semibold">
-                              ₹{accommodationBudgetAnalysis.overallTripBudgetPerStudent.toLocaleString()}
-                            </span>
+                        {item.pricing?.hasHotel ? (
+                          <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-0.5">
+                            <span className="text-slate-700 dark:text-slate-300 font-semibold">{item.pricing.hotelName}</span>
                           </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-600 dark:text-slate-400">Estimated Accommodation:</span>
-                            <span className="font-semibold">
-                              ₹{accommodationBudgetAnalysis.estimatedAccommodationPerStudent.toLocaleString()}
-                            </span>
+                        ) : (
+                          <div className="text-[11px] text-slate-400 italic mt-0.5">No hotel selected</div>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        {item.pricing?.hasHotel ? (
+                          <div className="font-semibold text-slate-700 dark:text-slate-300">
+                            ₹{item.pricing.groupCost.toLocaleString()}
                           </div>
-                          <div className="flex justify-between text-rose-600 dark:text-rose-400 font-bold">
-                            <span>Over by:</span>
-                            <span>₹{accommodationBudgetAnalysis.overOverallAmountPerStudent.toLocaleString()} / student</span>
-                          </div>
-                          <div className="flex justify-between pt-1 border-t border-rose-200/60 dark:border-rose-800/40 text-rose-600 dark:text-rose-400 font-bold">
-                            <span>Group over by:</span>
-                            <span>₹{accommodationBudgetAnalysis.overOverallAmountGroup.toLocaleString()}</span>
-                          </div>
-                        </div>
+                        ) : (
+                          <span className="text-xs text-slate-400 italic">Not selected</span>
+                        )}
                       </div>
-                    ) : accommodationBudgetAnalysis.exceedsInternalLimit ? (
-                      <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 text-xs text-amber-800 dark:text-amber-200 flex flex-col gap-1.5 shadow-xs">
-                        <div className="flex items-center gap-1.5 font-black uppercase tracking-wider text-[11px] text-amber-600 dark:text-amber-400">
-                          <FiAlertCircle className="shrink-0 text-sm" />
-                          <span>Accommodation Allowance Advisory</span>
-                        </div>
-                        <p className="font-semibold text-[11px] leading-tight text-amber-900 dark:text-amber-100">
-                          Accommodation estimate is above the planned accommodation allowance for this trip.
-                        </p>
-                      </div>
-                    ) : null}
+                    </div>
+                  ))}
 
-                    {/* PER STUDENT LEVEL */}
-                    <div className="rounded-xl bg-white dark:bg-[#1a233a] p-3 border border-indigo-100 dark:border-indigo-900/40 shadow-xs">
-                      <div className="text-[10px] font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400 mb-2">
-                        Per Student
-                      </div>
-                      <div className="space-y-1.5 text-xs">
-                        <div className="flex justify-between">
-                          <span className="text-slate-500 dark:text-slate-400">Overall Trip Budget:</span>
-                          <span className="font-bold text-slate-900 dark:text-white">
-                            ₹{accommodationBudgetAnalysis.overallTripBudgetPerStudent.toLocaleString()}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-500 dark:text-slate-400">Estimated Accommodation:</span>
-                          <span className="font-bold text-slate-900 dark:text-white">
-                            ₹{accommodationBudgetAnalysis.estimatedAccommodationPerStudent.toLocaleString()}
-                          </span>
-                        </div>
-                        <div className="flex justify-between border-t border-slate-100 dark:border-slate-700 pt-1">
-                          <span className="font-semibold text-slate-600 dark:text-slate-300">Remaining Overall Budget:</span>
-                          <span className={`font-black ${accommodationBudgetAnalysis.remainingOverallPerStudentBudget < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                            {accommodationBudgetAnalysis.remainingOverallPerStudentBudget < 0 ? '-' : ''}₹{Math.abs(accommodationBudgetAnalysis.remainingOverallPerStudentBudget).toLocaleString()}
-                          </span>
-                        </div>
+                  <div className="border-t-2 border-slate-200 dark:border-slate-700 pt-3 mt-2 flex justify-between items-end">
+                    <div>
+                      <div className="text-base font-black text-slate-900 dark:text-white uppercase">Total Accommodation</div>
+                      <div className="text-[10px] font-semibold text-slate-500">
+                        {accommodationSummary.selectedCount} of {staySegments.length} hotels selected (Estimated)
                       </div>
                     </div>
+                    <div className="text-right">
+                      <div className="text-xl font-black text-indigo-600 dark:text-indigo-400">
+                        ₹{accommodationSummary.totalSelectedPrice.toLocaleString()}
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
-                    {/* GROUP / BULK LEVEL */}
-                    <div className="rounded-xl bg-white dark:bg-[#1a233a] p-3 border border-slate-100 dark:border-slate-700 shadow-xs">
-                      <div className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
-                        Group / Bulk ({accommodationBudgetAnalysis.expectedStudents} Students)
-                      </div>
-                      <div className="space-y-1.5 text-xs">
-                        <div className="flex justify-between">
-                          <span className="text-slate-500 dark:text-slate-400">Overall Trip Budget:</span>
-                          <span className="font-bold text-slate-900 dark:text-white">
-                            ₹{accommodationBudgetAnalysis.overallTripBudgetGroup.toLocaleString()}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-500 dark:text-slate-400">Estimated Accommodation:</span>
-                          <span className="font-bold text-slate-900 dark:text-white">
-                            ₹{accommodationBudgetAnalysis.estimatedAccommodationGroup.toLocaleString()}
-                          </span>
-                        </div>
-                        <div className="flex justify-between border-t border-slate-100 dark:border-slate-700 pt-1">
-                          <span className="font-semibold text-slate-600 dark:text-slate-300">Remaining Overall Budget:</span>
-                          <span className={`font-black ${accommodationBudgetAnalysis.remainingOverallGroupBudget < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                            {accommodationBudgetAnalysis.remainingOverallGroupBudget < 0 ? '-' : ''}₹{Math.abs(accommodationBudgetAnalysis.remainingOverallGroupBudget).toLocaleString()}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
+                <div className="w-full md:w-84 shrink-0 rounded-2xl bg-slate-50 dark:bg-slate-800/50 p-4 border border-slate-200/80 dark:border-slate-700/80 flex flex-col gap-3">
+                  <div className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-500">Trip Budget Impact</div>
+                  <div className="flex justify-between items-baseline mb-1">
+                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Overall Budget</span>
+                    <span className="text-sm font-bold text-slate-900 dark:text-white">₹{accommodationBudgetAnalysis.totalBudget?.toLocaleString() || accommodationBudgetAnalysis.overallBudgetPerStudent?.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between items-baseline mb-3">
+                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Estimated Accommodation</span>
+                    <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">₹{accommodationBudgetAnalysis.estimatedAccommodation?.toLocaleString() || accommodationBudgetAnalysis.estimatedAccommodationGroup?.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between items-baseline mb-1 border-t border-slate-200 dark:border-slate-700 pt-2">
+                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Remaining</span>
+                    <span className={`text-sm font-black ${accommodationBudgetAnalysis.isOverBudget ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                      {accommodationBudgetAnalysis.isOverBudget ? '-' : ''}₹{Math.abs(accommodationBudgetAnalysis.remaining || 0).toLocaleString()}
+                    </span>
+                  </div>
 
-                    {trip.campusConfig?.inclusions?.accommodation === false && (
-                      <div className="p-2 rounded bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-900/40 text-[10px] font-bold text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
-                        <FiInfo className="shrink-0" />
-                        <span>Accommodation is marked as EXCLUDED from the inclusive group budget.</span>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    <div className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-500">Trip Budget Impact</div>
-                    <div className="flex justify-between items-baseline mb-1">
-                      <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Overall Budget</span>
-                      <span className="text-sm font-bold text-slate-900 dark:text-white">₹{accommodationBudgetAnalysis.totalBudget.toLocaleString()}</span>
+                  {accommodationBudgetAnalysis.isOverBudget && (
+                    <div className="mt-2 p-2 rounded bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/40 text-[10px] font-bold text-red-700 dark:text-red-400 flex items-center gap-1.5">
+                      <FiAlertCircle className="shrink-0" />
+                      <span>Accommodation exceeds total budget by ₹{accommodationBudgetAnalysis.overAmount?.toLocaleString()}.</span>
                     </div>
-                    <div className="flex justify-between items-baseline mb-3">
-                      <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Estimated Accommodation</span>
-                      <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">₹{accommodationBudgetAnalysis.estimatedAccommodation.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between items-baseline mb-1 border-t border-slate-200 dark:border-slate-700 pt-2">
-                      <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Remaining</span>
-                      <span className={`text-sm font-black ${accommodationBudgetAnalysis.isOverBudget ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                        {accommodationBudgetAnalysis.isOverBudget ? '-' : ''}₹{Math.abs(accommodationBudgetAnalysis.remaining).toLocaleString()}
-                      </span>
-                    </div>
-
-                    {accommodationBudgetAnalysis.isOverBudget && (
-                      <div className="mt-2 p-2 rounded bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/40 text-[10px] font-bold text-red-700 dark:text-red-400 flex items-center gap-1.5">
-                        <FiAlertCircle className="shrink-0" />
-                        <span>Accommodation exceeds total budget by ₹{accommodationBudgetAnalysis.overAmount.toLocaleString()}.</span>
-                      </div>
-                    )}
-                    <div className="mt-2 text-[9px] text-slate-400 italic leading-tight">
-                      Budget reflects the total trip budget for all travelers. Stay total is dynamically updated based on your selections.
-                    </div>
-                  </>
-                )}
+                  )}
+                  <div className="mt-2 text-[9px] text-slate-400 italic leading-tight">
+                    Budget reflects the total trip budget for all travelers. Stay total is dynamically updated based on your selections.
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
           </section>
         )}
       </div>

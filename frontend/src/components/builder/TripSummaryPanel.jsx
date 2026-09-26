@@ -48,7 +48,7 @@ export default function TripSummaryPanel() {
     if (trip.tripCategory === 'CAMPUS') {
       const perStudent = Number(tempBudget) || 15000;
       const tripDurationDays = getTripDurationDays(trip);
-      const derivedAccomBudget = Math.min(perStudent, tripDurationDays * 1000, 10000);
+      const derivedAccomBudget = Math.round(perStudent * 0.60);
       const expectedParticipants = Number(trip.campusConfig?.expectedParticipants) || 1;
       const newConfig = {
         ...trip.campusConfig,

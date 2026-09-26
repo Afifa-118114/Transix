@@ -144,7 +144,7 @@ const RELATIONSHIP_OPTIONS = [
 ];
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
-const ALLOWED_MIME_TYPES = ["application/pdf", "image/jpeg", "image/png", "image/jpg"];
+const ALLOWED_MIME_TYPES = ["application/pdf"];
 
 function formatFileSize(bytes) {
   if (!bytes) return "0 KB";
@@ -273,21 +273,51 @@ export default function JoinAsGuidePage() {
     }
   };
 
+  // Helper to reset file input elements
+  const resetInputRef = (key) => {
+    if (key === "aadhaar" && aadhaarInputRef.current) aadhaarInputRef.current.value = "";
+    if (key === "drivingLicense" && drivingLicenseInputRef.current) drivingLicenseInputRef.current.value = "";
+    if (key === "passport" && passportInputRef.current) passportInputRef.current.value = "";
+    if (key === "guideLicenseDocument" && guideLicenseInputRef.current) guideLicenseInputRef.current.value = "";
+    if (key === "experienceProof" && experienceProofInputRef.current) experienceProofInputRef.current.value = "";
+  };
+
   // Handle Document Upload directly to Cloudinary
   const handleFileUpload = async (key, file) => {
     if (!file) return;
 
-    if (!ALLOWED_MIME_TYPES.includes(file.type)) {
-      toast.error(`Invalid format for ${file.name}. Accepted formats: PDF, JPG, JPEG, PNG.`);
+    // Strict validation: Accept PDF files ONLY
+    const isPdf =
+      file.type === "application/pdf" ||
+      file.name.toLowerCase().endsWith(".pdf");
+
+    if (!isPdf) {
+      const errMsg = `Only PDF files are accepted. "${file.name}" is not a valid PDF.`;
+      setErrors((prev) => ({ ...prev, [key]: errMsg }));
+      toast.error(errMsg);
+      resetInputRef(key);
       return;
     }
 
     if (file.size > MAX_FILE_SIZE_BYTES) {
-      toast.error(`File size exceeds 10MB limit (${formatFileSize(file.size)}).`);
+      const errMsg = `File size exceeds 10 MB limit (${formatFileSize(file.size)}).`;
+      setErrors((prev) => ({ ...prev, [key]: errMsg }));
+      toast.error(errMsg);
+      resetInputRef(key);
       return;
     }
 
-    // Create immediate local object URL for instant, zero-latency preview
+    // Clear any previous error on this field
+    setErrors((prev) => ({ ...prev, [key]: null }));
+
+    // Clean up previous blob URL if exists
+    if (uploadedDocuments[key]?.blobUrl) {
+      try {
+        URL.revokeObjectURL(uploadedDocuments[key].blobUrl);
+      } catch (_) {}
+    }
+
+    // Create immediate local object URL for instant, zero-latency in-page preview
     const localBlobUrl = URL.createObjectURL(file);
 
     try {
@@ -308,25 +338,32 @@ export default function JoinAsGuidePage() {
             blobUrl: localBlobUrl,
           },
         }));
-        if (errors[key]) {
-          setErrors((prev) => ({ ...prev, [key]: null }));
-        }
+        setErrors((prev) => ({ ...prev, [key]: null }));
         toast.success(`Attached ${res.document.fileName || file.name}`);
       } else {
         toast.error(res.message || "Failed to upload document.");
       }
     } catch (err) {
       console.error(`Upload error for ${key}:`, err);
-      toast.error(err.response?.data?.message || err.message || "Failed to upload document to Cloudinary.");
+      const errMsg = err.response?.data?.message || err.message || "Failed to upload document.";
+      setErrors((prev) => ({ ...prev, [key]: errMsg }));
+      toast.error(errMsg);
     } finally {
       setUploadingState((prev) => ({ ...prev, [key]: false }));
+      resetInputRef(key);
     }
   };
 
   // Remove Document
   const handleRemoveDocument = (key, e) => {
-    e.stopPropagation();
+    if (e && e.stopPropagation) e.stopPropagation();
+    if (uploadedDocuments[key]?.blobUrl) {
+      try {
+        URL.revokeObjectURL(uploadedDocuments[key].blobUrl);
+      } catch (_) {}
+    }
     setUploadedDocuments((prev) => ({ ...prev, [key]: null }));
+    resetInputRef(key);
   };
 
   // Validate Step 1
@@ -381,12 +418,12 @@ export default function JoinAsGuidePage() {
 
     // Aadhaar is mandatory
     if (!uploadedDocuments.aadhaar || !uploadedDocuments.aadhaar.url) {
-      errs.aadhaar = "Aadhaar Card upload is mandatory";
+      errs.aadhaar = "Aadhaar Card (PDF) upload is required";
     }
 
     // Driving License is mandatory
     if (!uploadedDocuments.drivingLicense || !uploadedDocuments.drivingLicense.url) {
-      errs.drivingLicense = "Driving License upload is mandatory";
+      errs.drivingLicense = "Driving License (PDF) upload is required";
     }
 
     // Professional Experience
@@ -513,18 +550,20 @@ export default function JoinAsGuidePage() {
     }
   };
 
-  // Reusable Document Upload & Preview Card Component
+  // Reusable Document Upload & In-Page PDF Preview Card Component
   const renderDocumentCard = ({
     docKey,
     title,
     isMandatory,
-    acceptedText = "PDF, JPG, JPEG, PNG (Max 10MB)",
+    acceptedText = "PDF only (Max 10MB)",
     inputRef,
   }) => {
     const doc = uploadedDocuments[docKey];
     const isUploading = uploadingState[docKey];
     const errorMsg = errors[docKey];
-    const isImage = doc?.fileType?.startsWith("image/") || /\.(jpg|jpeg|png)$/i.test(doc?.fileName || doc?.url || "");
+
+    // Stream/display source: local blob or server preview stream URL
+    const previewSrc = doc?.blobUrl || doc?.previewUrl || doc?.url;
 
     return (
       <div
@@ -555,16 +594,16 @@ export default function JoinAsGuidePage() {
           {doc && (
             <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
               <FiCheck className="text-xs" />
-              <span>Ready</span>
+              <span>PDF Ready</span>
             </span>
           )}
         </div>
 
-        {/* Hidden File Input */}
+        {/* Hidden File Input (Strictly PDF) */}
         <input
           ref={inputRef}
           type="file"
-          accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+          accept=".pdf,application/pdf"
           onChange={(e) => {
             if (e.target.files && e.target.files[0]) {
               handleFileUpload(docKey, e.target.files[0]);
@@ -575,97 +614,89 @@ export default function JoinAsGuidePage() {
 
         {/* State: Uploading */}
         {isUploading ? (
-          <div className="flex items-center justify-center gap-3 p-6 rounded-xl border border-dashed border-indigo-300 dark:border-indigo-800 bg-indigo-50/40 dark:bg-indigo-950/20">
-            <div className="h-5 w-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin shrink-0" />
+          <div className="flex flex-col items-center justify-center gap-2 p-8 rounded-xl border border-dashed border-indigo-300 dark:border-indigo-800 bg-indigo-50/40 dark:bg-indigo-950/20 text-center">
+            <div className="h-6 w-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin shrink-0" />
             <span className="text-xs font-semibold text-indigo-700 dark:text-indigo-300">
-              Uploading document to secure Cloudinary vault...
+              Uploading {title} to secure storage...
             </span>
+            <span className="text-[11px] text-slate-400">Validating PDF integrity & storage</span>
           </div>
         ) : doc ? (
-          /* State: Uploaded with Compact Preview Card */
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl bg-indigo-50/30 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/40">
-            <div className="flex items-center gap-3 min-w-0">
-              {/* Thumbnail preview if image, icon if PDF */}
-              {isImage && doc.url ? (
-                <div
+          /* State: Uploaded with In-Page PDF Preview */
+          <div className="flex flex-col gap-3">
+            {/* Meta info & actions bar */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 p-3 rounded-xl bg-indigo-50/40 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/40">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="h-9 w-9 rounded-lg bg-indigo-600/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-lg shrink-0">
+                  <FiFileText />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate">
+                    {doc.fileName || `${title}.pdf`}
+                  </p>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    {doc.size ? formatFileSize(doc.size) : "PDF Document"} • PDF Verified
+                  </p>
+                </div>
+              </div>
+
+              {/* Action buttons: [ Fullscreen ] [ Replace ] [ Remove ] */}
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
                   onClick={() =>
                     setPreviewDoc({
                       title,
                       fileName: doc.fileName,
-                      fileType: doc.fileType,
+                      fileType: "application/pdf",
                       url: doc.url,
                       previewUrl:
                         doc.previewUrl || getDocumentPreviewUrl(doc.publicId, doc.url),
                       blobUrl: doc.blobUrl,
                     })
                   }
-                  className="h-12 w-12 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 shrink-0 cursor-pointer group relative"
-                  title="Click to preview"
+                  className="px-2.5 py-1.5 rounded-lg border border-indigo-200 dark:border-indigo-800 bg-white dark:bg-slate-900 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 transition cursor-pointer flex items-center gap-1"
+                  title="Expand to Fullscreen"
                 >
-                  <img
-                    src={doc.blobUrl || doc.url}
-                    alt={doc.fileName || title}
-                    className="h-full w-full object-cover group-hover:scale-105 transition"
-                  />
-                  <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-xs">
-                    <FiEye />
-                  </div>
-                </div>
-              ) : (
-                <div className="h-12 w-12 rounded-lg bg-indigo-600/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-xl shrink-0">
-                  <FiFileText />
-                </div>
-              )}
+                  <FiEye className="text-xs" />
+                  <span>Fullscreen</span>
+                </button>
 
-              <div className="min-w-0">
-                <p className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate">
-                  {doc.fileName || `${title}.pdf`}
-                </p>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                  {doc.size ? formatFileSize(doc.size) : "Cloudinary Verified"} • Ready for review
-                </p>
+                <button
+                  type="button"
+                  onClick={() => inputRef.current?.click()}
+                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer flex items-center gap-1"
+                  title="Replace document with another PDF"
+                >
+                  <FiRefreshCw className="text-[10px]" />
+                  <span>Replace</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={(e) => handleRemoveDocument(docKey, e)}
+                  className="h-8 w-8 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 flex items-center justify-center transition cursor-pointer"
+                  title="Remove document"
+                >
+                  <FiX className="text-sm" />
+                </button>
               </div>
             </div>
 
-            {/* Action buttons: [ Preview ] [ Replace ] [ Remove ] */}
-            <div className="flex items-center gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-200 dark:border-slate-800">
-              <button
-                type="button"
-                onClick={() =>
-                  setPreviewDoc({
-                    title,
-                    fileName: doc.fileName,
-                    fileType: doc.fileType,
-                    url: doc.url,
-                    previewUrl:
-                      doc.previewUrl || getDocumentPreviewUrl(doc.publicId, doc.url),
-                    blobUrl: doc.blobUrl,
-                  })
-                }
-                className="px-2.5 py-1.5 rounded-lg border border-indigo-200 dark:border-indigo-800 bg-white dark:bg-slate-900 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 transition cursor-pointer flex items-center gap-1"
-              >
-                <FiEye className="text-xs" />
-                <span>Preview</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => inputRef.current?.click()}
-                className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer flex items-center gap-1"
-                title="Replace document"
-              >
-                <FiRefreshCw className="text-[10px]" />
-                <span>Replace</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={(e) => handleRemoveDocument(docKey, e)}
-                className="h-8 w-8 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 flex items-center justify-center transition cursor-pointer"
-                title="Remove document"
-              >
-                <FiX className="text-sm" />
-              </button>
+            {/* In-Page Interactive PDF Preview */}
+            <div className="relative w-full h-64 sm:h-72 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 shadow-inner">
+              {previewSrc ? (
+                <iframe
+                  src={`${previewSrc}#toolbar=0&navpanes=0&scrollbar=1`}
+                  title={`${title} PDF Preview`}
+                  className="w-full h-full border-0 rounded-xl"
+                />
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 text-xs p-4 text-center">
+                  <FiAlertCircle className="text-xl mb-1 text-slate-400" />
+                  <span>Preview loading...</span>
+                </div>
+              )}
             </div>
           </div>
         ) : (
@@ -679,20 +710,20 @@ export default function JoinAsGuidePage() {
                 handleFileUpload(docKey, e.dataTransfer.files[0]);
               }
             }}
-            className="flex flex-col items-center justify-center p-5 border-2 border-dashed border-slate-300 dark:border-slate-700/80 rounded-xl cursor-pointer hover:border-indigo-500 dark:hover:border-indigo-500 hover:bg-indigo-50/20 dark:hover:bg-indigo-950/20 transition text-center"
+            className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-slate-300 dark:border-slate-700/80 rounded-xl cursor-pointer hover:border-indigo-500 dark:hover:border-indigo-500 hover:bg-indigo-50/20 dark:hover:bg-indigo-950/20 transition text-center"
           >
-            <div className="h-9 w-9 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mb-1.5 text-lg">
+            <div className="h-10 w-10 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mb-2 text-xl">
               <FiUploadCloud />
             </div>
             <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
-              Click to upload or drag & drop
+              Click to upload or drag & drop PDF
             </p>
             <p className="text-[11px] text-slate-400 mt-0.5">{acceptedText}</p>
           </div>
         )}
 
         {errorMsg && (
-          <p className="mt-1.5 text-xs text-rose-500 flex items-center gap-1 font-medium">
+          <p className="mt-2 text-xs text-rose-500 flex items-center gap-1 font-medium animate-fadeIn">
             <FiAlertCircle className="shrink-0" />
             <span>{errorMsg}</span>
           </p>
@@ -1346,7 +1377,7 @@ export default function JoinAsGuidePage() {
                         docKey: "aadhaar",
                         title: "Aadhaar Card",
                         isMandatory: true,
-                        acceptedText: "PDF, JPG, JPEG, PNG (Max 10MB)",
+                        acceptedText: "PDF only (Max 10MB)",
                         inputRef: aadhaarInputRef,
                       })}
                     </div>
@@ -1357,7 +1388,7 @@ export default function JoinAsGuidePage() {
                         docKey: "drivingLicense",
                         title: "Driving License",
                         isMandatory: true,
-                        acceptedText: "PDF, JPG, JPEG, PNG (Max 10MB)",
+                        acceptedText: "PDF only (Max 10MB)",
                         inputRef: drivingLicenseInputRef,
                       })}
                     </div>
@@ -1368,7 +1399,7 @@ export default function JoinAsGuidePage() {
                         docKey: "passport",
                         title: "Passport",
                         isMandatory: false,
-                        acceptedText: "Optional: PDF, JPG, JPEG, PNG (Max 10MB)",
+                        acceptedText: "Optional: PDF only (Max 10MB)",
                         inputRef: passportInputRef,
                       })}
                     </div>
@@ -1408,7 +1439,7 @@ export default function JoinAsGuidePage() {
                         docKey: "guideLicenseDocument",
                         title: "Guide License Document",
                         isMandatory: false,
-                        acceptedText: "Accepted: PDF, JPG, JPEG, PNG",
+                        acceptedText: "Optional: PDF only (Max 10MB)",
                         inputRef: guideLicenseInputRef,
                       })}
                     </div>
@@ -1522,7 +1553,7 @@ export default function JoinAsGuidePage() {
                       docKey: "experienceProof",
                       title: "Experience / Employment Proof",
                       isMandatory: false,
-                      acceptedText: "Experience certificate, Employment letter, Guide ID (PDF/JPG/PNG)",
+                      acceptedText: "Optional: Experience certificate or employment proof (PDF only, Max 10MB)",
                       inputRef: experienceProofInputRef,
                     })}
                   </div>

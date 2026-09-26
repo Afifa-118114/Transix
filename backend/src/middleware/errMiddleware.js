@@ -17,6 +17,16 @@ const errorHandler = (err, req, res, next) => {
   } else if (err.name === "JsonWebTokenError" || err.name === "TokenExpiredError") {
     statusCode = 401;
     message = "Invalid or expired token";
+  } else if (err.name === "MulterError") {
+    statusCode = 400;
+    if (err.code === "LIMIT_FILE_SIZE") {
+      message = "File size exceeds the 10 MB limit.";
+    } else {
+      message = err.message;
+    }
+  } else if (err.code === "INVALID_FILE_TYPE") {
+    statusCode = 400;
+    message = err.message;
   }
 
   res.status(statusCode).json({

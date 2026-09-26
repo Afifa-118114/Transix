@@ -384,9 +384,10 @@ const syncItinerary = asyncHandler(async (req, res) => {
     return res.status(400).json({ success: false, message: "newStaySegments is required and must be an array" });
   }
 
+  const userId = req.user?.id || req.user?._id || req.user?.userId;
   const trip = await Trip.findOne({
     _id: req.params.id,
-    $or: [{ user: req.user.id }, { coordinatorId: req.user.id }],
+    $or: [{ user: userId }, { coordinatorId: userId }, { user: req.user?.id }, { coordinatorId: req.user?.id }],
   });
 
   if (!trip) {
@@ -396,8 +397,12 @@ const syncItinerary = asyncHandler(async (req, res) => {
   const { syncItineraryWithStayPlan } = require("../services/aiService");
   const updatedTrip = await syncItineraryWithStayPlan(trip, newStaySegments);
 
-  // Sync booking requirements for any updated hotels
-  await syncBookingRequirements(updatedTrip);
+  // Sync booking requirements safely for any updated hotels
+  try {
+    await syncBookingRequirements(updatedTrip);
+  } catch (bErr) {
+    console.warn("Non-fatal booking requirements sync note:", bErr.message);
+  }
 
   res.json({
     success: true,
