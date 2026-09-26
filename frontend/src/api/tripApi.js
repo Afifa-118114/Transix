@@ -13,6 +13,16 @@ export const generateAITrip = async (tripData, token, signal) => {
   return res.data;
 };
 
+export const chatWithTripAssistant = async (payload, token, signal) => {
+  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+  const res = await axios.post(`${API}/ai/assist`, payload, {
+    headers,
+    signal,
+  });
+
+  return res.data;
+};
+
 export const getUserTrips = async (token) => {
   const headers = token ? { Authorization: `Bearer ${token}` } : {};
   const res = await axios.get(`${API}/trips`, { headers });

@@ -1,8 +1,77 @@
 const asyncHandler = require("../middleware/asyncHandler");
 const Trip = require("../models/Trip");
-const { generateTripPlan } = require("../services/aiService");
+const {
+  generateTripPlan,
+  generateAssistantReply,
+  transcribeAssistantAudio: transcribeAudio,
+  synthesizeAssistantSpeech: synthesizeSpeech,
+} = require("../services/aiService");
 const { generateHeroImage } = require("../services/imageService");
 const crypto = require("crypto");
+
+const generateAssistantChat = asyncHandler(async (req, res) => {
+  const { message, language = "auto", trip = null, history = [] } = req.body || {};
+  const cleanMessage = typeof message === "string" ? message.trim() : "";
+
+  if (!cleanMessage) {
+    const error = new Error("Please enter a message.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const reply = await generateAssistantReply({
+    message: cleanMessage,
+    language,
+    trip,
+    history,
+  });
+
+  res.status(200).json({
+    success: true,
+    reply,
+  });
+});
+
+const transcribeAssistantAudio = asyncHandler(async (req, res) => {
+  if (!req.file || !req.file.buffer?.length) {
+    const error = new Error("No audio recording was received. Please record a message and try again.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const mimeType = String(req.file.mimetype || "").split(";")[0].toLowerCase();
+  const extension = String(req.file.originalname || "").split(".").pop().toLowerCase();
+  const formatByMimeType = {
+    "audio/webm": "webm",
+    "audio/mp4": "m4a",
+    "audio/m4a": "m4a",
+    "audio/ogg": "ogg",
+    "audio/wav": "wav",
+    "audio/x-wav": "wav",
+    "audio/mpeg": "mp3",
+    "audio/flac": "flac",
+    "audio/aac": "aac",
+  };
+  const format = formatByMimeType[mimeType] || extension;
+  const transcript = await transcribeAudio({
+    audioBuffer: req.file.buffer,
+    format,
+    language: req.body?.language || "auto",
+  });
+
+  res.status(200).json({ success: true, transcript });
+});
+
+const generateAssistantSpeech = asyncHandler(async (req, res) => {
+  const { text = "", language = "auto" } = req.body || {};
+  const speech = await synthesizeSpeech({ text, language });
+
+  res.status(200)
+    .set("Content-Type", speech.contentType)
+    .set("Cache-Control", "no-store")
+    .set("X-Content-Type-Options", "nosniff")
+    .send(speech.audio);
+});
 
 const generateAITrip = asyncHandler(async (req, res) => {
   const tripData = req.body;
@@ -99,4 +168,7 @@ const generateAITrip = asyncHandler(async (req, res) => {
 
 module.exports = {
   generateAITrip,
+  generateAssistantChat,
+  transcribeAssistantAudio,
+  generateAssistantSpeech,
 };

@@ -1,4 +1,5 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
+const axios = require("axios");
 
 const getModel = () => {
   try {
@@ -1679,4 +1680,300 @@ module.exports = {
   generateTripPlan,
   regenerateTripDay,
   syncItineraryWithStayPlan,
+};
+
+const detectLanguageFromText = (text = "") => {
+  const value = String(text || "").trim();
+  if (!value) return "en";
+
+  if (/[\u0900-\u097F]/.test(value)) {
+    if (/(माझे|माझ्या|माझा|मला|कमी करा|कमी कर|आहे|साठी|हवे|हवी|तुम्ही)/i.test(value)) return "mr";
+    if (/(मेरा|मेरे|मुझे|कम करो|कम करें|बजट|यात्रा|है|करना है)/i.test(value)) return "hi";
+    return "hi";
+  }
+  if (/[\u0A00-\u0A7F]/.test(value)) return "pa";
+  if (/[\u0A80-\u0AFF]/.test(value)) return "gu";
+  if (/[\u0B80-\u0BFF]/.test(value)) return "ta";
+  if (/[\u0C00-\u0C7F]/.test(value)) return "te";
+  if (/[\u0C80-\u0CFF]/.test(value)) return "kn";
+  if (/[\u0D00-\u0D7F]/.test(value)) return "ml";
+  if (/[\u0980-\u09FF]/.test(value)) return "bn";
+  if (/[\u0600-\u06FF]/.test(value)) return "ur";
+  if (/(मला|अजून|ठिकाणं|तुम्ही|कृपया|परत|माझ्या|आज|पुण्यात|हव्यात)/i.test(value)) return "mr";
+  if (/(मैं|कृपया|आप|तुम|मेरे|बजट|यात्रा|अतिशय|रहना)/i.test(value)) return "hi";
+  if (/(મારા|મહિત|માટે|કૃપા|અહીં|બજેટ|પ્રવાસ|એક્ટિવિટી)/i.test(value)) return "gu";
+  if (/(আমি|দয়া|এখানে|বাজেট|ভ্রমণ|অ্যাক্টিভিটি|গন্তব্য)/i.test(value)) return "bn";
+  if (/(என்|உங்கள்|தயவு|இங்கே|படங்கள்|பயணம்|செயல்பாடு)/i.test(value)) return "ta";
+  if (/(నా|దయచేసి|ఇక్కడ|బడ్జెట్|ప్రయాణం|కార్యకలాపాలు)/i.test(value)) return "te";
+  if (/(ನನ್ನ|ದಯವಿಟ್ಟು|ಇಲ್ಲಿ|ಬಜೆಟ್|ಪ್ರಯಾಣ|ಚಟುವಟಿಕೆ)/i.test(value)) return "kn";
+  if (/(എന്റെ|ദയവായി|ഇവിടെ|ബജറ്റിൽ|യാത്ര|ഏറ്റവും)/i.test(value)) return "ml";
+  if (/(ਮੇਰਾ|ਕਿਰਪਾ|ਇੱਥੇ|ਬਜਗੇਟ|ਯਾਤਰਾ|ਗਤੀਵਿਧੀ)/i.test(value)) return "pa";
+  if (/(میرا|براہِ|یہاں|بجٹ|سفر|سرگرمی)/i.test(value)) return "ur";
+
+  return "en";
+};
+
+const toBcp47Language = (language) => {
+  const map = {
+    en: "en-IN",
+    hi: "hi-IN",
+    mr: "mr-IN",
+    gu: "gu-IN",
+    bn: "bn-IN",
+    ta: "ta-IN",
+    te: "te-IN",
+    kn: "kn-IN",
+    ml: "ml-IN",
+    pa: "pa-IN",
+    ur: "ur-IN",
+  };
+
+  return map[language] || "en-IN";
+};
+
+const serializeTripContext = (trip) => {
+  if (!trip || typeof trip !== "object") {
+    return "No active trip context is available right now.";
+  }
+
+  const compactText = (value, maxLength = 100) =>
+    typeof value === "string" ? value.trim().slice(0, maxLength) || null : null;
+
+  return JSON.stringify({
+    origin: compactText(trip.source || trip.origin),
+    destination: compactText(trip.destination),
+    dates: {
+      start: compactText(trip.startDate, 40),
+      end: compactText(trip.endDate, 40),
+    },
+    travelers: Number.isFinite(Number(trip.travelers)) ? Number(trip.travelers) : null,
+    travelers: trip.travelers != null && Number.isFinite(Number(trip.travelers)) ? Number(trip.travelers) : null,
+    budget: trip.budget != null && Number.isFinite(Number(trip.budget)) ? Number(trip.budget) : null,
+    currency: compactText(trip.currency, 8) || "INR",
+    transport: compactText(trip.travelMode || trip.transportPreference),
+    accommodation: compactText(trip.hotelType || trip.accommodationPreference),
+    dining: compactText(trip.foodPreference || trip.diningPreference),
+    interests: Array.isArray(trip.interests)
+      ? trip.interests.filter((interest) => typeof interest === "string").slice(0, 6).map((interest) => interest.trim().slice(0, 50))
+      : [],
+    purpose: compactText(trip.purpose),
+  });
+};
+
+const normalizeHistory = (history) => {
+  if (!Array.isArray(history)) return [];
+  return history
+    .filter((entry) => entry && typeof entry === "object" && (typeof entry.text === "string" || typeof entry.message === "string"))
+    .slice(-5)
+    .map((entry) => ({
+      role: entry.role === "assistant" ? "assistant" : entry.role === "user" ? "user" : null,
+      text: String(entry.text || entry.message || "").trim().slice(-800),
+    }))
+    .filter((entry) => entry.role && entry.text);
+};
+
+const generateAssistantReply = async ({ message, language = "auto", trip = null, history = [] }) => {
+  const cleanMessage = String(message || "").trim().slice(0, 2000);
+  if (!cleanMessage) {
+    const error = new Error("Please enter a message.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const normalizedHistory = normalizeHistory(history);
+  const conversationHistory = normalizedHistory;
+  const supportedLanguages = {
+    en: "English",
+    hi: "Hindi",
+    mr: "Marathi",
+    gu: "Gujarati",
+    bn: "Bengali",
+    ta: "Tamil",
+    te: "Telugu",
+    kn: "Kannada",
+    ml: "Malayalam",
+    pa: "Punjabi",
+    ur: "Urdu",
+  };
+  const selectedLanguage = supportedLanguages[language] ? language : "auto";
+  const isNumericFollowUp = /^[\d\s,.₹]+$/.test(cleanMessage);
+  const previousUserMessage = [...conversationHistory].reverse().find((entry) => entry.role === "user")?.text || "";
+  const responseLanguage = selectedLanguage === "auto"
+    ? supportedLanguages[detectLanguageFromText(isNumericFollowUp ? previousUserMessage || cleanMessage : cleanMessage)]
+    : supportedLanguages[selectedLanguage];
+  const apiKey = process.env.OPENROUTER_API_KEY;
+
+  if (!apiKey) {
+    const error = new Error("The chat assistant is not configured. Set OPENROUTER_API_KEY in the backend environment.");
+    error.statusCode = 503;
+    throw error;
+  }
+
+  const systemMessage = `You are Transix Assistant. Answer the latest question using recent chat and trip context. Reply in ${responseLanguage}, usually in 1-4 sentences and no more than 180 words. Help with trip changes, but never claim a change succeeded unless the app confirms it; do not invent facts or bookings. Trip: ${serializeTripContext(trip)}`;
+  const messages = [
+    { role: "system", content: systemMessage },
+    ...conversationHistory.map(({ role, text }) => ({ role, content: text })),
+    { role: "user", content: cleanMessage },
+  ];
+
+  let reply;
+  try {
+    const response = await axios.post(
+      "https://openrouter.ai/api/v1/chat/completions",
+      { model: "openrouter/free", messages, max_tokens: 300 },
+      {
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          "X-Title": "Transix Assistant",
+        },
+        timeout: 30000,
+      },
+    );
+    const content = response.data?.choices?.[0]?.message?.content;
+    reply = Array.isArray(content)
+      ? content.map((part) => typeof part === "string" ? part : part?.text || "").join("").trim()
+      : String(content || "").trim();
+  } catch (requestError) {
+    const providerStatus = requestError.response?.status;
+    const error = new Error(
+      providerStatus === 401 || providerStatus === 403
+        ? "OpenRouter rejected the backend API key or account access. Check the backend OpenRouter configuration."
+        : providerStatus === 402 || providerStatus === 429
+          ? "OpenRouter is out of available credits or free requests right now. Please try again later."
+          : "The AI assistant is temporarily unavailable. Please try again later.",
+    );
+    error.statusCode = providerStatus === 429 ? 429 : 502;
+    throw error;
+  }
+
+  if (!reply) {
+    const error = new Error("OpenRouter returned an empty assistant response. Please try again.");
+    error.statusCode = 502;
+    throw error;
+  }
+
+  return reply;
+};
+
+const voiceServiceError = (requestError) => {
+  const providerStatus = requestError.response?.status;
+  const error = new Error(
+    providerStatus === 401 || providerStatus === 403
+      ? "Voice service authentication failed. Please continue with text chat."
+      : "Voice service is temporarily unavailable. Please try again or use text chat.",
+  );
+  error.statusCode = providerStatus === 429 || providerStatus === 402 || providerStatus === 503 ? 503 : 502;
+  return error;
+};
+
+const transcribeAssistantAudio = async ({ audioBuffer, format, language = "auto" }) => {
+  if (!Buffer.isBuffer(audioBuffer) || audioBuffer.length === 0) {
+    const error = new Error("The recording is empty. Please record a message and try again.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const supportedFormats = new Set(["webm", "mp4", "m4a", "ogg", "wav", "mp3", "flac", "aac"]);
+  if (!supportedFormats.has(String(format || "").toLowerCase())) {
+    const error = new Error("This recording format is not supported. Please try recording again.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) {
+    const error = new Error("Voice service is not configured. Please use text chat.");
+    error.statusCode = 503;
+    throw error;
+  }
+
+  const payload = {
+    model: "openai/whisper-large-v3-turbo",
+    input_audio: { data: audioBuffer.toString("base64"), format: String(format).toLowerCase() },
+  };
+  if (language !== "auto" && /^[a-z]{2}$/i.test(language)) payload.language = language.toLowerCase();
+
+  try {
+    const response = await axios.post("https://openrouter.ai/api/v1/audio/transcriptions", payload, {
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      timeout: 60000,
+      maxBodyLength: 25 * 1024 * 1024,
+    });
+    const transcript = String(response.data?.text || "").trim();
+    if (!transcript) {
+      const error = new Error("No speech was detected. Please try recording again.");
+      error.statusCode = 422;
+      throw error;
+    }
+    return transcript;
+  } catch (requestError) {
+    if (requestError.statusCode) throw requestError;
+    throw voiceServiceError(requestError);
+  }
+};
+
+const normalizeSpeechText = (rawText) => String(rawText || "")
+  .replace(/```[\s\S]*?```/g, " ")
+  .replace(/\[(.*?)\]\((.*?)\)/g, "$1")
+  .replace(/[*_~`>#\-]+/g, " ")
+  .replace(/\s+/g, " ")
+  .trim();
+
+const synthesizeAssistantSpeech = async ({ text, language = "auto" }) => {
+  const cleanText = normalizeSpeechText(text);
+  if (!cleanText) {
+    const error = new Error("There is no assistant response to speak.");
+    error.statusCode = 400;
+    throw error;
+  }
+  if (cleanText.length > 5000) {
+    const error = new Error("This response is too long for voice playback. Please use the text response.");
+    error.statusCode = 413;
+    throw error;
+  }
+
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) {
+    const error = new Error("Voice service is not configured. Please use text chat.");
+    error.statusCode = 503;
+    throw error;
+  }
+
+  try {
+    const payload = {
+      model: "fish-audio/s2.1-pro-free:free",
+      input: cleanText,
+      response_format: "mp3",
+    };
+    if (language && language !== "auto" && /^[a-z]{2}$/i.test(language)) {
+      payload.voice = language.toLowerCase();
+    }
+
+    const response = await axios.post("https://openrouter.ai/api/v1/audio/speech", payload, {
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      responseType: "arraybuffer",
+      timeout: 60000,
+      maxContentLength: 15 * 1024 * 1024,
+    });
+    const audio = Buffer.from(response.data || []);
+    if (!audio.length) {
+      const error = new Error("The voice service returned empty audio. Please try playback again.");
+      error.statusCode = 502;
+      throw error;
+    }
+    return { audio, contentType: "audio/mpeg" };
+  } catch (requestError) {
+    if (requestError.statusCode) throw requestError;
+    throw voiceServiceError(requestError);
+  }
+};
+
+module.exports = {
+  generateTripPlan,
+  regenerateTripDay,
+  syncItineraryWithStayPlan,
+  generateAssistantReply,
+  transcribeAssistantAudio,
+  synthesizeAssistantSpeech,
 };
