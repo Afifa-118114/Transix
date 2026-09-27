@@ -157,6 +157,41 @@ export default function OperatorAutoBookCard({
         } else if (res.data?.emailDelivery?.status === "FAILED") {
           setEmailDeliveryStatus("FAILED");
         }
+
+        // Auto-deliver Travel Dossier PDF to traveler chat
+        try {
+          const updatedTripObj = {
+            ...trip,
+            ...res.data,
+            isBooked: true,
+            status: res.data?.status || "CONFIRMED",
+            bookingSummary: res.data?.confirmedBookings ? {
+              ...trip.bookingSummary,
+              ...res.data
+            } : trip.bookingSummary
+          };
+
+          const { filename, dataUrl } = generateTripItineraryPdf(updatedTripObj, "getDoc");
+          const destination = trip.destination || "your destination";
+          const messageText = `Your trip to ${destination} is confirmed! Attached is your Complete Travel Dossier containing your confirmed bookings, vouchers, hotel details, contacts, and daily itinerary. Safe travels!`;
+
+          await sendTripMessage(
+            trip._id,
+            {
+              subject: `Complete Travel Dossier Attached — ${trip.title || trip.destination || "Trip Documents"}`,
+              message: messageText,
+              attachment: {
+                name: filename,
+                url: dataUrl,
+                fileType: "application/pdf"
+              }
+            },
+            token
+          );
+          setPdfDeliveryStatus("SENT");
+        } catch (pdfErr) {
+          console.warn("[OperatorAutoBookCard] Auto PDF delivery notice:", pdfErr.message);
+        }
         
         setTimeout(() => {
           setShowProgressModal(false);

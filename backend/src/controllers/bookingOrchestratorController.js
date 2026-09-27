@@ -1025,6 +1025,10 @@ Budget remaining: ₹${Math.max(0, metrics.costs.remainingBudget).toLocaleString
 Your complete itinerary, booking details and schedule have been prepared.
 Your travel calendar (${calendarEvents.length} events) and trip document are also ready.`;
 
+      const masterTripCode = `TRX-${trip._id.toString().slice(-6).toUpperCase()}`;
+      const dossierFilename = `Transix_Travel_Dossier_${trip.destination}_${masterTripCode}.pdf`;
+      const primaryDocUrl = confirmedBookings.hotels?.[0]?.voucherUrl || confirmedBookings.transport?.ticketUrl || `https://liteapi.travel/vouchers/voucher_${masterTripCode}.pdf`;
+
       await TripMessage.create({
         tripId: trip._id,
         senderId: operatorId,
@@ -1033,9 +1037,15 @@ Your travel calendar (${calendarEvents.length} events) and trip document are als
         recipientId: recipientUser._id,
         recipientName: recipientUser.name || 'Traveler',
         recipientRole: 'traveler',
-        subject: `Trip Booking Confirmed · ${trip.destination}`,
-        message: chatMsg,
-        status: 'SENT'
+        subject: `Trip Booking Confirmed · Complete Travel Dossier Attached`,
+        message: `${chatMsg}\n\n📎 Your Official Travel Dossier and confirmed booking vouchers are attached below.`,
+        status: 'SENT',
+        attachment: {
+          type: 'DOCUMENT',
+          name: dossierFilename,
+          url: primaryDocUrl,
+          fileType: 'application/pdf'
+        }
       });
 
       await Notification.create({
