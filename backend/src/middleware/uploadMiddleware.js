@@ -30,12 +30,19 @@ const storage = new CloudinaryStorage({
     const isGuide = req.baseUrl?.includes("guide") || req.originalUrl?.includes("guide");
     const folder = isGuide ? "transix/guide_documents" : "transix/campus_documents";
 
-    return {
+    const cleanName = file.originalname.replace(/\.[^/.]+$/, "").replace(/[^a-zA-Z0-9_-]/g, "_");
+
+    const params = {
       folder,
-      format: format,
       resource_type: resource_type,
-      public_id: `${Date.now()}_${file.originalname.replace(/\.[^/.]+$/, "")}${resource_type === 'raw' ? '.pdf' : ''}`,
+      public_id: `${Date.now()}_${cleanName}${resource_type === 'raw' ? '.pdf' : ''}`,
     };
+
+    if (resource_type !== "raw" && format) {
+      params.format = format;
+    }
+
+    return params;
   },
 });
 

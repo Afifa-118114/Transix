@@ -8,7 +8,7 @@ import { FaPlane, FaTrain, FaHotel } from "react-icons/fa6";
 import toast from "react-hot-toast";
 import { operatorAutoBookTour, getTourBookingPreview } from "../../api/bookingApi";
 import { sendTripMessage, sendTripConfirmationEmail } from "../../api/operatorApi";
-import { generateTripItineraryPdf } from "../../utils/itineraryPdfGenerator";
+import { generateTravelDossierPdf } from "../../utils/dossierPdfGenerator";
 import { downloadTripIcsFile, openGoogleCalendarWeb } from "../../utils/calendarGenerator";
 
 const PIPELINE_STAGES = [
@@ -187,7 +187,7 @@ export default function OperatorAutoBookCard({
   const handleViewPdf = () => {
     try {
       setPdfBusy(true);
-      generateTripItineraryPdf(trip, "view");
+      generateTravelDossierPdf(trip, "view");
       toast.success("Opening Travel Document PDF...");
       if (pdfDeliveryStatus === "IDLE") setPdfDeliveryStatus("GENERATED");
     } catch (e) {
@@ -200,7 +200,7 @@ export default function OperatorAutoBookCard({
   const handleDownloadPdf = () => {
     try {
       setPdfBusy(true);
-      const filename = generateTripItineraryPdf(trip, "download");
+      const filename = generateTravelDossierPdf(trip, "download");
       toast.success(`Downloaded ${filename}`);
       if (pdfDeliveryStatus === "IDLE") setPdfDeliveryStatus("GENERATED");
     } catch (e) {
@@ -216,7 +216,7 @@ export default function OperatorAutoBookCard({
       setPdfDeliveryStatus("SENDING");
       toast.loading("Generating & delivering Travel Dossier PDF to traveler chat...", { id: "send-pdf" });
 
-      const { filename, dataUrl } = generateTripItineraryPdf(trip, "getDoc");
+      const { filename, dataUrl } = generateTravelDossierPdf(trip, "getDoc");
       
       const destination = trip.destination || "your destination";
       const isPartial = trip.status === "PARTIALLY_CONFIRMED";
@@ -258,7 +258,7 @@ export default function OperatorAutoBookCard({
 
       let attachment = null;
       try {
-        const { filename, dataUrl } = generateTripItineraryPdf(trip, "getDoc");
+        const { filename, dataUrl } = generateTravelDossierPdf(trip, "getDoc");
         if (dataUrl) {
           const base64Content = dataUrl.split(",")[1] || dataUrl;
           attachment = {

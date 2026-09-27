@@ -41,6 +41,57 @@ export default function CoordinatorDashboard() {
   // IV Code Copy & Itinerary PDF Download State
   const [copiedIvCode, setCopiedIvCode] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [exportingExcel, setExportingExcel] = useState(false);
+
+  const handleExportExcel = async () => {
+    if (!trip) return;
+    try {
+      setExportingExcel(true);
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/campus-trips/${trip._id}/export-students`, {
+        method: "GET",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      if (!res.ok) {
+        // Attempt to parse the backend error response for a better message
+        let errorMsg = "Failed to export Excel file";
+        try {
+          const errData = await res.json();
+          if (errData && errData.message) errorMsg = errData.message;
+        } catch (e) {
+          // response is not JSON (maybe HTML 404 page, etc.)
+        }
+        throw new Error(errorMsg);
+      }
+
+      const blob = await res.blob();
+      const contentDisposition = res.headers.get('Content-Disposition');
+      let filename = `Transix_Campus_Trip.xlsx`;
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+        if (filenameMatch && filenameMatch.length === 2) {
+          filename = filenameMatch[1];
+        }
+      }
+
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      
+      toast.success("Excel exported successfully!");
+    } catch (err) {
+      console.error("Export Excel error:", err);
+      toast.error("Failed to generate Excel file. Please try again.");
+    } finally {
+      setExportingExcel(false);
+    }
+  };
 
   const handleCopyIvCode = () => {
     if (!trip?.joinCode) return;
@@ -603,6 +654,14 @@ export default function CoordinatorDashboard() {
                         <span className="flex items-center gap-2 text-slate-700 dark:text-slate-300"><span className="w-2.5 h-2.5 rounded-full bg-rose-500"></span> Rejected</span>
                         <span className="text-slate-900 dark:text-white font-bold">{rejectedCount}</span>
                       </div>
+                      <div className="flex justify-between items-center pt-2 border-t border-slate-100 dark:border-slate-800">
+                        <span className="flex items-center gap-2 text-slate-700 dark:text-slate-300"><FiFileText className="text-slate-400" /> Docs Complete</span>
+                        <span className="text-slate-900 dark:text-white font-bold">{docsCompleteCount}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="flex items-center gap-2 text-slate-700 dark:text-slate-300"><FiDollarSign className="text-slate-400" /> Confirmations Paid</span>
+                        <span className="text-slate-900 dark:text-white font-bold">{confirmationPaidCount}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -626,14 +685,6 @@ export default function CoordinatorDashboard() {
                       <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Registration Closes</p>
                       <p className="text-sm font-semibold text-slate-900 dark:text-white">{settings.closeDate ? new Date(settings.closeDate).toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'}) : 'Not set'}</p>
                     </div>
-                    <div>
-                      <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Confirmation Fee</p>
-                      <p className="text-sm font-semibold text-slate-900 dark:text-white">₹{settings.confirmationFee?.toLocaleString() || 0} <span className="text-[10px] text-slate-500 font-normal">(at registration)</span></p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Capacity</p>
-                      <p className="text-sm font-semibold text-slate-900 dark:text-white">{settings.capacity || 'Unlimited'} Students</p>
-                    </div>
                   </div>
 
                   <button onClick={() => { setSettingsModalTab("general"); setShowRegistrationModal(true); }} className="w-full py-2.5 bg-indigo-50 dark:bg-indigo-600/20 hover:bg-indigo-100 dark:hover:bg-indigo-600/30 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/30 rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer">
@@ -642,65 +693,7 @@ export default function CoordinatorDashboard() {
                 </div>
               </div>
 
-              {/* MIDDLE ROW: Campus IV Registration Overview */}
-              <div className="bg-white dark:bg-[#131c31] border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xs dark:shadow-lg transition-colors">
-                <div className="flex justify-between items-center mb-6">
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                      <FiUsers className="text-indigo-600 dark:text-indigo-400" />
-                      Registration Overview
-                    </h3>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Real-time status of student registrations, documents, and payments</p>
-                  </div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400 font-semibold">
-                    Capacity: <span className="text-slate-900 dark:text-white font-bold">{settings.capacity || 'Unlimited'}</span>
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-                  {/* Total Registered */}
-                  <div className="bg-slate-50 dark:bg-[#0a101f] border border-slate-200 dark:border-slate-800 p-3.5 rounded-xl">
-                    <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total Registered</p>
-                    <p className="text-xl font-black text-slate-900 dark:text-white mt-1">{totalRegistered}</p>
-                    <p className="text-[10px] text-slate-500 mt-0.5">Submitted registrations</p>
-                  </div>
 
-                  {/* Pending Verification */}
-                  <div className="bg-amber-50/50 dark:bg-amber-500/5 border border-amber-200 dark:border-amber-500/20 p-3.5 rounded-xl">
-                    <p className="text-[10px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider">Pending Review</p>
-                    <p className="text-xl font-black text-amber-800 dark:text-amber-300 mt-1">{pendingVerificationCount}</p>
-                    <p className="text-[10px] text-amber-600 dark:text-amber-400/70 mt-0.5">Awaiting verification</p>
-                  </div>
-
-                  {/* Approved */}
-                  <div className="bg-indigo-50/50 dark:bg-indigo-500/5 border border-indigo-200 dark:border-indigo-500/20 p-3.5 rounded-xl">
-                    <p className="text-[10px] font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider">Approved</p>
-                    <p className="text-xl font-black text-indigo-800 dark:text-indigo-300 mt-1">{approvedCount}</p>
-                    <p className="text-[10px] text-indigo-600 dark:text-indigo-400/70 mt-0.5">Confirmed students</p>
-                  </div>
-
-                  {/* Rejected */}
-                  <div className="bg-rose-50/50 dark:bg-rose-500/5 border border-rose-200 dark:border-rose-500/20 p-3.5 rounded-xl">
-                    <p className="text-[10px] font-bold text-rose-700 dark:text-rose-400 uppercase tracking-wider">Rejected</p>
-                    <p className="text-xl font-black text-rose-800 dark:text-rose-300 mt-1">{rejectedCount}</p>
-                    <p className="text-[10px] text-rose-600 dark:text-rose-400/70 mt-0.5">Needs correction</p>
-                  </div>
-
-                  {/* Documents Complete */}
-                  <div className="bg-slate-50 dark:bg-[#0a101f] border border-slate-200 dark:border-slate-800 p-3.5 rounded-xl">
-                    <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Docs Complete</p>
-                    <p className="text-xl font-black text-slate-900 dark:text-white mt-1">{docsCompleteCount} <span className="text-xs text-slate-500 font-normal">/ {totalRegistered}</span></p>
-                    <p className="text-[10px] text-slate-500 mt-0.5">{docsPendingCount} pending review</p>
-                  </div>
-
-                  {/* Confirmation Paid */}
-                  <div className="bg-slate-50 dark:bg-[#0a101f] border border-slate-200 dark:border-slate-800 p-3.5 rounded-xl">
-                    <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Confirmation Paid</p>
-                    <p className="text-xl font-black text-indigo-600 dark:text-indigo-400 mt-1">{confirmationPaidCount} <span className="text-xs text-slate-500 font-normal">/ {totalRegistered}</span></p>
-                    <p className="text-[10px] text-slate-500 mt-0.5">{confirmationPendingCount} pending</p>
-                  </div>
-                </div>
-              </div>
 
               {/* BOTTOM ROW: Registered Students Table */}
               <div className="bg-white dark:bg-[#131c31] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs dark:shadow-lg overflow-hidden flex flex-col transition-colors">
@@ -713,8 +706,18 @@ export default function CoordinatorDashboard() {
                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Review student details, verify uploaded documents, and approve registrations.</p>
                   </div>
 
-                  {/* Search and Filters */}
+                  {/* Action Buttons & Filters */}
                   <div className="flex flex-wrap items-center gap-3">
+                    <button
+                      onClick={handleExportExcel}
+                      disabled={exportingExcel}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-600/20 hover:bg-emerald-100 dark:hover:bg-emerald-600/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30 rounded-lg text-xs font-bold transition cursor-pointer disabled:opacity-60 shadow-xs"
+                      title="Export student data to Excel"
+                    >
+                      <FiDownload size={14} />
+                      {exportingExcel ? "Exporting..." : "Export Excel"}
+                    </button>
+
                     <div className="relative">
                       <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs" />
                       <input 

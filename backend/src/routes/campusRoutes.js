@@ -32,6 +32,7 @@ router.post("/:id/participant/payment/verify", authMiddleware, campusController.
 
 // Coordinator actions for participants
 router.get("/:id/participants", authMiddleware, campusController.getParticipants);
+router.get("/:id/export-students", authMiddleware, campusController.exportStudentsToExcel);
 router.get("/:id/participants/:regId/documents/:docId/preview", authMiddleware, campusController.previewDocument);
 router.patch("/:id/participants/:regId/documents/:docId/status", authMiddleware, campusController.updateDocumentStatus);
 router.post("/:id/registrations/:regId/approve", authMiddleware, campusController.approveRegistration);

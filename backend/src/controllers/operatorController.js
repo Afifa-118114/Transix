@@ -1007,7 +1007,7 @@ const sendTripMessage = asyncHandler(async (req, res) => {
   const newMessage = await TripMessage.create({
     tripId: trip._id,
     senderId: req.user._id || req.user.id,
-    senderName: req.user.name || (currentUserRole === "operator" ? "Operator" : "Coordinator"),
+    senderName: req.user.name || (currentUserRole === "operator" ? "Operator" : (currentUserRole === "traveler" ? "Traveler" : "Coordinator")),
     senderRole: currentUserRole,
     recipientId: counterpart.id,
     recipientName: counterpart.name,

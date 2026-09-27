@@ -15,6 +15,7 @@ const Razorpay = require("razorpay");
 const { generateTripPlan } = require("../services/aiService");
 const { getDestinationImage } = require("../services/imageService");
 const { resolveCityToState } = require("../services/locationService");
+const ExcelJS = require("exceljs");
 
 // 1. Create a new Campus Trip
 exports.createCampusTrip = async (req, res) => {
@@ -897,7 +898,7 @@ exports.previewDocument = async (req, res) => {
       const match = doc.fileUrl.match(/\/(image|raw|video)\/upload\/(?:v\d+\/)?(.+)$/);
       if (match) {
         const resourceType = match[1];
-        const publicIdWithExt = match[2];
+        const publicIdWithExt = decodeURIComponent(match[2]);
 
         if (resourceType === "raw") {
           // Cloudinary RAW resources retain the file extension as part of public_id
@@ -925,7 +926,7 @@ exports.previewDocument = async (req, res) => {
       }
     }
 
-    const cloudinaryRes = await axios.get(downloadUrl, { responseType: "stream" });
+    const cloudinaryRes = await axios.get(downloadUrl, { responseType: "arraybuffer" });
     let contentType = cloudinaryRes.headers["content-type"];
     if (!contentType || contentType === "application/octet-stream" || contentType === "text/plain") {
       if (doc.fileUrl.toLowerCase().endsWith(".pdf")) {
@@ -937,7 +938,7 @@ exports.previewDocument = async (req, res) => {
       }
     }
     res.setHeader("Content-Type", contentType);
-    cloudinaryRes.data.pipe(res);
+    res.send(cloudinaryRes.data);
   } catch (error) {
     console.error("Preview Document Error:", error.message || error);
     res.status(500).json({ success: false, message: "Failed to load document preview" });
@@ -1312,5 +1313,198 @@ exports.updateCoordinatorMessage = async (req, res) => {
   } catch (error) {
     console.error("Update Coordinator Message Error:", error);
     res.status(500).json({ success: false, message: "Failed to update coordinator message" });
+  }
+};
+
+exports.exportStudentsToExcel = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const coordinatorId = req.user.id;
+
+    // Find the trip and ensure user is the coordinator
+    const trip = await Trip.findById(id);
+    if (!trip || trip.tripCategory !== "CAMPUS") {
+      return res.status(404).json({ success: false, message: "Campus trip not found" });
+    }
+
+    const coordinatorUserId = trip.coordinatorId?._id ? trip.coordinatorId._id.toString() : trip.coordinatorId?.toString();
+    const tripCreatorId = trip.userId?._id ? trip.userId._id.toString() : trip.userId?.toString();
+    const isCoordinator = (coordinatorUserId && coordinatorUserId === req.user.id.toString()) ||
+                          (tripCreatorId && tripCreatorId === req.user.id.toString());
+
+    if (!isCoordinator) {
+      return res.status(403).json({ success: false, message: "Unauthorized: You do not have access to this campus trip" });
+    }
+
+    // Fetch all registrations for this trip
+    const registrations = await CampusRegistration.find({ tripId: id }).populate("userId", "name email");
+
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = "Transix";
+    workbook.lastModifiedBy = "Transix";
+    workbook.created = new Date();
+
+    // SHEET 1: Personal Details
+    const personalSheet = workbook.addWorksheet('Personal Details');
+    personalSheet.columns = [
+      { header: 'Sr. No.', key: 'srNo', width: 10 },
+      { header: 'Full Name', key: 'fullName', width: 25 },
+      { header: 'Student ID / Roll No.', key: 'studentId', width: 20 },
+      { header: 'Department', key: 'department', width: 20 },
+      { header: 'Year', key: 'year', width: 10 },
+      { header: 'Student Phone', key: 'studentPhone', width: 15 },
+      { header: 'Parent / Guardian Phone', key: 'parentPhone', width: 22 },
+      { header: 'Email Address', key: 'email', width: 25 },
+      { header: 'Emergency Contact Name', key: 'emergencyName', width: 25 },
+      { header: 'Emergency Contact Number', key: 'emergencyPhone', width: 25 },
+      { header: 'Emergency Contact Relationship', key: 'emergencyRelation', width: 30 },
+      { header: 'Dietary Restrictions', key: 'dietary', width: 20 },
+      { header: 'Medical Information', key: 'medical', width: 25 },
+      { header: 'Registration Date', key: 'regDate', width: 20 },
+      { header: 'Registration Status', key: 'regStatus', width: 20 },
+      { header: 'Coordinator Approval', key: 'coordApproval', width: 20 },
+    ];
+
+    personalSheet.getRow(1).font = { bold: true };
+    personalSheet.autoFilter = {
+      from: { row: 1, column: 1 },
+      to: { row: 1, column: personalSheet.columns.length }
+    };
+    personalSheet.views = [{ state: 'frozen', ySplit: 1 }];
+
+    // SHEET 2: Documents
+    const docsSheet = workbook.addWorksheet('Documents');
+    docsSheet.columns = [
+      { header: 'Sr. No.', key: 'srNo', width: 10 },
+      { header: 'Student ID / Roll No.', key: 'studentId', width: 20 },
+      { header: 'Student Name', key: 'studentName', width: 25 },
+      { header: 'Aadhaar Card Status', key: 'aadhaarStatus', width: 22 },
+      { header: 'College ID Status', key: 'collegeIdStatus', width: 22 },
+      { header: 'Parent Consent / Undertaking Status', key: 'consentStatus', width: 35 },
+      { header: 'Total Documents Required', key: 'totalReq', width: 25 },
+      { header: 'Documents Verified', key: 'docsVerified', width: 20 },
+      { header: 'Overall Verification Status', key: 'overallStatus', width: 25 },
+    ];
+    docsSheet.getRow(1).font = { bold: true };
+    docsSheet.autoFilter = {
+      from: { row: 1, column: 1 },
+      to: { row: 1, column: docsSheet.columns.length }
+    };
+    docsSheet.views = [{ state: 'frozen', ySplit: 1 }];
+
+    // SHEET 3: Payment
+    const paymentSheet = workbook.addWorksheet('Payment');
+    paymentSheet.columns = [
+      { header: 'Sr. No.', key: 'srNo', width: 10 },
+      { header: 'Student ID / Roll No.', key: 'studentId', width: 20 },
+      { header: 'Student Name', key: 'studentName', width: 25 },
+      { header: 'Confirmation Amount', key: 'amount', width: 20 },
+      { header: 'Payment Status', key: 'status', width: 15 },
+      { header: 'Razorpay Payment ID', key: 'rzpId', width: 25 },
+      { header: 'Payment Date', key: 'payDate', width: 15 },
+      { header: 'Payment Time', key: 'payTime', width: 15 },
+      { header: 'Refund Status', key: 'refund', width: 15 },
+    ];
+    paymentSheet.getRow(1).font = { bold: true };
+    paymentSheet.autoFilter = {
+      from: { row: 1, column: 1 },
+      to: { row: 1, column: paymentSheet.columns.length }
+    };
+    paymentSheet.views = [{ state: 'frozen', ySplit: 1 }];
+
+    const requiredDocsCount = trip.documentsConfig?.filter(d => d.required)?.length || 0;
+    const reqDocs = trip.documentsConfig?.filter(d => d.required) || [];
+
+    registrations.forEach((reg, index) => {
+      const srNo = index + 1;
+      const rawReg = reg.toJSON();
+      const info = rawReg.studentInfo || {};
+      const fullName = info.name || (rawReg.userId ? rawReg.userId.name : '');
+      const studentId = info.studentId || info.rollNo || '';
+      const email = info.email || (rawReg.userId ? rawReg.userId.email : '');
+      
+      personalSheet.addRow({
+        srNo,
+        fullName,
+        studentId,
+        department: info.department || '',
+        year: info.year || '',
+        studentPhone: info.studentPhone || info.phone || '',
+        parentPhone: info.parentPhone || '',
+        email,
+        emergencyName: info.emergencyContactName || '',
+        emergencyPhone: info.emergencyContactNumber || '',
+        emergencyRelation: info.emergencyContactRelationship || '',
+        dietary: info.foodAllergy || '',
+        medical: info.medicalInfo || '',
+        regDate: rawReg.createdAt ? new Date(rawReg.createdAt).toLocaleDateString('en-GB') : '',
+        regStatus: rawReg.status || '',
+        coordApproval: rawReg.coordinatorReview?.status || (rawReg.status === 'APPROVED' ? 'APPROVED' : 'PENDING'),
+      });
+
+      const getDocStatus = (docName) => {
+        const d = rawReg.documents?.find(doc => doc.documentType === docName);
+        return d ? d.status : 'Pending';
+      };
+      
+      const verifiedDocsCount = rawReg.documents?.filter(d => d.status === 'VERIFIED').length || 0;
+      const allVerified = reqDocs.length > 0 && reqDocs.every(r => rawReg.documents?.some(d => d.documentType === r.name && d.status === 'VERIFIED'));
+      
+      docsSheet.addRow({
+        srNo,
+        studentId,
+        studentName: fullName,
+        aadhaarStatus: getDocStatus('Aadhaar Card'),
+        collegeIdStatus: getDocStatus('College ID'),
+        consentStatus: getDocStatus('Parent Consent / Undertaking Form'),
+        totalReq: requiredDocsCount,
+        docsVerified: verifiedDocsCount,
+        overallStatus: allVerified ? 'Verified' : 'Pending',
+      });
+
+      let confirmPay = rawReg.confirmationPayment;
+      if (!confirmPay && rawReg.payments && rawReg.payments.length > 0) {
+        confirmPay = rawReg.payments.find(p => String(p.installmentId) === "CONFIRMATION" || (trip.registrationConfig && p.amount === trip.registrationConfig.confirmationFee));
+      }
+      
+      const payStatus = confirmPay?.status || 'PENDING';
+      const rzpId = confirmPay?.razorpayPaymentId || confirmPay?.paymentReference || '';
+      const actualPaidDate = confirmPay?.paidAt || confirmPay?.paidDate;
+      let pDate = '';
+      let pTime = '';
+      if (actualPaidDate) {
+        const d = new Date(actualPaidDate);
+        pDate = d.toLocaleDateString('en-GB');
+        pTime = d.toLocaleTimeString('en-US', { hour12: false });
+      }
+
+      paymentSheet.addRow({
+        srNo,
+        studentId,
+        studentName: fullName,
+        amount: confirmPay?.amount || (trip.registrationConfig?.confirmationFee || 0),
+        status: payStatus,
+        rzpId: rzpId,
+        payDate: pDate,
+        payTime: pTime,
+        refund: confirmPay?.refundStatus || '',
+      });
+    });
+
+    const tripNameCleaned = (trip.organizationDetails?.name || 'Campus_Trip').replace(/[^a-zA-Z0-9_-]/g, '_');
+    let dateStr = '';
+    if (trip.startDate) {
+        dateStr = '_' + new Date(trip.startDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '-');
+    }
+    const filename = `Transix_Campus_Trip_${tripNameCleaned}${dateStr}.xlsx`;
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    console.error("Export Students Error:", error);
+    res.status(500).json({ success: false, message: "Failed to export students" });
   }
 };

@@ -171,7 +171,7 @@ export default function GuidePortalPage() {
    * Handle Click on "View Request" from Public Portal
    */
   const handleViewRequestClick = (reqItem) => {
-    const targetGuideId = reqItem.guideId?.guideId || reqItem.matchedGuideSnapshot?.guideId || "GUIDE001";
+    const targetGuideId = reqItem.guide?.guideId || reqItem.matchedGuideSnapshot?.guideId || (typeof reqItem.guideId === 'string' ? reqItem.guideId : reqItem.guideId?.guideId) || "GUIDE001";
     setLoginGuideId(targetGuideId);
     setLoginPassword("guide123");
     setPendingRequestId(reqItem._id);
@@ -190,7 +190,7 @@ export default function GuidePortalPage() {
 
     setLoggingIn(true);
     try {
-      const res = await guideLogin(loginGuideId.trim(), loginPassword);
+      const res = await guideLogin({ guideId: loginGuideId.trim(), password: loginPassword });
       if (res?.success && res.token) {
         setGuideToken(res.token);
         setCurrentGuide(res.guide);
@@ -559,12 +559,12 @@ export default function GuidePortalPage() {
                               <div>
                                 <span className="text-[10px] text-[#9CA3AF] block leading-none">Assigned Guide</span>
                                 <span className="font-bold text-[#1A1A1A] text-xs">
-                                  {reqItem.matchedGuideSnapshot?.fullName || reqItem.guideId?.fullName || "Regional Guide"}
+                                  {reqItem.guide?.fullName || reqItem.matchedGuideSnapshot?.fullName || reqItem.guideId?.fullName || "Regional Guide"}
                                 </span>
                               </div>
                             </div>
                             <span className="font-mono text-[10px] bg-[#F1F5F9] text-[#475569] px-2 py-0.5 rounded font-semibold">
-                              {reqItem.matchedGuideSnapshot?.guideId || reqItem.guideId?.guideId || "GUIDE"}
+                              {reqItem.guide?.guideId || reqItem.matchedGuideSnapshot?.guideId || (typeof reqItem.guideId === 'string' ? reqItem.guideId : reqItem.guideId?.guideId) || "GUIDE"}
                             </span>
                           </div>
                         </div>

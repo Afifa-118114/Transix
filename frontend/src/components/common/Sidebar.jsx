@@ -5,6 +5,9 @@ import logo from "../../assets/logo/logo.png";
 import { useTripBuilder } from "../../context/TripBuilderContext";
 import { useAuth } from "../../hooks/useAuth";
 import { useTheme } from "../../context/ThemeContext";
+import TripChatModal from "../chat/TripChatModal";
+import { getUnreadMessageCount } from "../../api/tripApi";
+import { useEffect } from "react";
 
 /* ── Inline Monochrome SVG Icons (Trip.com style: single 1.8px stroke) ── */
 const IconHome = ({ size = 17 }) => (
@@ -67,6 +70,12 @@ const IconPlus = ({ size = 14 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <line x1="12" y1="5" x2="12" y2="19" />
     <line x1="5" y1="12" x2="19" y2="12" />
+  </svg>
+);
+
+const IconMessage = ({ size = 17 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
   </svg>
 );
 
@@ -199,6 +208,33 @@ export default function Sidebar({ trip: propTrip, setTrip: propSetTrip }) {
     return localStorage.getItem("transix_sidebar_collapsed") === "true";
   });
 
+  const [chatModalOpen, setChatModalOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    let timer;
+    const fetchUnread = async () => {
+      if (trip && trip._id && trip.tripCategory !== "CAMPUS" && 
+         (trip.operatorAccess?.enabled || trip.isBooked || ["Finalized", "CONFIRMED", "PARTIALLY_CONFIRMED", "BOOKED"].includes(trip.status))) {
+        const token = localStorage.getItem("token");
+        if (token) {
+          try {
+            const data = await getUnreadMessageCount(trip._id, token);
+            if (data?.success) setUnreadCount(data.count || 0);
+          } catch (e) {
+            // Ignore error
+          }
+        }
+      }
+    };
+
+    if (trip) {
+      fetchUnread();
+      timer = setInterval(fetchUnread, 15000); // Poll every 15s for unread
+    }
+    return () => clearInterval(timer);
+  }, [trip]);
+
   const toggleSidebar = () => {
     setCollapsed((prev) => {
       const next = !prev;
@@ -324,6 +360,23 @@ export default function Sidebar({ trip: propTrip, setTrip: propSetTrip }) {
                   <IconPlus size={12} />
                   <span>Plan Another Trip</span>
                 </button>
+                {trip && trip.tripCategory !== "CAMPUS" && 
+                  (user && (trip.user === (user._id || user.id) || trip.user?._id === (user._id || user.id) || trip.userId === (user._id || user.id))) &&
+                  (trip.operatorAccess?.enabled || trip.isBooked || ["Finalized", "CONFIRMED", "PARTIALLY_CONFIRMED", "BOOKED"].includes(trip.status)) && (
+                  <button
+                    type="button"
+                    onClick={() => setChatModalOpen(true)}
+                    className="mt-0.5 w-full flex items-center justify-center gap-1.5 rounded-lg border border-[#BFDBFE] bg-[#EFF6FF] py-1.5 text-[11px] font-semibold text-[#006CE4] hover:bg-[#006CE4] hover:text-white transition cursor-pointer shadow-2xs"
+                  >
+                    <IconMessage size={12} />
+                    <span>Chat with Operator</span>
+                    {unreadCount > 0 && (
+                      <span className="ml-1 rounded-full bg-red-500 text-white px-1.5 py-0.5 text-[9px] font-bold">
+                        {unreadCount}
+                      </span>
+                    )}
+                  </button>
+                )}
               </div>
             )
           ) : (
@@ -490,6 +543,20 @@ export default function Sidebar({ trip: propTrip, setTrip: propSetTrip }) {
           </div>
         )}
       </div>
+
+      {trip && trip.tripCategory !== "CAMPUS" && 
+        (user && (trip.user === (user._id || user.id) || trip.user?._id === (user._id || user.id) || trip.userId === (user._id || user.id))) &&
+        (trip.operatorAccess?.enabled || trip.isBooked || ["Finalized", "CONFIRMED", "PARTIALLY_CONFIRMED", "BOOKED"].includes(trip.status)) && (
+        <TripChatModal
+          isOpen={chatModalOpen}
+          onClose={() => setChatModalOpen(false)}
+          tripId={trip._id}
+          currentRole="traveler"
+          onMessageSent={() => {
+            // Update unread count or rely on polling
+          }}
+        />
+      )}
     </motion.aside>
   );
 }
