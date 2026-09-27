@@ -6,6 +6,9 @@ const AppError = require("../utils/AppError");
 const asyncHandler = require("../middleware/asyncHandler");
 const { regenerateTripDay } = require("../services/aiService");
 const { generateAlternatives, applyAlternative } = require("../services/smartshiftService");
+const { getSocialSignalsForTrip } = require("../services/socialSignalService");
+const { buildDigitalTwin } = require("../services/digitalTwinStateService");
+const { calculateDigitalTwinImpacts } = require("../services/digitalTwinImpactService");
 const crypto = require("crypto");
 
 // Curated hotel images for automatic hotel selection
@@ -482,7 +485,7 @@ const smartshiftSuggest = asyncHandler(async (req, res) => {
   }
 
   try {
-    const result = generateAlternatives(trip, itemId, disruptionType);
+    const result = await generateAlternatives(trip, itemId, disruptionType);
     res.status(200).json({
       success: true,
       tripId: trip._id,
@@ -659,6 +662,210 @@ const finalizeTrip = asyncHandler(async (req, res, next) => {
   });
 });
 
+const getTripWeather = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+  const trip = await Trip.findOne({
+    _id: id,
+    $or: [{ user: req.user.id }, { coordinatorId: req.user.id }],
+  });
+
+  if (!trip) {
+    throw new AppError("Trip not found", 404);
+  }
+
+  const { getWeatherForTrip } = require("../services/weatherService");
+  try {
+    const weatherData = await getWeatherForTrip(trip);
+    res.status(200).json({
+      success: true,
+      available: true,
+      weather: weatherData,
+    });
+  } catch (error) {
+    res.status(200).json({
+      success: true,
+      available: false,
+      error: error.message || "Weather data temporarily unavailable",
+    });
+  }
+});
+
+const getTripSocialSignals = asyncHandler(async (req, res) => {
+  const trip = await Trip.findById(req.params.id);
+  if (!trip) throw new AppError("Trip not found", 404);
+
+  // Check access logic: user must own trip or be operator
+  if (trip.user.toString() !== req.user.id.toString()) {
+    const isOperator = req.user.role === "operator";
+    if (!isOperator || !trip.operatorAccess?.enabled) {
+      throw new AppError("Not authorized to access this trip", 403);
+    }
+  }
+
+  try {
+    const signalData = await getSocialSignalsForTrip(trip);
+    res.status(200).json(signalData);
+  } catch (error) {
+    res.status(200).json({
+      success: true,
+      available: false,
+      error: error.message || "Social signals temporarily unavailable",
+    });
+  }
+});
+
+const getTripDigitalTwinState = asyncHandler(async (req, res) => {
+  const trip = await Trip.findById(req.params.id);
+  if (!trip) throw new AppError("Trip not found", 404);
+
+  // Check access logic
+  if (trip.user.toString() !== req.user.id.toString()) {
+    const isOperator = req.user.role === "operator";
+    if (!isOperator || !trip.operatorAccess?.enabled) {
+      throw new AppError("Not authorized to access this trip", 403);
+    }
+  }
+
+  try {
+    const twinState = await buildDigitalTwin(trip);
+    const impactState = calculateDigitalTwinImpacts(twinState);
+    res.status(200).json({ success: true, twinState, impactState });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message || "Failed to build Digital Twin State",
+    });
+  }
+});
+
+const simulateDigitalTwinState = asyncHandler(async (req, res) => {
+  const trip = await Trip.findById(req.params.id);
+  if (!trip) throw new AppError("Trip not found", 404);
+
+  // Check access logic
+  if (trip.user.toString() !== req.user.id.toString()) {
+    const isOperator = req.user.role === "operator";
+    if (!isOperator || !trip.operatorAccess?.enabled) {
+      throw new AppError("Not authorized to access this trip", 403);
+    }
+  }
+
+  const { weatherOverrides } = req.body;
+  if (!weatherOverrides) {
+    throw new AppError("weatherOverrides object is required", 400);
+  }
+
+  try {
+    const twinState = await buildDigitalTwin(trip);
+    
+    // Apply overrides
+    if (!twinState.environment.weather) {
+      twinState.environment.weather = { available: true, current: {} };
+    }
+    if (!twinState.environment.weather.current) {
+      twinState.environment.weather.current = {};
+    }
+    
+    twinState.environment.weather.available = true;
+    
+    if (weatherOverrides.precipitationProbability !== undefined) {
+      twinState.environment.weather.current.precipitation_probability = Number(weatherOverrides.precipitationProbability);
+      twinState.environment.weather.current.precipitationProbability = Number(weatherOverrides.precipitationProbability);
+      
+      // Heuristic adjustment of condition for probability overrides to make the simulation realistic
+      if (weatherOverrides.precipitationProbability > 70) {
+        twinState.environment.weather.current.condition = "HEAVY_RAIN";
+      } else if (weatherOverrides.precipitationProbability > 20) {
+        twinState.environment.weather.current.condition = "RAIN";
+      } else {
+        twinState.environment.weather.current.condition = "CLEAR";
+      }
+    }
+
+    if (weatherOverrides.temperature !== undefined) {
+      twinState.environment.weather.current.temperature = Number(weatherOverrides.temperature);
+      if (Number(weatherOverrides.temperature) > 35) {
+         twinState.environment.weather.current.condition = "EXTREME_HEAT";
+      }
+    }
+
+    if (weatherOverrides.windSpeed !== undefined) {
+      twinState.environment.weather.current.windSpeed = Number(weatherOverrides.windSpeed);
+      if (Number(weatherOverrides.windSpeed) > 40) {
+         twinState.environment.weather.current.condition = "STORM";
+      }
+    }
+
+    const impactState = calculateDigitalTwinImpacts(twinState);
+    
+    res.status(200).json({ success: true, impactState, twinState });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message || "Failed to simulate Digital Twin State",
+    });
+  }
+});
+
+const analyzeDigitalTwin = asyncHandler(async (req, res) => {
+  const trip = await Trip.findById(req.params.id);
+  if (!trip) throw new AppError("Trip not found", 404);
+
+  // Check access logic
+  if (trip.user.toString() !== req.user.id.toString()) {
+    const isOperator = req.user.role === "operator";
+    if (!isOperator || !trip.operatorAccess?.enabled) {
+      throw new AppError("Not authorized to access this trip", 403);
+    }
+  }
+
+  const { twinState, impactState } = req.body;
+  if (!twinState || !impactState) {
+    throw new AppError("Twin State and Impact State are required for analysis", 400);
+  }
+
+  const { analyzeDigitalTwinState } = require("../services/aiService");
+  
+  try {
+    // Compress input for AI token limits
+    const aiInput = {
+      tripSummary: twinState.trip,
+      weather: twinState.environment.weather,
+      publicSignals: twinState.environment.publicSignals,
+      affectedEntities: twinState.entities
+        .map(entity => {
+          const affected = impactState.affectedEntities?.find(e => e.entityId === entity.id);
+          const unaffected = impactState.unaffectedEntities?.find(e => e.entityId === entity.id);
+          const impact = affected || unaffected;
+          
+          if (impact && impact.disruptionProbability > 20) {
+            return {
+              id: entity.id,
+              type: entity.type,
+              title: entity.title,
+              disruptionProbability: impact.disruptionProbability,
+              reasons: impact.reasons,
+            };
+          }
+          return null;
+        })
+        .filter(Boolean),
+      overallImpact: {
+        score: impactState.overall?.score || 0,
+        level: impactState.overall?.level || "NONE",
+      }
+    };
+
+    const analysis = await analyzeDigitalTwinState(aiInput);
+    res.status(200).json({ success: true, analysis });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message || "Failed to analyze Digital Twin State",
+    });
+  }
+});
+
 module.exports = {
   generateTrip,
   getAllTrips,
@@ -674,4 +881,9 @@ module.exports = {
   syncItinerary,
   syncBookingRequirements,
   repairTripIds,
+  getTripWeather,
+  getTripSocialSignals,
+  getTripDigitalTwinState,
+  simulateDigitalTwinState,
+  analyzeDigitalTwin,
 };

@@ -315,4 +315,5 @@ module.exports = {
   formatPriceOrLevel,
   searchNearestRailwayStation,
   searchAttractionPhoto,
+  getDestinationBounds,
 };

@@ -5,10 +5,8 @@ import toast from "react-hot-toast";
 import { prebookTour, confirmTourBooking } from "../../api/bookingApi";
 
 export default function TourBookingModal({ isOpen, onClose, trip, token, user, onBookingSuccess }) {
-  if (!isOpen || !trip) return null;
-
   const [step, setStep] = useState(1); // 1: Review & Transport, 2: Passengers, 3: Processing, 4: Confirmed
-  const [transportMode, setTransportMode] = useState(trip.travelPreferences?.mode === 'FLIGHT' ? 'FLIGHT' : 'TRAIN');
+  const [transportMode, setTransportMode] = useState(trip?.travelPreferences?.mode === 'FLIGHT' ? 'FLIGHT' : 'TRAIN');
   const [loading, setLoading] = useState(false);
   const [orderData, setOrderData] = useState(null);
   const [confirmedData, setConfirmedData] = useState(null);
@@ -22,6 +20,8 @@ export default function TourBookingModal({ isOpen, onClose, trip, token, user, o
     email: user?.email || "traveler@transix.in",
     phone: "9876543210"
   });
+
+  if (!isOpen || !trip) return null;
 
   // Calculate pricing estimates
   const staySegments = trip.staySegments || [];

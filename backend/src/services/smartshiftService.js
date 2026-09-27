@@ -1,4 +1,5 @@
 const { validateItinerary, isImmutableTransport } = require("./itineraryValidator");
+const { searchPlaces } = require("./placesService");
 
 function timeToMinutes(timeStr) {
   if (!timeStr) return null;
@@ -94,7 +95,7 @@ function findItemLocation(itinerary, itemId, itemObject = null) {
   return { affectedItem: null, originalDayIndex: -1, originalItemIndex: -1 };
 }
 
-const generateAlternatives = (trip, itemId, disruptionType = "ACTIVITY_UNAVAILABLE", itemHint = null) => {
+const generateAlternatives = async (trip, itemId, disruptionType = "ACTIVITY_UNAVAILABLE", itemHint = null) => {
   if (!trip || !trip.itinerary) throw new Error("Invalid trip object.");
 
   const { affectedItem, originalDayIndex, originalItemIndex } = findItemLocation(trip.itinerary, itemId, itemHint);
@@ -344,7 +345,29 @@ const generateAlternatives = (trip, itemId, disruptionType = "ACTIVITY_UNAVAILAB
 
   // Option 3: Replace with Nearby Indoor / Weatherproof Alternative
   if (!isMandatory) {
-    const replacementCatalog = NEARBY_REPLACEMENTS[0];
+    let replacementCatalog = NEARBY_REPLACEMENTS[0];
+    const isWeather = disruptionType === "WEATHER" || disruptionType === "WEATHER_CLOSURE";
+
+    if (isWeather) {
+       try {
+         const indoorPlaces = await searchPlaces(trip.destination || "Destination", "Indoor museum or gallery");
+         if (indoorPlaces && indoorPlaces.length > 0) {
+           const p = indoorPlaces[0];
+           replacementCatalog = {
+              name: p.displayName?.text || "Indoor Cultural Venue",
+              activity: p.displayName?.text || "Indoor Cultural Venue",
+              category: "Indoor Museum",
+              durationMinutes: affectedItem.durationMinutes || 90,
+              estimatedCost: p.priceLevel ? 300 : (Number(affectedItem.estimatedCost) || 0),
+              price: p.priceLevel ? 300 : (Number(affectedItem.price) || 0),
+              description: "Weather-safe indoor alternative matching schedule.",
+           };
+         }
+       } catch(e) {
+         console.warn("Failed to fetch indoor alternative, using fallback:", e.message);
+       }
+    }
+
     const origCost = Number(affectedItem.price) || Number(affectedItem.estimatedCost) || 0;
     const newCost = replacementCatalog.estimatedCost;
     const diff = newCost - origCost;
@@ -367,8 +390,8 @@ const generateAlternatives = (trip, itemId, disruptionType = "ACTIVITY_UNAVAILAB
       id: `opt-replace-${Date.now()}`,
       title: `Replace with ${replacementCatalog.name}`,
       impactLevel: "LOW IMPACT",
-      impactExplanation: "Replaces venue with a nearby similar experience within current schedule window.",
-      reason: "Preserves current timing while substituting a safe, highly rated nearby venue.",
+      impactExplanation: isWeather ? "Replaces weather-exposed outdoor venue with a safe indoor alternative at the same time." : "Replaces venue with a nearby similar experience within current schedule window.",
+      reason: isWeather ? "Safe indoor alternative." : "Preserves current timing while substituting a safe, highly rated nearby venue.",
       actionType: "REPLACE",
       changes: {
         fromDay: originalDayIndex + 1,

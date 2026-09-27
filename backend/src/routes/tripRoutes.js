@@ -17,6 +17,11 @@ const {
   updateOperatorAccess,
   finalizeTrip,
   syncItinerary,
+  getTripWeather,
+  getTripSocialSignals,
+  getTripDigitalTwinState,
+  simulateDigitalTwinState,
+  analyzeDigitalTwin,
 } = require("../controllers/tripController");
 
 const {
@@ -47,6 +52,11 @@ router.post("/:id/sync-itinerary", authMiddleware, syncItinerary);
 router.post("/:id/smartshift/suggest", authMiddleware, smartshiftSuggest);
 
 router.post("/:id/smartshift/apply", authMiddleware, smartshiftApply);
+router.get("/:id/weather", authMiddleware, getTripWeather);
+router.get("/:id/social-signals", authMiddleware, getTripSocialSignals);
+router.get("/:id/digital-twin", authMiddleware, getTripDigitalTwinState);
+router.post("/:id/digital-twin/simulate", authMiddleware, simulateDigitalTwinState);
+router.post("/:id/digital-twin/analyze", authMiddleware, analyzeDigitalTwin);
 router.get("/:id/bookings", authMiddleware, getTripBookings);
 
 // 1-to-1 Trip Chat between Operator and Trip Owner/Coordinator

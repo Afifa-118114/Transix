@@ -39,6 +39,8 @@ import { formatBudget, getDuration, formatDate } from "../utils/formatTrip";
 import { resolveJourneyLocations } from "../utils/itineraryLocationHelper";
 import { SAMPLE_TRIPS } from "../data/sampleTripsData";
 import TourBookingModal from "../components/booking/TourBookingModal";
+import { DigitalTwinProvider } from "../context/DigitalTwinContext";
+import MinimalDigitalTwinDashboard from "../components/digitaltwin/MinimalDigitalTwinDashboard";
 
 export default function DetailedItinerary() {
   const { tripId } = useParams();
@@ -1050,6 +1052,9 @@ export default function DetailedItinerary() {
                 ref={itineraryScrollRef}
                 className="lg:h-[calc(100vh-210px)] lg:overflow-y-auto lg:pr-2 space-y-5"
               >
+                {/* Unified Minimal Dashboard for Task 5 requirements */}
+                <MinimalDigitalTwinDashboard />
+
                 {/* If "All Days" mode selected: Show All Days sequentially */}
                 {selectedDay === "all" ? (
                   <div className="space-y-6">
@@ -1204,17 +1209,21 @@ export default function DetailedItinerary() {
 
   if (viewOnly) {
     return (
-      <div className="min-h-screen bg-[#f8faff] dark:bg-[#0b0f19] transition-colors duration-200">
-        {itineraryContent}
-      </div>
+      <DigitalTwinProvider trip={trip}>
+        <div className="min-h-screen bg-[#f8faff] dark:bg-[#0b0f19] transition-colors duration-200">
+          {itineraryContent}
+        </div>
+      </DigitalTwinProvider>
     );
   }
 
   return (
-    <DashboardLayout trip={trip} setTrip={contextSetTrip}>
-      <div className="min-h-screen bg-[#f8faff] dark:bg-[#0b0f19] transition-colors duration-200 -m-6 sm:-m-8 lg:-m-12">
-        {itineraryContent}
-      </div>
-    </DashboardLayout>
+    <DigitalTwinProvider trip={trip}>
+      <DashboardLayout trip={trip} setTrip={contextSetTrip}>
+        <div className="min-h-screen bg-[#f8faff] dark:bg-[#0b0f19] transition-colors duration-200 -m-6 sm:-m-8 lg:-m-12">
+          {itineraryContent}
+        </div>
+      </DashboardLayout>
+    </DigitalTwinProvider>
   );
 }

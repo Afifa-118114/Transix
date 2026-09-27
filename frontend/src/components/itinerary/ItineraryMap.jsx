@@ -21,9 +21,16 @@ import {
   FiInfo,
   FiPlus,
   FiMinus,
+  FiCloudRain,
+  FiSun,
+  FiWind,
+  FiAlertTriangle,
+  FiActivity
 } from "react-icons/fi";
+import { FaTrainSubway, FaPlaneDeparture, FaBus, FaCar, FaBed, FaUtensils, FaTree, FaLandmark } from "react-icons/fa6";
 import { resolveActivityImage } from "../../services/imageService";
 import { getDayColor, DAY_COLORS } from "../../utils/itineraryLocationHelper";
+import { useDigitalTwin } from "../../context/DigitalTwinContext";
 
 // Check if optional free CARTO API key is provided in environment
 const cartoApiKey = import.meta.env.VITE_CARTO_API_KEY || "";
@@ -196,6 +203,7 @@ function createDayLevelMarkerIcon({ dayNumber, dayColor }) {
 // ==============================================================================
 // 2. COMPACT NUMBERED ACTIVITY MARKER ICON (MODE B: INDIVIDUAL DAY)
 // Small 24px circular numbered marker with distinct Start / End indicators
+// Augmented with Digital Twin impact styles
 // ==============================================================================
 function createActivityMarkerIcon({
   sequenceNumber,
@@ -203,19 +211,50 @@ function createActivityMarkerIcon({
   isLastInDay,
   isSelected,
   dayColor,
+  dtEntity,
+  dtImpact,
+  isSimulationActive
 }) {
   const color = dayColor || getDayColor(1);
   const seq = sequenceNumber || 1;
 
   let pinBg = color.hex;
   let ringStyle = "border-white";
+  let content = seq;
+  let extraClass = "";
 
-  if (isFirstInDay) {
-    pinBg = "#059669"; // Emerald for Start
-    ringStyle = "border-white ring-2 ring-emerald-400/80";
-  } else if (isLastInDay) {
-    pinBg = "#7c3aed"; // Purple for End
-    ringStyle = "border-white ring-2 ring-purple-400/80";
+  // Digital Twin styling override
+  if (dtEntity) {
+     if (dtEntity.type === 'HOTEL') content = "🏨";
+     else if (dtEntity.type === 'TRANSPORT') content = "🚇";
+     else if (dtEntity.type === 'RESTAURANT') content = "🍽";
+     else if (dtEntity.type === 'OUTDOOR_ACTIVITY') content = "🌳";
+     else if (dtEntity.type === 'INDOOR_ACTIVITY') content = "🏛";
+  }
+
+  if (dtImpact) {
+    if (dtImpact.impactLevel === "HIGH") {
+      pinBg = "#e11d48"; // Rose-600
+      ringStyle = "border-rose-200 ring-2 ring-rose-500/80 animate-pulse";
+    } else if (dtImpact.impactLevel === "MEDIUM") {
+      pinBg = "#f59e0b"; // Amber-500
+      ringStyle = "border-amber-100 ring-2 ring-amber-400/80";
+    } else if (dtImpact.impactLevel === "LOW") {
+      pinBg = "#eab308"; // Yellow-500
+      ringStyle = "border-yellow-100 ring-2 ring-yellow-400/80";
+    }
+  } else if (!dtEntity) {
+    if (isFirstInDay) {
+      pinBg = "#059669"; // Emerald for Start
+      ringStyle = "border-white ring-2 ring-emerald-400/80";
+    } else if (isLastInDay) {
+      pinBg = "#7c3aed"; // Purple for End
+      ringStyle = "border-white ring-2 ring-purple-400/80";
+    }
+  }
+
+  if (isSimulationActive && dtImpact && dtImpact.impactLevel !== "NONE") {
+     ringStyle += " border-dashed border-2";
   }
 
   const selectedClass = isSelected
@@ -224,8 +263,8 @@ function createActivityMarkerIcon({
 
   const html = `
     <div class="flex flex-col items-center cursor-pointer transition-transform duration-150">
-      <div style="background-color: ${pinBg};" class="h-6 w-6 rounded-full text-white font-extrabold text-[10px] border-1.5 ${ringStyle} flex items-center justify-center ${selectedClass}">
-        ${seq}
+      <div style="background-color: ${pinBg};" class="h-6 w-6 rounded-full text-white font-extrabold text-[10px] flex items-center justify-center ${ringStyle} ${selectedClass} ${extraClass}">
+        ${content}
       </div>
       <div style="border-top-color: ${pinBg};" class="w-0 h-0 border-x-[3.5px] border-x-transparent border-t-[4px] -mt-0.5"></div>
     </div>
@@ -237,6 +276,28 @@ function createActivityMarkerIcon({
     iconSize: [26, 32],
     iconAnchor: [13, 28],
     popupAnchor: [0, -28],
+  });
+}
+
+function createWeatherMarkerIcon(weather) {
+  const isRain = weather?.condition?.toLowerCase().includes("rain") || weather?.precipitation_probability > 50;
+  const emoji = isRain ? "🌧️" : "⛅";
+  const html = `
+    <div class="flex flex-col items-center shadow-lg rounded-xl overflow-hidden cursor-pointer hover:scale-105 transition">
+      <div class="bg-blue-600/90 backdrop-blur text-white px-2 py-1 text-[11px] font-black tracking-widest flex items-center gap-1">
+        ${emoji} ${weather?.temperature || '--'}°C
+      </div>
+      <div class="bg-slate-900/90 backdrop-blur text-blue-300 px-2 py-0.5 text-[9px] font-bold w-full text-center">
+        ${weather?.condition || 'Live Weather'}
+      </div>
+    </div>
+  `;
+  return L.divIcon({
+    html,
+    className: "transix-weather-pin",
+    iconSize: [80, 36],
+    iconAnchor: [40, 18],
+    popupAnchor: [0, -18],
   });
 }
 
@@ -266,6 +327,26 @@ export default function ItineraryMap({
   // Active day index and day number calculation
   const isAllDays = selectedDay === "all";
   const activeDayNumber = isAllDays ? null : Number(selectedDay) + 1;
+
+  // Digital Twin Context Hooks
+  let dtContext = {};
+  try { dtContext = useDigitalTwin() || {}; } catch (e) { /* Safe fallback */ }
+  const { twinState, impactState: activeImpactState, simulationActive, weather } = dtContext;
+
+  const dtEntitiesMap = useMemo(() => {
+    if (!twinState || !twinState.entities) return {};
+    const map = {};
+    twinState.entities.forEach(e => { map[e.id] = e; });
+    return map;
+  }, [twinState]);
+
+  const dtImpactMap = useMemo(() => {
+    if (!activeImpactState) return {};
+    const map = {};
+    (activeImpactState.affectedEntities || []).forEach(e => { map[e.entityId] = e; });
+    (activeImpactState.unaffectedEntities || []).forEach(e => { map[e.entityId] = e; });
+    return map;
+  }, [activeImpactState]);
 
   // Layer Visibility Controls
   const [layers, setLayers] = useState({
@@ -320,6 +401,10 @@ export default function ItineraryMap({
     if (!selectedLocationId) return null;
     return mappableLocations.find((l) => l.id === selectedLocationId) || null;
   }, [selectedLocationId, mappableLocations]);
+
+  // Add DT impact highlight to the selected location
+  const selectedDtEntity = selectedLocation ? dtEntitiesMap[selectedLocation.id] : null;
+  const selectedDtImpact = selectedLocation ? dtImpactMap[selectedLocation.id] : null;
 
   // Load image when selected location changes
   useEffect(() => {
@@ -411,6 +496,15 @@ export default function ItineraryMap({
 
         {/* Right: Auto-Fit Button & Status Pill */}
         <div className="flex items-center gap-2 pointer-events-auto">
+          {twinState && (
+            <span className={`hidden sm:flex items-center gap-1.5 rounded-xl border px-2.5 py-1 text-xs font-black shadow-md backdrop-blur-md uppercase tracking-wider ${
+              simulationActive 
+                ? "bg-purple-900/90 text-purple-200 border-purple-500/50 animate-pulse" 
+                : "bg-slate-900/90 text-emerald-400 border-emerald-500/50"
+            }`}>
+              {simulationActive ? "⚙️ Simulation State" : "🌐 Live Twin"}
+            </span>
+          )}
           <span className="hidden sm:flex items-center gap-1.5 rounded-xl bg-white/95 dark:bg-[#131b2e]/95 border border-slate-200/90 dark:border-slate-800 px-2.5 py-1 text-xs font-bold text-slate-700 dark:text-slate-200 shadow-md backdrop-blur-md">
             <span
               className="h-2 w-2 rounded-full"
@@ -545,6 +639,32 @@ export default function ItineraryMap({
                       <strong className="text-indigo-600 dark:text-indigo-400">Selected Stop</strong>
                     </span>
                   </div>
+
+                  {twinState && (
+                    <div className="pt-2 mt-2 border-t border-slate-100 dark:border-slate-800 space-y-1">
+                      <div className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1">
+                        Digital Twin State:
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full bg-rose-600 shrink-0" />
+                        <span>High Impact</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full bg-amber-500 shrink-0" />
+                        <span>Medium Impact</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full bg-yellow-500 shrink-0" />
+                        <span>Low Impact</span>
+                      </div>
+                      {simulationActive && (
+                        <div className="flex items-center gap-2 mt-1 border border-purple-500/50 bg-purple-50 dark:bg-purple-900/30 px-1 py-0.5 rounded">
+                          <span className="text-[9px] font-bold text-purple-700 dark:text-purple-400 uppercase">Dashed</span>
+                          <span className="text-purple-600 dark:text-purple-300">Simulation active</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -612,6 +732,29 @@ export default function ItineraryMap({
                   <span>{selectedLocation.place || selectedLocation.address}</span>
                 </p>
 
+                {selectedDtImpact && selectedDtImpact.impactLevel !== 'NONE' && (
+                  <div className={`mt-2 px-2 py-1.5 rounded-lg border flex flex-col gap-1 ${
+                    selectedDtImpact.impactLevel === 'HIGH' ? 'bg-rose-50 border-rose-200 dark:bg-rose-900/20 dark:border-rose-900/50' : 
+                    selectedDtImpact.impactLevel === 'MEDIUM' ? 'bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-900/50' :
+                    'bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-900/50'
+                  }`}>
+                    <div className="flex items-center justify-between">
+                       <span className={`text-[9px] font-black uppercase ${
+                         selectedDtImpact.impactLevel === 'HIGH' ? 'text-rose-700 dark:text-rose-400' :
+                         selectedDtImpact.impactLevel === 'MEDIUM' ? 'text-amber-700 dark:text-amber-400' :
+                         'text-yellow-700 dark:text-yellow-400'
+                       }`}>
+                         {selectedDtImpact.impactLevel} IMPACT ({selectedDtImpact.disruptionProbability}%)
+                       </span>
+                    </div>
+                    {selectedDtImpact.reasons?.length > 0 && (
+                      <p className="text-[10px] text-slate-600 dark:text-slate-400 leading-tight line-clamp-2">
+                        {selectedDtImpact.reasons.join(", ")}
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 {onViewInItinerary && (
                   <button
                     type="button"
@@ -658,6 +801,21 @@ export default function ItineraryMap({
             selectedDay={selectedDay}
             triggerFit={fitTrigger}
           />
+
+          {/* Weather Marker at Destination (If Available) */}
+          {twinState && weather?.current && boundsPoints[0] && (
+             <Marker position={boundsPoints[0]} icon={createWeatherMarkerIcon(weather.current)}>
+                <Popup className="custom-leaflet-popup">
+                   <div className="p-2 min-w-[150px] text-center">
+                     <h4 className="text-xs font-black uppercase text-blue-600">LIVE WEATHER</h4>
+                     <p className="text-xs font-bold text-slate-800 mt-1">{trip?.destination || 'Destination'}</p>
+                     <p className="text-[11px] text-slate-600 mt-1">{weather.current.temperature}°C, {weather.current.condition}</p>
+                     <p className="text-[10px] text-slate-500 mt-1">Precipitation: {weather.current.precipitation_probability}%</p>
+                     <p className="text-[10px] text-slate-500">Wind: {weather.current.wind_speed} km/h</p>
+                   </div>
+                </Popup>
+             </Marker>
+          )}
 
           {/* ============================================================================== */}
           {/* MODE A: ALL DAYS ROUTE & MARKERS                                               */}
@@ -774,6 +932,7 @@ export default function ItineraryMap({
               {/* Numbered Activity Markers for this day */}
               {visibleActivityLocations.map((loc) => {
                 const isSelected = selectedLocationId === loc.id;
+                const dtImpact = dtImpactMap[loc.id];
 
                 return (
                   <Marker
@@ -788,6 +947,9 @@ export default function ItineraryMap({
                       isLastInDay: loc.isLastInDay,
                       isSelected,
                       dayColor: loc.dayColor,
+                      dtEntity: dtEntitiesMap[loc.id],
+                      dtImpact: dtImpactMap[loc.id],
+                      isSimulationActive: simulationActive
                     })}
                     eventHandlers={{
                       click: () => onSelectLocation(loc),
@@ -796,7 +958,12 @@ export default function ItineraryMap({
                     <Popup className="custom-leaflet-popup">
                       <div className="p-1 min-w-[200px]">
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          {loc.isFirstInDay && (
+                          {simulationActive && (
+                             <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase text-white bg-purple-600 animate-pulse">
+                               SIMULATION
+                             </span>
+                          )}
+                          {loc.isFirstInDay && !simulationActive && (
                             <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase text-white bg-emerald-600">
                               Start
                             </span>
@@ -833,6 +1000,28 @@ export default function ItineraryMap({
                             <span>🕒</span>
                             <span>{loc.time}</span>
                           </p>
+                        )}
+
+                        {dtImpact && dtImpact.impactLevel !== 'NONE' && (
+                          <div className={`mt-2 p-1.5 rounded border flex flex-col gap-0.5 ${
+                            dtImpact.impactLevel === 'HIGH' ? 'bg-rose-50 border-rose-200' : 
+                            dtImpact.impactLevel === 'MEDIUM' ? 'bg-amber-50 border-amber-200' :
+                            'bg-yellow-50 border-yellow-200'
+                          }`}>
+                            <span className={`text-[9px] font-black uppercase ${
+                              dtImpact.impactLevel === 'HIGH' ? 'text-rose-700' :
+                              dtImpact.impactLevel === 'MEDIUM' ? 'text-amber-700' :
+                              'text-yellow-700'
+                            }`}>
+                              {dtImpact.impactLevel} IMPACT ({dtImpact.disruptionProbability}%)
+                            </span>
+                            <span className="text-[9px] text-slate-600 font-medium">Source: Digital Twin Analysis</span>
+                            {dtImpact.reasons?.length > 0 && (
+                              <ul className="text-[9px] text-slate-600 list-disc list-inside mt-1">
+                                {dtImpact.reasons.map((r, i) => <li key={i}>{r}</li>)}
+                              </ul>
+                            )}
+                          </div>
                         )}
 
                         {onViewInItinerary && (

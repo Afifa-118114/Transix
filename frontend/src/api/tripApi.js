@@ -124,7 +124,6 @@ export const syncItinerary = async (tripId, newStaySegments, token) => {
   return res.data;
 };
 
-
 export const suggestSmartShift = async (tripId, itemId, disruptionType, token) => {
   const res = await axios.post(
     `${API}/trips/${tripId}/smartshift/suggest`,
@@ -176,5 +175,35 @@ export const markMessagesRead = async (tripId, token) => {
   const res = await axios.patch(`${API}/trips/${tripId}/messages/read`, {}, {
     headers: { Authorization: `Bearer ${token}` },
   });
+  return res.data;
+};
+
+export const getTripWeather = async (tripId, token) => {
+  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+  const res = await axios.get(`${API}/trips/${tripId}/weather`, { headers });
+  return res.data;
+};
+
+export const getTripSocialSignals = async (tripId, token) => {
+  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+  const res = await axios.get(`${API}/trips/${tripId}/social-signals`, { headers });
+  return res.data;
+};
+
+export const getTripDigitalTwinState = async (tripId, token) => {
+  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+  const res = await axios.get(`${API}/trips/${tripId}/digital-twin`, { headers });
+  return res.data;
+};
+
+export const simulateDigitalTwinState = async (tripId, token, weatherOverrides) => {
+  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+  const res = await axios.post(`${API}/trips/${tripId}/digital-twin/simulate`, { weatherOverrides }, { headers });
+  return res.data;
+};
+
+export const analyzeDigitalTwinState = async (tripId, token, twinState, impactState) => {
+  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+  const res = await axios.post(`${API}/trips/${tripId}/digital-twin/analyze`, { twinState, impactState }, { headers });
   return res.data;
 };

@@ -28,11 +28,11 @@ const DISRUPTION_TYPES = [
   { id: "TRAVELER_CHANGE", label: "Traveler Request", icon: FiZap, isDemo: false },
 ];
 
-export default function SmartShiftModal({ isOpen, onClose, item, trip }) {
+export default function SmartShiftModal({ isOpen, onClose, item, trip, initialDisruptionType }) {
   const { setTrip } = useTripBuilder();
   const [loading, setLoading] = useState(false);
   const [isApplying, setIsApplying] = useState(false);
-  const [disruptionType, setDisruptionType] = useState("ACTIVITY_UNAVAILABLE");
+  const [disruptionType, setDisruptionType] = useState(initialDisruptionType || "ACTIVITY_UNAVAILABLE");
   const [analysis, setAnalysis] = useState(null);
   const [selectedOption, setSelectedOption] = useState(null);
   const [error, setError] = useState(null);
@@ -58,6 +58,13 @@ export default function SmartShiftModal({ isOpen, onClose, item, trip }) {
       const token = localStorage.getItem("token");
 
       // Check item location in current trip
+      if (!trip || !trip.itinerary) {
+        setError("Current trip itinerary is unavailable.");
+        setAnalysis(null);
+        setLoading(false);
+        return;
+      }
+      
       const { affectedItem } = findItemLocation(trip.itinerary, itemId, item);
       if (!affectedItem) {
         setError("Affected itinerary item no longer exists in current trip.");
