@@ -5,6 +5,9 @@ import logo from "../../assets/logo/logo.png";
 import { useTripBuilder } from "../../context/TripBuilderContext";
 import { useAuth } from "../../hooks/useAuth";
 import { useTheme } from "../../context/ThemeContext";
+import TripChatModal from "../chat/TripChatModal";
+import { getUnreadMessageCount } from "../../api/tripApi";
+import { useEffect } from "react";
 
 /* ── Inline Monochrome SVG Icons (Trip.com style: single 1.8px stroke) ── */
 const IconHome = ({ size = 17 }) => (
@@ -70,6 +73,12 @@ const IconPlus = ({ size = 14 }) => (
   </svg>
 );
 
+const IconMessage = ({ size = 17 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+  </svg>
+);
+
 const IconLogOut = ({ size = 16 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
@@ -116,7 +125,7 @@ const IconExpand = () => (
 function SectionLabel({ label }) {
   return (
     <div className="px-4 pt-3.5 pb-1">
-      <span className="text-[10px] font-bold tracking-[0.09em] text-[#94A3B8] uppercase">
+      <span className="text-[10px] font-bold tracking-[0.09em] text-[#94A3B8] dark:text-slate-500 uppercase">
         {label}
       </span>
     </div>
@@ -125,7 +134,7 @@ function SectionLabel({ label }) {
 
 /* ── Trip.com Divider ── */
 function Divider() {
-  return <div className="mx-0 my-1 border-t border-[#F1F5F9]" />;
+  return <div className="mx-0 my-1 border-t border-[#F1F5F9] dark:border-slate-800" />;
 }
 
 /* ── Trip.com NavItem ── */
@@ -133,13 +142,13 @@ function NavItem({ to, icon: Icon, label, badge, active, collapsed, onClick }) {
   const base =
     "group flex items-center justify-between py-2.5 transition-all duration-150 cursor-pointer w-full text-left";
   const activeStyle =
-    "border-l-[3px] border-[#006CE4] bg-[#EFF6FF] text-[#006CE4] font-semibold";
+    "border-l-[3px] border-[#006CE4] dark:border-blue-500 bg-[#EFF6FF] dark:bg-blue-950/40 text-[#006CE4] dark:text-blue-400 font-semibold";
   const inactiveStyle =
-    "border-l-[3px] border-transparent text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A]";
+    "border-l-[3px] border-transparent text-[#475569] dark:text-slate-400 hover:bg-[#F8FAFC] dark:hover:bg-slate-800/60 hover:text-[#0F172A] dark:hover:text-white";
 
   const iconColor = active
-    ? "text-[#006CE4]"
-    : "text-[#64748B] group-hover:text-[#1E293B]";
+    ? "text-[#006CE4] dark:text-blue-400"
+    : "text-[#64748B] dark:text-slate-400 group-hover:text-[#1E293B] dark:group-hover:text-slate-200";
 
   const content = (
     <div
@@ -154,7 +163,7 @@ function NavItem({ to, icon: Icon, label, badge, active, collapsed, onClick }) {
         <span className="text-[13.5px] leading-tight truncate">{label}</span>
       )}
       {!collapsed && badge && (
-        <span className="ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[#E2E8F0] text-[#475569]">
+        <span className="ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[#E2E8F0] dark:bg-slate-800 text-[#475569] dark:text-slate-300">
           {badge}
         </span>
       )}
@@ -199,6 +208,33 @@ export default function Sidebar({ trip: propTrip, setTrip: propSetTrip }) {
     return localStorage.getItem("transix_sidebar_collapsed") === "true";
   });
 
+  const [chatModalOpen, setChatModalOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    let timer;
+    const fetchUnread = async () => {
+      if (trip && trip._id && trip.tripCategory !== "CAMPUS" && 
+         (trip.operatorAccess?.enabled || trip.isBooked || ["Finalized", "CONFIRMED", "PARTIALLY_CONFIRMED", "BOOKED"].includes(trip.status))) {
+        const token = localStorage.getItem("token");
+        if (token) {
+          try {
+            const data = await getUnreadMessageCount(trip._id, token);
+            if (data?.success) setUnreadCount(data.count || 0);
+          } catch (e) {
+            // Ignore error
+          }
+        }
+      }
+    };
+
+    if (trip) {
+      fetchUnread();
+      timer = setInterval(fetchUnread, 15000); // Poll every 15s for unread
+    }
+    return () => clearInterval(timer);
+  }, [trip]);
+
   const toggleSidebar = () => {
     setCollapsed((prev) => {
       const next = !prev;
@@ -233,14 +269,14 @@ export default function Sidebar({ trip: propTrip, setTrip: propSetTrip }) {
       initial={false}
       animate={{ width: collapsed ? 72 : 256 }}
       transition={{ type: "spring", stiffness: 350, damping: 32 }}
-      className="sticky top-0 z-40 flex h-screen shrink-0 flex-col justify-between border-r border-[#E2E8F0] bg-white select-none overflow-hidden transition-colors"
+      className="sticky top-0 z-40 flex h-screen shrink-0 flex-col justify-between border-r border-[#E2E8F0] dark:border-slate-800 bg-white dark:bg-[#131b2e] select-none overflow-hidden transition-colors duration-200"
       style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif' }}
     >
       {/* ── Top Header & Navigation ── */}
       <div className="flex flex-col min-w-0 overflow-y-auto overflow-x-hidden flex-1 custom-scrollbar">
         {/* Brand Header */}
         <div
-          className={`flex items-center border-b border-[#F1F5F9] ${
+          className={`flex items-center border-b border-[#F1F5F9] dark:border-slate-800 ${
             collapsed ? "justify-center h-16 px-2" : "justify-between h-16 px-4"
           }`}
         >
@@ -253,7 +289,7 @@ export default function Sidebar({ trip: propTrip, setTrip: propSetTrip }) {
                 type="button"
                 onClick={toggleSidebar}
                 title="Expand sidebar"
-                className="flex h-6 w-6 items-center justify-center rounded text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition cursor-pointer"
+                className="flex h-6 w-6 items-center justify-center rounded text-[#64748B] dark:text-slate-400 hover:bg-[#F8FAFC] dark:hover:bg-slate-800 hover:text-[#0F172A] dark:hover:text-white transition cursor-pointer"
               >
                 <IconExpand />
               </button>
@@ -263,10 +299,10 @@ export default function Sidebar({ trip: propTrip, setTrip: propSetTrip }) {
               <Link to="/home" className="flex items-center gap-2.5 hover:opacity-85 transition min-w-0">
                 <img src={logo} alt="Transix" className="h-7 w-7 object-contain shrink-0" />
                 <div className="flex flex-col min-w-0">
-                  <span className="text-[15px] font-bold text-[#0F172A] tracking-tight truncate leading-tight">
+                  <span className="text-[15px] font-bold text-[#0F172A] dark:text-white tracking-tight truncate leading-tight">
                     Transix
                   </span>
-                  <span className="text-[10px] text-[#64748B] font-medium tracking-wide">
+                  <span className="text-[10px] text-[#64748B] dark:text-slate-400 font-medium tracking-wide">
                     Journey Studio
                   </span>
                 </div>
@@ -276,7 +312,7 @@ export default function Sidebar({ trip: propTrip, setTrip: propSetTrip }) {
                 type="button"
                 onClick={toggleSidebar}
                 title="Collapse sidebar"
-                className="flex h-7 w-7 items-center justify-center rounded-lg border border-[#E2E8F0] text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition cursor-pointer"
+                className="flex h-7 w-7 items-center justify-center rounded-lg border border-[#E2E8F0] dark:border-slate-800 text-[#64748B] dark:text-slate-400 hover:bg-[#F8FAFC] dark:hover:bg-slate-800 hover:text-[#0F172A] dark:hover:text-white transition cursor-pointer"
               >
                 <IconCollapse />
               </button>
@@ -291,26 +327,26 @@ export default function Sidebar({ trip: propTrip, setTrip: propSetTrip }) {
               <Link
                 to="/builder"
                 title={`${trip.source} → ${trip.destination}`}
-                className="flex h-10 w-10 mx-auto items-center justify-center rounded-xl bg-[#EFF6FF] border border-[#BFDBFE] text-[#006CE4] hover:bg-[#006CE4] hover:text-white transition"
+                className="flex h-10 w-10 mx-auto items-center justify-center rounded-xl bg-[#EFF6FF] dark:bg-blue-950/40 border border-[#BFDBFE] dark:border-blue-900 text-[#006CE4] dark:text-blue-400 hover:bg-[#006CE4] hover:text-white transition"
               >
                 <IconTrain size={18} />
               </Link>
             ) : (
-              <div className="rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-3 flex flex-col gap-2 shadow-2xs">
+              <div className="rounded-xl border border-[#E2E8F0] dark:border-slate-800 bg-[#F8FAFC] dark:bg-[#1a233a] p-3 flex flex-col gap-2 shadow-2xs">
                 <div className="flex items-center justify-between">
-                  <span className="text-[9.5px] font-bold uppercase tracking-wider text-[#006CE4]">
+                  <span className="text-[9.5px] font-bold uppercase tracking-wider text-[#006CE4] dark:text-blue-400">
                     Active Journey
                   </span>
-                  <span className="rounded-full bg-[#EFF6FF] border border-[#BFDBFE] px-2 py-0.5 text-[9.5px] font-bold text-[#006CE4]">
+                  <span className="rounded-full bg-[#EFF6FF] dark:bg-blue-950/60 border border-[#BFDBFE] dark:border-blue-900 px-2 py-0.5 text-[9.5px] font-bold text-[#006CE4] dark:text-blue-400">
                     {trip.itinerary?.length || 0} Days
                   </span>
                 </div>
 
                 <div>
-                  <h3 className="text-[13px] font-semibold text-[#0F172A] truncate">
+                  <h3 className="text-[13px] font-semibold text-[#0F172A] dark:text-white truncate">
                     {trip.source} → {trip.destination}
                   </h3>
-                  <p className="text-[11px] text-[#64748B] truncate mt-0.5">
+                  <p className="text-[11px] text-[#64748B] dark:text-slate-400 truncate mt-0.5">
                     {trip.travelers || 2} Travelers • {trip.currency || "₹"}{" "}
                     {Number(trip.budget || 0).toLocaleString()}
                   </p>
@@ -319,11 +355,28 @@ export default function Sidebar({ trip: propTrip, setTrip: propSetTrip }) {
                 <button
                   type="button"
                   onClick={handlePlanAnother}
-                  className="mt-0.5 w-full flex items-center justify-center gap-1.5 rounded-lg border border-[#CBD5E1] bg-white py-1.5 text-[11px] font-semibold text-[#334155] hover:bg-[#F1F5F9] hover:border-[#94A3B8] transition cursor-pointer shadow-2xs"
+                  className="mt-0.5 w-full flex items-center justify-center gap-1.5 rounded-lg border border-[#CBD5E1] dark:border-slate-700 bg-white dark:bg-slate-800 py-1.5 text-[11px] font-semibold text-[#334155] dark:text-slate-200 hover:bg-[#F1F5F9] dark:hover:bg-slate-700 hover:border-[#94A3B8] dark:hover:border-slate-600 transition cursor-pointer shadow-2xs"
                 >
                   <IconPlus size={12} />
                   <span>Plan Another Trip</span>
                 </button>
+                {trip && trip.tripCategory !== "CAMPUS" && 
+                  (user && (trip.user === (user._id || user.id) || trip.user?._id === (user._id || user.id) || trip.userId === (user._id || user.id))) &&
+                  (trip.operatorAccess?.enabled || trip.isBooked || ["Finalized", "CONFIRMED", "PARTIALLY_CONFIRMED", "BOOKED"].includes(trip.status)) && (
+                  <button
+                    type="button"
+                    onClick={() => setChatModalOpen(true)}
+                    className="mt-0.5 w-full flex items-center justify-center gap-1.5 rounded-lg border border-[#BFDBFE] bg-[#EFF6FF] py-1.5 text-[11px] font-semibold text-[#006CE4] hover:bg-[#006CE4] hover:text-white transition cursor-pointer shadow-2xs"
+                  >
+                    <IconMessage size={12} />
+                    <span>Chat with Operator</span>
+                    {unreadCount > 0 && (
+                      <span className="ml-1 rounded-full bg-red-500 text-white px-1.5 py-0.5 text-[9px] font-bold">
+                        {unreadCount}
+                      </span>
+                    )}
+                  </button>
+                )}
               </div>
             )
           ) : (
@@ -401,13 +454,13 @@ export default function Sidebar({ trip: propTrip, setTrip: propSetTrip }) {
       </div>
 
       {/* ── Bottom Section: User Identity & Theme Toggle ── */}
-      <div className="border-t border-[#F1F5F9] p-3 bg-white">
+      <div className="border-t border-[#F1F5F9] dark:border-slate-800 p-3 bg-white dark:bg-[#131b2e] transition-colors">
         {user ? (
           collapsed ? (
             <div className="flex flex-col items-center gap-2">
               <div
                 title={user.name || "Traveler"}
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-[#EFF6FF] border border-[#BFDBFE] text-xs font-bold text-[#006CE4]"
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-[#EFF6FF] dark:bg-blue-950/40 border border-[#BFDBFE] dark:border-blue-900 text-xs font-bold text-[#006CE4] dark:text-blue-400"
               >
                 {user.name ? user.name[0].toUpperCase() : "T"}
               </div>
@@ -417,7 +470,7 @@ export default function Sidebar({ trip: propTrip, setTrip: propSetTrip }) {
                 type="button"
                 onClick={toggleTheme}
                 title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-[#64748B] hover:text-[#0F172A] hover:bg-[#F1F5F9] transition cursor-pointer"
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-[#64748B] dark:text-slate-400 hover:text-[#0F172A] dark:hover:text-white hover:bg-[#F1F5F9] dark:hover:bg-slate-800 transition cursor-pointer"
               >
                 {isDark ? <IconSun size={17} /> : <IconMoon size={17} />}
               </button>
@@ -426,7 +479,7 @@ export default function Sidebar({ trip: propTrip, setTrip: propSetTrip }) {
                 type="button"
                 onClick={handleLogout}
                 title="Sign Out"
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-[#64748B] hover:text-[#DC2626] hover:bg-[#FEE2E2] transition cursor-pointer"
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-[#64748B] dark:text-slate-400 hover:text-[#DC2626] dark:hover:text-rose-400 hover:bg-[#FEE2E2] dark:hover:bg-rose-950/40 transition cursor-pointer"
               >
                 <IconLogOut size={16} />
               </button>
@@ -434,14 +487,14 @@ export default function Sidebar({ trip: propTrip, setTrip: propSetTrip }) {
           ) : (
             <div className="flex items-center justify-between min-w-0">
               <div className="flex items-center gap-2.5 min-w-0">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#EFF6FF] border border-[#BFDBFE] text-xs font-bold text-[#006CE4]">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#EFF6FF] dark:bg-blue-950/40 border border-[#BFDBFE] dark:border-blue-900 text-xs font-bold text-[#006CE4] dark:text-blue-400">
                   {user.name ? user.name[0].toUpperCase() : "T"}
                 </div>
                 <div className="min-w-0 flex-1 truncate">
-                  <h4 className="text-[12.5px] font-semibold text-[#0F172A] truncate leading-tight">
+                  <h4 className="text-[12.5px] font-semibold text-[#0F172A] dark:text-white truncate leading-tight">
                     {user.name || "Traveler"}
                   </h4>
-                  <p className="text-[11px] text-[#64748B] truncate">
+                  <p className="text-[11px] text-[#64748B] dark:text-slate-400 truncate">
                     {user.email || "Personal Account"}
                   </p>
                 </div>
@@ -453,7 +506,7 @@ export default function Sidebar({ trip: propTrip, setTrip: propSetTrip }) {
                   type="button"
                   onClick={toggleTheme}
                   title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg text-[#64748B] hover:text-[#0F172A] hover:bg-[#F1F5F9] transition cursor-pointer"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-[#64748B] dark:text-slate-400 hover:text-[#0F172A] dark:hover:text-white hover:bg-[#F1F5F9] dark:hover:bg-slate-800 transition cursor-pointer"
                 >
                   {isDark ? <IconSun size={17} /> : <IconMoon size={17} />}
                 </button>
@@ -462,7 +515,7 @@ export default function Sidebar({ trip: propTrip, setTrip: propSetTrip }) {
                   type="button"
                   onClick={handleLogout}
                   title="Sign Out"
-                  className="flex h-8 w-8 items-center justify-center rounded-lg text-[#64748B] hover:bg-[#FEE2E2] hover:text-[#DC2626] transition cursor-pointer"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-[#64748B] dark:text-slate-400 hover:bg-[#FEE2E2] dark:hover:bg-rose-950/40 hover:text-[#DC2626] dark:hover:text-rose-400 transition cursor-pointer"
                 >
                   <IconLogOut size={16} />
                 </button>
@@ -473,7 +526,7 @@ export default function Sidebar({ trip: propTrip, setTrip: propSetTrip }) {
           <div className="flex items-center justify-between gap-2">
             <Link
               to="/login"
-              className="flex-1 flex items-center justify-center gap-2 rounded-lg border border-[#006CE4] bg-[#EFF6FF] text-[#006CE4] py-1.5 text-xs font-semibold hover:bg-[#006CE4] hover:text-white transition"
+              className="flex-1 flex items-center justify-center gap-2 rounded-lg border border-[#006CE4] dark:border-blue-500 bg-[#EFF6FF] dark:bg-blue-950/40 text-[#006CE4] dark:text-blue-400 py-1.5 text-xs font-semibold hover:bg-[#006CE4] hover:text-white transition"
             >
               <span>Sign In</span>
             </Link>
@@ -483,13 +536,28 @@ export default function Sidebar({ trip: propTrip, setTrip: propSetTrip }) {
               type="button"
               onClick={toggleTheme}
               title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[#64748B] hover:text-[#0F172A] hover:bg-[#F1F5F9] transition cursor-pointer"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[#64748B] dark:text-slate-400 hover:text-[#0F172A] dark:hover:text-white hover:bg-[#F1F5F9] dark:hover:bg-slate-800 transition cursor-pointer"
             >
               {isDark ? <IconSun size={17} /> : <IconMoon size={17} />}
             </button>
           </div>
         )}
       </div>
+
+      {trip && trip.tripCategory !== "CAMPUS" && 
+        (user && (trip.user === (user._id || user.id) || trip.user?._id === (user._id || user.id) || trip.userId === (user._id || user.id))) &&
+        (trip.operatorAccess?.enabled || trip.isBooked || ["Finalized", "CONFIRMED", "PARTIALLY_CONFIRMED", "BOOKED"].includes(trip.status)) && (
+        <TripChatModal
+          isOpen={chatModalOpen}
+          onClose={() => setChatModalOpen(false)}
+          tripId={trip._id}
+          currentRole="traveler"
+          onMessageSent={() => {
+            // Update unread count or rely on polling
+          }}
+        />
+      )}
     </motion.aside>
   );
 }
+

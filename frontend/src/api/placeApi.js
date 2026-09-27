@@ -48,3 +48,16 @@ export const getAttractionPhoto = async (place, destination, city) => {
   }
 };
 
+export const fetchItineraryImage = async (tripId, dayIndex, token) => {
+  try {
+    const res = await axios.get(`${API}/places/itinerary-image`, {
+      params: { tripId, dayIndex },
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    });
+    return res.data?.url;
+  } catch (err) {
+    console.error("fetchItineraryImage API error:", err.message);
+    return null;
+  }
+};
+

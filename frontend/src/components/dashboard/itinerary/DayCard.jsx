@@ -1,21 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getPlaceImage } from "../../../services/imageService";
+import { getItineraryDayImage } from "../../../services/imageService";
 
 export default function DayCard({ day, trip }) {
   const [image, setImage] = useState("");
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!day?.title) return;
-
     async function load() {
-      const img = await getPlaceImage(day.title);
+      const img = await getItineraryDayImage(day, trip);
       setImage(img);
     }
 
     load();
-  }, [day]);
+  }, [day, trip]);
 
   const highlights = useMemo(() => {
     if (!day?.plan) return [];
@@ -59,8 +57,19 @@ export default function DayCard({ day, trip }) {
         {image ? (
           <img
             src={image}
-            alt={day.title}
+            alt={day.title || `Day ${day.day}`}
             className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+            onError={(e) => {
+              e.target.onerror = null;
+              const fallback = "https://images.pexels.com/photos/1010657/pexels-photo-1010657.jpeg";
+              e.target.src = fallback;
+              setImage(fallback);
+              // Clear stale cache
+              const cacheKey = `transix_activity_img_v1_itinerary_img_${trip._id}_${day.day - 1}`;
+              try {
+                localStorage.setItem(cacheKey, JSON.stringify(fallback));
+              } catch (_) {}
+            }}
           />
         ) : (
           <div className="h-full w-full animate-pulse bg-slate-200 dark:bg-slate-700" />

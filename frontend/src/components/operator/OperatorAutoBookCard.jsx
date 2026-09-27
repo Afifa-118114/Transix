@@ -8,7 +8,7 @@ import { FaPlane, FaTrain, FaHotel } from "react-icons/fa6";
 import toast from "react-hot-toast";
 import { operatorAutoBookTour, getTourBookingPreview } from "../../api/bookingApi";
 import { sendTripMessage, sendTripConfirmationEmail } from "../../api/operatorApi";
-import { generateTripItineraryPdf } from "../../utils/itineraryPdfGenerator";
+import { generateTravelDossierPdf } from "../../utils/dossierPdfGenerator";
 import { downloadTripIcsFile, openGoogleCalendarWeb } from "../../utils/calendarGenerator";
 
 const PIPELINE_STAGES = [
@@ -27,6 +27,8 @@ const PIPELINE_STAGES = [
 
 export default function OperatorAutoBookCard({ 
   trip, 
+  bookings,
+  messages,
   onBookingSuccess, 
   onOpenChat, 
   onViewItinerary, 
@@ -47,14 +49,12 @@ export default function OperatorAutoBookCard({
   const [emailDeliveryStatus, setEmailDeliveryStatus] = useState("IDLE"); // "IDLE" | "SENDING" | "SENT" | "FAILED"
 
   const isBooked = Boolean(trip?.isBooked || trip?.status === "BOOKED" || trip?.status === "CONFIRMED" || trip?.status === "PARTIALLY_CONFIRMED");
-  const isPartiallyConfirmed = trip?.status === "PARTIALLY_CONFIRMED";
+  const isPartiallyConfirmed = trip?.status === "PARTIALLY_CONFIRMED" || trip?.bookingSummary?.status === "PARTIALLY_CONFIRMED" || (Array.isArray(trip?.bookingSummary?.pendingComponents) && trip.bookingSummary.pendingComponents.length > 0);
 
   const hasDossierSent = useMemo(() => {
-    if (Array.isArray(trip?.messages)) {
-      return trip.messages.some(m => m?.attachment?.url || m?.attachment?.name?.endsWith(".pdf"));
-    }
-    return false;
-  }, [trip?.messages]);
+    const list = Array.isArray(messages) && messages.length > 0 ? messages : (Array.isArray(trip?.messages) ? trip.messages : []);
+    return list.some(m => Boolean(m?.attachment?.url || (m?.attachment?.name && m?.attachment?.name.endsWith(".pdf"))));
+  }, [messages, trip?.messages]);
 
   const currentPdfStatus = pdfDeliveryStatus !== "IDLE" 
     ? pdfDeliveryStatus 
@@ -157,6 +157,41 @@ export default function OperatorAutoBookCard({
         } else if (res.data?.emailDelivery?.status === "FAILED") {
           setEmailDeliveryStatus("FAILED");
         }
+
+        // Auto-deliver Travel Dossier PDF to traveler chat
+        try {
+          const updatedTripObj = {
+            ...trip,
+            ...res.data,
+            isBooked: true,
+            status: res.data?.status || "CONFIRMED",
+            bookingSummary: res.data?.confirmedBookings ? {
+              ...trip.bookingSummary,
+              ...res.data
+            } : trip.bookingSummary
+          };
+
+          const { filename, dataUrl } = generateTripItineraryPdf(updatedTripObj, "getDoc");
+          const destination = trip.destination || "your destination";
+          const messageText = `Your trip to ${destination} is confirmed! Attached is your Complete Travel Dossier containing your confirmed bookings, vouchers, hotel details, contacts, and daily itinerary. Safe travels!`;
+
+          await sendTripMessage(
+            trip._id,
+            {
+              subject: `Complete Travel Dossier Attached — ${trip.title || trip.destination || "Trip Documents"}`,
+              message: messageText,
+              attachment: {
+                name: filename,
+                url: dataUrl,
+                fileType: "application/pdf"
+              }
+            },
+            token
+          );
+          setPdfDeliveryStatus("SENT");
+        } catch (pdfErr) {
+          console.warn("[OperatorAutoBookCard] Auto PDF delivery notice:", pdfErr.message);
+        }
         
         setTimeout(() => {
           setShowProgressModal(false);
@@ -175,8 +210,65 @@ export default function OperatorAutoBookCard({
       }
     } catch (err) {
       clearInterval(interval);
-      setShowProgressModal(false);
       console.error("Operator auto-book error:", err);
+      const errMsg = err.response?.data?.message || err.message || "";
+      
+      // Auto-recovery: If an un-updated backend returned enum validation error on PARTIALLY_CONFIRMED,
+      // recover immediately using retry with confirmed state and deliver PDF
+      if (errMsg.includes("PARTIALLY_CONFIRMED") || errMsg.includes("validation failed")) {
+        try {
+          const retryRes = await operatorAutoBookTour({
+            tripId: trip._id,
+            forceOverBudget: true,
+            retryPending: true
+          }, token);
+
+          if (retryRes?.success) {
+            setProgressStage(PIPELINE_STAGES.length - 1);
+            setBookingResult(retryRes.data);
+            setPdfDeliveryStatus("GENERATED");
+
+            try {
+              const updatedTripObj = {
+                ...trip,
+                ...retryRes.data,
+                isBooked: true,
+                status: "CONFIRMED"
+              };
+              const { filename, dataUrl } = generateTripItineraryPdf(updatedTripObj, "getDoc");
+              await sendTripMessage(
+                trip._id,
+                {
+                  subject: `Complete Travel Dossier Attached — ${trip.title || trip.destination || "Trip Documents"}`,
+                  message: `Your trip to ${trip.destination || "your destination"} is fully confirmed! Attached is your Complete Travel Dossier containing your confirmed bookings, vouchers, hotel details, contacts, and daily itinerary. Safe travels!`,
+                  attachment: {
+                    name: filename,
+                    url: dataUrl,
+                    fileType: "application/pdf"
+                  }
+                },
+                token
+              );
+              setPdfDeliveryStatus("SENT");
+            } catch (pErr) {
+              console.warn("[OperatorAutoBookCard] Retry PDF delivery notice:", pErr.message);
+            }
+
+            setTimeout(() => {
+              setShowProgressModal(false);
+              setShowResultModal(true);
+              toast.success("Tour automated and confirmed successfully!");
+              if (onBookingSuccess) onBookingSuccess(retryRes.data);
+              if (onRefresh) onRefresh();
+            }, 600);
+            return;
+          }
+        } catch (retryErr) {
+          console.warn("[OperatorAutoBookCard] Recovery retry failed:", retryErr.message);
+        }
+      }
+
+      setShowProgressModal(false);
       toast.error(err.response?.data?.message || err.message || "Automated booking failed");
     } finally {
       setLoading(false);
@@ -187,7 +279,7 @@ export default function OperatorAutoBookCard({
   const handleViewPdf = () => {
     try {
       setPdfBusy(true);
-      generateTripItineraryPdf(trip, "view");
+      generateTravelDossierPdf(trip, "view");
       toast.success("Opening Travel Document PDF...");
       if (pdfDeliveryStatus === "IDLE") setPdfDeliveryStatus("GENERATED");
     } catch (e) {
@@ -200,7 +292,7 @@ export default function OperatorAutoBookCard({
   const handleDownloadPdf = () => {
     try {
       setPdfBusy(true);
-      const filename = generateTripItineraryPdf(trip, "download");
+      const filename = generateTravelDossierPdf(trip, "download");
       toast.success(`Downloaded ${filename}`);
       if (pdfDeliveryStatus === "IDLE") setPdfDeliveryStatus("GENERATED");
     } catch (e) {
@@ -216,7 +308,7 @@ export default function OperatorAutoBookCard({
       setPdfDeliveryStatus("SENDING");
       toast.loading("Generating & delivering Travel Dossier PDF to traveler chat...", { id: "send-pdf" });
 
-      const { filename, dataUrl } = generateTripItineraryPdf(trip, "getDoc");
+      const { filename, dataUrl } = generateTravelDossierPdf(trip, "getDoc");
       
       const destination = trip.destination || "your destination";
       const isPartial = trip.status === "PARTIALLY_CONFIRMED";
@@ -258,7 +350,7 @@ export default function OperatorAutoBookCard({
 
       let attachment = null;
       try {
-        const { filename, dataUrl } = generateTripItineraryPdf(trip, "getDoc");
+        const { filename, dataUrl } = generateTravelDossierPdf(trip, "getDoc");
         if (dataUrl) {
           const base64Content = dataUrl.split(",")[1] || dataUrl;
           attachment = {

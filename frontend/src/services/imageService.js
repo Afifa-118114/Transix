@@ -143,3 +143,50 @@ export async function getPlaceImage(place) {
     return attractionPlaceholderImg;
   }
 }
+
+// -----------------------------------------
+// HYBRID ITINERARY IMAGE SELECTION
+// -----------------------------------------
+
+import { fetchItineraryImage } from '../api/placeApi';
+
+const pendingRequests = new Map();
+
+/**
+ * Resolves itinerary day images using the backend Location-Aware Hybrid Engine
+ */
+export async function getItineraryDayImage(day, trip) {
+  if (!day || !trip?._id) return attractionPlaceholderImg;
+  
+  const tripId = trip._id;
+  const dayIndex = day.day - 1;
+  const cacheKey = `itinerary_img_${tripId}_${dayIndex}`;
+  
+  if (clientImageCache.has(cacheKey)) return clientImageCache.get(cacheKey);
+  const stored = safeStorageGet(cacheKey);
+  if (stored) {
+    clientImageCache.set(cacheKey, stored);
+    return stored;
+  }
+
+  if (pendingRequests.has(cacheKey)) return pendingRequests.get(cacheKey);
+
+  const fetchPromise = (async () => {
+    let imageUrl = null;
+    try {
+      const token = localStorage.getItem('token') || '';
+      imageUrl = await fetchItineraryImage(tripId, dayIndex, token);
+    } catch (err) {
+      console.warn('Failed to fetch image from backend engine:', err.message);
+    }
+
+    const finalUrl = imageUrl || attractionPlaceholderImg;
+    clientImageCache.set(cacheKey, finalUrl);
+    safeStorageSet(cacheKey, finalUrl);
+    pendingRequests.delete(cacheKey);
+    return finalUrl;
+  })();
+
+  pendingRequests.set(cacheKey, fetchPromise);
+  return fetchPromise;
+}

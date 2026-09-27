@@ -8,7 +8,8 @@
     "dev": "nodemon server.js",
     "test:guide-matching": "node src/tests/guideMatching.test.js",
     "import:flight-schedules": "node src/import/importFlightSchedules.js",
-    "import:locations-and-vendors": "node src/import/importLocationsAndVendors.js"
+    "import:locations-and-vendors": "node src/import/importLocationsAndVendors.js",
+    "nugen:auto": "python3 src/scripts/nugen_auto_aligner.py"
   },
   "keywords": [],
   "author": "",
@@ -21,6 +22,7 @@
     "cloudinary": "^1.41.3",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
+    "exceljs": "^4.4.0",
     "express": "^5.2.1",
     "fast-xml-parser": "^5.11.1",
     "google-auth-library": "^11.1.0",

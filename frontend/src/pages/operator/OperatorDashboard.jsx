@@ -35,6 +35,14 @@ export default function OperatorDashboard() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [showRecentActivity, setShowRecentActivity] = useState(false);
 
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 15;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTable, searchQuery]);
+
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
@@ -221,7 +229,53 @@ export default function OperatorDashboard() {
     setActiveTable(key);
     setSearchQuery("");
     setStatusFilter("all");
+    setCurrentPage(1);
   };
+
+  // Compute currently visible rows for the active table
+  const currentListData = useMemo(() => {
+    if (activeTable === "actions") {
+      return enrichedActions.filter(item => {
+        if (!searchQuery.trim()) return true;
+        const q = searchQuery.toLowerCase();
+        return item.title?.toLowerCase().includes(q) || item.subtitle?.toLowerCase().includes(q) || item.route?.toLowerCase().includes(q) || item.orgName?.toLowerCase().includes(q) || item.status?.toLowerCase().includes(q);
+      });
+    } else if (activeTable === "personal") {
+      return personalTrips.filter(t => {
+        if (!searchQuery.trim()) return true;
+        const q = searchQuery.toLowerCase();
+        return t.source?.toLowerCase().includes(q) || t.destination?.toLowerCase().includes(q) || t.user?.name?.toLowerCase().includes(q);
+      });
+    } else if (activeTable === "campus") {
+      return campusTrips.filter(t => {
+        if (!searchQuery.trim()) return true;
+        const q = searchQuery.toLowerCase();
+        return t.organizationDetails?.name?.toLowerCase().includes(q) || t.source?.toLowerCase().includes(q) || t.destination?.toLowerCase().includes(q);
+      });
+    } else if (activeTable === "vendor-requests") {
+      return vendorRequests.filter(req => {
+        if (!searchQuery.trim()) return true;
+        const q = searchQuery.toLowerCase();
+        const vName = req.vendorId?.name || "";
+        const route = req.trip ? `${req.trip.source} ${req.trip.destination}` : "";
+        return vName.toLowerCase().includes(q) || route.toLowerCase().includes(q);
+      });
+    } else if (activeTable === "confirmations") {
+      return pendingConfirmationsList.filter(item => {
+        if (!searchQuery.trim()) return true;
+        const q = searchQuery.toLowerCase();
+        return item.requirement?.toLowerCase().includes(q) || item.provider?.toLowerCase().includes(q) || item.tripRoute?.toLowerCase().includes(q) || item.orgName?.toLowerCase().includes(q) || item.category?.toLowerCase().includes(q);
+      });
+    }
+    return [];
+  }, [activeTable, searchQuery, enrichedActions, personalTrips, campusTrips, vendorRequests, pendingConfirmationsList]);
+
+  const paginatedListData = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return currentListData.slice(startIndex, startIndex + itemsPerPage);
+  }, [currentListData, currentPage]);
+
+  const totalPages = Math.ceil(currentListData.length / itemsPerPage);
 
   if (loading) {
     return (
@@ -594,18 +648,7 @@ export default function OperatorDashboard() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#EBEBEB] text-xs">
-                    {enrichedActions
-                      .filter(item => {
-                        if (!searchQuery.trim()) return true;
-                        const q = searchQuery.toLowerCase();
-                        return (
-                          item.title?.toLowerCase().includes(q) ||
-                          item.subtitle?.toLowerCase().includes(q) ||
-                          item.route?.toLowerCase().includes(q) ||
-                          item.orgName?.toLowerCase().includes(q)
-                        );
-                      })
-                      .map((item) => (
+                    {paginatedListData.map((item) => (
                         <tr key={item.id} className="hover:bg-[#F8FAFC] transition-colors">
                           <td className="py-3.5 px-4 whitespace-nowrap">
                             {item.severity === "HIGH" ? (
@@ -662,7 +705,7 @@ export default function OperatorDashboard() {
                           </td>
                         </tr>
                       ))}
-                    {enrichedActions.length === 0 && (
+                    {currentListData.length === 0 && (
                       <tr>
                         <td colSpan={6} className="py-10 text-center text-xs text-[#666666]">
                           All action items currently resolved!
@@ -693,17 +736,7 @@ export default function OperatorDashboard() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#EBEBEB] text-xs">
-                    {personalTrips
-                      .filter(trip => {
-                        if (!searchQuery.trim()) return true;
-                        const q = searchQuery.toLowerCase();
-                        return (
-                          trip.source?.toLowerCase().includes(q) ||
-                          trip.destination?.toLowerCase().includes(q) ||
-                          trip.user?.name?.toLowerCase().includes(q)
-                        );
-                      })
-                      .map((trip) => (
+                    {paginatedListData.map((trip) => (
                         <tr key={trip._id} className="hover:bg-[#F8FAFC] transition-colors">
                           <td className="py-3.5 px-4 whitespace-nowrap">
                             <div className="font-bold text-[#1A1A1A] flex items-center gap-1.5">
@@ -756,7 +789,7 @@ export default function OperatorDashboard() {
                           </td>
                         </tr>
                       ))}
-                    {personalTrips.length === 0 && (
+                    {currentListData.length === 0 && (
                       <tr>
                         <td colSpan={7} className="py-10 text-center text-xs text-[#666666]">
                           No personal trips currently shared.
@@ -786,17 +819,7 @@ export default function OperatorDashboard() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#EBEBEB] text-xs">
-                    {campusTrips
-                      .filter(trip => {
-                        if (!searchQuery.trim()) return true;
-                        const q = searchQuery.toLowerCase();
-                        return (
-                          trip.organizationDetails?.name?.toLowerCase().includes(q) ||
-                          trip.source?.toLowerCase().includes(q) ||
-                          trip.destination?.toLowerCase().includes(q)
-                        );
-                      })
-                      .map((trip) => (
+                    {paginatedListData.map((trip) => (
                         <tr key={trip._id} className="hover:bg-[#F8FAFC] transition-colors">
                           <td className="py-3.5 px-4 whitespace-nowrap">
                             <div className="font-bold text-[#1A1A1A] flex items-center gap-1.5">
@@ -854,7 +877,7 @@ export default function OperatorDashboard() {
                           </td>
                         </tr>
                       ))}
-                    {campusTrips.length === 0 && (
+                    {currentListData.length === 0 && (
                       <tr>
                         <td colSpan={7} className="py-10 text-center text-xs text-[#666666]">
                           No campus tours currently shared.
@@ -884,15 +907,7 @@ export default function OperatorDashboard() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#EBEBEB] text-xs">
-                    {vendorRequests
-                      .filter(req => {
-                        if (!searchQuery.trim()) return true;
-                        const q = searchQuery.toLowerCase();
-                        const vName = req.vendorId?.name || "";
-                        const route = req.trip ? `${req.trip.source} ${req.trip.destination}` : "";
-                        return vName.toLowerCase().includes(q) || route.toLowerCase().includes(q);
-                      })
-                      .map((req) => {
+                    {paginatedListData.map((req) => {
                         const vendorName = req.vendorId?.name || "Connected Partner";
                         const routeLabel = req.trip 
                           ? `${req.trip.source} → ${req.trip.destination}`
@@ -957,7 +972,7 @@ export default function OperatorDashboard() {
                         );
                       })
                     }
-                    {vendorRequests.length === 0 && (
+                    {currentListData.length === 0 && (
                       <tr>
                         <td colSpan={7} className="py-10 text-center text-xs text-[#666666]">
                           No vendor requests dispatched.
@@ -986,17 +1001,7 @@ export default function OperatorDashboard() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#EBEBEB] text-xs">
-                    {pendingConfirmationsList
-                      .filter(item => {
-                        if (!searchQuery.trim()) return true;
-                        const q = searchQuery.toLowerCase();
-                        return (
-                          item.requirement?.toLowerCase().includes(q) ||
-                          item.tripRoute?.toLowerCase().includes(q) ||
-                          item.provider?.toLowerCase().includes(q)
-                        );
-                      })
-                      .map((item) => (
+                    {paginatedListData.map((item) => (
                         <tr key={item.id} className="hover:bg-[#F8FAFC] transition-colors">
                           <td className="py-3.5 px-4">
                             <div className="font-bold text-[#1A1A1A]">
@@ -1042,7 +1047,7 @@ export default function OperatorDashboard() {
                           </td>
                         </tr>
                       ))}
-                    {pendingConfirmationsList.length === 0 && (
+                    {currentListData.length === 0 && (
                       <tr>
                         <td colSpan={6} className="py-10 text-center text-xs text-[#666666]">
                           No bookings awaiting confirmation.
@@ -1054,10 +1059,10 @@ export default function OperatorDashboard() {
               </div>
             )}
 
-            {/* Table Footer */}
+            {/* Table Footer with Pagination Controls */}
             <div className="bg-[#F8FAFC] border-t border-[#EBEBEB] px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-[#666666]">
               <div>
-                Showing records for <strong>
+                Showing <strong>{currentListData.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0}</strong> to <strong>{Math.min(currentPage * itemsPerPage, currentListData.length)}</strong> of <strong>{currentListData.length}</strong> records for <strong>
                   {activeTable === "actions" && "Action Required"}
                   {activeTable === "personal" && "Personal Trips"}
                   {activeTable === "campus" && "Campus Tours"}
@@ -1065,8 +1070,29 @@ export default function OperatorDashboard() {
                   {activeTable === "confirmations" && "Confirmations"}
                 </strong>
               </div>
-              <div className="flex items-center gap-3">
-                <span className="text-[11px] text-[#999999]">Click any other KPI card to switch view</span>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                {totalPages > 1 && (
+                  <div className="flex items-center gap-2 mr-2">
+                    <button
+                      disabled={currentPage === 1}
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      className="px-2.5 py-1.5 text-xs font-semibold text-[#1A1A1A] bg-white border border-[#EBEBEB] rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#F5F7FA] transition cursor-pointer"
+                    >
+                      Previous
+                    </button>
+                    <span className="text-[11px] font-semibold text-[#666666]">
+                      Page {currentPage} of {totalPages}
+                    </span>
+                    <button
+                      disabled={currentPage === totalPages}
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      className="px-2.5 py-1.5 text-xs font-semibold text-[#1A1A1A] bg-white border border-[#EBEBEB] rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#F5F7FA] transition cursor-pointer"
+                    >
+                      Next
+                    </button>
+                  </div>
+                )}
+                <span className="text-[11px] text-[#999999]">Click any KPI card to switch view</span>
               </div>
             </div>
 

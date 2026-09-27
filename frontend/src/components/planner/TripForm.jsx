@@ -376,6 +376,9 @@ export default function TripForm({ setTrip }) {
         if (val === "somewhere nice" || val.length < 3) {
           needsClarification = true;
           clarMsg = "Do you have a specific destination in mind, or a region you'd like to explore?";
+        } else if (nextAnswers.source && val === nextAnswers.source.trim().toLowerCase()) {
+          needsClarification = true;
+          clarMsg = `Your destination can't be the same as your origin (${nextAnswers.source}). Where would you like to travel to?`;
         } else {
           nextAnswers.destination = inputValue.trim();
         }

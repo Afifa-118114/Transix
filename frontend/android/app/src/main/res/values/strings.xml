@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Transix</string>
+    <string name="title_activity_main">Transix</string>
+    <string name="package_name">com.transix.app</string>
+    <string name="custom_url_scheme">com.transix.app</string>
+</resources>

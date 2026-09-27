@@ -12,6 +12,9 @@ const {
   generateAssistantChat,
   transcribeAssistantAudio,
   generateAssistantSpeech,
+  getNugenStatus,
+  evaluateNugen,
+  getNugenIntelligence,
 } = require("../controllers/aiController");
 
 const optionalAuth = (req, res, next) => {
@@ -53,4 +56,10 @@ router.post("/assist", optionalAuth, generateAssistantChat);
 router.post("/transcribe", optionalAuth, handleAudioUpload, transcribeAssistantAudio);
 router.post("/speak", optionalAuth, generateAssistantSpeech);
 
+// Nugen Intelligence Endpoints (HackCelestial 3.0 Mandatory Requirement)
+router.get("/nugen/status", getNugenStatus);
+router.get("/nugen/evaluate", evaluateNugen);
+router.post("/nugen/intelligence", optionalAuth, getNugenIntelligence);
+
 module.exports = router;
+

@@ -109,10 +109,10 @@ const previewDocument = asyncHandler(async (req, res) => {
         type: "upload",
       });
 
-      const cloudinaryRes = await axios.get(downloadUrl, { responseType: "stream" });
+      const cloudinaryRes = await axios.get(downloadUrl, { responseType: "arraybuffer" });
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader("Content-Disposition", "inline");
-      return cloudinaryRes.data.pipe(res);
+      return res.send(cloudinaryRes.data);
     } catch (streamErr) {
       console.error("Cloudinary stream error:", streamErr.message);
     }
@@ -121,10 +121,10 @@ const previewDocument = asyncHandler(async (req, res) => {
   // 3. Direct accessible URL fallback
   if (url && (url.startsWith("http://") || url.startsWith("https://"))) {
     try {
-      const directRes = await axios.get(url, { responseType: "stream" });
+      const directRes = await axios.get(url, { responseType: "arraybuffer" });
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader("Content-Disposition", "inline");
-      return directRes.data.pipe(res);
+      return res.send(directRes.data);
     } catch (dErr) {
       return res.redirect(url);
     }
