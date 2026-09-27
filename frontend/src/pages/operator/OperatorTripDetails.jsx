@@ -2272,31 +2272,31 @@ export default function OperatorTripDetails() {
           {/* TAB 5: ACTIVITIES & VISITS BOOKING REQUIREMENTS */}
           {activeTab === "activities" && (
             <div className="space-y-6">
-              <div className="bg-slate-900 rounded-2xl border border-slate-800 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+              <div className="bg-[#0064D2] rounded-2xl border border-blue-800 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
                 <div>
                   <h3 className="text-sm font-black uppercase tracking-wider text-white">
                     {isCampus ? "Visits & Permissions" : "Trip Activities"}
                   </h3>
-                  <p className="text-xs text-slate-400 mt-0.5">
+                  <p className="text-xs text-blue-100 mt-0.5">
                     {isCampus 
                       ? "Official institutional permissions, educational visits, and scheduled academic activities."
                       : "Operational coordination, tickets, entry passes, and vendor coordination for trip activities."}
                   </p>
                 </div>
                 <div className="flex items-center gap-2 self-start sm:self-auto">
-                  <span className="px-3 py-1 rounded-lg bg-blue-50 text-[#0064D2] dark:bg-blue-950/70 dark:text-blue-300 text-xs font-bold border border-slate-200 dark:border-slate-800">
+                  <span className="px-3 py-1 rounded-lg bg-blue-50 text-[#0064D2] dark:bg-blue-950/70 dark:text-blue-300 text-xs font-bold border border-blue-200 dark:border-slate-800">
                     {activityBookings.length} Requirement{activityBookings.length !== 1 ? "s" : ""}
                   </span>
-                  <span className="px-3 py-1 rounded-lg bg-emerald-950/70 text-emerald-300 text-xs font-bold border border-emerald-800/60">
+                  <span className="px-3 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/70 text-emerald-600 dark:text-emerald-300 text-xs font-bold border border-emerald-200 dark:border-emerald-800/60">
                     {actConfirmed} Confirmed
                   </span>
                 </div>
               </div>
 
               {activityBookings.length === 0 ? (
-                <div className="bg-slate-900 rounded-2xl border border-slate-800 p-12 text-center text-slate-400 text-xs">
-                  <FiCompass className="mx-auto text-slate-600 mb-2" size={28} />
-                  <p className="font-semibold text-slate-300">No activity booking requirements found.</p>
+                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-12 text-center text-slate-500 dark:text-slate-400 text-xs shadow-sm">
+                  <FiCompass className="mx-auto text-slate-400 dark:text-slate-600 mb-2" size={28} />
+                  <p className="font-semibold text-slate-700 dark:text-slate-300">No activity booking requirements found.</p>
                   <p className="text-slate-500 text-[11px] mt-0.5">
                     No activities or visits require operational booking for this trip.
                   </p>
@@ -2333,17 +2333,17 @@ export default function OperatorTripDetails() {
                       <div
                         key={b._id}
                         id={`activity-card-${b._id}`}
-                        className={`bg-slate-900 rounded-2xl border p-5 space-y-4 shadow-sm transition ${
+                        className={`bg-white dark:bg-slate-900 rounded-2xl border p-5 space-y-4 shadow-sm transition ${
                           isHighlighted
                             ? "border-[#0064D2] ring-2 ring-[#0064D2]/40 bg-blue-50/50 dark:bg-blue-950/20"
-                            : "border-slate-800 hover:border-slate-750"
+                            : "border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-750"
                         }`}
                       >
                         {/* Header */}
-                        <div className="flex items-start justify-between gap-3 pb-3 border-b border-slate-800">
+                        <div className="flex items-start justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-slate-800 text-slate-300 border border-slate-700">
+                              <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
                                 {b.type}
                               </span>
                               {isHighlighted && (
@@ -2352,10 +2352,10 @@ export default function OperatorTripDetails() {
                                 </span>
                               )}
                             </div>
-                            <h4 className="text-base font-extrabold text-white mt-1 leading-snug">
+                            <h4 className="text-base font-extrabold text-slate-900 dark:text-white mt-1 leading-snug">
                               {b.title}
                             </h4>
-                            <div className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
+                            <div className="text-xs text-slate-600 dark:text-slate-400 mt-0.5 flex items-center gap-1">
                               <FiMapPin size={12} className="text-[#0064D2] dark:text-blue-400 shrink-0" />
                               <span className="truncate">{b.location || trip.destination}</span>
                             </div>
@@ -2369,10 +2369,10 @@ export default function OperatorTripDetails() {
                         </div>
 
                         {/* Details Grid */}
-                        <div className="grid grid-cols-2 gap-3 text-xs bg-slate-950/70 p-3.5 rounded-xl border border-slate-800/80">
+                        <div className="grid grid-cols-2 gap-3 text-xs bg-slate-50 dark:bg-slate-950/70 p-3.5 rounded-xl border border-slate-100 dark:border-slate-800/80">
                           <div>
                             <span className="text-slate-500 font-medium block text-[10px] uppercase tracking-wider">Date & Schedule</span>
-                            <span className="font-bold text-slate-200">{dateStr}</span>
+                            <span className="font-bold text-slate-900 dark:text-slate-200">{dateStr}</span>
                             {dayNum && <span className="text-slate-500 ml-1 text-[11px]">(Day {dayNum})</span>}
                           </div>
                           <div>
@@ -2381,18 +2381,18 @@ export default function OperatorTripDetails() {
                           </div>
                           <div>
                             <span className="text-slate-500 font-medium block text-[10px] uppercase tracking-wider">Trip & Route</span>
-                            <span className="font-semibold text-slate-300 truncate block">
+                            <span className="font-semibold text-slate-900 dark:text-slate-300 truncate block">
                               {trip.organizationDetails?.name || `${trip.source} → ${trip.destination}`}
                             </span>
                           </div>
                           <div>
                             <span className="text-slate-500 font-medium block text-[10px] uppercase tracking-wider">Participants</span>
-                            <span className="font-semibold text-slate-300 truncate block">{participantsLabel}</span>
+                            <span className="font-semibold text-slate-900 dark:text-slate-300 truncate block">{participantsLabel}</span>
                           </div>
-                          <div className="col-span-2 border-t border-slate-800/80 pt-2 flex items-center justify-between">
+                          <div className="col-span-2 border-t border-slate-200 dark:border-slate-800/80 pt-2 flex items-center justify-between">
                             <div>
                               <span className="text-slate-500 font-medium block text-[10px] uppercase tracking-wider">Provider / Authority</span>
-                              <span className="font-semibold text-slate-300">
+                              <span className="font-semibold text-slate-900 dark:text-slate-300">
                                 {b.vendorName || "Direct Entry / Local Authority"}
                               </span>
                             </div>
@@ -2409,7 +2409,7 @@ export default function OperatorTripDetails() {
                             )}
                           </div>
                           {b.notes && (
-                            <div className="col-span-2 text-[11px] text-slate-400 italic pt-1 border-t border-slate-800/80">
+                            <div className="col-span-2 text-[11px] text-slate-500 dark:text-slate-400 italic pt-1 border-t border-slate-200 dark:border-slate-800/80">
                               Notes: {b.notes}
                             </div>
                           )}
@@ -2417,7 +2417,7 @@ export default function OperatorTripDetails() {
 
                         {/* Operational Action */}
                         <div className="flex items-center justify-between gap-3 pt-1">
-                          <div className="text-[11px] text-slate-400 font-medium">
+                          <div className="text-[11px] text-slate-600 dark:text-slate-400 font-medium">
                             Operational Action:
                           </div>
                           <div className="w-48">
