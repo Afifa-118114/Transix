@@ -127,10 +127,24 @@ export default function GuidePortalPage() {
     }
   }, []);
 
-  // When /guide-portal opens, ensure clean public state
+  // When /guide/portal opens, restore active session if available or load public requests
   useEffect(() => {
-    localStorage.removeItem("guideToken");
-    localStorage.removeItem("guideProfile");
+    const savedToken = localStorage.getItem("guideToken");
+    const savedProfile = localStorage.getItem("guideProfile");
+    if (savedToken && savedProfile) {
+      try {
+        const parsedProfile = JSON.parse(savedProfile);
+        if (parsedProfile?.guideId) {
+          setGuideToken(savedToken);
+          setCurrentGuide(parsedProfile);
+          loadMyRequests(savedToken, parsedProfile.guideId);
+          return;
+        }
+      } catch (e) {
+        localStorage.removeItem("guideToken");
+        localStorage.removeItem("guideProfile");
+      }
+    }
     setGuideToken("");
     setCurrentGuide(null);
     loadPublicRequests();
@@ -183,14 +197,19 @@ export default function GuidePortalPage() {
    */
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
-    if (!loginGuideId.trim()) {
-      toast.error("Please enter a Guide ID");
+    const cleanIdOrEmail = (loginGuideId || "").trim();
+    if (!cleanIdOrEmail) {
+      toast.error("Please enter a Guide ID or Email");
       return;
     }
 
     setLoggingIn(true);
     try {
-      const res = await guideLogin(loginGuideId.trim(), loginPassword);
+      const payload = cleanIdOrEmail.includes("@")
+        ? { email: cleanIdOrEmail, password: loginPassword }
+        : { guideId: cleanIdOrEmail, password: loginPassword };
+
+      const res = await guideLogin(payload);
       if (res?.success && res.token) {
         setGuideToken(res.token);
         setCurrentGuide(res.guide);

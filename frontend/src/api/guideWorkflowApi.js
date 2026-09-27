@@ -72,9 +72,22 @@ export async function searchGuideProfiles(params = {}) {
 
 /**
  * Guide Login (1-click with guideId or email/password)
+ * Accepts either an object: { guideId, password } or { email, password }
+ * or separate arguments: guideLogin(guideIdOrEmail, password)
  */
-export async function guideLogin(credentials) {
-  const res = await axios.post(`${API_BASE}/auth/login`, credentials);
+export async function guideLogin(credentialsOrGuideId, password) {
+  let payload;
+  if (typeof credentialsOrGuideId === "object" && credentialsOrGuideId !== null) {
+    payload = credentialsOrGuideId;
+  } else {
+    const idOrEmail = credentialsOrGuideId ? String(credentialsOrGuideId).trim() : "";
+    if (idOrEmail.includes("@")) {
+      payload = { email: idOrEmail, password };
+    } else {
+      payload = { guideId: idOrEmail, password };
+    }
+  }
+  const res = await axios.post(`${API_BASE}/auth/login`, payload);
   return res.data;
 }
 

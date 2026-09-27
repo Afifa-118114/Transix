@@ -10,14 +10,40 @@ const GuideRequest = require("../models/GuideRequest");
  * POST /api/guides/auth/login
  */
 const loginGuide = asyncHandler(async (req, res) => {
-  const { guideId, email, password } = req.body;
+  let { guideId, email, password } = req.body || {};
+
+  // If req.body was sent as a raw string (e.g., from raw string payload):
+  if (typeof req.body === "string" && !guideId && !email) {
+    const trimmed = req.body.trim();
+    if (trimmed.includes("@")) {
+      email = trimmed;
+    } else {
+      guideId = trimmed;
+    }
+  }
+
+  // Support alternative casing/field names
+  guideId = guideId || req.body?.guideID || req.body?.id;
+  email = email || req.body?.emailAddress;
+
+  if (guideId && typeof guideId === "string") {
+    guideId = guideId.trim();
+  }
+  if (email && typeof email === "string") {
+    email = email.trim();
+  }
 
   let guide = null;
 
   if (guideId) {
-    guide = await GuideProfile.findOne({ guideId: guideId.trim().toUpperCase() });
+    // Case-insensitive lookup (e.g., GUIDE001, guide001)
+    guide = await GuideProfile.findOne({
+      guideId: { $regex: new RegExp(`^${guideId}$`, "i") }
+    });
   } else if (email) {
-    guide = await GuideProfile.findOne({ email: email.toLowerCase().trim() });
+    guide = await GuideProfile.findOne({
+      email: { $regex: new RegExp(`^${email}$`, "i") }
+    });
   } else {
     throw new AppError("Guide ID or Email is required", 400);
   }
@@ -26,11 +52,10 @@ const loginGuide = asyncHandler(async (req, res) => {
     throw new AppError("Guide profile not found", 404);
   }
 
-  // Password verification: default accepted password is "guide123" or any custom provided
+  // Password verification: default accepted password is "guide123"
   const defaultPassword = "guide123";
   if (password && password !== defaultPassword) {
-    // In production this would check bcrypt hash if guides have individual credentials,
-    // following the vendorAuthController pattern which supports default login
+    throw new AppError("Invalid credentials. Please enter the correct password.", 401);
   }
 
   const token = jwt.sign(
