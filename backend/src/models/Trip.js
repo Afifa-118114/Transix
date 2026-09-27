@@ -173,7 +173,7 @@ const tripSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["Draft", "Generated", "Booked", "BOOKED", "Finalized", "Confirmed", "CONFIRMED"],
+      enum: ["Draft", "Generated", "Booked", "BOOKED", "Finalized", "Confirmed", "CONFIRMED", "PARTIALLY_CONFIRMED", "Partially Confirmed", "Cancelled", "CANCELLED"],
       default: "Draft",
     },
 
@@ -238,6 +238,17 @@ const tripSchema = new mongoose.Schema(
     isFallback: {
       type: Boolean,
       default: false,
+    },
+
+    aiProvenance: {
+      provider: { type: String, default: "nugen" },
+      model: { type: String, default: "transix-travel-intelligence" },
+      baseModel: { type: String, default: "qwen-v2p5-0p5b-instruct" },
+      alignedModelId: { type: String, default: "transix-travel-intelligence" },
+      confidenceScore: { type: Number, default: 94 },
+      isFallback: { type: Boolean, default: false },
+      fallbackReason: { type: String, default: null },
+      generatedAt: { type: Date, default: Date.now },
     },
 
     itinerary: {

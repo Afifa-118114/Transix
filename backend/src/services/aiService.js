@@ -1862,7 +1862,7 @@ Never claim bookings are finalized unless confirmed by the system.`;
       const res = await axios.post(
         "https://openrouter.ai/api/v1/chat/completions",
         {
-          model: "openrouter/free",
+          model: "meta-llama/llama-3.2-3b-instruct",
           messages,
           max_tokens: 350,
         },

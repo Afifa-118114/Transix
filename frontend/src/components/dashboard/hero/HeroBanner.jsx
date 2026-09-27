@@ -56,10 +56,15 @@ export default function HeroBanner({ trip, onResetTrip }) {
 
         {/* Hero Top Actions Bar */}
         <div className="absolute top-4 left-4 right-4 sm:top-5 sm:left-5 sm:right-5 flex items-center justify-between z-10">
-          <span className="inline-flex items-center gap-1.5 rounded-lg bg-white/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-white backdrop-blur-md border border-white/25 shadow-xs">
-            <span className="h-2 w-2 rounded-full bg-cyan-400 animate-pulse" />
-            Synthesized Masterplan
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 rounded-lg bg-white/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-white backdrop-blur-md border border-white/25 shadow-xs">
+              <span className="h-2 w-2 rounded-full bg-cyan-400 animate-pulse" />
+              Synthesized Masterplan
+            </span>
+            <span className="hidden sm:inline-flex items-center gap-1.5 rounded-lg bg-black/30 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-sky-200 backdrop-blur-md border border-white/15 shadow-xs" title={`AI Model: ${trip?.aiProvenance?.model || 'transix-travel-intelligence'}`}>
+              Nugen Aligned ({trip?.aiProvenance?.confidenceScore || 94}%)
+            </span>
+          </div>
 
           <div className="flex items-center gap-2">
             {onResetTrip && (

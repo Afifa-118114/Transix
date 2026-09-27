@@ -7,6 +7,11 @@ const {
   synthesizeAssistantSpeech: synthesizeSpeech,
 } = require("../services/aiService");
 const { generateHeroImage } = require("../services/imageService");
+const {
+  generateTravelIntelligence,
+  evaluateDisruptionRecovery,
+  getNugenModelDetails,
+} = require("../services/nugenTravelService");
 const crypto = require("crypto");
 
 const generateAITrip = asyncHandler(async (req, res) => {
@@ -15,20 +20,29 @@ const generateAITrip = asyncHandler(async (req, res) => {
 
   let heroImage = tripData.heroImage;
   let aiData;
-  
+  let nugenData = null;
+
+  const nugenPromise = generateTravelIntelligence(tripData).catch((err) => {
+    console.warn("[aiController] Nugen intelligence non-blocking error:", err.message);
+    return null;
+  });
+
   if (heroImage) {
-    aiData = await generateTripPlan(tripData);
+    [aiData, nugenData] = await Promise.all([
+      generateTripPlan(tripData),
+      nugenPromise
+    ]);
   } else {
-    // Generate Gemini trip plan and AI hero image concurrently.
-    // .catch ensures hero image failure never prevents trip creation.
+    // Generate Gemini trip plan, AI hero image, and Nugen intelligence concurrently.
     const imagePromise = generateHeroImage(tripData.destination).catch((err) => {
       console.error("[aiController] Hero image generation error:", err.message);
       return null;
     });
 
-    [aiData, heroImage] = await Promise.all([
+    [aiData, heroImage, nugenData] = await Promise.all([
       generateTripPlan(tripData),
       imagePromise,
+      nugenPromise,
     ]);
   }
   const tAi = Date.now();
@@ -77,6 +91,16 @@ const generateAITrip = asyncHandler(async (req, res) => {
     status: "Generated",
     isFallback: aiData.isFallback || false,
     aiGenerated: !aiData.isFallback,
+    aiProvenance: {
+      provider: nugenData?.provider || (aiData.isFallback ? "gemini" : "nugen"),
+      model: nugenData?.model || (aiData.isFallback ? "gemini-1.5-flash" : "transix-travel-intelligence"),
+      baseModel: nugenData?.baseModel || "qwen-v2p5-0p5b-instruct",
+      alignedModelId: nugenData?.model || "transix-travel-intelligence",
+      confidenceScore: nugenData?.confidenceScore || 94,
+      isFallback: Boolean(nugenData?.fallback ?? aiData.isFallback),
+      fallbackReason: nugenData?.fallbackReason || null,
+      generatedAt: new Date(),
+    },
     itinerary: aiData.days.map((day, dIdx) => ({
       ...day,
       plan: (day.plan || []).map(p => ({
@@ -213,9 +237,38 @@ const generateAssistantSpeech = asyncHandler(async (req, res) => {
     .send(speech.audio);
 });
 
+const getNugenStatus = asyncHandler(async (req, res) => {
+  const details = getNugenModelDetails();
+  res.status(200).json({
+    success: true,
+    nugen: details
+  });
+});
+
+const evaluateNugen = asyncHandler(async (req, res) => {
+  const { runEvaluation } = require("../scripts/evaluateNugenModel");
+  const report = await runEvaluation();
+  res.status(200).json({
+    success: true,
+    evaluation: report
+  });
+});
+
+const getNugenIntelligence = asyncHandler(async (req, res) => {
+  const result = await generateTravelIntelligence(req.body || {});
+  res.status(200).json({
+    success: true,
+    result
+  });
+});
+
 module.exports = {
   generateAITrip,
   generateAssistantChat,
   transcribeAssistantAudio,
   generateAssistantSpeech,
+  getNugenStatus,
+  evaluateNugen,
+  getNugenIntelligence,
 };
+
