@@ -485,10 +485,7 @@ const smartshiftSuggest = asyncHandler(async (req, res) => {
   }
 
   try {
-<<<<<<< HEAD
     const result = await generateAlternatives(trip, itemId, disruptionType);
-=======
-    const result = generateAlternatives(trip, itemId, disruptionType);
     let nugenRecovery = null;
     try {
       const { evaluateDisruptionRecovery } = require("../services/nugenTravelService");
@@ -499,8 +496,6 @@ const smartshiftSuggest = asyncHandler(async (req, res) => {
         tripContext: { destination: trip.destination, source: trip.source }
       });
     } catch (_) {}
-
->>>>>>> 51ae70a4b724084732429be840c54ad7dfcc728a
     res.status(200).json({
       success: true,
       tripId: trip._id,

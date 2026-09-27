@@ -11,12 +11,6 @@ const getModel = (explicitModel) => {
   try {
     require("dotenv").config({ override: true });
   } catch (_) {}
-<<<<<<< HEAD
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  return genAI.getGenerativeModel({
-    model: process.env.GEMINI_MODEL || "gemini-3.8-flash",
-  });
-=======
 
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
@@ -69,7 +63,6 @@ const getModel = (explicitModel) => {
       throw lastError;
     },
   };
->>>>>>> 51ae70a4b724084732429be840c54ad7dfcc728a
 };
 
 
