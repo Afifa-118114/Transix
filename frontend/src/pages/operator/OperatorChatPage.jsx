@@ -12,7 +12,8 @@ import { formatDate } from "../../utils/formatTrip";
 import OperatorSidebar from "../../components/operator/OperatorSidebar";
 import { 
   FiMessageSquare, FiSend, FiClock, FiCheckCircle, 
-  FiMenu, FiX, FiUser, FiBriefcase, FiCompass, FiArrowRight
+  FiMenu, FiX, FiUser, FiBriefcase, FiCompass, FiArrowRight,
+  FiFileText, FiDownload
 } from "react-icons/fi";
 import { GraduationCap } from "lucide-react";
 import toast from "react-hot-toast";
@@ -180,6 +181,37 @@ export default function OperatorChatPage() {
       toast.error(err.response?.data?.message || "Failed to send message");
     } finally {
       setSending(false);
+    }
+  };
+
+  const handleOpenAttachment = (attachment) => {
+    if (!attachment?.url && !attachment?.name) return;
+    const url = attachment.url;
+    if (url && url.startsWith("data:application/pdf")) {
+      try {
+        const parts = url.split(",");
+        const base64Str = parts[1];
+        const binaryStr = atob(base64Str);
+        const len = binaryStr.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+          bytes[i] = binaryStr.charCodeAt(i);
+        }
+        const blob = new Blob([bytes], { type: "application/pdf" });
+        const blobUrl = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = blobUrl;
+        link.download = attachment.name || "Transix_Travel_Dossier.pdf";
+        link.target = "_blank";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } catch (err) {
+        console.error("Failed to parse data URL PDF:", err);
+        window.open(url, "_blank");
+      }
+    } else if (url) {
+      window.open(url, "_blank");
     }
   };
 
@@ -531,7 +563,44 @@ export default function OperatorChatPage() {
                                 : "bg-white border border-[#EBEBEB] text-[#1A1A1A] rounded-bl-xs shadow-xs"
                             }`}
                           >
-                            {m.message}
+                            {m.subject && (
+                              <div className={`font-bold mb-1 pb-1 border-b text-[11px] ${
+                                isOperator ? "text-blue-100 border-blue-400/40" : "text-[#0064D2] border-slate-200"
+                              }`}>
+                                {m.subject}
+                              </div>
+                            )}
+                            <div>{m.message}</div>
+
+                            {m.attachment && Boolean(m.attachment.url || m.attachment.name) && (
+                              <div className={`mt-2.5 pt-2 border-t flex items-center justify-between gap-3 p-2.5 rounded-xl ${
+                                isOperator ? "border-white/20 bg-black/15 text-white" : "border-slate-200 bg-slate-50 text-slate-800"
+                              }`}>
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <div className="w-7 h-7 rounded-lg bg-red-500/20 text-red-500 flex items-center justify-center shrink-0">
+                                    <FiFileText size={15} />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <span className={`font-bold text-[11px] block truncate ${isOperator ? "text-white" : "text-slate-900"}`}>
+                                      {m.attachment.name || "Travel_Dossier.pdf"}
+                                    </span>
+                                    <span className={`text-[10px] block truncate ${isOperator ? "text-slate-200" : "text-slate-500"}`}>
+                                      Official Trip Dossier Booklet
+                                    </span>
+                                  </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenAttachment(m.attachment)}
+                                  className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold flex items-center gap-1 transition shrink-0 shadow-2xs cursor-pointer ${
+                                    isOperator ? "bg-white/20 hover:bg-white/30 text-white" : "bg-[#0064D2] hover:bg-[#0052B4] text-white"
+                                  }`}
+                                >
+                                  <FiDownload size={11} />
+                                  <span>View PDF</span>
+                                </button>
+                              </div>
+                            )}
                           </div>
                           <div className="text-[9.5px] text-[#94A3B8] mt-1 px-1">
                             {new Date(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}

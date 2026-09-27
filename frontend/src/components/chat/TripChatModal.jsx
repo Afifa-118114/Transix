@@ -146,6 +146,37 @@ export default function TripChatModal({
     }
   };
 
+  const handleOpenAttachment = (attachment) => {
+    if (!attachment?.url && !attachment?.name) return;
+    const url = attachment.url;
+    if (url && url.startsWith("data:application/pdf")) {
+      try {
+        const parts = url.split(",");
+        const base64Str = parts[1];
+        const binaryStr = atob(base64Str);
+        const len = binaryStr.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+          bytes[i] = binaryStr.charCodeAt(i);
+        }
+        const blob = new Blob([bytes], { type: "application/pdf" });
+        const blobUrl = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = blobUrl;
+        link.download = attachment.name || "Transix_Travel_Dossier.pdf";
+        link.target = "_blank";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } catch (err) {
+        console.error("Failed to parse data URL PDF:", err);
+        window.open(url, "_blank");
+      }
+    } else if (url) {
+      window.open(url, "_blank");
+    }
+  };
+
   const formatMessageTime = (dateStr) => {
     if (!dateStr) return "";
     const d = new Date(dateStr);
@@ -298,7 +329,7 @@ export default function TripChatModal({
                     )}
                     <div>{msg.message}</div>
 
-                    {msg.attachment && (
+                    {msg.attachment && Boolean(msg.attachment.url || msg.attachment.name) && (
                       <div className="mt-2.5 pt-2 border-t border-white/20 dark:border-slate-700/80 flex items-center justify-between gap-3 bg-black/15 dark:bg-black/30 p-2.5 rounded-xl">
                         <div className="flex items-center gap-2 min-w-0">
                           <div className="w-7 h-7 rounded-lg bg-red-500/20 text-red-400 flex items-center justify-center shrink-0">
@@ -313,16 +344,14 @@ export default function TripChatModal({
                             </span>
                           </div>
                         </div>
-                        <a
-                          href={msg.attachment.url}
-                          download={msg.attachment.name || "Travel_Dossier.pdf"}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="px-2.5 py-1.5 rounded-lg bg-white/20 hover:bg-white/30 text-[11px] font-bold text-white flex items-center gap-1 transition shrink-0 shadow-2xs"
+                        <button
+                          type="button"
+                          onClick={() => handleOpenAttachment(msg.attachment)}
+                          className="px-2.5 py-1.5 rounded-lg bg-white/20 hover:bg-white/30 text-[11px] font-bold text-white flex items-center gap-1 transition shrink-0 shadow-2xs cursor-pointer"
                         >
                           <FiDownload size={11} />
-                          <span>View</span>
-                        </a>
+                          <span>View PDF</span>
+                        </button>
                       </div>
                     )}
                   </div>

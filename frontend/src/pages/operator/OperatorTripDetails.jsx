@@ -1004,6 +1004,7 @@ export default function OperatorTripDetails() {
           <OperatorAutoBookCard
             trip={trip}
             bookings={bookings}
+            messages={messages}
             onBookingSuccess={(data) => {
               fetchTrip();
             }}
