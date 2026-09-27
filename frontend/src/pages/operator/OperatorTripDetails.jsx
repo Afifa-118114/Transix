@@ -1475,11 +1475,11 @@ export default function OperatorTripDetails() {
           {/* TAB 5: TRANSPORT LEGS */}
           {activeTab === "transport" && (
             <div className="space-y-4">
-              <div className="bg-slate-900 rounded-2xl border border-slate-800 p-4">
+              <div className="bg-[#0064D2] rounded-2xl border border-blue-800 p-4">
                 <h3 className="text-xs font-black uppercase tracking-wider text-white">
                   Transport Legs & Transit Connections
                 </h3>
-                <p className="text-[11px] text-slate-400">
+                <p className="text-[11px] text-blue-100">
                   Trains, flights, and long-distance transfers mapped to the itinerary.
                 </p>
               </div>
@@ -1489,7 +1489,7 @@ export default function OperatorTripDetails() {
                 /* Campus Trip: EXACTLY TWO intercity cards (OUTBOUND and RETURN) regardless of mode combination */
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
                       INTERCITY TRANSIT (CAMPUS OUTBOUND & RETURN)
                     </div>
                     <span className="text-[10px] font-bold text-[#0064D2] dark:text-blue-400 uppercase tracking-wider">
@@ -1499,37 +1499,37 @@ export default function OperatorTripDetails() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {campusIntercityCards.map((card) => (
-                      <div key={card.direction} className="bg-slate-900 p-5 rounded-2xl border border-slate-800 shadow-xs flex flex-col justify-between gap-4">
+                      <div key={card.direction} className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between gap-4">
                         <div>
                           <div className="flex items-center justify-between gap-2 mb-2">
                             <span className={`px-2 py-0.5 text-[10px] font-black rounded uppercase tracking-wider border ${
                               card.direction === "OUTBOUND"
-                                ? "bg-blue-50 text-[#0064D2] dark:bg-blue-950/70 dark:text-blue-300 border-slate-200 dark:border-slate-800"
-                                : "bg-purple-950/70 text-purple-300 border-purple-800/60"
+                                ? "bg-blue-50 text-[#0064D2] dark:bg-blue-950/70 dark:text-blue-300 border-blue-200 dark:border-slate-800"
+                                : "bg-purple-50 text-purple-600 dark:bg-purple-950/70 dark:text-purple-300 border-purple-200 dark:border-purple-800/60"
                             }`}>
                               {card.direction}
                             </span>
-                            <span className="px-2 py-0.5 bg-slate-800 text-slate-300 text-[10px] font-bold rounded uppercase tracking-wider border border-slate-700">
+                            <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-bold rounded uppercase tracking-wider border border-slate-200 dark:border-slate-700">
                               {card.mode}
                             </span>
                           </div>
 
-                          <div className="font-bold text-white text-base flex items-center gap-2 mt-1">
+                          <div className="font-bold text-slate-900 dark:text-white text-base flex items-center gap-2 mt-1">
                             <span>{card.from}</span>
                             <FiArrowRight className="text-[#0064D2] dark:text-blue-400 shrink-0" />
                             <span>{card.to}</span>
                           </div>
 
-                          <div className="text-xs text-slate-400 mt-2.5 font-medium space-y-1 bg-slate-950/50 p-2.5 rounded-xl border border-slate-800/60">
-                            <div>Date: <span className="text-slate-300 font-semibold">{card.date}</span></div>
-                            <div>Timing: <span className="text-slate-300 font-semibold">{card.departureTime} – {card.arrivalTime}</span></div>
-                            <div>Carrier: <span className="text-slate-300 font-mono font-semibold">{card.carrierInfo}</span></div>
+                          <div className="text-xs text-slate-600 dark:text-slate-400 mt-2.5 font-medium space-y-1 bg-slate-50 dark:bg-slate-950/50 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800/60">
+                            <div>Date: <span className="text-slate-900 dark:text-slate-300 font-semibold">{card.date}</span></div>
+                            <div>Timing: <span className="text-slate-900 dark:text-slate-300 font-semibold">{card.departureTime} – {card.arrivalTime}</span></div>
+                            <div>Carrier: <span className="text-slate-900 dark:text-slate-300 font-mono font-semibold">{card.carrierInfo}</span></div>
                           </div>
                         </div>
 
-                        <div className="pt-3 border-t border-slate-800 flex items-center justify-between text-xs">
+                        <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
                           <span className="text-slate-500 font-medium">Canonical Intercity Leg</span>
-                          <span className="text-emerald-400 font-bold flex items-center gap-1">
+                          <span className="text-emerald-500 font-bold flex items-center gap-1">
                             <FiCheck size={12} /> Scheduled
                           </span>
                         </div>
@@ -1541,15 +1541,15 @@ export default function OperatorTripDetails() {
                 /* Personal Trip: Retain existing 4-card door-to-door transit structure */
                 Array.isArray(trip.travelLegs) && trip.travelLegs.length > 0 && (
                   <div className="space-y-3">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
                       DOOR-TO-DOOR TRANSIT LEGS (PERSONAL)
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {trip.travelLegs.map((leg, i) => (
-                        <div key={i} className="bg-slate-900 p-5 rounded-2xl border border-slate-800 shadow-xs flex flex-col justify-between gap-4">
+                        <div key={i} className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between gap-4">
                           <div>
                             <div className="flex items-center justify-between gap-2 mb-2">
-                              <span className="px-2 py-0.5 bg-blue-50 text-[#0064D2] dark:bg-blue-950/70 dark:text-blue-300 text-[10px] font-black rounded uppercase tracking-wider border border-slate-200 dark:border-slate-800">
+                              <span className="px-2 py-0.5 bg-blue-50 text-[#0064D2] dark:bg-blue-950/70 dark:text-blue-300 text-[10px] font-black rounded uppercase tracking-wider border border-blue-200 dark:border-slate-800">
                                 {leg.mode || "Transit"}
                               </span>
                               <span className="text-xs font-bold text-slate-400">
@@ -1557,24 +1557,24 @@ export default function OperatorTripDetails() {
                               </span>
                             </div>
 
-                            <div className="font-bold text-white text-sm flex items-center gap-2">
+                            <div className="font-bold text-slate-900 dark:text-white text-sm flex items-center gap-2">
                               <span>{leg.from}</span>
                               <FiArrowRight className="text-[#0064D2] dark:text-blue-400 shrink-0" />
                               <span>{leg.to}</span>
                             </div>
 
-                            <div className="text-xs text-slate-400 mt-2 font-medium space-y-0.5">
-                              {leg.date && <div>Date: <span className="text-slate-300">{leg.date}</span></div>}
+                            <div className="text-xs text-slate-600 dark:text-slate-400 mt-2 font-medium space-y-0.5">
+                              {leg.date && <div>Date: <span className="text-slate-900 dark:text-slate-300">{leg.date}</span></div>}
                               {(leg.startTime || leg.endTime) && (
-                                <div>Time: <span className="text-slate-300">{leg.startTime} – {leg.endTime}</span></div>
+                                <div>Time: <span className="text-slate-900 dark:text-slate-300">{leg.startTime} – {leg.endTime}</span></div>
                               )}
-                              {leg.trainNumber && <div>Train/Flight: <span className="text-slate-300 font-mono">{leg.trainNumber}</span></div>}
+                              {leg.trainNumber && <div>Train/Flight: <span className="text-slate-900 dark:text-slate-300 font-mono">{leg.trainNumber}</span></div>}
                             </div>
                           </div>
 
-                          <div className="pt-3 border-t border-slate-800 flex items-center justify-between text-xs">
+                          <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
                             <span className="text-slate-500 font-medium">Canonical Itinerary Leg</span>
-                            <span className="text-emerald-400 font-bold flex items-center gap-1">
+                            <span className="text-emerald-500 font-bold flex items-center gap-1">
                               <FiCheck size={12} /> Scheduled
                             </span>
                           </div>

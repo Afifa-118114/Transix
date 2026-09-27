@@ -278,24 +278,7 @@ export default function OperatorSidebar({ personalCount, campusCount, pendingCou
 
       {/* Sidebar Footer — Dark Mode Option & Logout Action */}
       <div className="p-3 border-t border-[#EDF2F7] bg-white flex-shrink-0 space-y-1.5">
-        <button
-          type="button"
-          onClick={toggleTheme}
-          className="w-full flex items-center justify-between px-3 py-2 text-[12px] font-medium text-[#4A5568] hover:text-[#1A202C] hover:bg-[#F7F8FA] rounded-lg transition-all duration-150 border border-[#EDF2F7] hover:border-[#E2E8F0]"
-          aria-label="Toggle dark mode option"
-        >
-          <span className="flex items-center gap-2.5">
-            {isDark ? (
-              <FiSun size={15} className="text-amber-500" />
-            ) : (
-              <FiMoon size={15} className="text-[#718096]" />
-            )}
-            <span>{isDark ? "Light Mode" : "Dark Mode Option"}</span>
-          </span>
-          <span className="text-[10px] text-[#A0AEC0] font-mono">
-            {isDark ? "Dark ON" : "Default"}
-          </span>
-        </button>
+
 
         <button
           type="button"
