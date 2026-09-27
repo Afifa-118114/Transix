@@ -2442,16 +2442,16 @@ export default function OperatorTripDetails() {
             <div className="space-y-6">
               {/* If Traveler chose NOT to request a guide */}
               {(!trip.guideRequirement || trip.guideRequirement.required === false) ? (
-                <div className="bg-slate-900 rounded-2xl border border-slate-800 p-12 text-center space-y-3">
-                  <div className="w-14 h-14 rounded-2xl bg-slate-800 text-slate-400 flex items-center justify-center mx-auto mb-2 border border-slate-700">
+                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-12 text-center space-y-3 shadow-sm">
+                  <div className="w-14 h-14 rounded-2xl bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 flex items-center justify-center mx-auto mb-2 border border-slate-200 dark:border-slate-700">
                     <FiCompass size={28} />
                   </div>
-                  <h3 className="text-base font-black text-white uppercase tracking-tight">Guide Not Required</h3>
-                  <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
+                  <h3 className="text-base font-black text-slate-900 dark:text-white uppercase tracking-tight">Guide Not Required</h3>
+                  <p className="text-xs text-slate-600 dark:text-slate-400 max-w-md mx-auto leading-relaxed">
                     This traveler has chosen not to request a guide for this trip.
                   </p>
                   <div className="pt-2">
-                    <span className="px-3 py-1 rounded-lg bg-slate-800 text-slate-400 text-[11px] font-bold border border-slate-700">
+                    <span className="px-3 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[11px] font-bold border border-slate-200 dark:border-slate-700">
                       Requirement: No guide required
                     </span>
                   </div>
@@ -2460,8 +2460,8 @@ export default function OperatorTripDetails() {
                 /* Traveler Requested a Guide: Show Requirement + Geographic Matches + Requests + Selection */
                 <div className="space-y-6">
                   {/* Top Bar: Requirement Summary */}
-                  <div className="bg-slate-900 rounded-2xl border border-slate-800 p-5 shadow-sm space-y-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
+                  <div className="bg-[#0064D2] rounded-2xl border border-blue-800 p-5 shadow-sm space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-blue-700/50">
                       <div>
                         <div className="flex items-center gap-2">
                           <h3 className="text-sm font-black uppercase tracking-wider text-white">
@@ -2469,15 +2469,15 @@ export default function OperatorTripDetails() {
                           </h3>
                           <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${
                             trip.guideRequirement.status === "confirmed"
-                              ? "bg-emerald-950 text-emerald-300 border-emerald-700"
+                              ? "bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-700"
                               : trip.guideRequirement.status === "guide_selected"
-                              ? "bg-blue-50 text-[#0064D2] dark:bg-blue-950 dark:text-blue-300 border-slate-200 dark:border-slate-800"
-                              : "bg-amber-950 text-amber-300 border-amber-700"
+                              ? "bg-blue-50 text-[#0064D2] dark:bg-blue-950 dark:text-blue-300 border-blue-200 dark:border-slate-800"
+                              : "bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-700"
                           }`}>
                             {trip.guideRequirement.status?.replace("_", " ") || "Pending"}
                           </span>
                         </div>
-                        <p className="text-xs text-slate-400 mt-0.5">
+                        <p className="text-xs text-blue-100 mt-0.5">
                           Traveler requested professional guide coordination for this itinerary.
                         </p>
                       </div>
@@ -2486,36 +2486,36 @@ export default function OperatorTripDetails() {
                         type="button"
                         onClick={fetchGuideData}
                         disabled={loadingMatchedGuides}
-                        className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition flex items-center gap-1.5 self-start sm:self-auto"
+                        className="px-3 py-1.5 rounded-xl bg-blue-900/40 hover:bg-blue-900/60 text-white text-xs font-bold transition flex items-center gap-1.5 self-start sm:self-auto border border-blue-700/50"
                       >
                         <FiRefreshCw size={12} className={loadingMatchedGuides ? "animate-spin" : ""} />
                         <span>Refresh Matches</span>
                       </button>
                     </div>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs bg-slate-950/70 p-4 rounded-xl border border-slate-800/80">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs bg-white/10 p-4 rounded-xl border border-blue-700/30">
                       <div>
-                        <span className="text-slate-500 font-medium block text-[10px] uppercase tracking-wider">Number of Guides</span>
+                        <span className="text-blue-200 font-medium block text-[10px] uppercase tracking-wider">Number of Guides</span>
                         <span className="font-extrabold text-white text-sm">
                           {trip.guideRequirement.numberOfGuides || "1"} {Number(trip.guideRequirement.numberOfGuides) === 1 ? "Guide" : "Guides"}
                         </span>
                       </div>
                       <div>
-                        <span className="text-slate-500 font-medium block text-[10px] uppercase tracking-wider">Gender Preference</span>
+                        <span className="text-blue-200 font-medium block text-[10px] uppercase tracking-wider">Gender Preference</span>
                         <span className="font-extrabold text-white text-sm">
                           {trip.guideRequirement.genderPreference || "Either"}
                         </span>
                       </div>
                       <div className="sm:col-span-2">
-                        <span className="text-slate-500 font-medium block text-[10px] uppercase tracking-wider">Preferred Languages</span>
-                        <span className="font-semibold text-slate-200">
+                        <span className="text-blue-200 font-medium block text-[10px] uppercase tracking-wider">Preferred Languages</span>
+                        <span className="font-semibold text-white">
                           {(trip.guideRequirement.preferredLanguages || []).join(", ") || "English, Hindi"}
                         </span>
                       </div>
                       {trip.guideRequirement.specialNotes && (
-                        <div className="col-span-2 sm:col-span-4 pt-2 border-t border-slate-800/60">
-                          <span className="text-slate-500 font-medium block text-[10px] uppercase tracking-wider">Special Notes / Requirements</span>
-                          <p className="text-slate-300 italic mt-0.5">"{trip.guideRequirement.specialNotes}"</p>
+                        <div className="col-span-2 sm:col-span-4 pt-2 border-t border-blue-700/30">
+                          <span className="text-blue-200 font-medium block text-[10px] uppercase tracking-wider">Special Notes / Requirements</span>
+                          <p className="text-blue-50 italic mt-0.5">"{trip.guideRequirement.specialNotes}"</p>
                         </div>
                       )}
                     </div>
