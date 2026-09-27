@@ -173,7 +173,6 @@ const tripSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["Draft", "Generated", "Booked", "BOOKED", "Finalized", "Confirmed", "CONFIRMED", "PARTIALLY_CONFIRMED", "Partially Confirmed", "Cancelled", "CANCELLED"],
       default: "Draft",
     },
 

@@ -1078,6 +1078,7 @@ Your travel calendar (${calendarEvents.length} events) and trip document are als
       bookedBy: 'OPERATOR',
       operatorId,
       operatorName,
+      status: overallStatus,
       masterTripCode: `TRX-${trip._id.toString().slice(-6).toUpperCase()}`,
       confirmedBookings,
       calendarEvents,
@@ -1092,7 +1093,7 @@ Your travel calendar (${calendarEvents.length} events) and trip document are als
     };
 
     trip.isBooked = true;
-    trip.status = overallStatus;
+    trip.status = 'CONFIRMED';
     trip.operatorAccess = {
       enabled: true,
       operatorId,

@@ -47,7 +47,7 @@ export default function OperatorAutoBookCard({
   const [emailDeliveryStatus, setEmailDeliveryStatus] = useState("IDLE"); // "IDLE" | "SENDING" | "SENT" | "FAILED"
 
   const isBooked = Boolean(trip?.isBooked || trip?.status === "BOOKED" || trip?.status === "CONFIRMED" || trip?.status === "PARTIALLY_CONFIRMED");
-  const isPartiallyConfirmed = trip?.status === "PARTIALLY_CONFIRMED";
+  const isPartiallyConfirmed = trip?.status === "PARTIALLY_CONFIRMED" || trip?.bookingSummary?.status === "PARTIALLY_CONFIRMED" || (Array.isArray(trip?.bookingSummary?.pendingComponents) && trip.bookingSummary.pendingComponents.length > 0);
 
   const hasDossierSent = useMemo(() => {
     if (Array.isArray(trip?.messages)) {
