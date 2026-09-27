@@ -2703,12 +2703,12 @@ export default function OperatorTripDetails() {
                     </div>
 
                     {loadingMatchedGuides ? (
-                      <div className="bg-slate-900 rounded-2xl border border-slate-800 p-12 text-center text-slate-400 text-xs">
+                      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-12 text-center text-slate-500 dark:text-slate-400 text-xs shadow-sm">
                         <FiRefreshCw className="animate-spin mx-auto text-[#0064D2] dark:text-blue-500 mb-2" size={24} />
                         <span>Searching 100 Guide Profiles in MongoDB...</span>
                       </div>
                     ) : matchedGuidesData.guides.length === 0 ? (
-                      <div className="bg-slate-900 rounded-2xl border border-slate-800 p-8 text-center text-slate-400 text-xs">
+                      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 text-center text-slate-500 dark:text-slate-400 text-xs shadow-sm">
                         No guides found matching this specific geographic route.
                       </div>
                     ) : (
@@ -2720,19 +2720,19 @@ export default function OperatorTripDetails() {
                           return (
                             <div
                               key={guide.guideId}
-                              className="bg-slate-900 rounded-2xl border border-slate-800 hover:border-slate-750 p-5 space-y-4 shadow-sm transition flex flex-col justify-between"
+                              className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-750 p-5 space-y-4 shadow-sm transition flex flex-col justify-between"
                             >
                               <div className="space-y-3">
                                 {/* Guide Header */}
                                 <div className="flex items-start justify-between gap-3">
                                   <div>
                                     <div className="flex items-center gap-2">
-                                      <h5 className="text-base font-black text-white">{guide.fullName}</h5>
-                                      <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-teal-950/80 text-teal-300 border border-teal-800/80">
+                                      <h5 className="text-base font-black text-slate-900 dark:text-white">{guide.fullName}</h5>
+                                      <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-600 border border-emerald-200 dark:bg-teal-950/80 dark:text-teal-300 dark:border-teal-800/80">
                                         Verified ✓
                                       </span>
                                     </div>
-                                    <div className="text-xs text-slate-400 mt-0.5 flex items-center gap-2">
+                                    <div className="text-xs text-slate-600 dark:text-slate-400 mt-0.5 flex items-center gap-2">
                                       <span className="text-[#0064D2] dark:text-blue-400 font-bold">{guide.primaryRegion}</span>
                                       <span>•</span>
                                       <span className="font-mono text-slate-500">{guide.guideId}</span>
@@ -2740,8 +2740,8 @@ export default function OperatorTripDetails() {
                                   </div>
 
                                   <div className="text-right">
-                                    <span className="text-[10px] font-bold text-slate-400 block">Experience</span>
-                                    <span className="text-xs font-extrabold text-slate-200">{guide.guidingExperience}</span>
+                                    <span className="text-[10px] font-bold text-slate-500 block">Experience</span>
+                                    <span className="text-xs font-extrabold text-slate-900 dark:text-slate-200">{guide.guidingExperience}</span>
                                   </div>
                                 </div>
 
@@ -2755,8 +2755,8 @@ export default function OperatorTripDetails() {
                                         key={st}
                                         className={`px-2 py-0.5 rounded font-bold ${
                                           isMatch
-                                            ? "bg-blue-50 text-[#0064D2] dark:bg-blue-950 dark:text-blue-300 border border-slate-200 dark:border-slate-800"
-                                            : "bg-slate-800 text-slate-400"
+                                            ? "bg-blue-50 text-[#0064D2] dark:bg-blue-950 dark:text-blue-300 border border-blue-200 dark:border-slate-800"
+                                            : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-transparent"
                                         }`}
                                       >
                                         {st}
@@ -2766,16 +2766,16 @@ export default function OperatorTripDetails() {
                                 </div>
 
                                 {/* Languages & Availability */}
-                                <div className="grid grid-cols-2 gap-2 text-xs bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/70">
+                                <div className="grid grid-cols-2 gap-2 text-xs bg-slate-50 dark:bg-slate-950/60 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800/70">
                                   <div>
                                     <span className="text-slate-500 text-[10px] block font-medium">Languages</span>
-                                    <span className="font-semibold text-slate-300 truncate block">
+                                    <span className="font-semibold text-slate-900 dark:text-slate-300 truncate block">
                                       {(guide.languages || []).join(", ")}
                                     </span>
                                   </div>
                                   <div>
                                     <span className="text-slate-500 text-[10px] block font-medium">Group Size</span>
-                                    <span className="font-semibold text-slate-300 truncate block">
+                                    <span className="font-semibold text-slate-900 dark:text-slate-300 truncate block">
                                       {guide.preferredGroupSize || "Any"}
                                     </span>
                                   </div>
@@ -2783,20 +2783,20 @@ export default function OperatorTripDetails() {
 
                                 {/* Bio snippet */}
                                 {guide.bio && (
-                                  <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed italic">
+                                  <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2 leading-relaxed italic">
                                     "{guide.bio}"
                                   </p>
                                 )}
                               </div>
 
                               {/* Request Button */}
-                              <div className="pt-3 border-t border-slate-800 flex items-center justify-between">
+                              <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
                                 <span className="text-[11px] text-slate-500 font-medium">
-                                  Availability: <span className="text-slate-300 font-bold">{guide.availability}</span>
+                                  Availability: <span className="text-slate-900 dark:text-slate-300 font-bold">{guide.availability}</span>
                                 </span>
 
                                 {isAlreadyRequested ? (
-                                  <span className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-slate-800 text-emerald-400 border border-slate-700 flex items-center gap-1.5">
+                                  <span className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 border border-slate-200 dark:border-slate-700 flex items-center gap-1.5">
                                     <FiCheck size={13} />
                                     <span>Request Sent</span>
                                   </span>
