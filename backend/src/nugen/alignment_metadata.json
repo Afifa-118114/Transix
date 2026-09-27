@@ -1,0 +1,25 @@
+{
+  "alignmentName": "transix-travel-intelligence",
+  "baseModelId": "llama-v3p2-3b-reasoning",
+  "alignedModelId": "transix-travel-intelligence",
+  "alignmentProjectId": "alignment_01m3g39y82ra1d20",
+  "documentId": "document_01m3g38x5mp4kjjz",
+  "benchmarkId": "benchmark_01m3g395551zqc8j",
+  "benchmarkIdJson": "benchmark_01m3g395azqc66e1",
+  "corpusFile": "transix_travel_corpus.md",
+  "benchmarkFile": "transix_travel_benchmark.json",
+  "benchmarkSamples": 10,
+  "domainTarget": "Transix Travel Operations, Hard Transport Constraints & Disruption Recovery",
+  "cookbookReference": "https://github.com/nugen-in/nugen-cookbook",
+  "creator": "ansarifauzanfarooque@gmail.com",
+  "status": "READY",
+  "timestamp": "2026-09-27T00:12:17Z",
+  "evaluationCriteria": [
+    "Intercity Transport Immobility Preservation",
+    "Geographic Stay Clustering & Backtracking Elimination",
+    "Strict Financial Adherence (10% Safety Buffer)",
+    "Persona-Aware Pacing (Family / Campus / Adventure)",
+    "Deterministic Weather & Delay Disruption Recovery",
+    "Standard Hotel Check-In / Check-Out Window Compliance"
+  ]
+}

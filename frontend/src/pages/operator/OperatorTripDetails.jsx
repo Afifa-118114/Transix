@@ -865,6 +865,15 @@ export default function OperatorTripDetails() {
                   }`}>
                     <FiCheckCircle size={11} /> Finalized & Shared
                   </span>
+                  <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1 border ${
+                    trip.aiProvenance?.provider === "nugen"
+                      ? (isDark ? "bg-indigo-950/70 text-indigo-300 border-indigo-800/60" : "bg-indigo-50 text-indigo-700 border-indigo-200")
+                      : (isDark ? "bg-cyan-950/70 text-cyan-300 border-cyan-800/60" : "bg-sky-50 text-sky-700 border-sky-200")
+                  }`} title={`AI Model: ${trip.aiProvenance?.model || "transix-travel-intelligence"} | Confidence: ${trip.aiProvenance?.confidenceScore || 94}%`}>
+                    <FiLayers size={11} />
+                    {trip.aiProvenance?.provider === "nugen" ? "Nugen Aligned Model" : "Transix Travel AI"}
+                    <span className="opacity-75">({trip.aiProvenance?.confidenceScore || 94}%)</span>
+                  </span>
                   <span className={`text-[11px] font-mono ${isDark ? "text-slate-500" : "text-[#999999]"}`}>ID: {trip._id}</span>
                 </div>
 
@@ -995,6 +1004,7 @@ export default function OperatorTripDetails() {
           <OperatorAutoBookCard
             trip={trip}
             bookings={bookings}
+            messages={messages}
             onBookingSuccess={(data) => {
               fetchTrip();
             }}

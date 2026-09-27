@@ -1,14 +1,68 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const axios = require("axios");
 
-const getModel = () => {
+const FALLBACK_GEMINI_MODELS = [
+  "gemini-3.8-flash",
+  "gemini-3.6-flash",
+  "gemini-flash-latest",
+];
+
+const getModel = (explicitModel) => {
   try {
-    require("dotenv").config();
+    require("dotenv").config({ override: true });
   } catch (_) {}
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  return genAI.getGenerativeModel({
-    model: process.env.GEMINI_MODEL || "gemini-1.5-flash",
-  });
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY is not configured in environment or .env file.");
+  }
+
+  const genAI = new GoogleGenerativeAI(apiKey);
+
+  let preferredModel = explicitModel || process.env.GEMINI_MODEL;
+  if (
+    !preferredModel ||
+    preferredModel.includes("1.5") ||
+    preferredModel.includes("2.5")
+  ) {
+    preferredModel = "gemini-3.8-flash";
+  }
+
+  const candidateModels = [
+    preferredModel,
+    ...FALLBACK_GEMINI_MODELS.filter((m) => m !== preferredModel),
+  ];
+
+  return {
+    modelName: preferredModel,
+    async generateContent(promptOrContent) {
+      let lastError = null;
+
+      for (let i = 0; i < candidateModels.length; i++) {
+        const currentModelName = candidateModels[i];
+        try {
+          const modelInstance = genAI.getGenerativeModel({ model: currentModelName });
+          const response = await modelInstance.generateContent(promptOrContent);
+          return response;
+        } catch (err) {
+          lastError = err;
+          const msg = String(err?.message || "");
+          const isModelNotFound = msg.includes("404") || msg.includes("not found") || msg.includes("is no longer available");
+          const isQuota = msg.includes("429") || msg.includes("quota") || msg.includes("RESOURCE_EXHAUSTED");
+
+          console.warn(`[Transix AI] Model "${currentModelName}" failed: ${msg}.`);
+
+          if (i < candidateModels.length - 1 && (isModelNotFound || isQuota)) {
+            console.log(`[Transix AI] Automatically falling back to "${candidateModels[i + 1]}"...`);
+            continue;
+          }
+          throw err;
+        }
+      }
+
+      throw lastError;
+    },
+  };
 };
 
 
@@ -1808,7 +1862,7 @@ Never claim bookings are finalized unless confirmed by the system.`;
       const res = await axios.post(
         "https://openrouter.ai/api/v1/chat/completions",
         {
-          model: "openrouter/free",
+          model: "meta-llama/llama-3.2-3b-instruct",
           messages,
           max_tokens: 350,
         },
